@@ -1,4 +1,4 @@
-const WEB_APP_VERSION="0.2.5";
+const WEB_APP_VERSION="0.2.6";
 const c=window.COLLECTISH_CONFIG,K="collectishSession",$=id=>document.getElementById(id);
 const session=()=>JSON.parse(localStorage.getItem(K)||"null"),save=s=>s?localStorage.setItem(K,JSON.stringify(s)):localStorage.removeItem(K);
 const H=t=>({"apikey":c.publishableKey,"Authorization":`Bearer ${t||c.publishableKey}`,"Content-Type":"application/json"});
@@ -96,6 +96,23 @@ async function analytics(){
   chart("qtyChart",agg.map(x=>({d:x.d,v:x.q})),v=>Math.round(v).toLocaleString());chart("priceChart",agg.map(x=>({d:x.d,v:x.p??0})),money);
   if(ss.length>=2){const prev=new Map((byScan.get(ss.at(-2).scan_id)||[]).map(r=>[r.sku_id,r])),cur=byScan.get(ss.at(-1).scan_id)||[];const m=[];for(const r of cur){const p=prev.get(r.sku_id);if(!p)continue;m.push({r,qd:Number(r.direct_available||0)-Number(p.direct_available||0),pd:Number(r.direct_low||0)-Number(p.direct_low||0)})}m.sort((a,b)=>Math.abs(b.qd)-Math.abs(a.qd));$("movers").innerHTML=m.slice(0,20).map(x=>`<tr><td>${x.r.product_name}</td><td>${x.qd>0?"+":""}${x.qd}</td><td>${x.pd>0?"+":""}$${x.pd.toFixed(2)}</td></tr>`).join("")}
 }
+
+function etaText(v){
+  const s=Number(v);
+  if(!Number.isFinite(s)||s<=0)return "";
+  if(s<60)return `~${Math.round(s)}s`;
+  const m=Math.floor(s/60),r=Math.round(s%60);
+  return `~${m}m ${r}s`;
+}
+function requestProgressHtml(x){
+  if(x.status!=="running")return "";
+  const p=x.progress_json||{},pct=Math.max(0,Math.min(100,Number(p.percent||0)));
+  return `<div class="request-progress">
+    <div class="request-progress-head"><span>${p.detail||p.stage||"Running…"}</span><b>${Math.round(pct)}%</b></div>
+    <progress max="100" value="${pct}"></progress>
+    <div class="meta">${[p.stage?`Stage: ${p.stage}`:"",etaText(p.etaSec)?`ETA ${etaText(p.etaSec)}`:""].filter(Boolean).join(" • ")}</div>
+  </div>`;
+}
 async function load(){
   showActivity("Refreshing dashboard","Loading scans, PC status, and requests…");
   try{
@@ -147,7 +164,7 @@ async function load(){
       await analytics();
     }
 
-    $("commands").innerHTML=cmd.map(x=>`<div class=command><div><div class=title>${x.profile_json?.setName||x.profile_json?.setSlug}</div><div class=meta>${dt(x.requested_at)} • ${x.status}${x.error_message?" • "+x.error_message:""}</div></div></div>`).join("");
+    $("commands").innerHTML=cmd.map(x=>`<div class=command><div><div class=title>${x.profile_json?.setName||x.profile_json?.setSlug}</div><div class=meta>${dt(x.requested_at)} • ${x.status}${x.error_message?" • "+x.error_message:""}</div>${requestProgressHtml(x)}</div></div>`).join("");
 
     $("scans").innerHTML=scans.slice(0,20).map(s=>`<div class=scan><div><div class=title>${s.set_name}</div><div class=meta>${s.printing} / ${s.condition} / ${s.language} • ${dt(s.captured_at)}</div></div><div>${s.unique_skus} SKUs<br><span class=meta>${s.hot_count} HOT / ${s.watch_count} WATCH</span></div></div>`).join("");
 
@@ -189,6 +206,6 @@ setInterval(async()=>{
     ]);
     const d=dev[0],on=d&&Date.now()-new Date(d.last_seen_at).getTime()<300000;
     $("device").innerHTML=d?`<b>${on?"Online":"Offline"}</b> • ${d.device_name||"PC"} • ${dt(d.last_seen_at)}`:"No heartbeat yet";
-    $("commands").innerHTML=cmd.map(x=>`<div class=command><div><div class=title>${x.profile_json?.setName||x.profile_json?.setSlug}</div><div class=meta>${dt(x.requested_at)} • ${x.status}${x.error_message?" • "+x.error_message:""}</div></div></div>`).join("");
+    $("commands").innerHTML=cmd.map(x=>`<div class=command><div><div class=title>${x.profile_json?.setName||x.profile_json?.setSlug}</div><div class=meta>${dt(x.requested_at)} • ${x.status}${x.error_message?" • "+x.error_message:""}</div>${requestProgressHtml(x)}</div></div>`).join("");
   }catch(e){}
 },15000);
