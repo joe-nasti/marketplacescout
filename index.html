@@ -1,1 +1,32 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#2457d6"><link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="styles.css"><title>Collectish Scout</title></head><body><main><header><div><h1>collectish marketplace scout</h1><p>shared scans + PC remote control</p></div></header><section id="login" class="card"><h2>Sign in</h2><div class="grid"><input id="email" type="email" placeholder="Email"><input id="password" type="password" placeholder="Password"><button id="signIn" class="primary">Sign in</button></div><div id="msg"></div></section><div id="app" hidden><section class="stats" id="stats"></section><section class="card"><div class="toolbar"><h2>PC status</h2><button id="refresh">Refresh</button></div><div id="device"></div></section><section class="card"><div class="toolbar"><h2>Scan profiles</h2><button id="signOut">Sign out</button></div><div id="profiles"></div></section><section class="card"><h2>Requests</h2><div id="commands"></div></section><section class="card"><h2>Latest scans</h2><div id="scans"></div></section></div></main><script src="config.js"></script><script src="app.js"></script></body></html>
+<!doctype html><html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#2457d6"><link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css"><title>Collectish Scout</title></head><body><main>
+<header><div><h1>collectish marketplace scout</h1><p>shared scans + PC remote control</p></div></header>
+<section id="login" class="card"><h2>Sign in</h2><div class="grid"><input id="email" type="email" placeholder="Email"><input id="password" type="password" placeholder="Password"><button id="signIn" class="primary">Sign in</button></div><div id="msg"></div></section>
+<div id="app" hidden>
+<section class="stats" id="stats"></section>
+<section class="card"><div class="toolbar"><h2>PC status</h2><button id="refresh">Refresh</button></div><div id="device"></div></section>
+
+<section class="card"><h2>New scan</h2>
+<div class="form-grid">
+<label>Set<select id="newSet"></select></label>
+<label>Printing<select id="newPrinting"><option>Normal</option><option>Foil</option></select></label>
+<label>Condition<select id="newCondition"><option>Near Mint</option><option>Lightly Played</option><option>Moderately Played</option><option>Heavily Played</option><option>Damaged</option></select></label>
+<label>Language<select id="newLanguage"><option>English</option><option>Japanese</option><option>Chinese (S)</option><option>German</option><option>French</option><option>Spanish</option></select></label>
+<label>Sales enrichment<select id="newEnrich"><option value="0">None</option><option value="10">Top 10</option><option value="25">Top 25</option><option value="50">Top 50</option><option value="100" selected>Top 100</option><option value="250">Top 250</option></select></label>
+<button id="queueNew" class="primary">Queue new scan</button>
+</div><div id="newScanMsg" class="meta"></div></section>
+
+<section class="card"><div class="toolbar"><h2>Scan profiles</h2><button id="signOut">Sign out</button></div><div id="profiles"></div></section>
+
+<section class="card"><div class="toolbar"><h2>Mobile analytics</h2><select id="analyticsProfile"></select></div>
+<div class="stats" id="analyticsStats"></div>
+<div class="chart-box"><div class="title">Direct inventory over time</div><svg id="qtyChart" viewBox="0 0 640 220"></svg></div>
+<div class="chart-box"><div class="title">Median Direct Low</div><svg id="priceChart" viewBox="0 0 640 220"></svg></div>
+<div class="table-wrap"><table><thead><tr><th>Biggest movers</th><th>Qty Δ</th><th>Price Δ</th></tr></thead><tbody id="movers"></tbody></table></div>
+</section>
+
+<section class="card"><h2>Requests</h2><div id="commands"></div></section>
+<section class="card"><h2>Latest scans</h2><div id="scans"></div></section>
+</div></main><script src="config.js"></script><script src="app.js"></script></body></html>
