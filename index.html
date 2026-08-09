@@ -2,7 +2,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#2457d6"><link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="styles.css"><title>Collectish Scout</title></head><body><main>
-<header><div><h1>collectish marketplace scout</h1><p>shared scans + PC remote control</p></div><div id="appVersion" class="version-badge">web v0.2.5</div></header>
+<header><div><h1>collectish marketplace scout</h1><p>shared scans + PC remote control</p></div><div id="appVersion" class="version-badge">web v0.3.0</div></header>
 <section id="login" class="card"><h2>Sign in</h2><div class="grid"><input id="email" type="email" placeholder="Email"><input id="password" type="password" placeholder="Password"><button id="signIn" class="primary">Sign in</button></div><div id="msg"></div></section>
 <div id="app" hidden>
 <div id="activityBanner" class="activity-banner" hidden>
@@ -31,11 +31,36 @@
 
 <section class="card"><div class="toolbar"><h2>Scan profiles</h2><button id="signOut">Sign out</button></div><div id="profiles"></div></section>
 
-<section class="card"><div class="toolbar"><h2>Mobile analytics</h2><select id="analyticsProfile"></select></div>
-<div class="stats" id="analyticsStats"></div>
-<div class="chart-box"><div class="title">Direct inventory over time</div><svg id="qtyChart" viewBox="0 0 640 220"></svg></div>
+<section class="card">
+<div class="toolbar"><div><h2>Mobile analytics</h2><div class="meta">Trend and opportunity changes across repeated scans</div></div><select id="analyticsProfile"></select></div>
+<div class="stats analytics-summary" id="analyticsStats"></div>
+<div class="analytics-tabs">
+<button class="analytics-tab active" data-panel="overviewPanel">Overview</button>
+<button class="analytics-tab" data-panel="moversPanel">Movers</button>
+<button class="analytics-tab" data-panel="signalsPanel">Signals</button>
+<button class="analytics-tab" data-panel="productPanel">Card history</button>
+</div>
+<div id="overviewPanel" class="analytics-panel active">
+<div class="chart-box"><div class="title">Direct inventory</div><svg id="qtyChart" viewBox="0 0 640 220"></svg></div>
 <div class="chart-box"><div class="title">Median Direct Low</div><svg id="priceChart" viewBox="0 0 640 220"></svg></div>
-<div class="table-wrap"><table><thead><tr><th>Biggest movers</th><th>Qty Δ</th><th>Price Δ</th></tr></thead><tbody id="movers"></tbody></table></div>
+<div class="chart-box"><div class="title">Direct listings</div><svg id="listingChart" viewBox="0 0 640 220"></svg></div>
+<div class="chart-box"><div class="title">HOT / WATCH signals</div><svg id="signalChart" viewBox="0 0 640 220"></svg></div>
+</div>
+<div id="moversPanel" class="analytics-panel">
+<div class="mini-toolbar"><select id="moverSort"><option value="inventory">Inventory change</option><option value="price">Direct Low change</option><option value="listings">Listing change</option><option value="rank">Sales-rank change</option><option value="score">Score change</option></select><input id="moverSearch" placeholder="Search card"></div>
+<div class="table-wrap"><table><thead><tr><th>Card</th><th>Qty Δ</th><th>Listings Δ</th><th>DL Δ</th><th>Rank Δ</th><th>Score Δ</th></tr></thead><tbody id="movers"></tbody></table></div>
+</div>
+<div id="signalsPanel" class="analytics-panel">
+<div class="signal-grid" id="signalCards"></div>
+<div class="table-wrap"><table><thead><tr><th>Signal</th><th>Card</th><th>Why</th></tr></thead><tbody id="signalsBody"></tbody></table></div>
+</div>
+<div id="productPanel" class="analytics-panel">
+<div class="mini-toolbar"><input id="productHistorySearch" placeholder="Search card / SKU"><select id="productHistorySelect"></select></div>
+<div id="productHistorySummary" class="stats analytics-summary"></div>
+<div class="chart-box"><div class="title">Direct inventory history</div><svg id="productQtyChart" viewBox="0 0 640 220"></svg></div>
+<div class="chart-box"><div class="title">Direct Low history</div><svg id="productPriceChart" viewBox="0 0 640 220"></svg></div>
+<div id="productPrediction" class="prediction-box"></div>
+</div>
 </section>
 
 <section class="card"><h2>Requests</h2><div id="commands"></div></section>
