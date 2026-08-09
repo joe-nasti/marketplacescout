@@ -15,7 +15,11 @@
 <section class="stats" id="stats"></section>
 <section class="card"><div class="toolbar"><h2>PC status</h2><button id="refresh">Refresh</button></div><div id="device"></div></section>
 
-<section class="card"><h2>New scan</h2>
+<section class="card">
+<div class="toolbar">
+  <div><h2>New scan</h2><div id="setCacheStatus" class="subtle">Set catalog not loaded yet</div></div>
+  <button id="refreshSetCatalog">Refresh sets</button>
+</div>
 <div id="setLoadStatus" class="subtle">Loading set catalog…</div>
 <div class="form-grid">
 <label>Set<select id="newSet"></select></label>

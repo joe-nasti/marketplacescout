@@ -2,6 +2,51 @@ const c=window.COLLECTISH_CONFIG,K="collectishSession",$=id=>document.getElement
 const session=()=>JSON.parse(localStorage.getItem(K)||"null"),save=s=>s?localStorage.setItem(K,JSON.stringify(s)):localStorage.removeItem(K);
 const H=t=>({"apikey":c.publishableKey,"Authorization":`Bearer ${t||c.publishableKey}`,"Content-Type":"application/json"});
 let scansCache=[],rowsCache=[];
+const SET_CACHE_KEY="collectishSetCatalog";
+const SET_CACHE_MAX_AGE=7*24*60*60*1000;
+function getCachedSets(){
+  try{
+    const cached=JSON.parse(localStorage.getItem(SET_CACHE_KEY)||"null");
+    if(!cached?.sets?.length)return null;
+    return cached;
+  }catch{return null}
+}
+function saveCachedSets(sets){
+  const cached={savedAt:Date.now(),sets};
+  localStorage.setItem(SET_CACHE_KEY,JSON.stringify(cached));
+  return cached;
+}
+function setCatalogAgeLabel(savedAt){
+  if(!savedAt)return "not cached";
+  const ms=Date.now()-savedAt;
+  const mins=Math.floor(ms/60000);
+  if(mins<60)return `${mins} min ago`;
+  const hours=Math.floor(mins/60);
+  if(hours<24)return `${hours} hr ago`;
+  return `${Math.floor(hours/24)} day${Math.floor(hours/24)===1?"":"s"} ago`;
+}
+function renderSetOptions(sets){
+  $("newSet").innerHTML='<option value="">Select set…</option>'+sets.map(s=>`<option value="${s.set_slug}" data-name="${s.set_name}">${s.set_name} (${s.direct_product_count})</option>`).join("");
+}
+async function loadSetCatalog(force=false){
+  const cached=getCachedSets();
+  const fresh=cached && (Date.now()-cached.savedAt)<SET_CACHE_MAX_AGE;
+
+  if(cached?.sets?.length){
+    renderSetOptions(cached.sets);
+    $("setCacheStatus").textContent=`${cached.sets.length.toLocaleString()} sets cached • ${setCatalogAgeLabel(cached.savedAt)}`;
+  }
+
+  if(!force && fresh) return cached.sets;
+
+  showActivity(force?"Refreshing set catalog":"Updating set catalog",cached?"Checking cloud for weekly set updates…":"Downloading set catalog…");
+  const sets=await rest("marketplace_set_catalog?select=*&order=set_name.asc");
+  saveCachedSets(sets);
+  renderSetOptions(sets);
+  $("setCacheStatus").textContent=`${sets.length.toLocaleString()} sets cached • just updated`;
+  return sets;
+}
+
 function showActivity(title,detail=""){
   $("activityTitle").textContent=title;
   $("activityDetail").textContent=detail;
@@ -51,27 +96,40 @@ async function analytics(){
   if(ss.length>=2){const prev=new Map((byScan.get(ss.at(-2).scan_id)||[]).map(r=>[r.sku_id,r])),cur=byScan.get(ss.at(-1).scan_id)||[];const m=[];for(const r of cur){const p=prev.get(r.sku_id);if(!p)continue;m.push({r,qd:Number(r.direct_available||0)-Number(p.direct_available||0),pd:Number(r.direct_low||0)-Number(p.direct_low||0)})}m.sort((a,b)=>Math.abs(b.qd)-Math.abs(a.qd));$("movers").innerHTML=m.slice(0,20).map(x=>`<tr><td>${x.r.product_name}</td><td>${x.qd>0?"+":""}${x.qd}</td><td>${x.pd>0?"+":""}$${x.pd.toFixed(2)}</td></tr>`).join("")}
 }
 async function load(){
-  showActivity("Refreshing dashboard","Loading scans, PC status, requests, and set catalog…");
-  $("setLoadStatus").textContent="Loading set catalog…";
+  showActivity("Refreshing dashboard","Loading scans, PC status, and requests…");
   try{
+    // Render cached set catalog immediately. Only touch cloud if cache is >7 days old.
+    const cached=getCachedSets();
+    if(cached?.sets?.length){
+      renderSetOptions(cached.sets);
+      $("setCacheStatus").textContent=`${cached.sets.length.toLocaleString()} sets cached • ${setCatalogAgeLabel(cached.savedAt)}`;
+    }else{
+      $("setCacheStatus").textContent="No local set cache yet";
+    }
+
     updateActivity("Loading recent scans…");
     const scansPromise=rest("marketplace_scans?select=*&order=captured_at.desc&limit=100");
-    updateActivity("Loading PC heartbeat…");
     const devPromise=rest("marketplace_devices?select=*&order=last_seen_at.desc&limit=5");
-    updateActivity("Loading scan requests…");
     const cmdPromise=rest("marketplace_scan_commands?select=*&order=requested_at.desc&limit=20");
-    updateActivity("Loading Magic set catalog…");
-    const setsPromise=rest("marketplace_set_catalog?select=*&order=set_name.asc");
 
-    const [scans,dev,cmd,sets]=await Promise.all([scansPromise,devPromise,cmdPromise,setsPromise]);
+    const [scans,dev,cmd]=await Promise.all([scansPromise,devPromise,cmdPromise]);
     scansCache=scans;
 
-    $("setLoadStatus").textContent=`${sets.length.toLocaleString()} sets loaded`;
+    // Fetch catalog only if absent/stale. This is intentionally not on the normal refresh critical path.
+    const cacheNow=getCachedSets();
+    if(!cacheNow || (Date.now()-cacheNow.savedAt)>=SET_CACHE_MAX_AGE){
+      try{
+        updateActivity("Set catalog is stale • refreshing in background…");
+        await loadSetCatalog(false);
+      }catch(e){
+        $("setCacheStatus").textContent=(cacheNow?.sets?.length)
+          ? `${cacheNow.sets.length.toLocaleString()} cached sets • cloud refresh failed`
+          : `Set catalog unavailable: ${e.message}`;
+      }
+    }
 
     const d=dev[0],on=d&&Date.now()-new Date(d.last_seen_at).getTime()<300000;
     $("device").innerHTML=d?`<b>${on?"Online":"Offline"}</b> • ${d.device_name||"PC"} • ${dt(d.last_seen_at)}`:"No heartbeat yet";
-
-    $("newSet").innerHTML='<option value="">Select set…</option>'+sets.map(s=>`<option value="${s.set_slug}" data-name="${s.set_name}">${s.set_name} (${s.direct_product_count})</option>`).join("");
 
     const ps=new Map();
     for(const s of scans){
@@ -94,15 +152,24 @@ async function load(){
 
     $("stats").innerHTML=[["Profiles",ps.size],["Scans",scans.length],["PC",on?"Online":"Offline"]].map(([a,b])=>`<div class=stat><span>${a}</span><strong>${b}</strong></div>`).join("");
 
-    updateActivity(`Loaded ${scans.length} scans • ${sets.length} sets`);
-    setTimeout(hideActivity,700);
+    updateActivity(`Loaded ${scans.length} scans`);
+    setTimeout(hideActivity,500);
   }catch(e){
-    $("setLoadStatus").textContent="Set catalog load failed";
     showActivity("Load failed",e.message);
   }
 }
 async function boot(){const s=await valid();$("login").hidden=!!s;$("app").hidden=!s;if(s)load()}
-$("signIn").onclick=login;$("refresh").onclick=load;$("signOut").onclick=()=>{save(null);boot()};$("queueNew").onclick=queueNew;$("analyticsProfile").onchange=async()=>{
+$("signIn").onclick=login;$("refresh").onclick=load;$("signOut").onclick=()=>{save(null);boot()};$("queueNew").onclick=queueNew;
+$("refreshSetCatalog").onclick=async()=>{
+  try{
+    showActivity("Refreshing set catalog","Downloading latest set list from cloud…");
+    await loadSetCatalog(true);
+    updateActivity("Set catalog updated");
+    setTimeout(hideActivity,700);
+  }catch(e){
+    showActivity("Set catalog refresh failed",e.message);
+  }
+};$("analyticsProfile").onchange=async()=>{
   try{
     showActivity("Loading analytics","Fetching scan rows for this profile…");
     await analytics();

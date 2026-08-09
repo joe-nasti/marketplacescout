@@ -40,3 +40,9 @@ main{width:100%;max-width:850px;overflow:hidden}
   .toolbar h2{flex:1 1 auto}
   #analyticsProfile{width:100%}
 }
+
+#refreshSetCatalog{width:auto;flex:0 0 auto}
+#setCacheStatus{margin-top:4px}
+@media(max-width:650px){
+  #refreshSetCatalog{padding:8px 10px;font-size:12px}
+}
