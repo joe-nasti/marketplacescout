@@ -1,3 +1,4 @@
+const WEB_APP_VERSION="0.2.5";
 const c=window.COLLECTISH_CONFIG,K="collectishSession",$=id=>document.getElementById(id);
 const session=()=>JSON.parse(localStorage.getItem(K)||"null"),save=s=>s?localStorage.setItem(K,JSON.stringify(s)):localStorage.removeItem(K);
 const H=t=>({"apikey":c.publishableKey,"Authorization":`Bearer ${t||c.publishableKey}`,"Content-Type":"application/json"});
@@ -158,7 +159,7 @@ async function load(){
     showActivity("Load failed",e.message);
   }
 }
-async function boot(){const s=await valid();$("login").hidden=!!s;$("app").hidden=!s;if(s)load()}
+async function boot(){document.getElementById("appVersion").textContent=`web v${WEB_APP_VERSION}`;const s=await valid();$("login").hidden=!!s;$("app").hidden=!s;if(s)load()}
 $("signIn").onclick=login;$("refresh").onclick=load;$("signOut").onclick=()=>{save(null);boot()};$("queueNew").onclick=queueNew;
 $("refreshSetCatalog").onclick=async()=>{
   try{
@@ -178,3 +179,16 @@ $("refreshSetCatalog").onclick=async()=>{
     showActivity("Analytics failed",e.message);
   }
 };boot();
+
+setInterval(async()=>{
+  try{
+    if(!session()) return;
+    const [dev,cmd]=await Promise.all([
+      rest("marketplace_devices?select=*&order=last_seen_at.desc&limit=5"),
+      rest("marketplace_scan_commands?select=*&order=requested_at.desc&limit=20")
+    ]);
+    const d=dev[0],on=d&&Date.now()-new Date(d.last_seen_at).getTime()<300000;
+    $("device").innerHTML=d?`<b>${on?"Online":"Offline"}</b> • ${d.device_name||"PC"} • ${dt(d.last_seen_at)}`:"No heartbeat yet";
+    $("commands").innerHTML=cmd.map(x=>`<div class=command><div><div class=title>${x.profile_json?.setName||x.profile_json?.setSlug}</div><div class=meta>${dt(x.requested_at)} • ${x.status}${x.error_message?" • "+x.error_message:""}</div></div></div>`).join("");
+  }catch(e){}
+},15000);
