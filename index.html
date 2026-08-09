@@ -2,7 +2,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#2457d6"><link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="styles.css"><title>Collectish Scout</title></head><body><main>
-<header><div><h1>collectish marketplace scout</h1><p>shared scans + PC remote control</p></div><div id="appVersion" class="version-badge">web v0.3.1</div></header>
+<header><div><h1>collectish marketplace scout</h1><p>shared scans + PC remote control</p></div><div id="appVersion" class="version-badge">web v0.3.2</div></header>
 <section id="login" class="card"><h2>Sign in</h2><div class="grid"><input id="email" type="email" placeholder="Email"><input id="password" type="password" placeholder="Password"><button id="signIn" class="primary">Sign in</button></div><div id="msg"></div></section>
 <div id="app" hidden>
 <div id="activityBanner" class="activity-banner" hidden>
@@ -32,35 +32,60 @@
 <section class="card"><div class="toolbar"><h2>Scan profiles</h2><button id="signOut">Sign out</button></div><div id="profiles"></div></section>
 
 <section class="card">
-<div class="toolbar"><div><h2>Mobile analytics</h2><div class="meta">Trend and opportunity changes across repeated scans</div></div><select id="analyticsProfile"></select></div>
+<div class="toolbar">
+  <div><h2>Mobile analytics</h2>
+    <div class="meta">“Listings” means Direct listings for the exact SKU variant (printing / condition / language), not all marketplace listings.</div>
+  </div>
+  <select id="analyticsProfile"></select>
+</div>
 <div class="stats analytics-summary" id="analyticsStats"></div>
 <div class="analytics-tabs">
-<button class="analytics-tab active" data-panel="overviewPanel">Overview</button>
-<button class="analytics-tab" data-panel="moversPanel">Movers</button>
-<button class="analytics-tab" data-panel="signalsPanel">Signals</button>
-<button class="analytics-tab" data-panel="productPanel">Card history</button>
+  <button class="analytics-tab active" data-panel="overviewPanel">Overview</button>
+  <button class="analytics-tab" data-panel="moversPanel">Movers</button>
+  <button class="analytics-tab" data-panel="signalsPanel">Signals</button>
+  <button class="analytics-tab" data-panel="productPanel">Card history</button>
 </div>
 <div id="overviewPanel" class="analytics-panel active">
-<div class="chart-box"><div class="title">Direct inventory</div><svg id="qtyChart" viewBox="0 0 640 220"></svg></div>
-<div class="chart-box"><div class="title">Median Direct Low</div><svg id="priceChart" viewBox="0 0 640 220"></svg></div>
-<div class="chart-box"><div class="title">Direct listings</div><svg id="listingChart" viewBox="0 0 640 220"></svg></div>
-<div class="chart-box"><div class="title">HOT / WATCH signals</div><svg id="signalChart" viewBox="0 0 640 220"></svg></div>
+  <div class="chart-box"><div class="title">Direct inventory</div><div class="chart-help">Y: total Direct copies available across this scan profile. X: scan date.</div><svg id="qtyChart" viewBox="0 0 640 220"></svg></div>
+  <div class="chart-box"><div class="title">Median Direct Low</div><div class="chart-help">Y: median lowest Direct price across scanned SKUs. X: scan date.</div><svg id="priceChart" viewBox="0 0 640 220"></svg></div>
+  <div class="chart-box"><div class="title">Direct listings</div><div class="chart-help">Y: total Direct listings across exact SKU variants. Direct-only.</div><svg id="listingChart" viewBox="0 0 640 220"></svg></div>
+  <div class="chart-box"><div class="title">HOT / WATCH signals</div><div class="chart-help">Y: SKUs classified HOT or WATCH in each scan.</div><svg id="signalChart" viewBox="0 0 640 220"></svg></div>
 </div>
 <div id="moversPanel" class="analytics-panel">
-<div class="mini-toolbar"><select id="moverSort"><option value="inventory">Inventory change</option><option value="price">Direct Low change</option><option value="listings">Listing change</option><option value="rank">Sales-rank change</option><option value="score">Score change</option></select><input id="moverSearch" placeholder="Search card"></div>
-<div class="table-wrap"><table><thead><tr><th>Card</th><th>Qty Δ</th><th>Listings Δ</th><th>DL Δ</th><th>Rank Δ</th><th>Score Δ</th></tr></thead><tbody id="movers"></tbody></table></div>
+  <div class="mini-toolbar"><select id="moverSort"><option value="inventory">Direct inventory change</option><option value="price">Direct Low change</option><option value="listings">Direct listing change</option><option value="rank">Sales-rank change</option><option value="score">Score change</option></select><input id="moverSearch" placeholder="Search card"></div>
+  <div class="table-wrap"><table><thead><tr><th>Card</th><th>Qty Δ</th><th>Direct listings Δ</th><th>Direct Low Δ</th><th>Rank Δ</th><th>Score Δ</th></tr></thead><tbody id="movers"></tbody></table></div>
 </div>
-<div id="signalsPanel" class="analytics-panel">
-<div class="signal-grid" id="signalCards"></div>
-<div class="table-wrap"><table><thead><tr><th>Signal</th><th>Card</th><th>Why</th></tr></thead><tbody id="signalsBody"></tbody></table></div>
-</div>
+<div id="signalsPanel" class="analytics-panel"><div class="signal-grid" id="signalCards"></div><div class="table-wrap"><table><thead><tr><th>Signal</th><th>Card</th><th>Why</th></tr></thead><tbody id="signalsBody"></tbody></table></div></div>
 <div id="productPanel" class="analytics-panel">
-<div class="mini-toolbar"><input id="productHistorySearch" placeholder="Search card / SKU"><select id="productHistorySelect"></select></div>
-<div id="productHistorySummary" class="stats analytics-summary"></div>
-<div class="chart-box"><div class="title">Direct inventory history</div><svg id="productQtyChart" viewBox="0 0 640 220"></svg></div>
-<div class="chart-box"><div class="title">Direct Low history</div><svg id="productPriceChart" viewBox="0 0 640 220"></svg></div>
-<div id="productPrediction" class="prediction-box"></div>
+  <div class="mini-toolbar"><input id="productHistorySearch" placeholder="Search within this profile"><select id="productHistorySelect"></select></div>
+  <div id="productHistorySummary" class="stats analytics-summary"></div>
+  <div class="chart-box"><div class="title">Direct inventory history</div><div class="chart-help">Exact-SKU Direct copies at each scan.</div><svg id="productQtyChart" viewBox="0 0 640 220"></svg></div>
+  <div class="chart-box"><div class="title">Direct Low history</div><div class="chart-help">Lowest Direct listing price for the exact SKU at each scan.</div><svg id="productPriceChart" viewBox="0 0 640 220"></svg></div>
+  <div id="productPrediction" class="prediction-box"></div>
 </div>
+</section>
+
+<section class="card">
+  <h2>Find any scanned card</h2>
+  <div class="meta">Search all uploaded scans by card name, SKU, Product ID, or collector number.</div>
+  <div class="global-search-row"><input id="globalCardSearch" placeholder="Card name / SKU / Product ID / collector #"><button id="globalCardSearchBtn" class="primary">Search</button></div>
+  <div id="globalCardSearchStatus" class="meta"></div>
+  <div id="globalCardResults"></div>
+</section>
+
+<section class="card">
+  <h2>Cross-scan opportunity leaderboard</h2>
+  <div class="meta">One row per SKU across the selected period, using its latest values plus trend/persistence from all matching scans.</div>
+  <div class="leaderboard-controls">
+    <label>Period<select id="leaderPeriod"><option value="1">24 hours</option><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="0">All history</option></select></label>
+    <label>Printing<select id="leaderPrinting"><option value="">All</option><option>Normal</option><option>Foil</option></select></label>
+    <label>Condition<select id="leaderCondition"><option value="">All</option><option>Near Mint</option><option>Lightly Played</option><option>Moderately Played</option><option>Heavily Played</option><option>Damaged</option></select></label>
+    <label>Min Direct Low<input id="leaderMinPrice" type="number" min="0" step=".01" value="1"></label>
+    <label>Rank by<select id="leaderMetric"><option value="composite">Composite opportunity</option><option value="score">Latest Scout score</option><option value="persistence">HOT/WATCH persistence</option><option value="depletion">Direct inventory depletion</option><option value="price">Direct Low increase</option><option value="rank">Sales-rank improvement</option></select></label>
+    <button id="leaderRefresh">Refresh list</button>
+  </div>
+  <div id="leaderStatus" class="meta"></div>
+  <div class="table-wrap leaderboard-table"><table><thead><tr><th>Card / SKU</th><th>Set</th><th>Direct qty</th><th>Direct listings</th><th>Direct Low</th><th>Score</th><th>Seen</th><th>HOT/WATCH</th><th>Qty trend</th><th>Price trend</th></tr></thead><tbody id="leaderBody"></tbody></table></div>
 </section>
 
 <section class="card"><h2>Requests</h2><div id="commands"></div></section>
