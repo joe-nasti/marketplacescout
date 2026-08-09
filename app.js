@@ -1,4 +1,4 @@
-const WEB_APP_VERSION="0.3.0";
+const WEB_APP_VERSION="0.3.1";
 const c=window.COLLECTISH_CONFIG,K="collectishSession",$=id=>document.getElementById(id);
 const session=()=>JSON.parse(localStorage.getItem(K)||"null"),save=s=>s?localStorage.setItem(K,JSON.stringify(s)):localStorage.removeItem(K);
 const H=t=>({"apikey":c.publishableKey,"Authorization":`Bearer ${t||c.publishableKey}`,"Content-Type":"application/json"});
@@ -82,6 +82,33 @@ async function queueNew(){
   }
 }
 
+
+
+function etaText(v){
+  const s=Number(v);
+  if(!Number.isFinite(s)||s<=0)return "";
+  if(s<60)return `~${Math.round(s)}s`;
+  const m=Math.floor(s/60),r=Math.round(s%60);
+  return `~${m}m ${r}s`;
+}
+function requestProgressHtml(x){
+  if(x.status!=="running")return "";
+  const p=x.progress_json||{};
+  const pct=Math.max(0,Math.min(100,Number(p.percent||0)));
+  return `<div class="request-progress">
+    <div class="request-progress-head">
+      <span>${p.detail||p.stage||"Running…"}</span>
+      <b>${Math.round(pct)}%</b>
+    </div>
+    <progress max="100" value="${pct}"></progress>
+    <div class="meta">${
+      [
+        p.stage?`Stage: ${p.stage}`:"",
+        etaText(p.etaSec)?`ETA ${etaText(p.etaSec)}`:""
+      ].filter(Boolean).join(" • ")
+    }</div>
+  </div>`;
+}
 
 function median(v){const a=v.filter(x=>Number.isFinite(Number(x))).map(Number).sort((a,b)=>a-b);if(!a.length)return null;const m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2}
 function sum(rows,key){return rows.reduce((a,r)=>a+Number(r[key]||0),0)}
