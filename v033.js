@@ -1,6 +1,8 @@
 // Marketplace Scout web v0.3.3 — combined-printing + legacy-history compatibility
 (() => {
   const el=id=>document.getElementById(id);
+  const signed=(v,d=0,prefix="")=>{const n=Number(v);return Number.isFinite(n)?`${n>0?"+":""}${prefix}${n.toFixed(d)}`:"—"};
+  const pageUrl=r=>`https://www.tcgplayer.com/product/${encodeURIComponent(r.product_id)}?Language=${encodeURIComponent(r.language||"English")}&Printing=${encodeURIComponent(r.printing||"Normal")}&Condition=${encodeURIComponent(r.condition||"Near Mint")}&direct=true`;
   const badge=el("appVersion"); if(badge) badge.textContent="web v0.3.3";
 
   const printing=el("newPrinting");
