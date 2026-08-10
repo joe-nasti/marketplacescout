@@ -12,7 +12,6 @@
   function statusClass(s){return ["complete","failed","running","pending"].includes(s)?s:"pending"}
   function fmt(v){return v?new Date(v).toLocaleString():"—"}
 
-  // Make Smart scan behavior explicit on mobile.
   if(el("newScanDepth")&&!document.getElementById("mobileSmartDepthHelp")){
     const help=document.createElement("div");
     help.id="mobileSmartDepthHelp";
@@ -21,8 +20,6 @@
     el("newScanDepth").closest("label")?.appendChild(help);
   }
 
-  // Add a compact PC capabilities / source note. EDHREC intentionally remains an
-  // independent PC-local source until source snapshots are moved to shared cloud storage.
   if(!el("mobileDataSources")){
     const card=document.createElement("section");
     card.id="mobileDataSources";
@@ -35,7 +32,6 @@
     analytics?.parentNode?.insertBefore(card,analytics);
   }
 
-  // Add a mobile view of the cloud command queue with the profile fields the PC now honors.
   if(!el("mobileQueueDetail")){
     const card=document.createElement("section");
     card.id="mobileQueueDetail";
@@ -64,7 +60,6 @@
   setInterval(refreshQueueDetail,15000);
   setTimeout(refreshQueueDetail,600);
 
-  // Decorate Latest scans with depth/coverage when profile_json is available.
   async function refreshCoverageSummary(){
     if(typeof rest!=="function")return;
     try{
@@ -76,7 +71,14 @@
         host=document.createElement("div");host.id="mobileCoverageHistory";latest.appendChild(host);
       }
       host.innerHTML=`<div class="mobile-coverage-list">${scans.map(s=>{const p=s.profile_json||{};const coverage=p.coverageFull===false?(p.scanDepthResolved||`Top ${p.coverageLimit||p.scannedSearchPositions||"?"}`):(p.scanDepthResolved||p.scanDepthRequested||"Full");return `<div class="mobile-coverage-row"><div><b>${s.set_name}</b><div class="meta">${s.printing} / ${s.condition} / ${s.language} • ${coverage}</div></div><div class="mobile-coverage-metrics"><b>${Number(s.unique_skus||0).toLocaleString()} SKUs</b><span>${Number(s.hot_count||0)} HOT / ${Number(s.watch_count||0)} WATCH</span></div></div>`}).join("")}</div>`;
-    }catch(e){/* older schemas may not expose profile_json select in some environments */}
+    }catch(e){}
   }
   setTimeout(refreshCoverageSummary,1000);
+})();
+
+// Load the next mobile enhancement layer without requiring an index.html migration.
+(() => {
+  const badge=document.getElementById("appVersion");if(badge)badge.textContent="web v0.3.9";
+  if(document.querySelector('script[data-collectish-v039]'))return;
+  const s=document.createElement("script");s.src="v039.js";s.dataset.collectishV039="1";document.head.appendChild(s);
 })();
