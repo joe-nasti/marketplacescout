@@ -4,7 +4,7 @@
   const badge=el("appVersion"); if(badge) badge.textContent="web v0.4.8";
   const KEY="collectishThemeModeV1";
   const valid=m=>["system","light","dark"].includes(m)?m:"system";
-  const effective=m=>m==="dark"?"dark":m==="light"?"light":window.matchMedia?.("(prefers-color-scheme: dark)")?.matches?"dark":"light";
+  const effective=m=>m==="dark"?"dark":m==="light"?"light":window.matchMedia?.("prefers-color-scheme: dark")?.matches?"dark":"light";
   function apply(mode){
     mode=valid(mode);const e=effective(mode);
     document.documentElement.dataset.theme=e;
@@ -23,4 +23,10 @@
   apply(localStorage.getItem(KEY)||"system");
   const mq=window.matchMedia?.("(prefers-color-scheme: dark)");mq?.addEventListener?.("change",()=>{if((document.documentElement.dataset.themeMode||"system")==="system")apply("system")});
   let tries=0;const t=setInterval(()=>{tries++;if(ensureControl()||tries>80)clearInterval(t)},250);
+})();
+
+// Load Scout preparation feedback without another index migration.
+(() => {
+  if(document.querySelector('script[data-collectish-v049]'))return;
+  const s=document.createElement("script");s.src="v049.js?v=049";s.dataset.collectishV049="1";document.head.appendChild(s);
 })();
