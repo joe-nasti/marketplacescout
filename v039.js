@@ -1,7 +1,6 @@
 // Collectish Marketplace Scout web v0.3.9 — local-first card autocomplete
 (() => {
   const el=id=>document.getElementById(id);
-  const badge=el("appVersion"); if(badge) badge.textContent="web v0.3.9";
   const CACHE_KEY="collectishMobileCardAutocompleteV1",MAX_AGE=24*60*60*1000;
   let index=[];
 
