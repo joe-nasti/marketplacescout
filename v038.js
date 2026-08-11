@@ -1,7 +1,6 @@
 // Collectish Marketplace Scout web v0.3.8 — mobile parity / queue + smart-depth visibility
 (() => {
   const el=id=>document.getElementById(id);
-  const badge=el("appVersion"); if(badge) badge.textContent="web v0.3.8";
 
   function depthLabel(p={}){
     const requested=p.scanDepthRequested||p.scanDepth||"Smart";
@@ -50,7 +49,7 @@
         return `<div class="mobile-queue-job ${statusClass(x.status)}">
           <div class="mobile-queue-head"><div><b>${p.setName||p.setSlug||"Unknown set"}</b><div class="meta">${p.printing||"Both"} / ${p.condition||"Near Mint"} / ${p.language||"English"} • ${depthLabel(p)} • Top ${Number(p.salesEnrich||0)}</div></div><span class="mobile-status ${statusClass(x.status)}">${String(x.status||"pending").toUpperCase()}</span></div>
           <div class="meta">Requested ${fmt(x.requested_at)}${x.started_at?` • Started ${fmt(x.started_at)}`:""}</div>
-          ${["running","pending"].includes(x.status)?`<div class="mobile-progress-line"><progress max="100" value="${pct}"></progress><span>${Math.round(pct)}%</span></div><div class="meta">${pr.detail||pr.stage|| (x.status==="pending"?"Waiting for PC":"Running")}${pr.etaSec?` • ETA ~${Math.ceil(Number(pr.etaSec)/60)}m`:""}</div>`:""}
+          ${["running","pending"].includes(x.status)?`<div class="mobile-progress-line"><progress max="100" value="${pct}"></progress><span>${Math.round(pct)}%</span></div><div class="meta">${pr.detail||pr.stage||(x.status==="pending"?"Waiting for PC":"Running")}${pr.etaSec?` • ETA ~${Math.ceil(Number(pr.etaSec)/60)}m`:""}</div>`:""}
           ${x.error_message?`<div class="mobile-error">${x.error_message}</div>`:""}
         </div>`;
       }).join(""):'<div class="meta">No recent phone scan requests.</div>';
@@ -74,11 +73,4 @@
     }catch(e){}
   }
   setTimeout(refreshCoverageSummary,1000);
-})();
-
-// Load the next mobile enhancement layer without requiring an index.html migration.
-(() => {
-  const badge=document.getElementById("appVersion");if(badge)badge.textContent="web v0.3.9";
-  if(document.querySelector('script[data-collectish-v039]'))return;
-  const s=document.createElement("script");s.src="v039.js";s.dataset.collectishV039="1";document.head.appendChild(s);
 })();
