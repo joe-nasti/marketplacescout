@@ -1,7 +1,7 @@
 // Collectish Marketplace Scout web v0.4.7 — scan set release-date ordering
 (() => {
   const el=id=>document.getElementById(id);
-  const badge=el("appVersion");if(badge)badge.textContent="web v0.4.7";
+  const setBadge=()=>{const badge=el("appVersion");if(badge)badge.textContent="web v0.4.7"};setBadge();setTimeout(setBadge,2500);
   const KEY="collectishScryfallSetReleaseDatesV1",MAX_AGE=30*86400000;
   let dates=null,scheduled=false;
   const norm=s=>String(s||"").trim().toLowerCase();
