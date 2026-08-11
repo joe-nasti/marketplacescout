@@ -4,7 +4,7 @@
   const badge=el("appVersion"); if(badge) badge.textContent="web v0.4.8";
   const KEY="collectishThemeModeV1";
   const valid=m=>["system","light","dark"].includes(m)?m:"system";
-  const effective=m=>m==="dark"?"dark":m==="light"?"light":window.matchMedia?.("prefers-color-scheme: dark")?.matches?"dark":"light";
+  const effective=m=>m==="dark"?"dark":m==="light"?"light":window.matchMedia?.("(prefers-color-scheme: dark)")?.matches?"dark":"light";
   function apply(mode){
     mode=valid(mode);const e=effective(mode);
     document.documentElement.dataset.theme=e;
