@@ -2,6 +2,7 @@
 (() => {
   const el=id=>document.getElementById(id);
   const badge=el("appVersion");if(badge)badge.textContent="web v0.4.9";
+  if(!document.querySelector('link[data-collectish-v049]')){const l=document.createElement("link");l.rel="stylesheet";l.href="v049.css?v=049";l.dataset.collectishV049="1";document.head.appendChild(l)}
   let wrapped=false,phaseTimer=null;
 
   function ensureLoader(){
@@ -28,11 +29,7 @@
     if(wrapped||!el("leaderVisual")||!el("leaderHelp")||typeof window.buildLeaderboard!=="function")return false;
     const original=window.buildLeaderboard;
     if(original.__collectishLoadingWrapped){wrapped=true;return true}
-    const fn=async function(...args){
-      show("Preparing Scout…","Loading cross-scan opportunity history…");
-      try{return await original.apply(this,args)}
-      finally{hide()}
-    };
+    const fn=async function(...args){show("Preparing Scout…","Loading cross-scan opportunity history…");try{return await original.apply(this,args)}finally{hide()}};
     fn.__collectishLoadingWrapped=true;window.buildLeaderboard=fn;wrapped=true;return true;
   }
   let tries=0;const t=setInterval(()=>{tries++;if(install()||tries>120)clearInterval(t)},100);
