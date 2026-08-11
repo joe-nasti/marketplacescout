@@ -80,3 +80,17 @@
   // Do not touch/reparent the app until the legacy auth flow has actually shown it.
   const waitForAuth=setInterval(()=>{const app=el("app");if(app&&!app.hidden){clearInterval(waitForAuth);buildShell()}},250);
 })();
+
+// Load the visual leaderboard as an independent presentation/metadata layer.
+(() => {
+  if(!document.querySelector('link[data-collectish-v044]')){
+    const l=document.createElement("link");l.rel="stylesheet";l.href="v044.css?v=044";l.dataset.collectishV044="1";document.head.appendChild(l);
+  }
+  if(document.querySelector('script[data-collectish-v044]'))return;
+  const s=document.createElement("script");s.src="v044.js?v=044";s.dataset.collectishV044="1";
+  s.onload=()=>{
+    if(document.querySelector('script[data-collectish-v045]'))return;
+    const f=document.createElement("script");f.src="v045.js?v=045";f.dataset.collectishV045="1";document.head.appendChild(f);
+  };
+  document.head.appendChild(s);
+})();
