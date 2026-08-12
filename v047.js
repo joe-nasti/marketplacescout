@@ -1,7 +1,6 @@
 // Collectish Marketplace Scout web v0.4.7 — scan set release-date ordering
 (() => {
   const el=id=>document.getElementById(id);
-  const setBadge=()=>{const badge=el("appVersion");if(badge)badge.textContent="web v0.4.7"};setBadge();setTimeout(setBadge,2500);
   const KEY="collectishScryfallSetReleaseDatesV1",MAX_AGE=30*86400000;
   let dates=null,scheduled=false;
   const norm=s=>String(s||"").trim().toLowerCase();
@@ -44,4 +43,18 @@
     }
   }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
+})();
+
+// Bootstrap the unified Collectish shell even for clients still holding an older cached index.html.
+(() => {
+  if(document.querySelector('script[data-collectish-v050]'))return;
+  const s=document.createElement("script");
+  s.src=`v050.js?v=050-${Date.now()}`;
+  s.dataset.collectishV050="1";
+  s.onload=()=>{
+    const force=()=>{const b=document.getElementById("appVersion");if(b)b.textContent="web v0.5.0"};
+    force();
+    let n=0;const t=setInterval(()=>{force();if(++n>=24)clearInterval(t)},250);
+  };
+  document.head.appendChild(s);
 })();
