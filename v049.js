@@ -35,8 +35,8 @@
   let tries=0;const t=setInterval(()=>{tries++;if(install()||tries>120)clearInterval(t)},100);
 })();
 
-// Load the unified Collectish app shell added in web v0.5.0 without requiring a
-// second index.html migration. This keeps the existing additive overlay chain intact.
+// Load the unified Collectish app shell and subsequent overlays without requiring
+// another index.html migration. This keeps the additive overlay chain intact.
 (() => {
   if(!document.querySelector('script[data-collectish-v050]')){
     const s=document.createElement('script');
@@ -48,6 +48,12 @@
     const s=document.createElement('script');
     s.src='v051.js?v=051';
     s.dataset.collectishV051='1';
+    document.body.appendChild(s);
+  }
+  if(!document.querySelector('script[data-collectish-v052]')){
+    const s=document.createElement('script');
+    s.src='v052.js?v=052';
+    s.dataset.collectishV052='1';
     document.body.appendChild(s);
   }
 })();
