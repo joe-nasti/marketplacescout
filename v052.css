@@ -1,0 +1,41 @@
+/* Collectish web v0.5.2 — unified shell theme/contrast fix */
+.collectish-product-nav{background:var(--c-bg)!important}
+.collectish-product-nav button{background:var(--c-input)!important;color:var(--c-text)!important;border-color:var(--c-border)!important}
+.collectish-product-nav button.active{background:#2457d6!important;color:#fff!important;border-color:#2457d6!important}
+.collectish-page-title,.collectish-page-title h2,.collectish-page-title p{color:var(--c-text)!important}
+.collectish-page-title .meta{color:var(--c-muted)!important}
+.collectish-kpi,.collectish-section{background:var(--c-panel)!important;color:var(--c-text)!important;border-color:var(--c-border)!important}
+.collectish-kpi span{color:var(--c-muted)!important}
+.collectish-kpi strong{color:var(--c-text)!important}
+.collectish-section h3{color:var(--c-text)!important}
+.collectish-section .meta{color:var(--c-muted)!important}
+.collectish-mobile-table,.collectish-mobile-table table{background:var(--c-panel)!important;color:var(--c-text)!important}
+.collectish-mobile-table th{background:var(--c-panel2)!important;color:var(--c-text)!important;border-color:var(--c-border)!important}
+.collectish-mobile-table td{background:var(--c-panel)!important;color:var(--c-text)!important;border-color:var(--c-border)!important}
+.collectish-mobile-table tr:hover td{background:var(--c-hover)!important}
+.collectish-status-pill{background:var(--c-chip)!important;color:var(--c-text)!important;border:1px solid var(--c-border)!important}
+.collectish-empty{background:var(--c-panel)!important;color:var(--c-muted)!important}
+.collectish-refresh{background:var(--c-input)!important;color:var(--c-text)!important;border-color:var(--c-border)!important}
+
+/* Older base CSS paints tables/cards white. Explicitly override every unified-cloud surface in dark mode. */
+html[data-theme="dark"] .collectish-page-host,
+html[data-theme="dark"] .collectish-page-body{color:var(--c-text)!important}
+html[data-theme="dark"] .collectish-kpi,
+html[data-theme="dark"] .collectish-section,
+html[data-theme="dark"] .collectish-mobile-table,
+html[data-theme="dark"] .collectish-mobile-table table,
+html[data-theme="dark"] .collectish-mobile-table tbody,
+html[data-theme="dark"] .collectish-mobile-table tr,
+html[data-theme="dark"] .collectish-mobile-table td{background:#171c24!important;color:#edf2f7!important}
+html[data-theme="dark"] .collectish-mobile-table th{background:#1d2430!important;color:#edf2f7!important}
+html[data-theme="dark"] .collectish-kpi span,
+html[data-theme="dark"] .collectish-section .meta{color:#a8b3c2!important}
+html[data-theme="dark"] .collectish-kpi strong,
+html[data-theme="dark"] .collectish-section h3{color:#edf2f7!important}
+html[data-theme="dark"] .collectish-status-pill{background:#252e3c!important;color:#edf2f7!important}
+
+/* Keep light mode crisp too. */
+html[data-theme="light"] .collectish-kpi,
+html[data-theme="light"] .collectish-section,
+html[data-theme="light"] .collectish-mobile-table td{background:#fff!important;color:#151a22!important}
+html[data-theme="light"] .collectish-mobile-table th{background:#f8fafc!important;color:#151a22!important}
