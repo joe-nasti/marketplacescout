@@ -38,22 +38,15 @@
 // Load the unified Collectish app shell and subsequent overlays without requiring
 // another index.html migration. This keeps the additive overlay chain intact.
 (() => {
-  if(!document.querySelector('script[data-collectish-v050]')){
+  const load=(version)=>{
+    if(document.querySelector(`script[data-collectish-v${version}]`))return;
     const s=document.createElement('script');
-    s.src='v050.js?v=050';
-    s.dataset.collectishV050='1';
+    s.src=`v${version}.js?v=${version}`;
+    s.dataset[`collectishV${version}`]='1';
     document.body.appendChild(s);
-  }
-  if(!document.querySelector('script[data-collectish-v051]')){
-    const s=document.createElement('script');
-    s.src='v051.js?v=051';
-    s.dataset.collectishV051='1';
-    document.body.appendChild(s);
-  }
-  if(!document.querySelector('script[data-collectish-v052]')){
-    const s=document.createElement('script');
-    s.src='v052.js?v=052';
-    s.dataset.collectishV052='1';
-    document.body.appendChild(s);
-  }
+  };
+  load('050');
+  load('051');
+  load('052');
+  load('053');
 })();
