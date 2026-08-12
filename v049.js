@@ -34,3 +34,13 @@
   }
   let tries=0;const t=setInterval(()=>{tries++;if(install()||tries>120)clearInterval(t)},100);
 })();
+
+// Load the unified Collectish app shell added in web v0.5.0 without requiring a
+// second index.html migration. This keeps the existing additive overlay chain intact.
+(() => {
+  if(document.querySelector('script[data-collectish-v050]'))return;
+  const s=document.createElement('script');
+  s.src='v050.js?v=050';
+  s.dataset.collectishV050='1';
+  document.body.appendChild(s);
+})();
