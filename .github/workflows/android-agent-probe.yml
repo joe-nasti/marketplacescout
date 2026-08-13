@@ -1,0 +1,26 @@
+name: Collectish Android agent probe
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/android-agent-probe.yml"
+      - "cloud-worker/android-agent-probe.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Run Android-agent contract probe
+        run: node cloud-worker/android-agent-probe.mjs
