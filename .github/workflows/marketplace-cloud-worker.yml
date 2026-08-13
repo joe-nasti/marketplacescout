@@ -53,13 +53,10 @@ jobs:
       - name: Requeue failed cloud jobs to PC fallback
         if: always()
         run: node cloud-worker/requeue-failed-to-pc.mjs
-      - name: Ensure paired verification
-        if: always()
-        run: node cloud-worker/ensure-paired-verification.mjs
-      - name: Compare cloud result with paired PC baseline
+      - name: Compare any completed manual verification pair
         if: always()
         continue-on-error: true
         run: node cloud-worker/parity-check.mjs
-      - name: Finalize linked pair when both scans exist
+      - name: Finalize linked manual pair when both scans exist
         if: always()
         run: node cloud-worker/finalize-linked-pair.mjs
