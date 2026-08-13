@@ -19,7 +19,7 @@
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
   if(realBadge)realBadge.textContent='web 0.7.4';
-  window.__collectishConsolidated={version:'0.7.4',builtAt:'2026-08-13T20:38:32.886Z'};
+  window.__collectishConsolidated={version:'0.7.4',builtAt:'2026-08-13T20:38:47.216Z'};
 })();
 
 /* ===== app.js ===== */
