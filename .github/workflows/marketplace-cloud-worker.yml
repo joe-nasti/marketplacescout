@@ -45,6 +45,10 @@ jobs:
           fi
       - name: Normalize Marketplace executor capabilities
         run: node cloud-worker/normalize-marketplace-jobs.mjs
+      - name: Recover expired Marketplace leases
+        run: node cloud-worker/recover-stale-jobs.mjs
+      - name: Re-normalize recovered jobs
+        run: node cloud-worker/normalize-marketplace-jobs.mjs
       - name: Prepare cloud worker identity
         shell: bash
         run: |
