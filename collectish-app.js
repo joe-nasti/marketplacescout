@@ -1,4 +1,4 @@
-// Collectish consolidated web 0.7.1
+// Collectish consolidated web 0.7.2
 // Generated; do not edit directly. Run tools/build-consolidated-web.mjs.
 (()=>{
   const realBadge=document.querySelector('#appVersion');
@@ -18,8 +18,8 @@
   const append=Element.prototype.append;Element.prototype.append=function(...n){return append.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
-  if(realBadge)realBadge.textContent='web 0.7.1';
-  window.__collectishConsolidated={version:'0.7.1',builtAt:'2026-08-13T19:18:38.066Z'};
+  if(realBadge)realBadge.textContent='web 0.7.2';
+  window.__collectishConsolidated={version:'0.7.2',builtAt:'2026-08-13T19:19:08.679Z'};
 })();
 
 /* ===== app.js ===== */
@@ -2134,7 +2134,7 @@ setInterval(async()=>{
 
 // Consolidated startup finalizer
 (()=>{
-  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.7.1';
+  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.7.2';
   let s=null;try{s=JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{}
   if(!s?.token){
     const banner=document.querySelector('#activityBanner');if(banner){banner.hidden=true;banner.style.display='none'}
