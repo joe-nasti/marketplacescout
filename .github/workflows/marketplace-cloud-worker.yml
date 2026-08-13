@@ -1,0 +1,37 @@
+name: Collectish Marketplace cloud worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_jobs:
+        description: Maximum queued cloud verification jobs to process
+        required: false
+        default: "1"
+
+permissions:
+  contents: read
+
+jobs:
+  marketplace-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      COLLECTISH_MAX_JOBS: ${{ inputs.max_jobs || '1' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate worker secret
+        shell: bash
+        run: |
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Missing repository secret SUPABASE_SERVICE_ROLE_KEY"
+            exit 1
+          fi
+      - name: Run one cloud-targeted Marketplace job
+        run: node cloud-worker/marketplace-worker.mjs
