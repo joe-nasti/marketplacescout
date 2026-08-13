@@ -12,6 +12,7 @@ on:
   push:
     paths:
       - ".github/workflows/marketplace-cloud-worker.yml"
+      - "cloud-worker/**"
 
 permissions:
   contents: read
@@ -42,8 +43,13 @@ jobs:
             echo "Missing repository secret SUPABASE_SERVICE_ROLE_KEY"
             exit 1
           fi
-      - name: Bootstrap first verification job
-        run: node cloud-worker/bootstrap-verification.mjs
+      - name: Prepare cloud worker identity
+        shell: bash
+        run: |
+          sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/marketplace-worker.mjs
+          sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/parity-check.mjs
+      - name: Ensure verification job
+        run: node cloud-worker/ensure-verification.mjs
       - name: Run cloud-targeted Marketplace job
         run: node cloud-worker/marketplace-worker.mjs
       - name: Compare cloud result with PC baseline
