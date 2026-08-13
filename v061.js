@@ -1,17 +1,26 @@
-// Collectish web v0.6.1 — startup stabilizer
+// Collectish web v0.6.3 — deterministic startup finalizer
 (() => {
-  const VERSION='0.6.1';
+  const VERSION='0.6.3';
   function reset(){
-    const old=document.getElementById('appVersion');
-    if(!old)return;
-    const fresh=old.cloneNode(true);
-    fresh.removeAttribute('data-collectish-version-guard');
-    fresh.textContent=`web v${VERSION}`;
-    old.replaceWith(fresh);
+    const badge=document.getElementById('appVersion');
+    if(badge && badge.textContent!==`web v${VERSION}`)badge.textContent=`web v${VERSION}`;
+
+    let session=null;
+    try{session=JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{}
+    const loggedOut=!session?.token;
+    if(!loggedOut)return;
+
+    const login=document.getElementById('login');
+    const app=document.getElementById('app');
+    if(login)login.hidden=false;
+    if(app)app.hidden=true;
+
     const banner=document.getElementById('activityBanner');
-    if(banner&&document.getElementById('login')&&!document.getElementById('login').hidden){banner.hidden=true;banner.style.display='none'}
+    if(banner){banner.hidden=true;banner.style.display='none'}
     const scout=document.getElementById('mobileScoutLoading');
-    if(scout&&document.getElementById('login')&&!document.getElementById('login').hidden){scout.hidden=true;scout.style.display='none'}
+    if(scout){scout.hidden=true;scout.style.display='none'}
+    document.documentElement.classList.add('collectish-logged-out-idle');
   }
-  [0,500,1500,3000,5000,8000,12000].forEach(ms=>setTimeout(reset,ms));
+  reset();
+  [250,750,1500,3000,6000].forEach(ms=>setTimeout(reset,ms));
 })();
