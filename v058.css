@@ -1,0 +1,4 @@
+/* Collectish web v0.5.8 — paired parity detail */
+.collectish-pair-note{margin:10px 0 12px;padding:10px 12px;border:1px solid var(--c-border,#dfe5ec);border-radius:10px;background:var(--c-panel2,#f8fafc);color:var(--c-text,#151a22);font-size:12px}
+.parity-mismatches{margin-top:8px}.parity-mismatches summary{cursor:pointer;font-weight:800}.parity-mismatches ul{margin:8px 0 0;padding-left:18px;display:grid;gap:6px}.parity-mismatches li{font-size:11px}.parity-mismatches li b,.parity-mismatches li span{display:block}.parity-mismatches li span{color:var(--c-muted,#687486);margin-top:2px}
+html[data-theme="dark"] .collectish-pair-note{background:#1d2430!important;color:#edf2f7!important;border-color:#303a48!important}
