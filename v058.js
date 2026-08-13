@@ -14,7 +14,6 @@
     const text=await r.text();let data=null;try{data=text?JSON.parse(text):null}catch{data=text}
     if(!r.ok)throw Error(data?.message||data?.hint||`Cloud HTTP ${r.status}`);return data;
   }
-  const fmt=v=>v?new Date(v).toLocaleString():"—";
   const n=v=>Number(v||0).toLocaleString(undefined,{maximumFractionDigits:2});
   const esc=s=>String(s??"").replace(/[&<>\"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
 
@@ -77,4 +76,10 @@
   document.addEventListener('click',e=>{if(e.target?.dataset?.page==='operations')setTimeout(loadEnhancedParity,150)},true);
   let tries=0;const t=setInterval(()=>{tries++;setBadge();if(install()||tries>180)clearInterval(t)},100);
   const badge=el('appVersion');if(badge)new MutationObserver(setBadge).observe(badge,{childList:true,characterData:true,subtree:true});
+})();
+
+// Chain cloud-default executor release.
+(()=>{
+  if(document.querySelector('script[data-collectish-v059]'))return;
+  const s=document.createElement('script');s.src='v059.js?v=059';s.dataset.collectishV059='1';document.body.appendChild(s);
 })();
