@@ -41,5 +41,5 @@ jobs:
             echo "Generated web assets already current."
             exit 0
           fi
-          git commit -m "Build consolidated Collectish web v0.7.1"
+          git commit -m "Build consolidated Collectish web v0.7.2"
           git push origin HEAD:main
