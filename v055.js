@@ -1,8 +1,34 @@
 // Collectish web v0.5.5 — unified navigation bridge + scan queue access
+// Startup compatibility guard: newer overlays used MutationObservers that rewrote
+// #appVersion from inside the observer callback. That can create an infinite
+// microtask loop and starve the rest of page startup. Ignore observers on the
+// version badge, while preserving MutationObserver everywhere else.
+(() => {
+  if(window.__collectishVersionObserverGuard)return;
+  window.__collectishVersionObserverGuard=true;
+  const NativeMutationObserver=window.MutationObserver;
+  window.MutationObserver=class CollectishMutationObserver extends NativeMutationObserver{
+    observe(target,options){
+      if(target?.id==="appVersion")return;
+      return super.observe(target,options);
+    }
+  };
+  // The current index loads these files explicitly. Add markers so legacy
+  // chain-loaders do not inject duplicate copies with older cache keys.
+  for(const version of ["056","057","058","059","060","061"]){
+    if(document.querySelector(`script[data-collectish-v${version}]`))continue;
+    const marker=document.createElement("script");
+    marker.type="application/json";
+    marker.dataset[`collectishV${version}`]="1";
+    marker.textContent="{}";
+    document.head.appendChild(marker);
+  }
+})();
+
 (() => {
   const VERSION="0.5.5", el=id=>document.getElementById(id);
-  const setBadge=()=>{const b=el("appVersion");if(b)b.textContent=`web v${VERSION}`};
-  setBadge();
+  // Historical overlays no longer own the visible application version.
+  const setBadge=()=>{};
   if(!document.querySelector('link[data-collectish-v055]')){const l=document.createElement('link');l.rel='stylesheet';l.href='v055.css?v=055';l.dataset.collectishV055='1';document.head.appendChild(l)}
 
   const map={scout:"scout",cards:"cards",operations:"more"};
@@ -75,10 +101,4 @@
   }
 
   let tries=0;const t=setInterval(()=>{tries++;setBadge();if(install()||tries>160)clearInterval(t)},100);
-})();
-
-// Chain the verification-executor overlay with a unique cache key.
-(() => {
-  if(document.querySelector('script[data-collectish-v056]'))return;
-  const s=document.createElement('script');s.src='v056.js?v=056';s.dataset.collectishV056='1';document.body.appendChild(s);
 })();
