@@ -43,3 +43,9 @@
   let tries=0;const t=setInterval(()=>{tries++;setBadge();if(install()||tries>180)clearInterval(t)},100);
   const badge=el("appVersion");if(badge)new MutationObserver(setBadge).observe(badge,{childList:true,characterData:true,subtree:true});
 })();
+
+// Chain paired verification v0.5.8.
+(() => {
+  if(document.querySelector('script[data-collectish-v058]'))return;
+  const s=document.createElement('script');s.src='v058.js?v=058';s.dataset.collectishV058='1';document.body.appendChild(s);
+})();
