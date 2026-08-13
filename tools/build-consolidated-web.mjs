@@ -1,11 +1,12 @@
 import fs from 'node:fs';
 
-const VERSION='0.7.0';
-const CACHE='070';
+const VERSION='0.7.1';
+const CACHE='071';
 const jsFiles=[
   'app.js','v032.js','v033.js','v035.js','v036.js','v038.js','v039.js','v042.js',
   'v044.js','v045.js','v046.js','v047.js','v048.js','v049.js','v050.js','v051.js',
-  'v052.js','v054.js','v055.js','v056.js','v057.js','v058.js','v059.js','v060.js'
+  'v052.js','v054.js','v055.js','v056.js','v057.js','v058.js','v059.js','v060.js',
+  'current-data.js'
 ];
 const cssFiles=[
   'styles.css','v032.css','v038.css','v040.css','v044.css','v046.css','v048.css','v049.css',
@@ -25,8 +26,8 @@ fs.writeFileSync('collectish-app.css',css);
 
 let html=fs.readFileSync('index.html','utf8');
 html=html.replace(/<div id="appVersion" class="version-badge">.*?<\/div>/,'<div id="appVersion" class="version-badge">web '+VERSION+'</div>');
-html=html.replace(/<link rel="stylesheet" href="styles\.css">.*?<title>Collectish<\/title>/s,'<link rel="stylesheet" href="collectish-app.css?v='+CACHE+'"><title>Collectish</title>');
-html=html.replace(/<script src="config\.js[^>]*><\/script>[\s\S]*?<\/body><\/html>/,'<script src="config.js?v='+CACHE+'"></script><script src="collectish-app.js?v='+CACHE+'"></script></body></html>');
+html=html.replace(/<link rel="stylesheet" href="collectish-app\.css\?v=\d+">/,'<link rel="stylesheet" href="collectish-app.css?v='+CACHE+'">');
+html=html.replace(/<script src="config\.js\?v=\d+"><\/script><script src="collectish-app\.js\?v=\d+"><\/script>/,'<script src="config.js?v='+CACHE+'"></script><script src="collectish-app.js?v='+CACHE+'"></script>');
 fs.writeFileSync('index.html',html);
 
 console.log(`Built Collectish web ${VERSION}: ${js.length} JS bytes, ${css.length} CSS bytes`);
