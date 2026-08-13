@@ -7,13 +7,20 @@ const enc=v=>encodeURIComponent(String(v??''));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const KEY='browser-agent-contract-v1';
 
+async function reportPass(job){
+  const events=await sb(`collector_job_events?job_id=eq.${enc(job.job_id)}`);
+  const claimed=(events||[]).find(e=>e.event_type==='claimed');
+  const completed=(events||[]).find(e=>e.event_type==='completed');
+  console.log(`Browser-agent probe PASS: ${job.job_id}; claimed_by=${job.claimed_by||claimed?.collector_id||'unknown'}; completed_event=${Boolean(completed)}; result=${job.progress_json?.detail||'completed'}`);
+}
+
 async function main(){
   const collectors=await sb('collectors?collector_type=eq.browser_connector&order=last_seen_at.desc&limit=20');
   const eligible=(collectors||[]).find(c=>c?.capabilities_json?.tcgplayer_authenticated_session===true&&c?.session_health_json?.authenticated===true);
   if(!eligible){console.log('No eligible browser connector currently online; probe not queued.');return}
   const existing=await sb('collector_jobs?source=eq.agent&action=eq.auth_probe&order=created_at.desc&limit=30');
   let job=(existing||[]).find(j=>j?.payload_json?.probeKey===KEY&&j.user_id===eligible.user_id);
-  if(job?.status==='completed'){console.log(`Browser-agent probe already completed (${job.job_id}).`);return}
+  if(job?.status==='completed'){await reportPass(job);return}
   if(!job||!['queued','claimed','running'].includes(job.status)){
     const now=new Date().toISOString();
     const created=await sb('collector_jobs',{method:'POST',body:[{user_id:eligible.user_id,source:'agent',action:'auth_probe',status:'queued',priority:5,required_capability:'tcgplayer_authenticated_session',preferred_executor:'browser_connector',payload_json:{probeKey:KEY,purpose:'Validate browser agent contract'},progress_json:{stage:'queued',percent:0,detail:'Waiting for browser agent',updatedAt:now},max_attempts:3}],prefer:'return=representation'});
@@ -23,7 +30,7 @@ async function main(){
   const deadline=Date.now()+90000;
   while(Date.now()<deadline){
     const rows=await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&limit=1`);const cur=rows?.[0];if(!cur)throw new Error('Probe job disappeared');
-    if(cur.status==='completed'){const events=await sb(`collector_job_events?job_id=eq.${enc(cur.job_id)}&order=created_at.asc`);console.log(`Browser-agent probe PASS: ${cur.job_id}; claimed_by=${cur.claimed_by||'unknown'}; completed_event=${(events||[]).some(e=>e.event_type==='completed')}`);return}
+    if(cur.status==='completed'){await reportPass(cur);return}
     if(cur.status==='failed')throw new Error(`Browser-agent probe failed: ${cur.error_message||'unknown error'}`);
     await sleep(5000);
   }
