@@ -44,11 +44,15 @@ jobs:
             echo "Generated web assets already current."
             exit 0
           fi
-          git commit -m "Build consolidated Collectish web v0.7.5"
+          git commit -m "Build consolidated Collectish web v0.7.6"
           git push origin HEAD:main
 
   android-agent:
     runs-on: ubuntu-latest
+    env:
+      COLLECTISH_KEYSTORE_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_PASSWORD }}
+      COLLECTISH_KEY_ALIAS: ${{ secrets.COLLECTISH_ANDROID_KEY_ALIAS }}
+      COLLECTISH_KEY_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,11 +67,29 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.10.2"
-      - name: Build Android debug APK
+      - name: Restore persistent Collectish signing key
+        if: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_B64 != '' && secrets.COLLECTISH_ANDROID_KEYSTORE_PASSWORD != '' && secrets.COLLECTISH_ANDROID_KEY_ALIAS != '' && secrets.COLLECTISH_ANDROID_KEY_PASSWORD != '' }}
+        shell: bash
+        env:
+          COLLECTISH_ANDROID_KEYSTORE_B64: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_B64 }}
+        run: |
+          printf '%s' "$COLLECTISH_ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/collectish-release.jks"
+          echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
+      - name: Build Android APK
         working-directory: android-agent
-        run: gradle :app:assembleDebug
+        shell: bash
+        run: |
+          if [ -n "${COLLECTISH_KEYSTORE_FILE:-}" ]; then
+            echo "Building persistently signed release APK."
+            gradle :app:assembleRelease
+            cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/collectish-android-agent.apk"
+          else
+            echo "Persistent signing secrets are not configured; building debug APK."
+            gradle :app:assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/collectish-android-agent.apk"
+          fi
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: collectish-android-agent-debug
-          path: android-agent/app/build/outputs/apk/debug/app-debug.apk
+          name: collectish-android-agent
+          path: ${{ runner.temp }}/collectish-android-agent.apk
