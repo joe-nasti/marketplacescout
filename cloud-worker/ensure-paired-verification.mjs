@@ -12,9 +12,10 @@ async function main(){
   if(latestPair){
     const pairJobs=paired.filter(j=>j.payload_json?.verificationPairId===latestPair);
     const cloud=pairJobs.find(j=>j.payload_json?.verificationRole==="cloud");
-    if(cloud && !cloud.progress_json?.parityStatus){console.log(`Existing pair ${latestPair} still awaiting parity; not creating another.`);return}
+    const linkedParity=cloud?.progress_json?.parity?.baselineSource==="linked_pair";
+    if(cloud && !linkedParity && !cloud.progress_json?.parityStatus){console.log(`Existing pair ${latestPair} still awaiting linked PC parity; not creating another.`);return}
     const created=new Date(pairJobs[0]?.created_at||0).getTime();
-    if(Date.now()-created<6*60*60*1000){console.log(`Recent paired verification ${latestPair} already completed; not creating another yet.`);return}
+    if(linkedParity && Date.now()-created<6*60*60*1000){console.log(`Recent paired verification ${latestPair} has linked-pair parity; not creating another yet.`);return}
   }
 
   const scans=await sb("marketplace_scans?select=user_id,set_slug,set_name,printing,condition,language,profile_json,captured_at&order=captured_at.desc&limit=100");
