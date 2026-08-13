@@ -16,14 +16,14 @@ async function main(){
     const now=new Date().toISOString();
     await sb('collector_jobs',{method:'POST',body:[{
       user_id:job.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:20,
-      required_capability:'marketplace_scan',preferred_executor:'browser_connector',parent_job_id:job.job_id,
-      payload_json:{...payload,cloudFailureJobId:job.job_id,pcFallback:true},
-      progress_json:{stage:'queued',percent:0,detail:'Cloud scan failed; automatically requeued to PC connector',updatedAt:now},
+      required_capability:'marketplace_browser_fallback',preferred_executor:'browser_connector',parent_job_id:job.job_id,
+      payload_json:{...payload,cloudFailureJobId:job.job_id,pcFallback:true,executionClass:'browser_fallback'},
+      progress_json:{stage:'queued',percent:0,detail:'Cloud scan failed; automatically requeued to browser fallback',updatedAt:now},
       max_attempts:3
     }],prefer:'return=minimal'});
     await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}`,{method:'PATCH',body:{payload_json:{...payload,pcFallbackQueued:true,pcFallbackQueuedAt:now}},prefer:'return=minimal'});
     n++;
   }
-  console.log(n?`Queued ${n} failed cloud Marketplace job(s) to PC fallback.`:'No failed cloud Marketplace jobs need PC fallback.');
+  console.log(n?`Queued ${n} failed cloud Marketplace job(s) to browser fallback.`:'No failed cloud Marketplace jobs need browser fallback.');
 }
 await main();
