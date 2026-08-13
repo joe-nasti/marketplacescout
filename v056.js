@@ -33,8 +33,9 @@
       const profile={setSlug:set.value,setName:set.dataset.name||set.textContent,printing:el("newPrinting")?.value||"Both",condition:el("newCondition")?.value||"Near Mint",language:el("newLanguage")?.value||"English",salesEnrich:Number(el("newEnrich")?.value||0),scanDepth:"Full"};
       if(msg)msg.textContent="Queueing cloud verification job…";
       await rest("collector_jobs",{method:"POST",body:[{user_id:s.user.id,source:"marketplace",action:"scan_set",status:"queued",priority:50,required_capability:"marketplace_scan",preferred_executor:"verification",payload_json:{profile},progress_json:{stage:"queued",percent:0,detail:"Waiting for cloud verification worker",updatedAt:new Date().toISOString()},max_attempts:3}],prefer:"return=minimal"});
-      if(msg)msg.textContent=`Queued ${profile.setName} for cloud verification. Run the Marketplace cloud worker workflow from GitHub Actions.`;
+      if(msg)msg.textContent=`Queued ${profile.setName} for cloud verification. The scheduled cloud worker will pick it up automatically.`;
       el("refreshCollectishJobs")?.click();
+      setTimeout(()=>el("refreshParity")?.click(),200);
     }catch(e){if(msg)msg.textContent=e.message}
   }
 
@@ -47,4 +48,10 @@
 
   let tries=0;const t=setInterval(()=>{tries++;setBadge();if(installExecutor()||tries>160)clearInterval(t)},100);
   const observer=new MutationObserver(setBadge);const badge=el("appVersion");if(badge)observer.observe(badge,{childList:true,characterData:true,subtree:true});
+})();
+
+// Chain scheduled cloud-worker/parity status UI.
+(() => {
+  if(document.querySelector('script[data-collectish-v057]'))return;
+  const s=document.createElement('script');s.src='v057.js?v=057';s.dataset.collectishV057='1';document.body.appendChild(s);
 })();
