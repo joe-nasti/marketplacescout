@@ -50,6 +50,7 @@ jobs:
   android-agent:
     runs-on: ubuntu-latest
     env:
+      COLLECTISH_ANDROID_KEYSTORE_B64: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_B64 }}
       COLLECTISH_KEYSTORE_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_PASSWORD }}
       COLLECTISH_KEY_ALIAS: ${{ secrets.COLLECTISH_ANDROID_KEY_ALIAS }}
       COLLECTISH_KEY_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEY_PASSWORD }}
@@ -68,10 +69,8 @@ jobs:
         with:
           gradle-version: "8.10.2"
       - name: Restore persistent Collectish signing key
-        if: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_B64 != '' && secrets.COLLECTISH_ANDROID_KEYSTORE_PASSWORD != '' && secrets.COLLECTISH_ANDROID_KEY_ALIAS != '' && secrets.COLLECTISH_ANDROID_KEY_PASSWORD != '' }}
+        if: ${{ env.COLLECTISH_ANDROID_KEYSTORE_B64 != '' && env.COLLECTISH_KEYSTORE_PASSWORD != '' && env.COLLECTISH_KEY_ALIAS != '' && env.COLLECTISH_KEY_PASSWORD != '' }}
         shell: bash
-        env:
-          COLLECTISH_ANDROID_KEYSTORE_B64: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_B64 }}
         run: |
           printf '%s' "$COLLECTISH_ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/collectish-release.jks"
           echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
