@@ -20,7 +20,6 @@
     return {oldest:a?.[0]?.[dateField]||null,newest:b?.[0]?.[dateField]||null};
   }
   const fmt=v=>v?new Date(v).toLocaleString():"—";
-  const money=v=>`$${Number(v||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 
   function installOperationsPanels(){
     if(!el("collectishProductNav")||el("collectishCloudHealth"))return false;
@@ -38,75 +37,25 @@
 
   async function loadHealth(){
     const host=el('cloudHealthGrid');if(!host)return;host.innerHTML='<div class="meta">Refreshing cloud coverage…</div>';
-    const specs=[
-      ['Marketplace scans','marketplace_scans','captured_at',''],
-      ['Seller orders','seller_orders','order_date',''],
-      ['Payments','seller_payments','initiated_on',''],
-      ['RIs','reimbursement_invoices','created_date',''],
-      ['SYP snapshots','syp_snapshots','captured_at',''],
-      ['SYP events','syp_events','changed_at',''],
-      ['Eligible SYP','syp_products','last_seen','is_currently_eligible=eq.true']
-    ];
-    const rows=[];
-    for(const [label,table,dateField,filter] of specs){
-      try{const [count,range]=await Promise.all([exactCount(table,filter),bounds(table,dateField)]);rows.push({label,count,...range})}
-      catch(e){rows.push({label,error:e.message})}
-    }
+    const specs=[['Marketplace scans','marketplace_scans','captured_at',''],['Seller orders','seller_orders','order_date',''],['Payments','seller_payments','initiated_on',''],['RIs','reimbursement_invoices','created_date',''],['SYP snapshots','syp_snapshots','captured_at',''],['SYP events','syp_events','changed_at',''],['Eligible SYP','syp_products','last_seen','is_currently_eligible=eq.true']];
+    const rows=[];for(const [label,table,dateField,filter] of specs){try{const [count,range]=await Promise.all([exactCount(table,filter),bounds(table,dateField)]);rows.push({label,count,...range})}catch(e){rows.push({label,error:e.message})}}
     host.innerHTML=rows.map(r=>`<div class="collectish-health-card"><span>${r.label}</span>${r.error?`<strong>Unavailable</strong><small>${r.error}</small>`:`<strong>${r.count.toLocaleString()}</strong><small>${fmt(r.oldest)} → ${fmt(r.newest)}</small>`}</div>`).join('');
-    patchAccurateKpis(rows);
-  }
-
-  function patchAccurateKpis(healthRows){
-    const eligible=healthRows.find(r=>r.label==='Eligible SYP'&&!r.error)?.count;
-    const direct=el('collectishDirectPage');
-    if(direct&&eligible!=null){const card=direct.querySelector('.collectish-kpi');if(card){const span=card.querySelector('span'),strong=card.querySelector('strong');if(span)span.textContent='SYP eligible';if(strong)strong.textContent=eligible.toLocaleString()}}
+    const eligible=rows.find(r=>r.label==='Eligible SYP'&&!r.error)?.count,direct=el('collectishDirectPage');if(direct&&eligible!=null){const card=direct.querySelector('.collectish-kpi');if(card){card.querySelector('span').textContent='SYP eligible';card.querySelector('strong').textContent=eligible.toLocaleString()}}
   }
 
   async function loadJobs(){
-    const body=el('collectishJobBody'),sum=el('collectishJobSummary');if(!body)return;
-    body.innerHTML='<tr><td colspan="6">Loading jobs…</td></tr>';
-    try{
-      const [jobs,collectors]=await Promise.all([
-        rest('collector_jobs?select=job_id,source,action,status,created_at,claimed_by,progress_json,error_message,completed_at&order=created_at.desc&limit=100'),
-        rest('collectors?select=collector_id,name,status,last_seen_at,app_version&order=last_seen_at.desc&limit=100')
-      ]);
-      const cmap=new Map((collectors||[]).map(x=>[String(x.collector_id),x]));
-      const counts={queued:0,claimed:0,running:0,completed:0,failed:0};for(const j of jobs||[])counts[j.status]=(counts[j.status]||0)+1;
-      sum.innerHTML=`<span>Queued <b>${counts.queued||0}</b></span><span>Claimed <b>${counts.claimed||0}</b></span><span>Running <b>${counts.running||0}</b></span><span>Completed <b>${counts.completed||0}</b></span><span>Failed <b>${counts.failed||0}</b></span>`;
-      body.innerHTML=(jobs||[]).map(j=>{const p=j.progress_json||{},collector=cmap.get(String(j.claimed_by||''));return `<tr><td>${fmt(j.created_at)}</td><td>${j.source} / ${j.action}</td><td><span class="collectish-job-status s-${j.status}">${j.status}</span></td><td>${Math.round(Number(p.percent||0))}% ${p.stage||''}<div class="meta">${p.detail||''}</div></td><td>${collector?`${collector.name}<div class="meta">${collector.app_version||''} • ${fmt(collector.last_seen_at)}</div>`:'—'}</td><td>${j.error_message||''}</td></tr>`}).join('')||'<tr><td colspan="6">No collector jobs yet.</td></tr>';
-    }catch(e){body.innerHTML=`<tr><td colspan="6">${e.message}</td></tr>`}
+    const body=el('collectishJobBody'),sum=el('collectishJobSummary');if(!body)return;body.innerHTML='<tr><td colspan="6">Loading jobs…</td></tr>';
+    try{const [jobs,collectors]=await Promise.all([rest('collector_jobs?select=job_id,source,action,status,created_at,claimed_by,progress_json,error_message,completed_at&order=created_at.desc&limit=100'),rest('collectors?select=collector_id,name,status,last_seen_at,app_version&order=last_seen_at.desc&limit=100')]);const cmap=new Map((collectors||[]).map(x=>[String(x.collector_id),x]));const counts={queued:0,claimed:0,running:0,completed:0,failed:0};for(const j of jobs||[])counts[j.status]=(counts[j.status]||0)+1;sum.innerHTML=`<span>Queued <b>${counts.queued||0}</b></span><span>Claimed <b>${counts.claimed||0}</b></span><span>Running <b>${counts.running||0}</b></span><span>Completed <b>${counts.completed||0}</b></span><span>Failed <b>${counts.failed||0}</b></span>`;body.innerHTML=(jobs||[]).map(j=>{const p=j.progress_json||{},collector=cmap.get(String(j.claimed_by||''));return `<tr><td>${fmt(j.created_at)}</td><td>${j.source} / ${j.action}</td><td><span class="collectish-job-status s-${j.status}">${j.status}</span></td><td>${Math.round(Number(p.percent||0))}% ${p.stage||''}<div class="meta">${p.detail||''}</div></td><td>${collector?`${collector.name}<div class="meta">${collector.app_version||''} • ${fmt(collector.last_seen_at)}</div>`:'—'}</td><td>${j.error_message||''}</td></tr>`}).join('')||'<tr><td colspan="6">No collector jobs yet.</td></tr>'}catch(e){body.innerHTML=`<tr><td colspan="6">${e.message}</td></tr>`}
   }
 
-  async function queueCloudScan(e){
-    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
-    const msg=el('newScanMsg');
-    try{
-      const set=el('newSet')?.selectedOptions?.[0];if(!set?.value)throw Error('Select a set.');
-      const s=await valid();if(!s)throw Error('Sign in required');
-      const profile={setSlug:set.value,setName:set.dataset.name||set.textContent,printing:el('newPrinting').value,condition:el('newCondition').value,language:el('newLanguage').value,salesEnrich:Number(el('newEnrich').value)};
-      if(msg)msg.textContent='Queueing in Collectish Cloud…';
-      await rest('collector_jobs',{method:'POST',body:[{user_id:s.user.id,source:'marketplace',action:'scan_set',status:'queued',priority:100,required_capability:'marketplace_scan',preferred_executor:'browser_connector',payload_json:{profile},progress_json:{stage:'queued',percent:0,detail:'Waiting for an eligible collector',updatedAt:new Date().toISOString()},max_attempts:5}],prefer:'return=minimal'});
-      if(msg)msg.textContent=`Queued ${profile.setName} in Collectish Cloud.`;
-      await loadJobs();
-    }catch(err){if(msg)msg.textContent=err.message}
-  }
-
-  function installQueueOverride(){
-    const b=el('queueNew');if(!b||b.dataset.collectishCloudJobs)return false;b.dataset.collectishCloudJobs='1';b.addEventListener('click',queueCloudScan,true);return true;
-  }
-
-  async function patchMoneyAccuracy(){
-    const host=el('collectishMoneyPage');if(!host||!host.classList.contains('active'))return;
-    try{
-      const adjCount=await exactCount('seller_payment_adjustments');
-      const meta=[...host.querySelectorAll('.collectish-section .meta')].find(x=>x.textContent.includes('parsed adjustment rows'));
-      if(meta&&adjCount>1000)meta.textContent=meta.textContent.replace(/parsed adjustment rows\s+[\d,]+/,`parsed adjustment rows ${adjCount.toLocaleString()} total`);
-    }catch{}
-  }
-
-  function monitorPages(){
-    document.addEventListener('click',e=>{const p=e.target?.dataset?.page;if(p==='operations')setTimeout(()=>{loadHealth();loadJobs()},50);if(p==='direct')setTimeout(()=>loadHealth(),100);if(p==='money')setTimeout(patchMoneyAccuracy,150)},true);
-  }
-
+  async function queueCloudScan(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();const msg=el('newScanMsg');try{const set=el('newSet')?.selectedOptions?.[0];if(!set?.value)throw Error('Select a set.');const s=await valid();if(!s)throw Error('Sign in required');const profile={setSlug:set.value,setName:set.dataset.name||set.textContent,printing:el('newPrinting').value,condition:el('newCondition').value,language:el('newLanguage').value,salesEnrich:Number(el('newEnrich').value)};if(msg)msg.textContent='Queueing in Collectish Cloud…';await rest('collector_jobs',{method:'POST',body:[{user_id:s.user.id,source:'marketplace',action:'scan_set',status:'queued',priority:100,required_capability:'marketplace_scan',preferred_executor:'browser_connector',payload_json:{profile},progress_json:{stage:'queued',percent:0,detail:'Waiting for an eligible collector',updatedAt:new Date().toISOString()},max_attempts:5}],prefer:'return=minimal'});if(msg)msg.textContent=`Queued ${profile.setName} in Collectish Cloud.`;await loadJobs()}catch(err){if(msg)msg.textContent=err.message}}
+  function installQueueOverride(){const b=el('queueNew');if(!b||b.dataset.collectishCloudJobs)return false;b.dataset.collectishCloudJobs='1';b.addEventListener('click',queueCloudScan,true);return true}
+  function monitorPages(){document.addEventListener('click',e=>{const p=e.target?.dataset?.page;if(p==='operations')setTimeout(()=>{loadHealth();loadJobs()},50);if(p==='direct')setTimeout(()=>loadHealth(),100)},true)}
   let tries=0;const t=setInterval(()=>{tries++;setBadge();const a=installOperationsPanels(),b=installQueueOverride();if(a&&b){monitorPages();clearInterval(t)}if(tries>150)clearInterval(t)},100);
+})();
+
+// Chain all post-0.5.4 unified overlays from one stable bootstrap point.
+(() => {
+  if(document.querySelector('script[data-collectish-v055]'))return;
+  const s=document.createElement('script');s.src='v055.js?v=058';s.dataset.collectishV055='1';document.body.appendChild(s);
 })();
