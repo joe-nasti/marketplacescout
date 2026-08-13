@@ -1,4 +1,4 @@
-// Collectish consolidated web 0.7.2
+// Collectish consolidated web 0.7.3
 // Generated; do not edit directly. Run tools/build-consolidated-web.mjs.
 (()=>{
   const realBadge=document.querySelector('#appVersion');
@@ -18,8 +18,8 @@
   const append=Element.prototype.append;Element.prototype.append=function(...n){return append.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
-  if(realBadge)realBadge.textContent='web 0.7.2';
-  window.__collectishConsolidated={version:'0.7.2',builtAt:'2026-08-13T19:19:30.583Z'};
+  if(realBadge)realBadge.textContent='web 0.7.3';
+  window.__collectishConsolidated={version:'0.7.3',builtAt:'2026-08-13T19:29:02.818Z'};
 })();
 
 /* ===== app.js ===== */
@@ -1896,9 +1896,9 @@ setInterval(async()=>{
       sel.innerHTML='<option value="cloud_worker">Cloud worker (default)</option><option value="browser_connector">PC connector fallback</option><option value="verification">Cloud verification</option>';
     }
     sel.value='cloud_worker';
-    const small=el('collectishExecutorLabel')?.querySelector('small');if(small)small.textContent='Cloud is now the primary Marketplace executor. Failed cloud jobs are requeued automatically to the PC connector.';
+    const small=el('collectishExecutorLabel')?.querySelector('small');if(small)small.textContent='Cloud is the primary Marketplace executor. Browser connectors are reserved for authenticated-session work and automatic fallback.';
     if(!el('collectishCloudPrimaryBadge')){
-      const badge=document.createElement('div');badge.id='collectishCloudPrimaryBadge';badge.className='collectish-cloud-primary';badge.innerHTML='<b>Cloud primary</b><span>Marketplace scans run server-side first. PC v0.15.6 remains the fallback executor.</span>';
+      const badge=document.createElement('div');badge.id='collectishCloudPrimaryBadge';badge.className='collectish-cloud-primary';badge.innerHTML='<b>Cloud primary</b><span>Routine Marketplace scans run on public server APIs. The PC connector is reserved for authenticated work and explicit fallback.</span>';
       queue.closest('.form-grid')?.insertAdjacentElement('beforebegin',badge);
     }
     return true;
@@ -1909,7 +1909,7 @@ setInterval(async()=>{
       const set=el('newSet')?.selectedOptions?.[0];if(!set?.value)throw Error('Select a set.');
       const profile={setSlug:set.value,setName:set.dataset.name||set.textContent,printing:el('newPrinting')?.value||'Both',condition:el('newCondition')?.value||'Near Mint',language:el('newLanguage')?.value||'English',salesEnrich:Number(el('newEnrich')?.value||0),scanDepth:'Smart'};
       if(msg)msg.textContent='Queueing cloud Marketplace scan…';
-      await rest('collector_jobs',{method:'POST',body:[{user_id:s.user.id,source:'marketplace',action:'scan_set',status:'queued',priority:30,required_capability:'marketplace_scan',preferred_executor:'cloud_worker',payload_json:{profile,cloudPrimary:true},progress_json:{stage:'queued',percent:0,detail:'Waiting for Collectish cloud worker',updatedAt:new Date().toISOString()},max_attempts:3}],prefer:'return=minimal'});
+      await rest('collector_jobs',{method:'POST',body:[{user_id:s.user.id,source:'marketplace',action:'scan_set',status:'queued',priority:30,required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',payload_json:{profile,cloudPrimary:true,executionClass:'cloud_public'},progress_json:{stage:'queued',percent:0,detail:'Waiting for Collectish cloud worker',updatedAt:new Date().toISOString()},max_attempts:3}],prefer:'return=minimal'});
       if(msg)msg.textContent=`Queued ${profile.setName} for cloud execution. The worker checks about every 5 minutes; PC fallback is automatic if cloud execution fails.`;
       el('refreshCollectishJobs')?.click();
     }catch(e){if(msg)msg.textContent=e.message}
@@ -2134,7 +2134,7 @@ setInterval(async()=>{
 
 // Consolidated startup finalizer
 (()=>{
-  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.7.2';
+  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.7.3';
   let s=null;try{s=JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{}
   if(!s?.token){
     const banner=document.querySelector('#activityBanner');if(banner){banner.hidden=true;banner.style.display='none'}
