@@ -54,3 +54,5 @@ jobs:
         run: node cloud-worker/marketplace-worker.mjs
       - name: Compare cloud result with paired PC baseline
         run: node cloud-worker/parity-check.mjs
+      - name: Finalize linked pair when both scans exist
+        run: node cloud-worker/finalize-linked-pair.mjs
