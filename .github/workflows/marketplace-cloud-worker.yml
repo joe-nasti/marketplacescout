@@ -35,7 +35,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
       - name: Validate worker secret
         shell: bash
         run: |
@@ -43,6 +43,8 @@ jobs:
             echo "Missing repository secret SUPABASE_SERVICE_ROLE_KEY"
             exit 1
           fi
+      - name: Validate atomic claim RPC
+        run: node cloud-worker/validate-claim-rpc.mjs
       - name: Normalize Marketplace executor capabilities
         run: node cloud-worker/normalize-marketplace-jobs.mjs
       - name: Recover expired Marketplace leases
@@ -54,6 +56,10 @@ jobs:
         run: |
           sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/marketplace-worker.mjs
           sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/parity-check.mjs
+      - name: Enable atomic job claim
+        run: node cloud-worker/enable-atomic-claim.mjs
+      - name: Validate patched worker
+        run: node --check cloud-worker/marketplace-worker.mjs
       - name: Run cloud-targeted Marketplace jobs
         run: node cloud-worker/marketplace-worker.mjs
       - name: Requeue failed cloud jobs to PC fallback
