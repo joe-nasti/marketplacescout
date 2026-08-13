@@ -7,9 +7,15 @@ on:
         description: Maximum queued cloud verification jobs to process
         required: false
         default: "1"
+  schedule:
+    - cron: "*/10 * * * *"
 
 permissions:
   contents: read
+
+concurrency:
+  group: collectish-marketplace-cloud-worker
+  cancel-in-progress: false
 
 jobs:
   marketplace-worker:
@@ -18,7 +24,7 @@ jobs:
     env:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      COLLECTISH_MAX_JOBS: ${{ inputs.max_jobs || '1' }}
+      COLLECTISH_MAX_JOBS: ${{ github.event.inputs.max_jobs || '1' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,5 +39,7 @@ jobs:
             echo "Missing repository secret SUPABASE_SERVICE_ROLE_KEY"
             exit 1
           fi
-      - name: Run one cloud-targeted Marketplace job
+      - name: Run cloud-targeted Marketplace job
         run: node cloud-worker/marketplace-worker.mjs
+      - name: Compare cloud result with PC baseline
+        run: node cloud-worker/parity-check.mjs
