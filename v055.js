@@ -76,3 +76,9 @@
 
   let tries=0;const t=setInterval(()=>{tries++;setBadge();if(install()||tries>160)clearInterval(t)},100);
 })();
+
+// Chain the verification-executor overlay with a unique cache key.
+(() => {
+  if(document.querySelector('script[data-collectish-v056]'))return;
+  const s=document.createElement('script');s.src='v056.js?v=056';s.dataset.collectishV056='1';document.body.appendChild(s);
+})();
