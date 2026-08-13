@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 
-const VERSION='0.7.4';
-const CACHE='074';
+const VERSION='0.7.5';
+const CACHE='075';
 const jsFiles=[
   'app.js','v032.js','v033.js','v035.js','v036.js','v038.js','v039.js','v042.js',
   'v044.js','v045.js','v046.js','v047.js','v048.js','v049.js','v050.js','v051.js',
