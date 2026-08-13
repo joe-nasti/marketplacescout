@@ -19,7 +19,7 @@
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
   if(realBadge)realBadge.textContent='web 0.7.1';
-  window.__collectishConsolidated={version:'0.7.1',builtAt:'2026-08-13T18:54:23.297Z'};
+  window.__collectishConsolidated={version:'0.7.1',builtAt:'2026-08-13T18:57:19.554Z'};
 })();
 
 /* ===== app.js ===== */
@@ -2030,6 +2030,48 @@ setInterval(async()=>{
   };
 
   window.__collectishPagedRest={pageSize:PAGE_SIZE,maxRows:MAX_ROWS,tables:[...fullTables]};
+})();
+
+// Collectish current UI layer — keep product navigation focused and move
+// operational/debug surfaces behind a secondary More destination.
+(() => {
+  const el=id=>document.getElementById(id);
+  function sectionByTitle(title){
+    return [...document.querySelectorAll('#app > section.card')].find(s=>(s.querySelector('h2')?.textContent||'').trim()===title)||null;
+  }
+  function install(){
+    const app=el('app'),nav=el('collectishProductNav');
+    if(!app||!nav||nav.dataset.collectishCurrentUi)return false;
+    nav.dataset.collectishCurrentUi='1';
+    const opsButton=nav.querySelector('button[data-page="operations"]');
+    if(opsButton){
+      opsButton.textContent='More';
+      opsButton.title='Operations, cloud health, jobs, and connector status';
+      opsButton.classList.add('collectish-more-nav');
+    }
+    if(!el('collectishOperationsIntro')){
+      const intro=document.createElement('section');
+      intro.id='collectishOperationsIntro';
+      intro.className='card collectish-ops-intro';
+      intro.dataset.collectishPage='operations';
+      intro.innerHTML='<div><h2>Operations</h2><div class="meta">Cloud execution, job queue, data health, and connector controls. Routine Marketplace work runs in the cloud; connector controls are secondary.</div></div>';
+      const firstOps=[...app.querySelectorAll(':scope > section[data-collectish-page="operations"]')][0];
+      if(firstOps)app.insertBefore(intro,firstOps);else app.appendChild(intro);
+    }
+    const pc=sectionByTitle('PC status');
+    if(pc){pc.querySelector('h2').textContent='PC connector';pc.classList.add('collectish-ops-secondary')}
+    const profiles=sectionByTitle('Scan profiles');if(profiles)profiles.classList.add('collectish-ops-secondary');
+    const requests=sectionByTitle('Requests');
+    if(requests){requests.querySelector('h2').textContent='Legacy requests';requests.classList.add('collectish-ops-secondary')}
+    const order=['collectishOperationsIntro','marketplaceExecutionStatus',sectionByTitle('New scan')?.id,'collectishJobs','collectishCloudHealth','collectishParity',pc?.id,profiles?.id,requests?.id].filter(Boolean);
+    let anchor=el('collectishOperationsIntro');
+    for(const id of order.slice(1)){
+      const node=el(id);if(!node||!anchor)continue;
+      anchor.insertAdjacentElement('afterend',node);anchor=node;
+    }
+    return true;
+  }
+  let tries=0;const timer=setInterval(()=>{tries++;if(install()||tries>160)clearInterval(timer)},100);
 })();
 
 
