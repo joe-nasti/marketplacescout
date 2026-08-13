@@ -19,7 +19,7 @@
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
   if(realBadge)realBadge.textContent='web 0.7.1';
-  window.__collectishConsolidated={version:'0.7.1',builtAt:'2026-08-13T18:57:19.554Z'};
+  window.__collectishConsolidated={version:'0.7.1',builtAt:'2026-08-13T19:18:38.066Z'};
 })();
 
 /* ===== app.js ===== */
@@ -2072,6 +2072,63 @@ setInterval(async()=>{
     return true;
   }
   let tries=0;const timer=setInterval(()=>{tries++;if(install()||tries>160)clearInterval(timer)},100);
+})();
+
+// Collectish connector-role layer — the desktop extension is now an agent,
+// not a second application. Public Marketplace collection belongs to cloud.
+(() => {
+  const el=id=>document.getElementById(id);
+  const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+
+  function hideLegacyRunOnPc(){
+    const profiles=[...document.querySelectorAll('button')].filter(b=>(b.textContent||'').trim()==='Run on PC');
+    for(const b of profiles){
+      b.hidden=true;
+      b.style.display='none';
+      const row=b.closest('.profile,.scan-profile,.request-row,article,li,div');
+      if(row&&!row.querySelector('.collectish-cloud-owned-note')){
+        const n=document.createElement('div');
+        n.className='meta collectish-cloud-owned-note';
+        n.textContent='Routine scans now run in Collectish Cloud.';
+        b.insertAdjacentElement('afterend',n);
+      }
+    }
+  }
+
+  function install(){
+    const app=el('app'),intro=el('collectishOperationsIntro');
+    if(!app||!intro||el('collectishConnectorRole'))return false;
+    const panel=document.createElement('section');
+    panel.id='collectishConnectorRole';
+    panel.className='card collectish-ops-panel';
+    panel.dataset.collectishPage='operations';
+    panel.innerHTML=`
+      <div class="toolbar"><div><h2>Connector responsibilities</h2><div class="meta">The browser connector only handles work that genuinely needs a signed-in browser session or acts as Marketplace fallback.</div></div></div>
+      <div class="collectish-health-grid">
+        <div class="collectish-health-card"><span>Cloud-owned</span><strong>Marketplace scans</strong><small>Search, pricepoints, Direct quantities, sales history, scoring, persistence, and analytics.</small></div>
+        <div class="collectish-health-card"><span>Browser-owned</span><strong>Authenticated seller data</strong><small>Seller Portal, private account pages, session-only exports, and collectors that cannot run anonymously.</small></div>
+        <div class="collectish-health-card"><span>Browser fallback</span><strong>Marketplace recovery</strong><small>Only after a cloud scan explicitly fails or when a job requests browser_connector.</small></div>
+        <div class="collectish-health-card"><span>Not browser-owned</span><strong>UI + history</strong><small>Scout, Cards, Sales, Direct, Money, Trends, job history, and analytics live in the cloud app.</small></div>
+      </div>`;
+    intro.insertAdjacentElement('afterend',panel);
+
+    const pc=[...app.querySelectorAll('section.card')].find(s=>(s.querySelector('h2')?.textContent||'').trim()==='PC connector');
+    if(pc){
+      const meta=pc.querySelector('.meta');
+      if(meta)meta.textContent='Authenticated-session agent and Marketplace fallback. It is no longer the primary scanner or dashboard.';
+    }
+    hideLegacyRunOnPc();
+    return true;
+  }
+
+  const observer=new MutationObserver(()=>hideLegacyRunOnPc());
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+  let tries=0;const timer=setInterval(()=>{tries++;hideLegacyRunOnPc();if(install()||tries>160)clearInterval(timer)},100);
+  window.__collectishConnectorPolicy={
+    cloudOwned:['marketplace_scan','scout_ui','cards_ui','sales_ui','direct_ui','money_ui','analytics','history'],
+    browserOwned:['authenticated_seller_portal','session_only_export','private_account_collection'],
+    browserFallback:['marketplace_scan_after_cloud_failure']
+  };
 })();
 
 
