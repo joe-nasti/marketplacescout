@@ -6,6 +6,7 @@ on:
     paths:
       - "tools/build-consolidated-web.mjs"
       - "current-data.js"
+      - "v059.js"
       - ".github/workflows/build-consolidated-web.yml"
 
 permissions:
@@ -41,5 +42,5 @@ jobs:
             echo "Generated web assets already current."
             exit 0
           fi
-          git commit -m "Build consolidated Collectish web v0.7.2"
+          git commit -m "Build consolidated Collectish web v0.7.3"
           git push origin HEAD:main
