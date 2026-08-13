@@ -1,0 +1,14 @@
+/* Collectish web v0.5.7 — cloud verification parity */
+.collectish-parity-list{display:grid;gap:10px}
+.collectish-parity-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:12px;align-items:start;border:1px solid var(--c-border,#dfe5ec);border-radius:12px;padding:12px;background:var(--c-panel2,#f8fafc);color:var(--c-text,#151a22)}
+.collectish-parity-row strong{color:var(--c-text,#151a22)}
+.collectish-parity-row .meta{color:var(--c-muted,#687486)!important}
+.parity-result{margin-top:6px;font-weight:800;color:var(--c-text,#151a22)}
+.collectish-parity-row.parity-pass{border-color:#3f8f5b}
+.collectish-parity-row.parity-warn{border-color:#b27a2f}
+.collectish-parity-row.parity-no_baseline{border-color:var(--c-border,#dfe5ec)}
+html[data-theme="dark"] .collectish-parity-row{background:#1d2430!important;color:#edf2f7!important;border-color:#303a48}
+html[data-theme="dark"] .collectish-parity-row strong,html[data-theme="dark"] .parity-result{color:#edf2f7!important}
+html[data-theme="dark"] .collectish-parity-row.parity-pass{border-color:#4e9f69!important}
+html[data-theme="dark"] .collectish-parity-row.parity-warn{border-color:#c28a3e!important}
+@media(max-width:700px){.collectish-parity-row{grid-template-columns:1fr}}
