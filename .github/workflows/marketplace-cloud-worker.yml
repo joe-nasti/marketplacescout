@@ -9,6 +9,9 @@ on:
         default: "1"
   schedule:
     - cron: "*/10 * * * *"
+  push:
+    paths:
+      - ".github/workflows/marketplace-cloud-worker.yml"
 
 permissions:
   contents: read
@@ -39,6 +42,8 @@ jobs:
             echo "Missing repository secret SUPABASE_SERVICE_ROLE_KEY"
             exit 1
           fi
+      - name: Bootstrap first verification job
+        run: node cloud-worker/bootstrap-verification.mjs
       - name: Run cloud-targeted Marketplace job
         run: node cloud-worker/marketplace-worker.mjs
       - name: Compare cloud result with PC baseline
