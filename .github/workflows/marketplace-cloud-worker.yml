@@ -43,6 +43,8 @@ jobs:
             echo "Missing repository secret SUPABASE_SERVICE_ROLE_KEY"
             exit 1
           fi
+      - name: Normalize Marketplace executor capabilities
+        run: node cloud-worker/normalize-marketplace-jobs.mjs
       - name: Prepare cloud worker identity
         shell: bash
         run: |
