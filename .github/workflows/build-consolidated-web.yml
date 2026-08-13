@@ -8,6 +8,7 @@ on:
       - "current-data.js"
       - "current-agent.js"
       - "v059.js"
+      - "android-agent/**"
       - ".github/workflows/build-consolidated-web.yml"
 
 permissions:
@@ -45,3 +46,28 @@ jobs:
           fi
           git commit -m "Build consolidated Collectish web v0.7.5"
           git push origin HEAD:main
+
+  android-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      - name: Build Android debug APK
+        working-directory: android-agent
+        run: gradle :app:assembleDebug
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: collectish-android-agent-debug
+          path: android-agent/app/build/outputs/apk/debug/app-debug.apk
