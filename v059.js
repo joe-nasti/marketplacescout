@@ -45,3 +45,9 @@
   let tries=0;const t=setInterval(()=>{tries++;setBadge();if(install()||tries>180)clearInterval(t)},100);
   const badge=el('appVersion');if(badge)new MutationObserver(setBadge).observe(badge,{childList:true,characterData:true,subtree:true});
 })();
+
+// Chain production cloud operations status.
+(()=>{
+  if(document.querySelector('script[data-collectish-v060]'))return;
+  const s=document.createElement('script');s.src='v060.js?v=060';s.dataset.collectishV060='1';document.body.appendChild(s);
+})();
