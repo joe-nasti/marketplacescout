@@ -48,9 +48,9 @@ jobs:
         run: |
           sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/marketplace-worker.mjs
           sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/parity-check.mjs
-      - name: Ensure verification job
-        run: node cloud-worker/ensure-verification.mjs
+      - name: Ensure paired verification
+        run: node cloud-worker/ensure-paired-verification.mjs
       - name: Run cloud-targeted Marketplace job
         run: node cloud-worker/marketplace-worker.mjs
-      - name: Compare cloud result with PC baseline
+      - name: Compare cloud result with paired PC baseline
         run: node cloud-worker/parity-check.mjs
