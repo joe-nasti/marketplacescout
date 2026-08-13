@@ -51,10 +51,15 @@ jobs:
       - name: Run cloud-targeted Marketplace jobs
         run: node cloud-worker/marketplace-worker.mjs
       - name: Requeue failed cloud jobs to PC fallback
+        if: always()
         run: node cloud-worker/requeue-failed-to-pc.mjs
       - name: Ensure paired verification
+        if: always()
         run: node cloud-worker/ensure-paired-verification.mjs
       - name: Compare cloud result with paired PC baseline
+        if: always()
+        continue-on-error: true
         run: node cloud-worker/parity-check.mjs
       - name: Finalize linked pair when both scans exist
+        if: always()
         run: node cloud-worker/finalize-linked-pair.mjs
