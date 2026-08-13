@@ -1,4 +1,4 @@
-// Collectish Marketplace cloud parity checker v0.2.0
+// Collectish Marketplace cloud parity checker v0.2.1
 // Compares a completed cloud-verification scan with a linked PC scan when available,
 // otherwise falls back to the latest matching PC scan.
 
@@ -43,8 +43,11 @@ async function linkedPcScan(job){
   const jobs=await sb(`collector_jobs?user_id=eq.${enc(job.user_id)}&source=eq.marketplace&action=eq.scan_set&preferred_executor=eq.browser_connector&status=eq.completed&order=completed_at.desc&limit=50`);
   const pcJob=(jobs||[]).find(j=>j.payload_json?.verificationPairId===pairId);
   if(!pcJob)return null;
-  const events=await sb(`collector_job_events?job_id=eq.${enc(pcJob.job_id)}&event_type=eq.completed&order=created_at.desc&limit=5`);
-  const scanId=(events||[]).map(e=>e.metadata_json?.resultScanId).find(Boolean)||pcJob.progress_json?.resultScanId||null;
+  let scanId=pcJob.progress_json?.resultScanId||null;
+  if(!scanId){
+    const events=await sb(`collector_job_events?job_id=eq.${enc(pcJob.job_id)}&event_type=eq.completed&limit=20`);
+    scanId=(events||[]).map(e=>e.metadata_json?.resultScanId).find(Boolean)||null;
+  }
   if(!scanId)return null;
   const scans=await sb(`marketplace_scans?user_id=eq.${enc(job.user_id)}&scan_id=eq.${enc(scanId)}&limit=1`);
   return scans?.[0]||null;
