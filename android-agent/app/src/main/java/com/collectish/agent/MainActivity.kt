@@ -5,7 +5,7 @@ import android.app.Activity
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.WindowInsets
+import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -15,18 +15,28 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import java.util.UUID
-import kotlin.math.max
 
 class MainActivity : Activity() {
     private lateinit var collectish: WebView
     private lateinit var seller: WebView
     @Volatile private var sellerSessionState = "unknown"
-    private val version = "0.1.1"
+    private val version = "0.1.2"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) window.setDecorFitsSystemWindows(false)
+
+        // Keep Android system UI visible and let the OS reserve safe space for it.
+        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(true)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER
+            }
+        }
+
         CookieManager.getInstance().setAcceptCookie(true)
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -37,25 +47,10 @@ class MainActivity : Activity() {
         nav.addView(Button(this).apply { text="Collectish"; setOnClickListener { verifySellerSession { showCollectish() } } }, LinearLayout.LayoutParams(0,-2,1f))
         nav.addView(Button(this).apply { text="TCGplayer"; setOnClickListener { showSeller() } }, LinearLayout.LayoutParams(0,-2,1f))
         root.addView(content, LinearLayout.LayoutParams(-1,0,1f)); root.addView(nav, LinearLayout.LayoutParams(-1,-2)); setContentView(root)
-        installSafeInsets(root)
 
         collectish.addJavascriptInterface(Bridge(), "CollectishAndroid")
         seller.webViewClient = object: WebViewClient(){ override fun onPageFinished(view:WebView,url:String){ verifySellerSession() } }
         collectish.loadUrl("https://joe-nasti.github.io/marketplacescout/"); seller.loadUrl("https://sellerportal.tcgplayer.com/")
-    }
-
-    private fun installSafeInsets(root: View){
-        root.setOnApplyWindowInsetsListener { view, insets ->
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
-                val safe=insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
-                val gestures=insets.getInsets(WindowInsets.Type.mandatorySystemGestures())
-                view.setPadding(max(safe.left,gestures.left),max(safe.top,gestures.top),max(safe.right,gestures.right),max(safe.bottom,gestures.bottom))
-            } else {
-                @Suppress("DEPRECATION") view.setPadding(insets.systemWindowInsetLeft,insets.systemWindowInsetTop,insets.systemWindowInsetRight,insets.systemWindowInsetBottom)
-            }
-            insets
-        }
-        root.requestApplyInsets()
     }
 
     @SuppressLint("SetJavaScriptEnabled") private fun makeWebView()=WebView(this).apply{settings.javaScriptEnabled=true;settings.domStorageEnabled=true;settings.databaseEnabled=true;webChromeClient=WebChromeClient();webViewClient=WebViewClient()}
