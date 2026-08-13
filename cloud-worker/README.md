@@ -1,16 +1,18 @@
 # Collectish Marketplace cloud worker
 
-This is the first server-side executor for the shared `collector_jobs` queue.
+This is the server-side executor for the shared `collector_jobs` queue.
 
 ## Current mode
 
-Verification only. The worker claims only Marketplace jobs whose `preferred_executor` is one of:
+Cloud-primary Marketplace execution with PC fallback.
+
+The worker claims Marketplace jobs whose `preferred_executor` is one of:
 
 - `cloud_worker`
 - `server`
 - `verification`
 
-Normal mobile jobs currently target `browser_connector`, so this worker will not steal PC jobs during validation.
+Normal mobile Marketplace scans now target `cloud_worker`. If a cloud-targeted scan reaches `failed`, the fallback step requeues the same profile as a new `browser_connector` job so Marketplace Scout PC can finish it.
 
 ## What it reproduces
 
@@ -27,20 +29,18 @@ The worker mirrors the Marketplace Scout PC pipeline using the same public TCGpl
 
 No TCGplayer cookie or seller-session credential is used by this worker.
 
-## GitHub Actions verification
+## GitHub Actions
 
-The workflow `.github/workflows/marketplace-cloud-worker.yml` is manual-only during validation.
+The workflow `.github/workflows/marketplace-cloud-worker.yml` runs about every 5 minutes and can also be run manually.
 
-Add this repository Actions secret before running it:
+Required Actions secret:
 
 `SUPABASE_SERVICE_ROLE_KEY`
 
 Do not put the service-role key in source code, issues, logs, or the web/mobile app.
 
-The Supabase project URL is public and is set directly in the workflow.
+The workflow processes up to two cloud-targeted jobs per cycle by default, then checks failed cloud work for PC fallback and continues the linked PC/cloud parity verification path.
 
-After the secret exists, queue a `marketplace / scan_set` job with `preferred_executor=verification`, then run **Collectish Marketplace cloud worker** from the repository Actions page. The workflow processes at most one job by default.
+## Verification
 
-## Promotion plan
-
-Do not enable a schedule yet. First compare a cloud verification scan against a PC scan of the same small set/profile. Check exact SKU IDs, row count, Direct Low, Direct Available, Marketplace listing count, sales enrichment, and Supply Structure v2 score. Once parity is acceptable, the cloud worker can become the preferred executor and the workflow can move to scheduled/always-on hosting.
+Paired verification remains available. It queues the same profile to `browser_connector` and `verification`, links the two jobs with a shared pair ID, and compares exact SKU coverage, prices, inventory, listings, sales velocity, scores, and flags.
