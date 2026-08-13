@@ -9,13 +9,16 @@ const patch=async(job,body)=>sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&sta
 
 async function main(){
   const jobs=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.queued&order=created_at.asc&limit=200');
-  let cloud=0,fallback=0,auth=0,untouched=0;
+  let cloud=0,fallback=0,auth=0,verification=0,untouched=0;
   for(const job of jobs||[]){
     const payload=job.payload_json||{};
     const preferred=job.preferred_executor||null;
     const capability=job.required_capability||null;
     const authRequired=Boolean(payload.authRequired||payload.requiresAuthenticatedSession||payload.executionClass==='browser_auth');
-    const explicitFallback=Boolean(payload.pcFallback||payload.cloudFailureJobId||payload.executionClass==='browser_fallback'||job.parent_job_id);
+    const verificationRole=payload.verificationRole||null;
+    const verificationPc=verificationRole==='pc';
+    const verificationCloud=verificationRole==='cloud'||preferred==='verification';
+    const explicitFallback=Boolean(payload.pcFallback||payload.cloudFailureJobId||payload.executionClass==='browser_fallback'||job.parent_job_id||verificationPc);
 
     if(authRequired){
       if(preferred!=='browser_connector'||capability!=='tcgplayer_authenticated_session'){
@@ -23,19 +26,23 @@ async function main(){
       }else untouched++;
       continue;
     }
+    if(verificationCloud){
+      if(preferred!=='verification'||capability!=='marketplace_public_api'){
+        await patch(job,{preferred_executor:'verification',required_capability:'marketplace_public_api',payload_json:{...payload,executionClass:'cloud_verification'}});verification++;
+      }else untouched++;
+      continue;
+    }
     if(explicitFallback){
       if(preferred!=='browser_connector'||capability!=='marketplace_browser_fallback'){
-        await patch(job,{preferred_executor:'browser_connector',required_capability:'marketplace_browser_fallback',payload_json:{...payload,executionClass:'browser_fallback',pcFallback:true}});fallback++;
+        await patch(job,{preferred_executor:'browser_connector',required_capability:'marketplace_browser_fallback',payload_json:{...payload,executionClass:verificationPc?'browser_verification':'browser_fallback',pcFallback:true}});fallback++;
       }else untouched++;
       continue;
     }
 
-    // Routine Marketplace scans are always public cloud work. This also repairs
-    // legacy null/browser-targeted jobs so a desktop connector cannot claim them.
     if(preferred!=='cloud_worker'||capability!=='marketplace_public_api'){
       await patch(job,{preferred_executor:'cloud_worker',required_capability:'marketplace_public_api',payload_json:{...payload,cloudPrimary:true,executionClass:'cloud_public'}});cloud++;
     }else untouched++;
   }
-  console.log(`Marketplace routing normalized: ${cloud} cloud, ${fallback} fallback, ${auth} auth, ${untouched} unchanged.`);
+  console.log(`Marketplace routing normalized: ${cloud} cloud, ${fallback} browser, ${auth} auth, ${verification} verification, ${untouched} unchanged.`);
 }
 await main();
