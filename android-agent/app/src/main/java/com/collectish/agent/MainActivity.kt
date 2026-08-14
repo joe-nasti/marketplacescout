@@ -5,7 +5,6 @@ import android.app.Activity
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.WindowInsets
 import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -21,15 +20,18 @@ class MainActivity : Activity() {
     private lateinit var collectish: WebView
     private lateinit var seller: WebView
     @Volatile private var sellerSessionState = "unknown"
-    private val version = "0.1.3"
+    private val version = "0.1.4"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        configureSystemBars()
+        configureWindowSafely()
         CookieManager.getInstance().setAcceptCookie(true)
 
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            fitsSystemWindows = true
+        }
         val content = FrameLayout(this)
         collectish = makeWebView(); seller = makeWebView()
         content.addView(collectish, FrameLayout.LayoutParams(-1, -1)); content.addView(seller, FrameLayout.LayoutParams(-1, -1)); seller.visibility = View.GONE
@@ -43,14 +45,12 @@ class MainActivity : Activity() {
         collectish.loadUrl("https://joe-nasti.github.io/marketplacescout/"); seller.loadUrl("https://sellerportal.tcgplayer.com/")
     }
 
-    private fun configureSystemBars(){
+    private fun configureWindowSafely(){
         window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
             window.setDecorFitsSystemWindows(true)
-            window.insetsController?.show(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
-        } else {
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
         }
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P){
             window.attributes = window.attributes.apply {
@@ -81,6 +81,6 @@ class MainActivity : Activity() {
         @JavascriptInterface fun showSellerPortal(){runOnUiThread{showSeller()}}
         @JavascriptInterface fun showCollectish(){runOnUiThread{verifySellerSession{showCollectish()}}}
     }
-    override fun onResume(){super.onResume();configureSystemBars();if(::seller.isInitialized)verifySellerSession()}
+    override fun onResume(){super.onResume();if(::seller.isInitialized)verifySellerSession()}
     override fun onBackPressed(){when{seller.visibility==View.VISIBLE&&seller.canGoBack()->seller.goBack();collectish.visibility==View.VISIBLE&&collectish.canGoBack()->collectish.goBack();seller.visibility==View.VISIBLE->verifySellerSession{showCollectish()};else->super.onBackPressed()}}
 }
