@@ -20,7 +20,8 @@ class MainActivity : Activity() {
     private lateinit var collectish: WebView
     private lateinit var seller: WebView
     @Volatile private var sellerSessionState = "unknown"
-    private val version = "0.1.5"
+    @Volatile private var sellerPortalSnapshot = "{}"
+    private val version = "0.1.6"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,12 +50,7 @@ class MainActivity : Activity() {
         window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
-            window.setDecorFitsSystemWindows(true)
-        }
-        // Do not force LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER here. With a visible
-        // status bar the OS already keeps app content out of the camera/status area,
-        // while NEVER can reserve an unnecessarily large blank band on Pixel devices.
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) window.setDecorFitsSystemWindows(true)
     }
 
     @SuppressLint("SetJavaScriptEnabled") private fun makeWebView()=WebView(this).apply{settings.javaScriptEnabled=true;settings.domStorageEnabled=true;settings.databaseEnabled=true;webChromeClient=WebChromeClient();webViewClient=WebViewClient()}
@@ -64,8 +60,12 @@ class MainActivity : Activity() {
     private fun verifySellerSession(after:(()->Unit)?=null){
         if(!::seller.isInitialized){after?.invoke();return}
         val url=seller.url.orEmpty().lowercase(); val cookies=CookieManager.getInstance().getCookie("https://sellerportal.tcgplayer.com/").orEmpty()
-        seller.evaluateJavascript("(function(){try{const b=(document.body?.innerText||'').toLowerCase();return JSON.stringify({p:!!document.querySelector('input[type=password]'),l:/sign in|log in|forgot password/.test(b),o:/sign out|log out|logout/.test(b),n:/orders|inventory|payments|seller portal|shipping/.test(b)})}catch(e){return '{}'}})();") { raw ->
-            val t=raw.orEmpty().replace("\\\"","\"").trim('"'); val login=url.contains("login")||url.contains("signin")||url.contains("registration")||t.contains("\"p\":true"); val auth=t.contains("\"o\":true")||(t.contains("\"n\":true")&&!t.contains("\"l\":true"))
+        val probe="""(function(){try{const text=(document.body?.innerText||'');const b=text.toLowerCase();const visible=['orders','inventory','payments','shipping','messages','settings'].filter(x=>b.includes(x));return JSON.stringify({passwordField:!!document.querySelector('input[type=password]'),loginText:/sign in|log in|forgot password/.test(b),logoutText:/sign out|log out|logout/.test(b),sellerNav:/orders|inventory|payments|seller portal|shipping/.test(b),title:document.title||'',path:location.pathname||'/',visibleSections:visible,checkedAt:new Date().toISOString()})}catch(e){return JSON.stringify({error:String(e)})}})();"""
+        seller.evaluateJavascript(probe) { raw ->
+            val t=raw.orEmpty().replace("\\\"","\"").trim('"')
+            sellerPortalSnapshot=t.ifBlank { "{}" }
+            val login=url.contains("login")||url.contains("signin")||url.contains("registration")||t.contains("\"passwordField\":true")
+            val auth=t.contains("\"logoutText\":true")||(t.contains("\"sellerNav\":true")&&!t.contains("\"loginText\":true"))
             sellerSessionState=when{login->"signed_out"; auth&&url.contains("tcgplayer.com")->"authenticated"; cookies.isNotBlank()&&url.contains("tcgplayer.com")->"authenticated";else->"unknown"}
             after?.invoke(); if(::collectish.isInitialized&&collectish.visibility==View.VISIBLE)collectish.evaluateJavascript("window.dispatchEvent(new Event('collectishAgentSessionChanged'))",null)
         }
@@ -75,6 +75,7 @@ class MainActivity : Activity() {
         @JavascriptInterface fun getVersion()=version
         @JavascriptInterface fun getCollectorId():String{val p=getSharedPreferences("collectish-agent",MODE_PRIVATE);return p.getString("collectorId",null)?:UUID.randomUUID().toString().also{p.edit().putString("collectorId",it).apply()}}
         @JavascriptInterface fun getSessionState()=sellerSessionState
+        @JavascriptInterface fun getSellerPortalSnapshot()=sellerPortalSnapshot
         @JavascriptInterface fun refreshSessionState(){runOnUiThread{verifySellerSession()}}
         @JavascriptInterface fun showSellerPortal(){runOnUiThread{showSeller()}}
         @JavascriptInterface fun showCollectish(){runOnUiThread{verifySellerSession{showCollectish()}}}
