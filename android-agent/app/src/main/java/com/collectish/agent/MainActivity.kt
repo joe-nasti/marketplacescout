@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.WindowManager
 import android.webkit.CookieManager
@@ -19,9 +21,12 @@ import java.util.UUID
 class MainActivity : Activity() {
     private lateinit var collectish: WebView
     private lateinit var seller: WebView
+    private val mainHandler = Handler(Looper.getMainLooper())
     @Volatile private var sellerSessionState = "unknown"
     @Volatile private var sellerPortalSnapshot = "{}"
-    private val version = "0.1.6"
+    @Volatile private var sellerOrdersProbeState = "idle"
+    @Volatile private var sellerOrdersSnapshot = "{}"
+    private val version = "0.1.7"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,7 +47,15 @@ class MainActivity : Activity() {
         root.addView(content, LinearLayout.LayoutParams(-1,0,1f)); root.addView(nav, LinearLayout.LayoutParams(-1,-2)); setContentView(root)
 
         collectish.addJavascriptInterface(Bridge(), "CollectishAndroid")
-        seller.webViewClient = object: WebViewClient(){ override fun onPageFinished(view:WebView,url:String){ verifySellerSession() } }
+        seller.webViewClient = object: WebViewClient(){
+            override fun onPageFinished(view:WebView,url:String){
+                verifySellerSession()
+                if(sellerOrdersProbeState=="navigating"){
+                    sellerOrdersProbeState="collecting"
+                    mainHandler.postDelayed({ captureSellerOrdersProbe() },1800)
+                }
+            }
+        }
         collectish.loadUrl("https://joe-nasti.github.io/marketplacescout/"); seller.loadUrl("https://sellerportal.tcgplayer.com/")
     }
 
@@ -57,12 +70,14 @@ class MainActivity : Activity() {
     private fun showCollectish(){collectish.visibility=View.VISIBLE;seller.visibility=View.GONE;collectish.evaluateJavascript("window.dispatchEvent(new Event('collectishAgentSessionChanged'))",null)}
     private fun showSeller(){seller.visibility=View.VISIBLE;collectish.visibility=View.GONE}
 
+    private fun decodeJsString(raw:String):String=raw.replace("\\\"","\"").replace("\\n","\n").replace("\\\\","\\").trim('"')
+
     private fun verifySellerSession(after:(()->Unit)?=null){
         if(!::seller.isInitialized){after?.invoke();return}
         val url=seller.url.orEmpty().lowercase(); val cookies=CookieManager.getInstance().getCookie("https://sellerportal.tcgplayer.com/").orEmpty()
-        val probe="""(function(){try{const text=(document.body?.innerText||'');const b=text.toLowerCase();const visible=['orders','inventory','payments','shipping','messages','settings'].filter(x=>b.includes(x));return JSON.stringify({passwordField:!!document.querySelector('input[type=password]'),loginText:/sign in|log in|forgot password/.test(b),logoutText:/sign out|log out|logout/.test(b),sellerNav:/orders|inventory|payments|seller portal|shipping/.test(b),title:document.title||'',path:location.pathname||'/',visibleSections:visible,checkedAt:new Date().toISOString()})}catch(e){return JSON.stringify({error:String(e)})}})();"""
+        val probe="""(function(){try{const text=(document.body?.innerText||'');const b=text.toLowerCase();const visible=['orders','inventory','payments','shipping','messages','settings'].filter(x=>b.includes(x));const links=[...document.querySelectorAll('a[href]')].map(a=>({text:(a.innerText||a.textContent||'').trim().replace(/\s+/g,' ').slice(0,120),href:a.href})).filter(x=>x.text||/order|inventory|payment|shipping/i.test(x.href)).slice(0,80);return JSON.stringify({passwordField:!!document.querySelector('input[type=password]'),loginText:/sign in|log in|forgot password/.test(b),logoutText:/sign out|log out|logout/.test(b),sellerNav:/orders|inventory|payments|seller portal|shipping/.test(b),title:document.title||'',path:location.pathname||'/',visibleSections:visible,links,checkedAt:new Date().toISOString()})}catch(e){return JSON.stringify({error:String(e)})}})();"""
         seller.evaluateJavascript(probe) { raw ->
-            val t=raw.orEmpty().replace("\\\"","\"").trim('"')
+            val t=decodeJsString(raw.orEmpty())
             sellerPortalSnapshot=t.ifBlank { "{}" }
             val login=url.contains("login")||url.contains("signin")||url.contains("registration")||t.contains("\"passwordField\":true")
             val auth=t.contains("\"logoutText\":true")||(t.contains("\"sellerNav\":true")&&!t.contains("\"loginText\":true"))
@@ -71,11 +86,49 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun startSellerOrdersProbe(){
+        if(!::seller.isInitialized){sellerOrdersProbeState="error";sellerOrdersSnapshot="{\"error\":\"Seller WebView unavailable\"}";return}
+        sellerOrdersProbeState="locating"
+        sellerOrdersSnapshot="{}"
+        verifySellerSession {
+            if(sellerSessionState!="authenticated"){
+                sellerOrdersProbeState="error"
+                sellerOrdersSnapshot="{\"error\":\"Seller Portal session is not authenticated\"}"
+                return@verifySellerSession
+            }
+            val navProbe="""(function(){try{const els=[...document.querySelectorAll('a[href],button,[role=button]')];const score=e=>{const t=(e.innerText||e.textContent||'').trim().toLowerCase();const h=(e.href||'').toLowerCase();return t==='orders'?100:(t.includes('orders')?70:0)+(h.includes('order')?40:0)};const hit=els.map(e=>({e,s:score(e)})).sort((a,b)=>b.s-a.s)[0];if(!hit||hit.s<40)return JSON.stringify({ok:false,error:'Orders navigation not found',path:location.pathname});const e=hit.e,href=e.href||'';if(href){location.href=href}else{e.click()}return JSON.stringify({ok:true,href,text:(e.innerText||e.textContent||'').trim(),from:location.pathname})}catch(e){return JSON.stringify({ok:false,error:String(e)})}})();"""
+            seller.evaluateJavascript(navProbe){raw->
+                val t=decodeJsString(raw.orEmpty())
+                if(t.contains("\"ok\":true")){
+                    sellerOrdersProbeState="navigating"
+                    mainHandler.postDelayed({ if(sellerOrdersProbeState=="navigating") { sellerOrdersProbeState="collecting"; captureSellerOrdersProbe() } },3500)
+                }else{
+                    sellerOrdersProbeState="error"
+                    sellerOrdersSnapshot=t.ifBlank { "{\"error\":\"Orders navigation failed\"}" }
+                }
+            }
+        }
+    }
+
+    private fun captureSellerOrdersProbe(){
+        if(!::seller.isInitialized)return
+        val probe="""(function(){try{const clean=s=>(s||'').replace(/\s+/g,' ').trim();const tables=[...document.querySelectorAll('table')].slice(0,8).map((table,ti)=>({index:ti,headers:[...table.querySelectorAll('thead th')].map(x=>clean(x.innerText||x.textContent)).filter(Boolean),rows:[...table.querySelectorAll('tbody tr,tr')].slice(0,120).map(tr=>[...tr.querySelectorAll('th,td')].map(td=>clean(td.innerText||td.textContent).slice(0,500))).filter(r=>r.length)}));const grids=[...document.querySelectorAll('[role=row]')].slice(0,160).map(r=>[...r.querySelectorAll('[role=cell],[role=gridcell],[role=columnheader]')].map(c=>clean(c.innerText||c.textContent).slice(0,500))).filter(r=>r.length);const links=[...document.querySelectorAll('a[href]')].map(a=>({text:clean(a.innerText||a.textContent).slice(0,160),href:a.href})).filter(x=>/order|refund|payment|transaction|shipping|seller/i.test(x.text+' '+x.href)).slice(0,120);const buttons=[...document.querySelectorAll('button,[role=button]')].map(b=>clean(b.innerText||b.textContent)).filter(Boolean).slice(0,100);const forms=[...document.forms].slice(0,20).map(f=>({action:f.action,method:f.method,controls:[...f.elements].slice(0,60).map(e=>({name:e.name||'',type:e.type||'',value:(e.type==='hidden'?String(e.value||'').slice(0,300):'')}))}));const resources=performance.getEntriesByType('resource').map(r=>r.name).filter(u=>/tcgplayer|sellerportal/i.test(u)&&/api|order|refund|payment|transaction|shipping|seller/i.test(u)).slice(-160);const body=clean(document.body?.innerText||'').slice(0,30000);return JSON.stringify({title:document.title||'',url:location.href,path:location.pathname||'/',tables,grids,links,buttons,forms,resources,bodyText:body,counts:{tables:tables.length,gridRows:grids.length,links:links.length,resources:resources.length},checkedAt:new Date().toISOString()})}catch(e){return JSON.stringify({error:String(e),url:location.href,checkedAt:new Date().toISOString()})}})();"""
+        seller.evaluateJavascript(probe){raw->
+            val t=decodeJsString(raw.orEmpty())
+            sellerOrdersSnapshot=t.ifBlank { "{\"error\":\"Empty orders probe\"}" }
+            sellerOrdersProbeState=if(t.contains("\"error\":"))"error" else "ready"
+            if(::collectish.isInitialized&&collectish.visibility==View.VISIBLE)collectish.evaluateJavascript("window.dispatchEvent(new Event('collectishAgentSessionChanged'))",null)
+        }
+    }
+
     inner class Bridge{
         @JavascriptInterface fun getVersion()=version
         @JavascriptInterface fun getCollectorId():String{val p=getSharedPreferences("collectish-agent",MODE_PRIVATE);return p.getString("collectorId",null)?:UUID.randomUUID().toString().also{p.edit().putString("collectorId",it).apply()}}
         @JavascriptInterface fun getSessionState()=sellerSessionState
         @JavascriptInterface fun getSellerPortalSnapshot()=sellerPortalSnapshot
+        @JavascriptInterface fun getSellerOrdersProbeState()=sellerOrdersProbeState
+        @JavascriptInterface fun getSellerOrdersSnapshot()=sellerOrdersSnapshot
+        @JavascriptInterface fun startSellerOrdersProbe(){runOnUiThread{startSellerOrdersProbe()}}
         @JavascriptInterface fun refreshSessionState(){runOnUiThread{verifySellerSession()}}
         @JavascriptInterface fun showSellerPortal(){runOnUiThread{showSeller()}}
         @JavascriptInterface fun showCollectish(){runOnUiThread{verifySellerSession{showCollectish()}}}
