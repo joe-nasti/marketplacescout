@@ -20,7 +20,7 @@ class MainActivity : Activity() {
     private lateinit var collectish: WebView
     private lateinit var seller: WebView
     @Volatile private var sellerSessionState = "unknown"
-    private val version = "0.1.4"
+    private val version = "0.1.5"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,15 +48,13 @@ class MainActivity : Activity() {
     private fun configureWindowSafely(){
         window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
             window.setDecorFitsSystemWindows(true)
         }
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P){
-            window.attributes = window.attributes.apply {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER
-            }
-        }
+        // Do not force LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER here. With a visible
+        // status bar the OS already keeps app content out of the camera/status area,
+        // while NEVER can reserve an unnecessarily large blank band on Pixel devices.
     }
 
     @SuppressLint("SetJavaScriptEnabled") private fun makeWebView()=WebView(this).apply{settings.javaScriptEnabled=true;settings.domStorageEnabled=true;settings.databaseEnabled=true;webChromeClient=WebChromeClient();webViewClient=WebViewClient()}
