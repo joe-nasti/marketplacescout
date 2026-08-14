@@ -2,6 +2,18 @@
   const el=id=>document.getElementById(id);
   const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   const ago=iso=>{if(!iso)return 'never';const m=Math.max(0,Math.round((Date.now()-new Date(iso))/60000));return m<1?'now':m<60?`${m}m ago`:m<1440?`${Math.round(m/60)}h ago`:`${Math.round(m/1440)}d ago`};
+  const pretty=o=>JSON.stringify(o??{},null,2);
+  async function loadLatestSellerSnapshot(){
+    const host=el('sellerSnapshotLatest');if(!host)return;
+    try{
+      const rows=await rest('collector_jobs?select=job_id,status,completed_at,progress_json,error_message&action=eq.seller_portal_snapshot&status=eq.completed&order=completed_at.desc&limit=1');
+      const job=Array.isArray(rows)?rows[0]:null,snap=job?.progress_json?.snapshot;
+      if(!job||!snap){host.innerHTML='<div class="meta">No completed Seller Portal snapshot yet.</div>';return}
+      const sections=Array.isArray(snap.visibleSections)?snap.visibleSections:[];
+      const sessionOk=Boolean(snap.sellerNav&&!snap.passwordField&&!snap.loginText);
+      host.innerHTML=`<div class="collectish-health-grid" style="margin-top:10px"><div class="collectish-health-card"><span>Latest snapshot</span><strong>${esc(snap.title||'Seller Portal')}</strong><small>${job.completed_at?ago(job.completed_at):''}</small><div class="meta">${sessionOk?'Authenticated Seller Portal':'Session state uncertain'}</div></div><div class="collectish-health-card"><span>Captured sections</span><strong>${sections.length}</strong><small>${esc(sections.join(' • ')||'None detected')}</small><div class="meta">${esc(snap.path||'')}</div></div></div><details style="margin-top:10px"><summary>View snapshot JSON</summary><pre style="white-space:pre-wrap;word-break:break-word;margin:8px 0 0">${esc(pretty(snap))}</pre></details>`;
+    }catch(e){host.innerHTML=`<div class="collectish-empty">${esc(e.message)}</div>`}
+  }
   async function load(){
     const host=el('agentStatusBody');if(!host)return;
     try{
@@ -11,6 +23,7 @@
       const cards=[...(freshAndroid?[freshAndroid]:[]),...browsers].slice(0,4).map(c=>{const s=c?.session_health_json||{},cap=c?.capabilities_json||{},ready=Boolean(s.authenticated&&cap.tcgplayer_authenticated_session);return `<div class="collectish-health-card"><span>${c.collector_type==='mobile_agent'?'Android agent':'Browser agent'}</span><strong>${esc(c?.name||'Unknown agent')}</strong><small>${esc(c?.app_version||'')} ${c?.last_seen_at?'• '+ago(c.last_seen_at):''}</small><div class="meta">${ready?'Authenticated • Eligible':'Session '+esc(s.state||'unknown')}</div></div>`}).join('');
       host.innerHTML=`<div class="collectish-health-grid">${cards||'<div class="collectish-health-card"><span>Agent</span><strong>No authenticated agent</strong></div>'}</div>`;
     }catch(e){host.innerHTML=`<div class="collectish-empty">${esc(e.message)}</div>`}
+    loadLatestSellerSnapshot().catch(()=>{});
   }
   async function queueSellerSnapshot(){
     const a=window.CollectishAndroid,s=typeof session==='function'?session():null,msg=el('sellerSnapshotMsg');
@@ -25,7 +38,7 @@
   function install(){
     const anchor=el('collectishConnectorRole');if(!anchor||el('collectishAgentStatus'))return false;
     const panel=document.createElement('section');panel.id='collectishAgentStatus';panel.className='card collectish-ops-panel';panel.dataset.collectishPage='operations';
-    panel.innerHTML='<div class="toolbar"><div><h2>Authenticated agents</h2><div class="meta">Live desktop and Android session health.</div></div><button id="refreshAgentStatus" type="button">Refresh</button></div><div id="agentStatusBody"><div class="meta">Loading agent status…</div></div><div style="margin-top:12px"><button id="collectSellerSnapshot" type="button">Collect Seller Portal snapshot</button><div id="sellerSnapshotMsg" class="meta" style="margin-top:6px">Read-only bootstrap collector: page title, path, session state, and visible Seller Portal sections only.</div></div>';
+    panel.innerHTML='<div class="toolbar"><div><h2>Authenticated agents</h2><div class="meta">Live desktop and Android session health.</div></div><button id="refreshAgentStatus" type="button">Refresh</button></div><div id="agentStatusBody"><div class="meta">Loading agent status…</div></div><div style="margin-top:12px"><button id="collectSellerSnapshot" type="button">Collect Seller Portal snapshot</button><div id="sellerSnapshotMsg" class="meta" style="margin-top:6px">Read-only bootstrap collector: page title, path, session state, and visible Seller Portal sections only.</div><div id="sellerSnapshotLatest" style="margin-top:10px"><div class="meta">Loading latest Seller Portal snapshot…</div></div></div>';
     anchor.insertAdjacentElement('afterend',panel);el('refreshAgentStatus').onclick=load;el('collectSellerSnapshot').onclick=queueSellerSnapshot;load();return true;
   }
   document.addEventListener('click',e=>{if(e.target?.dataset?.page==='operations')setTimeout(load,150)},true);
@@ -58,6 +71,7 @@
         let snapshot={};try{snapshot=JSON.parse(String(a.getSellerPortalSnapshot?.()||'{}'))}catch{snapshot={error:'Snapshot parse failed'}}
         await completeJob(snapJob,collectorId,version,'Read-only Seller Portal snapshot collected',{snapshot});
         const msg=el('sellerSnapshotMsg');if(msg)msg.textContent=`Collected: ${snapshot.title||'Seller Portal'} ${snapshot.path||''}`;
+        setTimeout(()=>loadLatestSellerSnapshot().catch(()=>{}),150);
       }
       setTimeout(load,150);
     }catch(e){
