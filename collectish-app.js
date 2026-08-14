@@ -1,4 +1,4 @@
-// Collectish consolidated web 0.7.6
+// Collectish consolidated web 0.7.7
 // Generated; do not edit directly. Run tools/build-consolidated-web.mjs.
 (()=>{
   const realBadge=document.querySelector('#appVersion');
@@ -18,8 +18,8 @@
   const append=Element.prototype.append;Element.prototype.append=function(...n){return append.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
-  if(realBadge)realBadge.textContent='web 0.7.6';
-  window.__collectishConsolidated={version:'0.7.6',builtAt:'2026-08-14T21:55:52.401Z'};
+  if(realBadge)realBadge.textContent='web 0.7.7';
+  window.__collectishConsolidated={version:'0.7.7',builtAt:'2026-08-14T21:59:13.277Z'};
 })();
 
 /* ===== app.js ===== */
@@ -2104,17 +2104,36 @@ setInterval(async()=>{
       host.innerHTML=`<div class="collectish-health-grid">${cards||'<div class="collectish-health-card"><span>Agent</span><strong>No authenticated agent</strong></div>'}</div>`;
     }catch(e){host.innerHTML=`<div class="collectish-empty">${esc(e.message)}</div>`}
   }
+  async function queueSellerSnapshot(){
+    const a=window.CollectishAndroid,s=typeof session==='function'?session():null,msg=el('sellerSnapshotMsg');
+    if(!a||!s?.user?.id){if(msg)msg.textContent='Open this page in the Collectish Android app and sign in first.';return}
+    try{
+      const now=new Date().toISOString();
+      await rest('collector_jobs',{method:'POST',body:[{user_id:s.user.id,source:'agent',action:'seller_portal_snapshot',status:'queued',priority:5,required_capability:'seller_portal_snapshot',preferred_executor:'android_agent',payload_json:{purpose:'Read-only Seller Portal page snapshot'},progress_json:{stage:'queued',percent:0,detail:'Waiting for Android Seller Portal session',updatedAt:now},max_attempts:3}],prefer:'return=minimal'});
+      if(msg)msg.textContent='Queued. Android will collect the signed-in Seller Portal snapshot on its next heartbeat.';
+      setTimeout(()=>androidHeartbeat().catch(()=>{}),50);
+    }catch(e){if(msg)msg.textContent=String(e?.message||e)}
+  }
   function install(){
     const anchor=el('collectishConnectorRole');if(!anchor||el('collectishAgentStatus'))return false;
     const panel=document.createElement('section');panel.id='collectishAgentStatus';panel.className='card collectish-ops-panel';panel.dataset.collectishPage='operations';
-    panel.innerHTML='<div class="toolbar"><div><h2>Authenticated agents</h2><div class="meta">Live desktop and Android session health.</div></div><button id="refreshAgentStatus" type="button">Refresh</button></div><div id="agentStatusBody"><div class="meta">Loading agent status…</div></div>';
-    anchor.insertAdjacentElement('afterend',panel);el('refreshAgentStatus').onclick=load;load();return true;
+    panel.innerHTML='<div class="toolbar"><div><h2>Authenticated agents</h2><div class="meta">Live desktop and Android session health.</div></div><button id="refreshAgentStatus" type="button">Refresh</button></div><div id="agentStatusBody"><div class="meta">Loading agent status…</div></div><div style="margin-top:12px"><button id="collectSellerSnapshot" type="button">Collect Seller Portal snapshot</button><div id="sellerSnapshotMsg" class="meta" style="margin-top:6px">Read-only bootstrap collector: page title, path, session state, and visible Seller Portal sections only.</div></div>';
+    anchor.insertAdjacentElement('afterend',panel);el('refreshAgentStatus').onclick=load;el('collectSellerSnapshot').onclick=queueSellerSnapshot;load();return true;
   }
   document.addEventListener('click',e=>{if(e.target?.dataset?.page==='operations')setTimeout(load,150)},true);
   let tries=0;const timer=setInterval(()=>{tries++;if(install()||tries>160)clearInterval(timer)},100);
 
   const android=()=>window.CollectishAndroid||null;
   let heartbeatBusy=false;
+  async function claimOne(a,collectorId,action,capability){
+    const claimed=await rest('rpc/claim_collector_job',{method:'POST',body:{p_source:'agent',p_action:action,p_preferred_executors:['android_agent'],p_required_capability:capability,p_collector_id:collectorId,p_lease_seconds:300}});
+    return Array.isArray(claimed)?claimed[0]:(claimed?.job_id?claimed:null);
+  }
+  async function completeJob(job,collectorId,version,detail,extra={}){
+    const completedAt=new Date().toISOString(),progress={stage:'completed',percent:100,detail,updatedAt:completedAt,...extra};
+    await rest(`collector_jobs?job_id=eq.${encodeURIComponent(job.job_id)}`,{method:'PATCH',body:{status:'completed',completed_at:completedAt,lease_expires_at:null,progress_json:progress,error_message:null},prefer:'return=minimal'});
+    await rest('collector_job_events',{method:'POST',body:[{job_id:job.job_id,user_id:job.user_id,event_type:'completed',collector_id:collectorId,progress_json:progress,message:detail,metadata_json:{platform:'android',agentVersion:version,...extra}}],prefer:'return=minimal'});
+  }
   async function androidHeartbeat(){
     if(heartbeatBusy)return;
     const a=android();if(!a||typeof rest!=='function'||typeof session!=='function')return;
@@ -2122,14 +2141,16 @@ setInterval(async()=>{
     heartbeatBusy=true;
     const collectorId=String(a.getCollectorId()),version=String(a.getVersion()),state=String(a.getSessionState()),authenticated=state==='authenticated',now=new Date().toISOString();
     try{
-      await rest('collectors?on_conflict=user_id,collector_id',{method:'POST',body:[{user_id:s.user.id,collector_id:collectorId,name:'Collectish Android',collector_type:'mobile_agent',platform:'android',last_seen_at:now,status:'online',app_version:version,capabilities_json:{tcgplayer_authenticated_session:authenticated,authenticated_agent:true,android_agent:true},session_health_json:{authenticated,state,checkedAt:now,provider:'tcgplayer'},metadata_json:{executionRole:'android_agent'}}],prefer:'resolution=merge-duplicates,return=minimal'});
+      await rest('collectors?on_conflict=user_id,collector_id',{method:'POST',body:[{user_id:s.user.id,collector_id:collectorId,name:'Collectish Android',collector_type:'mobile_agent',platform:'android',last_seen_at:now,status:'online',app_version:version,capabilities_json:{tcgplayer_authenticated_session:authenticated,authenticated_agent:true,android_agent:true,seller_portal_snapshot:authenticated},session_health_json:{authenticated,state,checkedAt:now,provider:'tcgplayer'},metadata_json:{executionRole:'android_agent'}}],prefer:'resolution=merge-duplicates,return=minimal'});
       if(!authenticated)return;
-      const claimed=await rest('rpc/claim_collector_job',{method:'POST',body:{p_source:'agent',p_action:'auth_probe',p_preferred_executors:['android_agent'],p_required_capability:'tcgplayer_authenticated_session',p_collector_id:collectorId,p_lease_seconds:300}});
-      const job=Array.isArray(claimed)?claimed[0]:(claimed?.job_id?claimed:null);if(!job)return;
-      const completedAt=new Date().toISOString();
-      const progress={stage:'completed',percent:100,detail:'Authenticated TCGplayer session confirmed on Android',updatedAt:completedAt};
-      await rest(`collector_jobs?job_id=eq.${encodeURIComponent(job.job_id)}`,{method:'PATCH',body:{status:'completed',completed_at:completedAt,lease_expires_at:null,progress_json:progress,error_message:null},prefer:'return=minimal'});
-      await rest('collector_job_events',{method:'POST',body:[{job_id:job.job_id,user_id:job.user_id,event_type:'completed',collector_id:collectorId,progress_json:progress,message:'Authenticated TCGplayer session confirmed on Android',metadata_json:{platform:'android',agentVersion:version}}],prefer:'return=minimal'});
+      const probe=await claimOne(a,collectorId,'auth_probe','tcgplayer_authenticated_session');
+      if(probe)await completeJob(probe,collectorId,version,'Authenticated TCGplayer session confirmed on Android');
+      const snapJob=await claimOne(a,collectorId,'seller_portal_snapshot','seller_portal_snapshot');
+      if(snapJob){
+        let snapshot={};try{snapshot=JSON.parse(String(a.getSellerPortalSnapshot?.()||'{}'))}catch{snapshot={error:'Snapshot parse failed'}}
+        await completeJob(snapJob,collectorId,version,'Read-only Seller Portal snapshot collected',{snapshot});
+        const msg=el('sellerSnapshotMsg');if(msg)msg.textContent=`Collected: ${snapshot.title||'Seller Portal'} ${snapshot.path||''}`;
+      }
       setTimeout(load,150);
     }catch(e){
       try{await rest(`collectors?user_id=eq.${encodeURIComponent(s.user.id)}&collector_id=eq.${encodeURIComponent(collectorId)}`,{method:'PATCH',body:{session_health_json:{authenticated,state,checkedAt:new Date().toISOString(),provider:'tcgplayer',lastAgentError:String(e?.message||e)}},prefer:'return=minimal'})}catch{}
@@ -2137,18 +2158,13 @@ setInterval(async()=>{
     }finally{heartbeatBusy=false}
   }
   const kick=()=>androidHeartbeat().catch(()=>{});
-  setInterval(kick,30000);
-  setTimeout(kick,1200);
-  window.addEventListener('collectishAgentSessionChanged',()=>setTimeout(kick,50));
-  window.addEventListener('pageshow',kick);
-  window.addEventListener('focus',kick);
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')kick()});
+  setInterval(kick,30000);setTimeout(kick,1200);window.addEventListener('collectishAgentSessionChanged',()=>setTimeout(kick,50));window.addEventListener('pageshow',kick);window.addEventListener('focus',kick);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')kick()});
 })();
 
 
 // Consolidated startup finalizer
 (()=>{
-  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.7.6';
+  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.7.7';
   let s=null;try{s=JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{}
   if(!s?.token){
     const banner=document.querySelector('#activityBanner');if(banner){banner.hidden=true;banner.style.display='none'}
