@@ -32,6 +32,7 @@ jobs:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       COLLECTISH_MAX_JOBS: ${{ github.event.inputs.max_jobs || '4' }}
+      COLLECTISH_SCRYFALL_BATCH: "40"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -68,9 +69,15 @@ jobs:
       - name: Enable atomic job claim
         run: node cloud-worker/enable-atomic-claim.mjs
       - name: Validate patched worker
-        run: node --check cloud-worker/marketplace-worker.mjs
+        run: |
+          node --check cloud-worker/marketplace-worker.mjs
+          node --check cloud-worker/enrich-scout-scryfall.mjs
       - name: Run cloud-targeted Marketplace jobs
         run: node cloud-worker/marketplace-worker.mjs
+      - name: Enrich Scout card metadata
+        if: always()
+        continue-on-error: true
+        run: node cloud-worker/enrich-scout-scryfall.mjs
       - name: Recover failed cloud jobs with deferred retries
         if: always()
         run: node cloud-worker/requeue-failed-to-pc.mjs
