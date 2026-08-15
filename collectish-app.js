@@ -1,4 +1,4 @@
-// Collectish consolidated web 0.8.3
+// Collectish consolidated web 0.8.4
 // Generated; do not edit directly. Run tools/build-consolidated-web.mjs.
 (()=>{
   const realBadge=document.querySelector('#appVersion');
@@ -18,8 +18,8 @@
   const append=Element.prototype.append;Element.prototype.append=function(...n){return append.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
-  if(realBadge)realBadge.textContent='web 0.8.3';
-  window.__collectishConsolidated={version:'0.8.3',builtAt:'2026-08-15T23:49:25.223Z'};
+  if(realBadge)realBadge.textContent='web 0.8.4';
+  window.__collectishConsolidated={version:'0.8.4',builtAt:'2026-08-15T23:52:48.630Z'};
 })();
 
 /* ===== app.js ===== */
@@ -2597,6 +2597,32 @@ setInterval(async()=>{
   if(!install())setTimeout(install,100);
 })();
 
+/* ===== current-scout-edhrec.js ===== */
+// Collectish Scout EDHREC context renderer
+(() => {
+  let seq=0,lastName='';
+  const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const num=n=>Number(n||0).toLocaleString();
+  async function refresh(){
+    const detail=document.getElementById('cxParityDetail');if(!detail)return;
+    const title=detail.querySelector('.cx-detail-title .cx-section-title');if(!title)return;
+    const name=title.textContent.trim();if(!name)return;
+    const token=++seq;lastName=name;
+    let old=detail.querySelector('.cx-edhrec-context');if(old)old.remove();
+    try{
+      const rows=await rest(`marketplace_scan_rows?select=edhrec_rank,edhrec_signal,edhrec_signal_score,commander_demand_score,edhrec_observed_at&product_name=eq.${encodeURIComponent(name)}&edhrec_signal=not.is.null&order=id.desc&limit=1`);
+      if(token!==seq||lastName!==name||!rows?.[0])return;
+      const r=rows[0],box=document.createElement('div');box.className=`cx-edhrec-context cx-edhrec-${String(r.edhrec_signal||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')}`;
+      const rank=Number(r.edhrec_rank||0),score=Number(r.edhrec_signal_score??r.commander_demand_score??0);
+      box.innerHTML=`<div class="cx-edhrec-head"><div><span class="cx-edhrec-kicker">Commander context</span><strong>${esc(r.edhrec_signal||'EDHREC')}</strong></div><span class="cx-edhrec-score">${score?`${score}/100`:''}</span></div><div class="cx-edhrec-meta">${rank?`Weekly EDHREC rank #${num(rank)}`:'Independent EDHREC signal'}${r.edhrec_observed_at?` • updated ${new Date(r.edhrec_observed_at).toLocaleDateString()}`:''}</div><small>This is independent demand/reprint context and does not change the core Scout grade.</small>`;
+      const thesis=detail.querySelector('.cx-thesis');if(thesis)thesis.insertAdjacentElement('afterend',box);else detail.appendChild(box);
+    }catch{}
+  }
+  const mo=new MutationObserver(()=>queueMicrotask(refresh));
+  function start(){const h=document.getElementById('cxParityDetail');if(!h)return false;mo.observe(h,{childList:true,subtree:true});refresh();return true}
+  const root=new MutationObserver(()=>{if(!document.getElementById('cxParityDetail'))return;if(start())root.disconnect()});root.observe(document.documentElement,{childList:true,subtree:true});start();
+})();
+
 /* ===== current-seller-parity.js ===== */
 // Collectish Seller parity layer — orders, products, refunds, reviews, payments and RI exceptions
 (() => {
@@ -2696,7 +2722,7 @@ setInterval(async()=>{
 
 // Consolidated startup finalizer
 (()=>{
-  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.8.3';
+  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.8.4';
   let s=null;try{s=JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{}
   if(!s?.token){
     const banner=document.querySelector('#activityBanner');if(banner){banner.hidden=true;banner.style.display='none'}
