@@ -19,7 +19,7 @@
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
   if(realBadge)realBadge.textContent='web 0.8.1';
-  window.__collectishConsolidated={version:'0.8.1',builtAt:'2026-08-15T18:13:16.631Z'};
+  window.__collectishConsolidated={version:'0.8.1',builtAt:'2026-08-15T23:35:33.989Z'};
 })();
 
 /* ===== app.js ===== */
@@ -2240,6 +2240,8 @@ setInterval(async()=>{
 /* ===== current-readonly-agent.js ===== */
 (() => {
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const DRAIN_MAX=3;
+  const BETWEEN_JOBS_MS=1500;
   let busy=false;
 
   async function claimOne(collectorId){
@@ -2275,6 +2277,26 @@ setInterval(async()=>{
     }],prefer:'return=minimal'});
   }
 
+  async function processOne(job,ro,collectorId,version){
+    const payload=job.payload_json||{};
+    const config=payload.probe||payload.config||{};
+    ro.startReadOnlyProbe(JSON.stringify(config));
+    let state='starting';
+    for(let i=0;i<80;i++){
+      await wait(500);
+      state=String(ro.getReadOnlyProbeState?.()||'unknown');
+      if(state==='ready'||state==='error')break;
+    }
+    let probe={};
+    try{probe=JSON.parse(String(ro.getReadOnlyProbeResult?.()||'{}'))}catch{probe={error:'Read-only probe JSON parse failed'}}
+    if(state==='ready'){
+      await finish(job,collectorId,version,'completed','Authenticated read-only Seller Portal probe completed',probe,state);
+      return true;
+    }
+    await finish(job,collectorId,version,'failed',state==='error'?(probe.error||'Read-only Seller Portal probe failed'):'Read-only Seller Portal probe timed out',probe,state);
+    return false;
+  }
+
   async function run(){
     if(busy||typeof rest!=='function'||typeof session!=='function')return;
     const a=window.CollectishAndroid,ro=window.CollectishReadOnly,s=session();
@@ -2285,25 +2307,17 @@ setInterval(async()=>{
     let job=null;
     try{
       const collectorId=String(a.getCollectorId()),version=String(a.getVersion());
-      job=await claimOne(collectorId);
-      if(!job)return;
-      const payload=job.payload_json||{};
-      const config=payload.probe||payload.config||{};
-      ro.startReadOnlyProbe(JSON.stringify(config));
-      let state='starting';
-      for(let i=0;i<80;i++){
-        await wait(500);
-        state=String(ro.getReadOnlyProbeState?.()||'unknown');
-        if(state==='ready'||state==='error')break;
+      let completed=0;
+      for(let i=0;i<DRAIN_MAX;i++){
+        job=await claimOne(collectorId);
+        if(!job)break;
+        const ok=await processOne(job,ro,collectorId,version);
+        job=null;
+        if(!ok)break;
+        completed++;
+        if(i<DRAIN_MAX-1)await wait(BETWEEN_JOBS_MS);
       }
-      let probe={};
-      try{probe=JSON.parse(String(ro.getReadOnlyProbeResult?.()||'{}'))}catch{probe={error:'Read-only probe JSON parse failed'}}
-      if(state==='ready'){
-        await finish(job,collectorId,version,'completed','Authenticated read-only Seller Portal probe completed',probe,state);
-      }else{
-        await finish(job,collectorId,version,'failed',state==='error'?(probe.error||'Read-only Seller Portal probe failed'):'Read-only Seller Portal probe timed out',probe,state);
-      }
-      window.dispatchEvent(new Event('collectishAgentSessionChanged'));
+      if(completed>0)window.dispatchEvent(new Event('collectishAgentSessionChanged'));
     }catch(e){
       if(job){
         try{
