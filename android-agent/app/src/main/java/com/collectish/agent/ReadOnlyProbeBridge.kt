@@ -16,6 +16,10 @@ class ReadOnlyProbeBridge(
     @Volatile private var result: String = "{}"
     @Volatile private var activeToken: String = ""
 
+    private val sypStoreOrigin = "https://store.tcgplayer.com/"
+    private val sypExportPrefix = "https://store.tcgplayer.com/admin/direct/ExportSYPList?"
+    private val sypOriginPrimeUrl = "https://store.tcgplayer.com/admin/direct/GetLastUpdated?categoryId=1"
+
     inner class SellerCallback {
         @JavascriptInterface
         fun complete(token: String, payload: String) {
@@ -55,11 +59,36 @@ class ReadOnlyProbeBridge(
                 activeToken = UUID.randomUUID().toString(); state = "running"; result = "{}"
                 when (mode) {
                     "navigate_capture" -> runNavigationCapture(url, waitMs)
-                    "fetch_json", "fetch_text" -> runFetch(url, method, body, mode, activeToken)
+                    "fetch_json", "fetch_text" -> runFetchWithOriginGuard(url, method, body, mode, activeToken)
                     else -> fail("Unsupported probe mode")
                 }
             } catch (e: Exception) { fail(e.message ?: e.javaClass.simpleName) }
         }
+    }
+
+    /**
+     * ExportSYPList was recovered from the prior SYP monitor as a read-only Store
+     * endpoint. Unlike the Seller APIs, Store does not reliably allow this large
+     * CSV response to be fetched cross-origin from sellerportal.tcgplayer.com.
+     * Prime the same authenticated WebView onto the fixed allowlisted Store origin
+     * first, then run the existing bounded fetch. No cookies/headers are copied or
+     * injected by native code and no arbitrary URL is introduced.
+     */
+    private fun runFetchWithOriginGuard(url: String, method: String, body: String, mode: String, token: String) {
+        val needsStoreOrigin = method == "GET" && url.startsWith(sypExportPrefix) && !seller.url.orEmpty().startsWith(sypStoreOrigin)
+        if (!needsStoreOrigin) {
+            runFetch(url, method, body, mode, token)
+            return
+        }
+        seller.loadUrl(sypOriginPrimeUrl)
+        seller.postDelayed({
+            if (token != activeToken || state != "running") return@postDelayed
+            if (!seller.url.orEmpty().startsWith(sypStoreOrigin)) {
+                fail("SYP Store origin was not ready for the allowlisted export")
+                return@postDelayed
+            }
+            runFetch(url, method, body, mode, token)
+        }, 1800L)
     }
 
     private fun runFetch(url: String, method: String, body: String, mode: String, token: String) {
