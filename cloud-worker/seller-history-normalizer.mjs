@@ -2,7 +2,6 @@
 // Seller History extension. This module does not call TCGplayer; it only turns
 // completed Android read-only probe payloads into rows for Supabase.
 
-const own=(obj,key)=>Object.prototype.hasOwnProperty.call(obj||{},key);
 const text=v=>v==null?'':String(v);
 const nullableText=v=>v==null?null:String(v);
 const num=v=>v==null||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
@@ -23,18 +22,14 @@ export function validateOrderSearchResponse(body){
 export function normalizeSummaryOrder(userId,order,collectedAt=new Date().toISOString()){
   const orderNumber=text(order?.orderNumber).trim();
   if(!orderNumber)return null;
-  // Keep this deliberately summary-only. Detailed financial/refund/review fields
-  // are omitted so an overlap summary upsert cannot erase a previously enriched
-  // detail row.
+  // Summary overlap writes are intentionally minimal. Existing detailed rows may
+  // contain fees/refunds/reviews that are not present in the search response, so
+  // the search pass only establishes identity/date/freshness and detail probes do
+  // the authoritative enrichment.
   return {
     user_id:userId,
     order_number:orderNumber,
     order_date:iso(order?.orderDate||order?.createdAt),
-    order_status:nullableText(order?.orderStatus||order?.status),
-    order_channel:nullableText(order?.orderChannel),
-    order_fulfillment:nullableText(order?.orderFulfillment),
-    buyer_name:nullableText(order?.buyerName),
-    shipping_type:nullableText(order?.shippingType),
     collected_at:collectedAt
   };
 }
