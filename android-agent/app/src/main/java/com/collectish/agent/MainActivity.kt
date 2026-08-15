@@ -26,7 +26,7 @@ class MainActivity : Activity() {
     @Volatile private var sellerPortalSnapshot = "{}"
     @Volatile private var sellerOrdersProbeState = "idle"
     @Volatile private var sellerOrdersSnapshot = "{}"
-    private val version = "0.1.9"
+    private val version = "0.1.10"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,6 +47,7 @@ class MainActivity : Activity() {
         root.addView(content, LinearLayout.LayoutParams(-1,0,1f)); root.addView(nav, LinearLayout.LayoutParams(-1,-2)); setContentView(root)
 
         collectish.addJavascriptInterface(Bridge(), "CollectishAndroid")
+        collectish.addJavascriptInterface(ReadOnlyProbeBridge(this, seller) { sellerSessionState }, "CollectishReadOnly")
         seller.webViewClient = object: WebViewClient(){
             override fun onPageFinished(view:WebView,url:String){
                 verifySellerSession()
