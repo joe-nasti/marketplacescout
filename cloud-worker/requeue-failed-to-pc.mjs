@@ -9,7 +9,7 @@ const enc=x=>encodeURIComponent(String(x??''));
 const isTransient=m=>/HTTP\s+(408|425|429|500|502|503|504)\b|abort|timeout|timed out|fetch failed|network/i.test(String(m||''));
 function chicagoDay(value){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));}
 const today=chicagoDay(Date.now());
-const daily=job=>Boolean(job?.payload_json?.dailyAutoSync||job?.payload_json?.dailyCatchup);
+const daily=job=>Boolean(job?.payload_json?.dailyAutoSync||job?.payload_json?.dailyCatchup||job?.payload_json?.dailySync);
 const managedRetry=job=>daily(job)||job?.payload_json?.cloudFreshRetryCount!=null||Boolean(job?.payload_json?.cloudFreshRetryOf);
 const setKey=job=>`${job.user_id}|${job?.payload_json?.profile?.setSlug||''}`;
 const activeRank=j=>j.status==='running'?0:j.status==='claimed'?1:2;
