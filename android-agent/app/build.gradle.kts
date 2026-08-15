@@ -39,6 +39,7 @@ android {
 
     buildTypes {
         getByName("release") {
+            // Strategic generic read-only executor build.
             if (hasCollectishSigning) {
                 signingConfig = signingConfigs.getByName("collectishRelease")
             }
