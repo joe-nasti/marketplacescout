@@ -12,7 +12,7 @@ The worker claims Marketplace jobs whose `preferred_executor` is one of:
 - `server`
 - `verification`
 
-Normal mobile Marketplace scans now target `cloud_worker`. If a cloud-targeted scan reaches `failed`, the fallback step requeues the same profile as a new `browser_connector` job so Marketplace Scout PC can finish it.
+Normal mobile Marketplace scans now target `cloud_worker`. Transient public-endpoint failures are retried in the same cloud job while attempts remain. If that job exhausts its attempts, the recovery step gives the set exactly one brand-new cloud job before falling back to `browser_connector`. Any still-queued browser fallback is cancelled before that fresh cloud retry is created so the daily one-scan-per-set refresh cannot duplicate coverage.
 
 ## What it reproduces
 
@@ -39,7 +39,7 @@ Required Actions secret:
 
 Do not put the service-role key in source code, issues, logs, or the web/mobile app.
 
-The workflow processes up to two cloud-targeted jobs per cycle by default, then checks failed cloud work for PC fallback and continues the linked PC/cloud parity verification path.
+The workflow processes up to four cloud-targeted jobs per cycle by default, then checks failed cloud work for recovery/fallback and continues the linked PC/cloud parity verification path.
 
 ## Verification
 
