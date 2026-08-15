@@ -6,7 +6,7 @@ on:
       max_jobs:
         description: Maximum queued cloud Marketplace jobs to process
         required: false
-        default: "2"
+        default: "6"
   schedule:
     - cron: "*/5 * * * *"
   push:
@@ -28,7 +28,7 @@ jobs:
     env:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      COLLECTISH_MAX_JOBS: ${{ github.event.inputs.max_jobs || '2' }}
+      COLLECTISH_MAX_JOBS: ${{ github.event.inputs.max_jobs || '6' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
