@@ -43,8 +43,11 @@ async function latestOrderDate(userId){
   return rows?.[0]?.order_date||null;
 }
 async function hasSearchWork(userId){
-  const rows=await sb(`collector_jobs?select=job_id,status,payload_json&user_id=eq.${enc(userId)}&source=eq.agent&action=eq.seller_portal_readonly_probe&status=in.(queued,claimed,running,completed)&order=created_at.desc&limit=50`);
-  return (rows||[]).some(j=>kind(j)==='order_search' && !j.progress_json?.orchestratedAt);
+  const rows=await sb(`collector_jobs?select=job_id,status,payload_json,progress_json&user_id=eq.${enc(userId)}&source=eq.agent&action=eq.seller_portal_readonly_probe&status=in.(queued,claimed,running,completed)&order=created_at.desc&limit=50`);
+  return (rows||[]).some(j=>kind(j)==='order_search' && (
+    ['queued','claimed','running'].includes(j.status) ||
+    (j.status==='completed' && !j.progress_json?.orchestratedAt)
+  ));
 }
 async function queueIncrementalSearch(authJob,sellerKey){
   if(await hasSearchWork(authJob.user_id))return false;
