@@ -82,7 +82,7 @@ async function queueIncrementalSearch(authJob,sellerKey){
     source:'agent',
     action:'seller_portal_readonly_probe',
     status:'queued',
-    priority:7,
+    priority:4,
     required_capability:'tcgplayer_authenticated_session',
     preferred_executor:'android_agent',
     payload_json:{
@@ -150,7 +150,7 @@ async function queueNextSearchPage(job,nextFrom){
   const now=new Date().toISOString();
   await sb('collector_jobs',{method:'POST',body:[{
     user_id:job.user_id,
-    source:'agent',action:'seller_portal_readonly_probe',status:'queued',priority:7,
+    source:'agent',action:'seller_portal_readonly_probe',status:'queued',priority:4,
     required_capability:'tcgplayer_authenticated_session',preferred_executor:'android_agent',
     payload_json:{
       sellerHistoryKind:'order_search',sellerHistoryParentJobId:payload.sellerHistoryParentJobId||job.job_id,
