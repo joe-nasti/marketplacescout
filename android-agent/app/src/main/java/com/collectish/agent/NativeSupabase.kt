@@ -63,6 +63,25 @@ class NativeSupabase {
         return JSONArray(text)
     }
 
+    fun getAll(token: String, path: String, pageSize: Int = 1000, maxRows: Int = 10000): JSONArray {
+        val out = JSONArray()
+        var from = 0
+        val size = pageSize.coerceIn(100, 1000)
+        while (from < maxRows) {
+            val to = minOf(from + size - 1, maxRows - 1)
+            val conn = connection("$BASE/rest/v1/$path", "GET", token).apply {
+                setRequestProperty("Range", "$from-$to")
+            }
+            val text = body(conn)
+            if (conn.responseCode !in 200..299) throw IllegalStateException("Data request failed (${conn.responseCode})")
+            val page = JSONArray(text)
+            for (i in 0 until page.length()) out.put(page.get(i))
+            if (page.length() < size) break
+            from += page.length()
+        }
+        return out
+    }
+
     fun count(token: String, table: String, filter: String = ""): Int {
         val suffix = if (filter.isBlank()) "" else "?$filter"
         val conn = connection("$BASE/rest/v1/$table$suffix", "HEAD", token).apply {
