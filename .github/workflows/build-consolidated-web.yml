@@ -7,6 +7,7 @@ on:
       - "tools/build-consolidated-web.mjs"
       - "tools/patch-native-v021.py"
       - "tools/patch-native-v022.py"
+      - "tools/patch-native-v023.py"
       - "current-data.js"
       - "current-agent.js"
       - "current-readonly-agent.js"
@@ -88,37 +89,33 @@ jobs:
           printf '%s' "$COLLECTISH_ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/collectish-release.jks"
           echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
       - name: Apply native 0.2.1 UI patch
-        shell: bash
         run: python tools/patch-native-v021.py
       - name: Apply native 0.2.2 SYP patch
-        shell: bash
         run: python tools/patch-native-v022.py
-      - name: Align Android 0.2.2 version metadata
+      - name: Apply native 0.2.3 data mapping patch
+        run: python tools/patch-native-v023.py
+      - name: Align Android 0.2.3 version metadata
         working-directory: android-agent
         shell: bash
         run: |
-          sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.2"/' app/src/main/java/com/collectish/agent/MainActivity.kt
-          sed -i -E 's/versionCode = [0-9]+/versionCode = 22/' app/build.gradle.kts
-          sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.2"/' app/build.gradle.kts
-          grep -n 'private val version' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -n 'versionCode\|versionName' app/build.gradle.kts
+          sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.3"/' app/src/main/java/com/collectish/agent/MainActivity.kt
+          sed -i -E 's/versionCode = [0-9]+/versionCode = 23/' app/build.gradle.kts
+          sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.3"/' app/build.gradle.kts
       - name: Verify Android native version bridge
         working-directory: android-agent
         shell: bash
         run: |
-          grep -q 'private val version = "0.2.2"' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'versionCode = 22' app/build.gradle.kts
-          grep -q 'versionName = "0.2.2"' app/build.gradle.kts
+          grep -q 'private val version = "0.2.3"' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'versionCode = 23' app/build.gradle.kts
+          grep -q 'versionName = "0.2.3"' app/build.gradle.kts
       - name: Build Android APK
         working-directory: android-agent
         shell: bash
         run: |
           if [ -n "${COLLECTISH_KEYSTORE_FILE:-}" ]; then
-            echo "Building persistently signed release APK."
             gradle :app:assembleRelease
             cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/collectish-android-agent.apk"
           else
-            echo "Persistent signing secrets are not configured; building debug APK."
             gradle :app:assembleDebug
             cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/collectish-android-agent.apk"
           fi
