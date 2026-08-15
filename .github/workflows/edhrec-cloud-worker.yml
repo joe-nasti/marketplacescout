@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/edhrec-cloud-worker.yml"
       - "cloud-worker/edhrec-worker.mjs"
+      - "cloud-worker/recalculate-scout-edhrec.mjs"
 
 permissions:
   contents: read
@@ -19,7 +20,7 @@ concurrency:
 jobs:
   edhrec:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -31,9 +32,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Validate worker
+      - name: Validate workers
         run: |
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
           node --check cloud-worker/edhrec-worker.mjs
-      - name: Collect EDHREC context
+          node --check cloud-worker/recalculate-scout-edhrec.mjs
+      - name: Collect EDHREC demand context
         run: node cloud-worker/edhrec-worker.mjs
+      - name: Fold demand movement into Scout scores
+        run: node cloud-worker/recalculate-scout-edhrec.mjs
