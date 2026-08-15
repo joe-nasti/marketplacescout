@@ -1,0 +1,43 @@
+name: Collectish Seller History orchestrator
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+  push:
+    paths:
+      - ".github/workflows/seller-history-orchestrator.yml"
+      - "cloud-worker/seller-history-orchestrator.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-seller-history-orchestrator
+  cancel-in-progress: false
+
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate worker secret
+        shell: bash
+        run: |
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "Missing repository secret SUPABASE_SERVICE_ROLE_KEY"
+            exit 1
+          fi
+      - name: Validate orchestrator syntax
+        run: node --check cloud-worker/seller-history-orchestrator.mjs
+      - name: Coordinate authenticated Seller History probes
+        run: node cloud-worker/seller-history-orchestrator.mjs
