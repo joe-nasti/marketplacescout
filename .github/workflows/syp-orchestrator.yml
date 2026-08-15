@@ -6,6 +6,7 @@ on:
     - cron: "*/30 * * * *"
   push:
     paths:
+      - "cloud-worker/recover-agent-probe-leases.mjs"
       - "cloud-worker/syp-orchestrator.mjs"
       - "cloud-worker/syp-prioritize.mjs"
       - ".github/workflows/syp-orchestrator.yml"
@@ -37,8 +38,11 @@ jobs:
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
       - name: Validate SYP orchestrator
         run: |
+          node --check cloud-worker/recover-agent-probe-leases.mjs
           node --check cloud-worker/syp-orchestrator.mjs
           node --check cloud-worker/syp-prioritize.mjs
+      - name: Recover expired authenticated Android probes
+        run: node cloud-worker/recover-agent-probe-leases.mjs
       - name: Run SYP orchestrator
         run: node cloud-worker/syp-orchestrator.mjs
       - name: Promote bounded SYP probes ahead of detail backfill
