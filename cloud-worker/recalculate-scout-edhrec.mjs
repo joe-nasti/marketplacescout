@@ -8,9 +8,34 @@ function baseName(name=''){let s=String(name).trim();for(;;){const m=s.match(/^(
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function rankPts(v,commander=false){v=Number(v||0);if(v>=100)return 8;if(v>=50)return 6;if(v>=20)return 4;if(v>=10)return 2;if(v<=-100)return -6;if(v<=-50)return -4;if(v<=-20)return -2;if(commander&&v>=5)return 1;return 0}
 function deckPts(v,commander=false){v=Number(v);if(!Number.isFinite(v))return 0;if(commander){if(v>=.35)return 8;if(v>=.20)return 6;if(v>=.10)return 4;if(v>=.05)return 2;if(v<=-.30)return -6;if(v<=-.15)return -4;if(v<=-.07)return -2;return 0}if(v>=.50)return 7;if(v>=.25)return 5;if(v>=.10)return 3;if(v>=.05)return 1;if(v<=-.30)return -5;if(v<=-.15)return -3;if(v<=-.07)return -1;return 0}
-function adjustment(s){const cardTrend=rankPts(s.rankChange)+deckPts(s.deckChangePct),cmdTrend=rankPts(s.commanderRankChange,true)+deckPts(s.commanderDeckChangePct,true);let move=Math.abs(cmdTrend)>=Math.abs(cardTrend)?cmdTrend:cardTrend;let staticPts=0;const best=Math.min(Number(s.weekRank||Infinity),Number(s.commanderWeekRank||Infinity));if(best<=25)staticPts=3;else if(best<=100)staticPts=2;else if(best<=500)staticPts=1;const reprint=s.reprintRisk?10:0;return clamp(move+staticPts-reprint,-15,15)}
-const caps=await sb('source_captures?select=payload_json,captured_at&source=eq.edhrec&capture_type=eq.commander_demand&order=captured_at.desc&limit=1');const cap=caps?.[0];if(!cap)throw new Error('No EDHREC capture available');const signals=cap.payload_json?.signals||{};
+function adjustment(s){
+  const cardTrend=rankPts(s.rankChange)+deckPts(s.deckChangePct);
+  const commanderTrend=rankPts(s.commanderRankChange,true)+deckPts(s.commanderDeckChangePct,true);
+  const movement=Math.abs(commanderTrend)>=Math.abs(cardTrend)?commanderTrend:cardTrend;
+  let staticDemand=0;
+  const best=Math.min(Number(s.weekRank||Infinity),Number(s.commanderWeekRank||Infinity));
+  if(best<=25)staticDemand=3;else if(best<=100)staticDemand=2;else if(best<=500)staticDemand=1;
+  const reprintPenalty=s.reprintRisk?10:0;
+  return clamp(movement+staticDemand-reprintPenalty,-15,15);
+}
+const caps=await sb('source_captures?select=payload_json,captured_at&source=eq.edhrec&capture_type=eq.commander_demand&order=captured_at.desc&limit=1');
+const cap=caps?.[0];if(!cap)throw new Error('No EDHREC capture available');
+const signals=cap.payload_json?.signals||{};
 const sigByName=new Map(Object.values(signals).map(s=>[s.cardKey||norm(s.name),s]));
 let processed=0,matched=0,updated=0;
-for(let off=0;off<50000;off+=1000){const rows=await sb(`marketplace_scan_rows?select=id,product_name,opportunity_score,base_opportunity_score,edhrec_adjustment&order=id.asc&limit=1000&offset=${off}`);if(!rows?.length)break;processed+=rows.length;const groups=new Map();for(const r of rows){const s=sigByName.get(norm(baseName(r.product_name)));if(!s)continue;matched++;const base=Number(r.base_opportunity_score??r.opportunity_score??0),adj=adjustment(s),score=clamp(Math.round(base+adj),0,100),flag=score>=75?'HOT':score>=55?'WATCH':'PASS';const key=`${base}|${adj}|${score}|${flag}|${s.signal||''}|${s.weekRank||''}|${s.signalScore||''}`;if(!groups.has(key))groups.set(key,{ids:[],body:{base_opportunity_score:base,edhrec_adjustment:adj,opportunity_score:score,flag,edhrec_rank:Number.isFinite(Number(s.weekRank))?Number(s.weekRank):null,commander_demand_score:Number(s.signalScore||0),edhrec_signal:s.signal||null,edhrec_signal_score:Number(s.signalScore||0),edhrec_observed_at:cap.captured_at,scout_scoring_version:'supply-structure-v2+commander-momentum-v1'}});groups.get(key).ids.push(r.id)}for(const g of groups.values()){for(let i=0;i<g.ids.length;i+=250){const ids=g.ids.slice(i,i+250);await sb(`marketplace_scan_rows?id=in.(${ids.join(',')})`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(g.body)});updated+=ids.length}}if(rows.length<1000)break}
-console.log(JSON.stringify({captureAt:cap.captured_at,processed,matched,updated,version:'commander-momentum-v1'}));
+for(let off=0;off<50000;off+=1000){
+  const rows=await sb(`marketplace_scan_rows?select=id,product_name,opportunity_score,base_opportunity_score,demand_adjustment&order=id.asc&limit=1000&offset=${off}`);
+  if(!rows?.length)break;processed+=rows.length;
+  const groups=new Map();
+  for(const r of rows){
+    const s=sigByName.get(norm(baseName(r.product_name)));if(!s)continue;matched++;
+    const base=Number(r.base_opportunity_score??r.opportunity_score??0),edhrecAdj=adjustment(s),demandAdj=edhrecAdj,score=clamp(Math.round(base+demandAdj),0,100),flag=score>=75?'HOT':score>=55?'WATCH':'PASS';
+    const source={signal:s.signal||null,score:Number(s.signalScore||0),rank:Number.isFinite(Number(s.weekRank))?Number(s.weekRank):null,commanderRank:Number.isFinite(Number(s.commanderWeekRank))?Number(s.commanderWeekRank):null,rankChange:s.rankChange??null,deckChangePct:s.deckChangePct??null,commanderRankChange:s.commanderRankChange??null,commanderDeckChangePct:s.commanderDeckChangePct??null,reprintRisk:!!s.reprintRisk,adjustment:edhrecAdj,observedAt:cap.captured_at};
+    const key=`${base}|${demandAdj}|${score}|${flag}|${s.signal||''}|${s.weekRank||''}|${s.signalScore||''}`;
+    if(!groups.has(key))groups.set(key,{ids:[],body:{base_opportunity_score:base,edhrec_adjustment:edhrecAdj,demand_adjustment:demandAdj,opportunity_score:score,flag,edhrec_rank:source.rank,commander_demand_score:Number(s.signalScore||0),edhrec_signal:s.signal||null,edhrec_signal_score:Number(s.signalScore||0),edhrec_observed_at:cap.captured_at,demand_signal:s.signal||null,demand_signal_score:Number(s.signalScore||0),demand_sources:{edhrec:source},scout_scoring_version:'supply-structure-v2+demand-signals-v1'}});
+    groups.get(key).ids.push(r.id)
+  }
+  for(const g of groups.values())for(let i=0;i<g.ids.length;i+=250){const ids=g.ids.slice(i,i+250);await sb(`marketplace_scan_rows?id=in.(${ids.join(',')})`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(g.body)});updated+=ids.length}
+  if(rows.length<1000)break
+}
+console.log(JSON.stringify({captureAt:cap.captured_at,processed,matched,updated,version:'demand-signals-v1',sources:['edhrec']}));
