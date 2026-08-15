@@ -241,7 +241,8 @@ async function upsertDetailBundle(job){
 }
 
 async function main(){
-  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&order=completed_at.asc&limit=200');
+  // Process newest results first so fresh Android detail/search completions cannot starve behind already-normalized history.
+  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&order=completed_at.desc&limit=500');
   let authProcessed=0,searchProcessed=0,detailProcessed=0,other=0;
   for(const job of completed||[]){
     if(job.progress_json?.orchestratedAt)continue;
