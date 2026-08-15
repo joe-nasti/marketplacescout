@@ -3,7 +3,7 @@ const SUPABASE_URL=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const SERVICE_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 if(!SUPABASE_URL||!SERVICE_KEY)throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
 const H={apikey:SERVICE_KEY,Authorization:`Bearer ${SERVICE_KEY}`,'Content-Type':'application/json'};
-async function sb(path,{method='GET',body,prefer}={}){const h={...H,...(prefer?{Prefer:prefer}:{})};const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers:h,body:body===undefined?undefined:JSON.stringify(body)});const text=await r.text();let data=null;try{data=text?JSON.parse(text):null}catch{data=text}if(!r.ok)throw new Error(data?.message||data?.hint||`Supabase HTTP ${r.status}`);return data}
+async function sb(path,{method='GET',body,prefer}={}){const h={...H,...(prefer?{Prefer:prefer}:{})};const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers:h,body:body===undefined?undefined:JSON.stringify(body)});const text=await r.text();let data=null;try{data=text?JSON.parse(t):null}catch{data=text}if(!r.ok)throw new Error(data?.message||data?.hint||`Supabase HTTP ${r.status}`);return data}
 const enc=x=>encodeURIComponent(String(x??''));
 function isTransient(message=''){
   return /HTTP\s+(408|425|429|500|502|503|504)\b|abort|timeout|timed out|fetch failed|network/i.test(String(message));
@@ -17,13 +17,15 @@ async function main(){
     const error=String(job.error_message||job.progress_json?.detail||'');
 
     // Keep transient public-endpoint failures in the cloud while attempts remain.
-    // This avoids turning a temporary 429/5xx into a browser dependency overnight.
+    // Deprioritize retries slightly so first-attempt coverage for other sets can
+    // continue before a flaky endpoint consumes another slot.
     if(attempts<max && isTransient(error)){
       const now=new Date().toISOString();
       await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.failed`,{method:'PATCH',body:{
         status:'queued',completed_at:null,claimed_at:null,claimed_by:null,lease_expires_at:null,error_message:null,
+        priority:Math.max(Number(job.priority||30),35),
         preferred_executor:'cloud_worker',required_capability:'marketplace_public_api',
-        progress_json:{stage:'queued',percent:0,detail:`Transient cloud failure recovered; retrying in cloud (${attempts}/${max} attempts used).`,updatedAt:now}
+        progress_json:{stage:'queued',percent:0,detail:`Transient cloud failure recovered; retrying after fresh set coverage (${attempts}/${max} attempts used).`,updatedAt:now}
       },prefer:'return=minimal'});
       retried++;
       continue;
