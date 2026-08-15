@@ -6,6 +6,7 @@ on:
     paths:
       - "tools/build-consolidated-web.mjs"
       - "tools/patch-native-v021.py"
+      - "tools/patch-native-v022.py"
       - "current-data.js"
       - "current-agent.js"
       - "current-readonly-agent.js"
@@ -89,12 +90,15 @@ jobs:
       - name: Apply native 0.2.1 UI patch
         shell: bash
         run: python tools/patch-native-v021.py
+      - name: Apply native 0.2.2 SYP patch
+        shell: bash
+        run: python tools/patch-native-v022.py
       - name: Verify Android native version bridge
         working-directory: android-agent
         shell: bash
         run: |
-          grep -q 'private val version = "0.2.1"' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'versionName = "0.2.1"' app/build.gradle.kts
+          grep -q 'private val version = "0.2.2"' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'versionName = "0.2.2"' app/build.gradle.kts
       - name: Build Android APK
         working-directory: android-agent
         shell: bash
