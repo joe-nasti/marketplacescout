@@ -56,6 +56,10 @@ jobs:
         run: node cloud-worker/recover-stale-jobs.mjs
       - name: Re-normalize recovered jobs
         run: node cloud-worker/normalize-marketplace-jobs.mjs
+      - name: Deduplicate and defer cloud-only retries before claim
+        run: node cloud-worker/requeue-failed-to-pc.mjs
+      - name: Final cloud-only routing normalization
+        run: node cloud-worker/normalize-marketplace-jobs.mjs
       - name: Prepare cloud worker identity
         shell: bash
         run: |
@@ -67,7 +71,7 @@ jobs:
         run: node --check cloud-worker/marketplace-worker.mjs
       - name: Run cloud-targeted Marketplace jobs
         run: node cloud-worker/marketplace-worker.mjs
-      - name: Requeue failed cloud jobs to PC fallback
+      - name: Recover failed cloud jobs with deferred retries
         if: always()
         run: node cloud-worker/requeue-failed-to-pc.mjs
       - name: Compare any completed manual verification pair
