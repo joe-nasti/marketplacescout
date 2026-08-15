@@ -35,6 +35,7 @@ jobs:
       - name: Validate JavaScript
         run: node --check collectish-app.js
       - name: Commit generated web release
+        if: ${{ github.ref == 'refs/heads/main' }}
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
