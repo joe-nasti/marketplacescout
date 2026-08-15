@@ -43,6 +43,8 @@ jobs:
             echo "Missing repository secret SUPABASE_SERVICE_ROLE_KEY"
             exit 1
           fi
+      - name: Ensure daily one-scan-per-set refresh queue
+        run: node cloud-worker/queue-daily-set-refresh.mjs
       - name: Validate atomic claim RPC
         run: node cloud-worker/validate-claim-rpc.mjs
       - name: Normalize Marketplace executor capabilities
