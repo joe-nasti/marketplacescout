@@ -10,6 +10,7 @@ on:
       - "current-readonly-agent.js"
       - "current-ux.js"
       - "current-ux-guard.js"
+      - "current-ux-recovery.js"
       - "current-ux.css"
       - "v059.js"
       - "android-agent/**"
@@ -54,7 +55,7 @@ jobs:
             echo "Generated web assets already current."
             exit 0
           fi
-          git commit -m "Build consolidated Collectish web v0.8.0"
+          git commit -m "Build consolidated Collectish web v0.8.1"
           git push origin HEAD:main
 
   android-agent:
