@@ -8,6 +8,8 @@ on:
       - "current-data.js"
       - "current-agent.js"
       - "current-readonly-agent.js"
+      - "current-ux.js"
+      - "current-ux.css"
       - "v059.js"
       - "android-agent/**"
       - ".github/workflows/build-consolidated-web.yml"
@@ -51,7 +53,7 @@ jobs:
             echo "Generated web assets already current."
             exit 0
           fi
-          git commit -m "Build consolidated Collectish web v0.7.8"
+          git commit -m "Build consolidated Collectish web v0.8.0"
           git push origin HEAD:main
 
   android-agent:
