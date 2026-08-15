@@ -7,6 +7,7 @@ on:
       - "tools/build-consolidated-web.mjs"
       - "current-data.js"
       - "current-agent.js"
+      - "current-readonly-agent.js"
       - "v059.js"
       - "android-agent/**"
       - ".github/workflows/build-consolidated-web.yml"
@@ -35,8 +36,14 @@ jobs:
       - name: Validate JavaScript
         run: node --check collectish-app.js
       - name: Commit generated web release
+        if: ${{ github.ref == 'refs/heads/main' }}
         shell: bash
         run: |
+          git fetch origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo "Skipping generated asset push from stale workflow revision."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add collectish-app.js collectish-app.css index.html
@@ -44,7 +51,7 @@ jobs:
             echo "Generated web assets already current."
             exit 0
           fi
-          git commit -m "Build consolidated Collectish web v0.7.6"
+          git commit -m "Build consolidated Collectish web v0.7.8"
           git push origin HEAD:main
 
   android-agent:
