@@ -26,7 +26,7 @@ class MainActivity : Activity() {
     @Volatile private var sellerPortalSnapshot = "{}"
     @Volatile private var sellerOrdersProbeState = "idle"
     @Volatile private var sellerOrdersSnapshot = "{}"
-    private val version = "0.1.8"
+    private val version = "0.1.9"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,17 +96,14 @@ class MainActivity : Activity() {
                 sellerOrdersSnapshot="{\"error\":\"Seller Portal session is not authenticated\"}"
                 return@verifySellerSession
             }
-            val navProbe="""(function(){try{const els=[...document.querySelectorAll('a[href],button,[role=button]')];const score=e=>{const t=(e.innerText||e.textContent||'').trim().toLowerCase();const h=(e.href||'').toLowerCase();return t==='orders'?100:(t.includes('orders')?70:0)+(h.includes('order')?40:0)};const hit=els.map(e=>({e,s:score(e)})).sort((a,b)=>b.s-a.s)[0];if(!hit||hit.s<40)return JSON.stringify({ok:false,error:'Orders navigation not found',path:location.pathname});const e=hit.e,href=e.href||'';if(href){location.href=href}else{e.click()}return JSON.stringify({ok:true,href,text:(e.innerText||e.textContent||'').trim(),from:location.pathname})}catch(e){return JSON.stringify({ok:false,error:String(e)})}})();"""
-            seller.evaluateJavascript(navProbe){raw->
-                val t=decodeJsString(raw.orEmpty())
-                if(t.contains("\"ok\":true")){
-                    sellerOrdersProbeState="navigating"
-                    mainHandler.postDelayed({ if(sellerOrdersProbeState=="navigating") { sellerOrdersProbeState="collecting"; captureSellerOrdersProbe() } },3500)
-                }else{
-                    sellerOrdersProbeState="error"
-                    sellerOrdersSnapshot=t.ifBlank { "{\"error\":\"Orders navigation failed\"}" }
+            sellerOrdersProbeState="navigating"
+            seller.loadUrl("https://store.tcgplayer.com/admin/orders/orderlist")
+            mainHandler.postDelayed({
+                if(sellerOrdersProbeState=="navigating"){
+                    sellerOrdersProbeState="collecting"
+                    captureSellerOrdersProbe()
                 }
-            }
+            },5000)
         }
     }
 
