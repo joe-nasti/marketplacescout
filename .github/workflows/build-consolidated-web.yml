@@ -93,11 +93,21 @@ jobs:
       - name: Apply native 0.2.2 SYP patch
         shell: bash
         run: python tools/patch-native-v022.py
+      - name: Align Android 0.2.2 version metadata
+        working-directory: android-agent
+        shell: bash
+        run: |
+          sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.2"/' app/src/main/java/com/collectish/agent/MainActivity.kt
+          sed -i -E 's/versionCode = [0-9]+/versionCode = 22/' app/build.gradle.kts
+          sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.2"/' app/build.gradle.kts
+          grep -n 'private val version' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -n 'versionCode\|versionName' app/build.gradle.kts
       - name: Verify Android native version bridge
         working-directory: android-agent
         shell: bash
         run: |
           grep -q 'private val version = "0.2.2"' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'versionCode = 22' app/build.gradle.kts
           grep -q 'versionName = "0.2.2"' app/build.gradle.kts
       - name: Build Android APK
         working-directory: android-agent
