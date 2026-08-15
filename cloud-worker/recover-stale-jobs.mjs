@@ -8,18 +8,22 @@ async function patch(job,body){await sb(`collector_jobs?job_id=eq.${enc(job.job_
 async function main(){
   const cutoff=encodeURIComponent(new Date().toISOString());
   const jobs=await sb(`collector_jobs?source=eq.marketplace&action=eq.scan_set&status=in.(claimed,running)&lease_expires_at=lt.${cutoff}&order=lease_expires_at.asc&limit=100`);
-  let requeued=0,waiting=0,failed=0;
+  let requeued=0,failed=0;
   for(const job of jobs||[]){
     const payload=job.payload_json||{},attempts=Number(job.attempt_count||0),max=Math.max(1,Number(job.max_attempts||3));
-    const auth=job.required_capability==='tcgplayer_authenticated_session'||payload.executionClass==='browser_auth';
-    if(auth){
-      await patch(job,{status:'queued',claimed_at:null,claimed_by:null,lease_expires_at:null,error_message:null,preferred_executor:'browser_connector',required_capability:'tcgplayer_authenticated_session',progress_json:{stage:'queued',percent:0,detail:'Authenticated agent lease expired; waiting for a healthy TCGplayer session.',updatedAt:new Date().toISOString()}});waiting++;continue;
-    }
     if(attempts<max){
-      await patch(job,{status:'queued',claimed_at:null,claimed_by:null,lease_expires_at:null,error_message:null,progress_json:{stage:'queued',percent:0,detail:'Expired executor lease recovered; returned to eligible queue.',updatedAt:new Date().toISOString()}});requeued++;continue;
+      const delayMinutes=Math.min(15,Math.max(2,2*attempts));
+      const now=new Date();
+      await patch(job,{status:'queued',claimed_at:null,claimed_by:null,lease_expires_at:null,completed_at:null,error_message:null,
+        preferred_executor:'cloud_worker',required_capability:'marketplace_public_api',available_at:new Date(now.getTime()+delayMinutes*60000).toISOString(),
+        payload_json:{...payload,cloudPrimary:true,cloudOnly:true,pcFallback:false,pcFallbackQueued:false,executionClass:'cloud_public'},
+        progress_json:{stage:'deferred',percent:0,detail:`Expired cloud worker lease recovered; cloud retry deferred ${delayMinutes}m.`,updatedAt:now.toISOString()}});requeued++;continue;
     }
-    await patch(job,{status:'failed',completed_at:new Date().toISOString(),claimed_by:null,lease_expires_at:null,error_message:`Lease expired after ${attempts}/${max} attempts.`,progress_json:{stage:'failed',percent:0,detail:`Lease expired after ${attempts}/${max} attempts.`,updatedAt:new Date().toISOString()}});failed++;
+    await patch(job,{status:'failed',completed_at:new Date().toISOString(),claimed_by:null,lease_expires_at:null,
+      preferred_executor:'cloud_worker',required_capability:'marketplace_public_api',
+      payload_json:{...payload,cloudPrimary:true,cloudOnly:true,pcFallback:false,pcFallbackQueued:false,executionClass:'cloud_public'},
+      error_message:`Cloud worker lease expired after ${attempts}/${max} attempts.`,progress_json:{stage:'failed',percent:0,detail:`Cloud worker lease expired after ${attempts}/${max} attempts.`,updatedAt:new Date().toISOString()}});failed++;
   }
-  console.log(`Stale recovery: ${requeued} requeued, ${waiting} auth waiting, ${failed} failed.`);
+  console.log(`Marketplace stale recovery: ${requeued} cloud retry(s) deferred, ${failed} exhausted job(s); 0 browser routes.`);
 }
 await main();
