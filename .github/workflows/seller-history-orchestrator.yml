@@ -9,6 +9,7 @@ on:
       - ".github/workflows/seller-history-orchestrator.yml"
       - "cloud-worker/seller-history-orchestrator.mjs"
       - "cloud-worker/seller-history-normalizer.mjs"
+      - "cloud-worker/seller-history-detail-backfill.mjs"
 
 permissions:
   contents: read
@@ -42,5 +43,8 @@ jobs:
         run: |
           node --check cloud-worker/seller-history-normalizer.mjs
           node --check cloud-worker/seller-history-orchestrator.mjs
+          node --check cloud-worker/seller-history-detail-backfill.mjs
       - name: Coordinate authenticated Seller History probes
         run: node cloud-worker/seller-history-orchestrator.mjs
+      - name: Queue bounded historical order-detail backfill
+        run: node cloud-worker/seller-history-detail-backfill.mjs
