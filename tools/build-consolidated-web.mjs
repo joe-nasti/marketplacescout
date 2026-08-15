@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 
-const VERSION='0.7.7';
-const CACHE='077';
+const VERSION='0.7.8';
+const CACHE='078';
 const jsFiles=[
   'app.js','v032.js','v033.js','v035.js','v036.js','v038.js','v039.js','v042.js',
   'v044.js','v045.js','v046.js','v047.js','v048.js','v049.js','v050.js','v051.js',
   'v052.js','v054.js','v055.js','v056.js','v057.js','v058.js','v059.js','v060.js',
-  'current-data.js','current-agent.js'
+  'current-data.js','current-agent.js','current-readonly-agent.js'
 ];
 const cssFiles=[
   'styles.css','v032.css','v038.css','v040.css','v044.css','v046.css','v048.css','v049.css',
