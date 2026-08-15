@@ -85,12 +85,12 @@ jobs:
         run: |
           printf '%s' "$COLLECTISH_ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/collectish-release.jks"
           echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
-      - name: Align Android native version bridge
+      - name: Verify Android native version bridge
         working-directory: android-agent
         shell: bash
         run: |
-          sed -i 's/private val version = "0.1.11"/private val version = "0.1.12"/' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'private val version = "0.1.12"' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'private val version = "0.1.13"' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'versionName = "0.1.13"' app/build.gradle.kts
       - name: Build Android APK
         working-directory: android-agent
         shell: bash
