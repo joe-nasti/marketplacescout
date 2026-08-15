@@ -6,7 +6,7 @@ on:
       max_jobs:
         description: Maximum queued cloud Marketplace jobs to process
         required: false
-        default: "6"
+        default: "4"
   schedule:
     - cron: "*/5 * * * *"
   push:
@@ -24,11 +24,14 @@ concurrency:
 jobs:
   marketplace-worker:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # A full Smart refresh can legitimately take 10-20+ minutes for large sets.
+    # Four sequential set jobs fit safely inside this window without a runner
+    # being killed mid-set and leaving a stale lease to recover.
+    timeout-minutes: 90
     env:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      COLLECTISH_MAX_JOBS: ${{ github.event.inputs.max_jobs || '6' }}
+      COLLECTISH_MAX_JOBS: ${{ github.event.inputs.max_jobs || '4' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
