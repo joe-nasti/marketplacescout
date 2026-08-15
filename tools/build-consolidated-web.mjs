@@ -1,16 +1,16 @@
 import fs from 'node:fs';
 
-const VERSION='0.8.1';
-const CACHE='081';
+const VERSION='0.8.2';
+const CACHE='082';
 const jsFiles=[
   'app.js','v032.js','v033.js','v035.js','v036.js','v038.js','v039.js','v042.js',
   'v044.js','v045.js','v046.js','v047.js','v048.js','v049.js','v050.js','v051.js',
   'v052.js','v054.js','v055.js','v056.js','v057.js','v058.js','v059.js','v060.js',
-  'current-data.js','current-agent.js','current-readonly-agent.js','current-ux.js','current-ux-guard.js','current-ux-recovery.js'
+  'current-data.js','current-agent.js','current-readonly-agent.js','current-ux.js','current-scout-parity.js','current-ux-guard.js','current-ux-recovery.js'
 ];
 const cssFiles=[
   'styles.css','v032.css','v038.css','v040.css','v044.css','v046.css','v048.css','v049.css',
-  'v050.css','v051.css','v052.css','v053.css','v054.css','v055.css','v057.css','v058.css','v059.css','v060.css','current-ux.css'
+  'v050.css','v051.css','v052.css','v053.css','v054.css','v055.css','v057.css','v058.css','v059.css','v060.css','current-ux.css','current-scout-parity.css'
 ];
 
 for(const f of [...jsFiles,...cssFiles,'index.html']) if(!fs.existsSync(f)) throw new Error(`Missing ${f}`);
