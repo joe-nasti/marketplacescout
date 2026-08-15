@@ -19,7 +19,7 @@
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
   if(realBadge)realBadge.textContent='web 0.8.0';
-  window.__collectishConsolidated={version:'0.8.0',builtAt:'2026-08-15T14:47:31.422Z'};
+  window.__collectishConsolidated={version:'0.8.0',builtAt:'2026-08-15T14:49:15.545Z'};
 })();
 
 /* ===== app.js ===== */
@@ -2466,6 +2466,21 @@ setInterval(async()=>{
     el('cxAdminRefresh').onclick=loadAdmin;el('cxLegacyControls').onclick=()=>{const app=el('app');app.classList.toggle('collectish-show-legacy');el('cxLegacyControls').textContent=app.classList.contains('collectish-show-legacy')?'Return to new dashboard':'Advanced / legacy controls'};
   }
 
+  let tries=0;const t=setInterval(()=>{tries++;if(install()||tries>200)clearInterval(t)},100);
+})();
+
+
+/* ===== current-ux-guard.js ===== */
+// Keep any late-installed legacy panels hidden behind Admin advanced controls.
+(() => {
+  function install(){
+    const app=document.getElementById('app'),shell=document.getElementById('collectishUxShell');
+    if(!app||!shell)return false;
+    const mark=()=>[...app.children].forEach(n=>{if(n!==shell)n.classList.add('collectish-legacy-surface')});
+    mark();
+    new MutationObserver(mark).observe(app,{childList:true});
+    return true;
+  }
   let tries=0;const t=setInterval(()=>{tries++;if(install()||tries>200)clearInterval(t)},100);
 })();
 
