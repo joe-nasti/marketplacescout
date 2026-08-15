@@ -26,7 +26,7 @@ class MainActivity : Activity() {
     @Volatile private var sellerPortalSnapshot = "{}"
     @Volatile private var sellerOrdersProbeState = "idle"
     @Volatile private var sellerOrdersSnapshot = "{}"
-    private val version = "0.1.11"
+    private val version = "0.1.12"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
