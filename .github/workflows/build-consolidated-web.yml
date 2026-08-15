@@ -89,8 +89,8 @@ jobs:
         working-directory: android-agent
         shell: bash
         run: |
-          grep -q 'private val version = "0.1.13"' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'versionName = "0.1.13"' app/build.gradle.kts
+          grep -q 'private val version = "0.2.0"' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'versionName = "0.2.0"' app/build.gradle.kts
       - name: Build Android APK
         working-directory: android-agent
         shell: bash
