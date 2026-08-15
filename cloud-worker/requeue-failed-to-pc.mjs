@@ -10,11 +10,26 @@ function isTransient(message=''){
 }
 async function main(){
   const failed=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.failed&preferred_executor=in.(cloud_worker,server)&order=completed_at.asc&limit=20');
-  let retried=0,freshCloud=0,fallback=0;
+  let retried=0,freshCloud=0,fallback=0,repairedFallback=0;
   for(const job of failed||[]){
     const payload=job.payload_json||{};
     const attempts=Number(job.attempt_count||0),max=Math.max(1,Number(job.max_attempts||3));
     const error=String(job.error_message||job.progress_json?.detail||'');
+    const intendedFallback=Boolean(payload.cloudFailureJobId||payload.pcFallback||payload.executionClass==='browser_fallback');
+
+    // If a browser-fallback child was accidentally normalized back to cloud, repair
+    // the same job instead of spending more public-api retries or creating duplicates.
+    if(intendedFallback){
+      const now=new Date().toISOString();
+      await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.failed`,{method:'PATCH',body:{
+        status:'queued',completed_at:null,claimed_at:null,claimed_by:null,lease_expires_at:null,error_message:null,
+        priority:20,preferred_executor:'browser_connector',required_capability:'marketplace_browser_fallback',
+        payload_json:{...payload,cloudFreshRetryOf:null,cloudFreshRetryCount:0,cloudFreshRetryQueued:false,pcFallback:true,pcFallbackQueued:false,executionClass:'browser_fallback'},
+        progress_json:{stage:'queued',percent:0,detail:'Cloud retries exhausted; browser fallback routing repaired and queued.',updatedAt:now}
+      },prefer:'return=minimal'});
+      repairedFallback++;
+      continue;
+    }
 
     // Keep transient public-endpoint failures in the same job while attempts remain.
     // Deprioritize retries slightly so first-attempt coverage for other sets can
@@ -68,6 +83,6 @@ async function main(){
     await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}`,{method:'PATCH',body:{payload_json:{...payload,pcFallbackQueued:true,pcFallbackQueuedAt:now}},prefer:'return=minimal'});
     fallback++;
   }
-  console.log(`Cloud failure recovery: ${retried} same-job retry(s), ${freshCloud} fresh cloud retry job(s), ${fallback} browser fallback(s).`);
+  console.log(`Cloud failure recovery: ${retried} same-job retry(s), ${freshCloud} fresh cloud retry job(s), ${fallback} browser fallback(s), ${repairedFallback} repaired fallback job(s).`);
 }
 await main();
