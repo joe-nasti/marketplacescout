@@ -1,15 +1,34 @@
-// Requeue failed cloud-primary Marketplace jobs to the browser connector exactly once.
+// Retry transient cloud-primary Marketplace failures in cloud first, then fall back to browser exactly once.
 const SUPABASE_URL=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const SERVICE_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 if(!SUPABASE_URL||!SERVICE_KEY)throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
 const H={apikey:SERVICE_KEY,Authorization:`Bearer ${SERVICE_KEY}`,'Content-Type':'application/json'};
 async function sb(path,{method='GET',body,prefer}={}){const h={...H,...(prefer?{Prefer:prefer}:{})};const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers:h,body:body===undefined?undefined:JSON.stringify(body)});const text=await r.text();let data=null;try{data=text?JSON.parse(text):null}catch{data=text}if(!r.ok)throw new Error(data?.message||data?.hint||`Supabase HTTP ${r.status}`);return data}
 const enc=x=>encodeURIComponent(String(x??''));
+function isTransient(message=''){
+  return /HTTP\s+(408|425|429|500|502|503|504)\b|abort|timeout|timed out|fetch failed|network/i.test(String(message));
+}
 async function main(){
   const failed=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.failed&preferred_executor=in.(cloud_worker,server)&order=completed_at.asc&limit=20');
-  let n=0;
+  let retried=0,fallback=0;
   for(const job of failed||[]){
     const payload=job.payload_json||{};
+    const attempts=Number(job.attempt_count||0),max=Math.max(1,Number(job.max_attempts||3));
+    const error=String(job.error_message||job.progress_json?.detail||'');
+
+    // Keep transient public-endpoint failures in the cloud while attempts remain.
+    // This avoids turning a temporary 429/5xx into a browser dependency overnight.
+    if(attempts<max && isTransient(error)){
+      const now=new Date().toISOString();
+      await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.failed`,{method:'PATCH',body:{
+        status:'queued',completed_at:null,claimed_at:null,claimed_by:null,lease_expires_at:null,error_message:null,
+        preferred_executor:'cloud_worker',required_capability:'marketplace_public_api',
+        progress_json:{stage:'queued',percent:0,detail:`Transient cloud failure recovered; retrying in cloud (${attempts}/${max} attempts used).`,updatedAt:now}
+      },prefer:'return=minimal'});
+      retried++;
+      continue;
+    }
+
     if(payload.pcFallbackQueued)continue;
     const existing=await sb(`collector_jobs?parent_job_id=eq.${enc(job.job_id)}&preferred_executor=eq.browser_connector&limit=1`);
     if(existing?.length)continue;
@@ -18,12 +37,12 @@ async function main(){
       user_id:job.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:20,
       required_capability:'marketplace_browser_fallback',preferred_executor:'browser_connector',parent_job_id:job.job_id,
       payload_json:{...payload,cloudFailureJobId:job.job_id,pcFallback:true,executionClass:'browser_fallback'},
-      progress_json:{stage:'queued',percent:0,detail:'Cloud scan failed; automatically requeued to browser fallback',updatedAt:now},
+      progress_json:{stage:'queued',percent:0,detail:'Cloud scan exhausted safe retries; automatically requeued to browser fallback',updatedAt:now},
       max_attempts:3
     }],prefer:'return=minimal'});
     await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}`,{method:'PATCH',body:{payload_json:{...payload,pcFallbackQueued:true,pcFallbackQueuedAt:now}},prefer:'return=minimal'});
-    n++;
+    fallback++;
   }
-  console.log(n?`Queued ${n} failed cloud Marketplace job(s) to browser fallback.`:'No failed cloud Marketplace jobs need browser fallback.');
+  console.log(`Cloud failure recovery: ${retried} transient cloud retry(s), ${fallback} browser fallback(s).`);
 }
 await main();
