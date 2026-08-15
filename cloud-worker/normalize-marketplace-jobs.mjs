@@ -18,7 +18,11 @@ async function main(){
     const verificationRole=payload.verificationRole||null;
     const verificationPc=verificationRole==='pc';
     const verificationCloud=verificationRole==='cloud'||preferred==='verification';
-    const explicitFallback=Boolean(payload.pcFallback||payload.cloudFailureJobId||payload.executionClass==='browser_fallback'||job.parent_job_id||verificationPc);
+    // A fresh cloud retry is deliberately a child of the failed job, so parent_job_id
+    // alone must not convert it into browser fallback. The explicit fresh-retry marker
+    // is authoritative and survives older normalizer rewrites of executionClass.
+    const freshCloudRetry=Boolean(payload.cloudFreshRetryOf||Number(payload.cloudFreshRetryCount||0)>0);
+    const explicitFallback=!freshCloudRetry&&Boolean(payload.pcFallback||payload.cloudFailureJobId||payload.executionClass==='browser_fallback'||job.parent_job_id||verificationPc);
 
     if(authRequired){
       if(preferred!=='browser_connector'||capability!=='tcgplayer_authenticated_session'){
@@ -29,6 +33,13 @@ async function main(){
     if(verificationCloud){
       if(preferred!=='verification'||capability!=='marketplace_public_api'){
         await patch(job,{preferred_executor:'verification',required_capability:'marketplace_public_api',payload_json:{...payload,executionClass:'cloud_verification'}});verification++;
+      }else untouched++;
+      continue;
+    }
+    if(freshCloudRetry){
+      const cleanPayload={...payload,cloudPrimary:true,executionClass:'cloud_public',pcFallback:false,pcFallbackQueued:false};
+      if(preferred!=='cloud_worker'||capability!=='marketplace_public_api'||payload.executionClass!=='cloud_public'||payload.pcFallback===true){
+        await patch(job,{preferred_executor:'cloud_worker',required_capability:'marketplace_public_api',payload_json:cleanPayload});cloud++;
       }else untouched++;
       continue;
     }
