@@ -1,4 +1,4 @@
-// Collectish consolidated web 0.8.0
+// Collectish consolidated web 0.8.1
 // Generated; do not edit directly. Run tools/build-consolidated-web.mjs.
 (()=>{
   const realBadge=document.querySelector('#appVersion');
@@ -18,8 +18,8 @@
   const append=Element.prototype.append;Element.prototype.append=function(...n){return append.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
-  if(realBadge)realBadge.textContent='web 0.8.0';
-  window.__collectishConsolidated={version:'0.8.0',builtAt:'2026-08-15T14:49:15.545Z'};
+  if(realBadge)realBadge.textContent='web 0.8.1';
+  window.__collectishConsolidated={version:'0.8.1',builtAt:'2026-08-15T15:08:17.377Z'};
 })();
 
 /* ===== app.js ===== */
@@ -2485,9 +2485,32 @@ setInterval(async()=>{
 })();
 
 
+/* ===== current-ux-recovery.js ===== */
+// Fail open to the legacy dashboard if the new product shell does not initialize.
+(() => {
+  const recover=()=>{
+    const app=document.getElementById('app');
+    if(!app||app.hidden)return;
+    const shell=document.getElementById('collectishUxShell');
+    if(shell)return;
+    [...app.children].forEach(n=>n.classList.remove('collectish-legacy-surface'));
+    document.body.style.background='#f3f5f8';
+    if(!document.getElementById('collectishUxRecoveryNotice')){
+      const notice=document.createElement('div');
+      notice.id='collectishUxRecoveryNotice';
+      notice.style.cssText='margin:12px;padding:10px 12px;border-radius:10px;background:#fff3cd;color:#7a5200;border:1px solid #f0d98a;font:600 13px system-ui';
+      notice.textContent='Collectish loaded in recovery mode while the new dashboard initializes.';
+      app.insertBefore(notice,app.firstChild);
+    }
+  };
+  setTimeout(recover,2500);
+  setTimeout(recover,6000);
+})();
+
+
 // Consolidated startup finalizer
 (()=>{
-  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.8.0';
+  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.8.1';
   let s=null;try{s=JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{}
   if(!s?.token){
     const banner=document.querySelector('#activityBanner');if(banner){banner.hidden=true;banner.style.display='none'}
