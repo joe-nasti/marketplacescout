@@ -58,7 +58,8 @@ async function processExport(job,lastUpdated,csv){
 }
 
 async function main(){
-  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&order=completed_at.asc&limit=200');
+  // Process newest results first so a fresh multi-megabyte SYP export cannot starve behind Seller detail completions.
+  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&order=completed_at.desc&limit=500');
   const users=new Set();let checks=0,exports=0,forced=0;
   for(const job of completed||[]){
     const k=job.payload_json?.sypKind;if(!k||job.progress_json?.sypOrchestratedAt)continue;
