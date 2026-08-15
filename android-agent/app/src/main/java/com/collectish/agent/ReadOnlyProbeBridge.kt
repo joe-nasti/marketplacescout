@@ -3,6 +3,7 @@ package com.collectish.agent
 import android.app.Activity
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import org.json.JSONArray
 import org.json.JSONObject
 
 class ReadOnlyProbeBridge(
@@ -74,34 +75,58 @@ class ReadOnlyProbeBridge(
         val qMode = JSONObject.quote(mode)
         val script = """
             (async function(){
-              try {
-                const url=$qUrl, method=$qMethod, rawBody=$qBody, mode=$qMode;
-                const opts={method,credentials:'include',headers:{'Accept':'application/json, text/plain, */*'}};
-                if(method==='POST'){
-                  opts.headers['Content-Type']='application/json';
-                  opts.body=rawBody;
+              const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+              const url=$qUrl, method=$qMethod, rawBody=$qBody, mode=$qMode;
+              const maxAttempts=4;
+              for(let attempt=1;attempt<=maxAttempts;attempt++){
+                try {
+                  const opts={method,credentials:'include',cache:'no-store',headers:{'Accept':'application/json, text/plain, */*'}};
+                  if(method==='POST'){
+                    opts.headers['Content-Type']='application/json';
+                    opts.body=rawBody;
+                  }
+                  const started=Date.now();
+                  const response=await fetch(url,opts);
+                  const text=(await response.text()).slice(0,${ReadOnlyProbePolicy.maxResponseChars});
+                  const loginHtml=/<!doctype html|<html/i.test(text.slice(0,500));
+                  if(response.ok && !loginHtml){
+                    let parsed=null;
+                    if(mode==='fetch_json'){
+                      try{parsed=JSON.parse(text)}catch(e){}
+                    }
+                    return JSON.stringify({
+                      ok:true,
+                      status:response.status,
+                      statusText:response.statusText,
+                      url:response.url||url,
+                      method,
+                      contentType:response.headers.get('content-type')||'',
+                      elapsedMs:Date.now()-started,
+                      attempt,
+                      body:parsed===null?text:parsed,
+                      checkedAt:new Date().toISOString()
+                    });
+                  }
+                  if(loginHtml){
+                    return JSON.stringify({error:'TCGplayer login appears to be required',status:response.status,url:response.url||url,method,checkedAt:new Date().toISOString()});
+                  }
+                  const transient=response.status===408||response.status===425||response.status===429||response.status>=500;
+                  if(!transient||attempt>=maxAttempts){
+                    return JSON.stringify({error:'TCGplayer returned HTTP '+response.status+': '+text.slice(0,250),status:response.status,url:response.url||url,method,checkedAt:new Date().toISOString()});
+                  }
+                  const retryRaw=response.headers.get('retry-after');
+                  const retrySeconds=retryRaw&&Number(retryRaw);
+                  const backoff=Number.isFinite(retrySeconds)?Math.max(0,retrySeconds*1000):Math.min(8000,750*(2**(attempt-1)));
+                  await sleep(backoff+Math.floor(Math.random()*250));
+                } catch(e) {
+                  if(attempt>=maxAttempts){
+                    return JSON.stringify({error:String(e),url,method,checkedAt:new Date().toISOString()});
+                  }
+                  const backoff=Math.min(8000,750*(2**(attempt-1)));
+                  await sleep(backoff+Math.floor(Math.random()*250));
                 }
-                const started=Date.now();
-                const response=await fetch(url,opts);
-                const text=(await response.text()).slice(0,${ReadOnlyProbePolicy.maxResponseChars});
-                let parsed=null;
-                if(mode==='fetch_json'){
-                  try{parsed=JSON.parse(text)}catch(e){}
-                }
-                return JSON.stringify({
-                  ok:response.ok,
-                  status:response.status,
-                  statusText:response.statusText,
-                  url:response.url||url,
-                  method,
-                  contentType:response.headers.get('content-type')||'',
-                  elapsedMs:Date.now()-started,
-                  body:parsed===null?text:parsed,
-                  checkedAt:new Date().toISOString()
-                });
-              } catch(e) {
-                return JSON.stringify({error:String(e),checkedAt:new Date().toISOString()});
               }
+              return JSON.stringify({error:'TCGplayer request failed',url,method,checkedAt:new Date().toISOString()});
             })();
         """.trimIndent()
         seller.evaluateJavascript(script) { raw ->
@@ -153,9 +178,15 @@ class ReadOnlyProbeBridge(
         result = JSONObject().put("error", message).toString()
     }
 
-    private fun decodeJsString(raw: String): String = raw
-        .replace("\\\"", "\"")
-        .replace("\\n", "\n")
-        .replace("\\\\", "\\")
-        .trim('"')
+    private fun decodeJsString(raw: String): String {
+        if (raw.isBlank() || raw == "null") return ""
+        return try {
+            JSONArray("[$raw]").getString(0)
+        } catch (_: Exception) {
+            raw.replace("\\\"", "\"")
+                .replace("\\n", "\n")
+                .replace("\\\\", "\\")
+                .trim('"')
+        }
+    }
 }
