@@ -1,5 +1,5 @@
 // Recover transient Marketplace failures without depending on the PC/browser connector.
-// Also collapse stale duplicate daily retries once a set has completed for the Chicago day.
+// Also collapse stale duplicate daily/recovery retries once a set has completed for the Chicago day.
 const SUPABASE_URL=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const SERVICE_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 if(!SUPABASE_URL||!SERVICE_KEY)throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
@@ -10,6 +10,7 @@ const isTransient=m=>/HTTP\s+(408|425|429|500|502|503|504)\b|abort|timeout|timed
 function chicagoDay(value){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));}
 const today=chicagoDay(Date.now());
 const daily=job=>Boolean(job?.payload_json?.dailyAutoSync||job?.payload_json?.dailyCatchup);
+const managedRetry=job=>daily(job)||job?.payload_json?.cloudFreshRetryCount!=null||Boolean(job?.payload_json?.cloudFreshRetryOf);
 const setKey=job=>`${job.user_id}|${job?.payload_json?.profile?.setSlug||''}`;
 const activeRank=j=>j.status==='running'?0:j.status==='claimed'?1:2;
 
@@ -43,32 +44,33 @@ async function main(){
     await cancelQueued(job,'Daily set refresh already completed today; redundant cloud retry cancelled.');cancelledRedundant++;
   }
 
-  // Before processing failures, collapse parallel active daily retry lineages to one
-  // job per user/set. Prefer a running/claimed job; otherwise keep the earliest due.
+  // Collapse parallel active cloud-managed retry lineages to one per user/set.
+  // This covers both daily jobs and older generic jobs that have entered the cloud
+  // fresh-retry chain. Prefer running/claimed work, otherwise keep the earliest due.
   const activeRows=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&order=created_at.asc&limit=500');
   const groups=new Map();
-  for(const job of activeRows||[]){if(!daily(job))continue;const key=setKey(job);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(job)}
-  for(const [key,rows] of groups){
+  for(const job of activeRows||[]){if(!managedRetry(job))continue;const key=setKey(job);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(job)}
+  for(const [,rows] of groups){
     if(rows.length<2)continue;
     rows.sort((a,b)=>activeRank(a)-activeRank(b)||new Date(a.available_at||a.created_at)-new Date(b.available_at||b.created_at)||new Date(a.created_at)-new Date(b.created_at));
     const keep=rows[0];
     for(const job of rows.slice(1)){
       if(job.status!=='queued')continue;
-      await cancelQueued(job,`Duplicate daily cloud retry suppressed; ${keep.status} sibling ${keep.job_id} retained for this set.`);cancelledRedundant++;
+      await cancelQueued(job,`Duplicate cloud retry suppressed; ${keep.status} sibling ${keep.job_id} retained for this set.`);cancelledRedundant++;
     }
   }
 
   const activeAfter=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&order=created_at.asc&limit=500');
-  const activeDaily=new Set((activeAfter||[]).filter(daily).map(setKey));
+  const activeManaged=new Set((activeAfter||[]).filter(managedRetry).map(setKey));
 
   const failed=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.failed&preferred_executor=in.(cloud_worker,server)&order=completed_at.asc&limit=200');
   for(const job of failed||[]){
     const payload=job.payload_json||{},attempts=Number(job.attempt_count||0),max=Math.max(1,Number(job.max_attempts||3));
     const error=String(job.error_message||job.progress_json?.detail||'');
     if(!isTransient(error))continue;
-    const key=setKey(job),isDaily=daily(job);
+    const key=setKey(job),isDaily=daily(job),isManaged=managedRetry(job);
     if(isDaily&&completedToday.has(key))continue;
-    if(isDaily&&activeDaily.has(key)){deduped++;continue;}
+    if(isManaged&&activeManaged.has(key)){deduped++;continue;}
 
     const now=new Date(),backoffMinutes=Math.min(180,Math.max(10,15*Math.max(1,attempts)));
     const availableAt=new Date(now.getTime()+backoffMinutes*60000).toISOString();
@@ -78,11 +80,12 @@ async function main(){
         priority:40,preferred_executor:'cloud_worker',required_capability:'marketplace_public_api',available_at:availableAt,
         payload_json:{...payload,pcFallback:false,pcFallbackQueued:false,executionClass:'cloud_public',cloudOnly:true,cloudPrimary:true},
         progress_json:{stage:'deferred',percent:0,detail:`Transient upstream failure; cloud retry deferred ${backoffMinutes}m (${attempts}/${max} attempts used).`,updatedAt:now.toISOString()}
-      },prefer:'return=minimal'});requeued++;if(isDaily)activeDaily.add(key);continue;
+      },prefer:'return=minimal'});requeued++;if(isManaged)activeManaged.add(key);continue;
     }
 
     const freshCount=Number(payload.cloudFreshRetryCount||0);
     if(freshCount>=2)continue;
+    if(activeManaged.has(key)){deduped++;continue;}
     const childAt=new Date(now.getTime()+60*60000).toISOString();
     await sb('collector_jobs',{method:'POST',body:[{
       user_id:job.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:45,available_at:childAt,
@@ -90,8 +93,8 @@ async function main(){
       payload_json:{...payload,pcFallback:false,pcFallbackQueued:false,cloudFreshRetryCount:freshCount+1,cloudFreshRetryOf:job.job_id,executionClass:'cloud_public',cloudOnly:true,cloudPrimary:true},
       progress_json:{stage:'deferred',percent:0,detail:'Cloud attempts exhausted on transient upstream errors; fresh cloud retry scheduled after 60m cool-down.',updatedAt:now.toISOString()},
       max_attempts:max
-    }],prefer:'return=minimal'});deferred++;if(isDaily)activeDaily.add(key);
+    }],prefer:'return=minimal'});deferred++;activeManaged.add(key);
   }
-  console.log(`Cloud-only recovery ${today} Chicago: ${repairedLegacy} legacy PC fallback(s) restored, ${cancelledRedundant} redundant daily retry(s) cancelled, ${requeued} same-job retry(s), ${deferred} fresh cloud retry job(s), ${deduped} duplicate lineage retry(s) suppressed.`);
+  console.log(`Cloud-only recovery ${today} Chicago: ${repairedLegacy} legacy PC fallback(s) restored, ${cancelledRedundant} redundant retry(s) cancelled, ${requeued} same-job retry(s), ${deferred} fresh cloud retry job(s), ${deduped} duplicate lineage retry(s) suppressed.`);
 }
 await main();
