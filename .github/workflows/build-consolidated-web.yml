@@ -9,6 +9,7 @@ on:
       - "current-agent.js"
       - "current-readonly-agent.js"
       - "current-ux.js"
+      - "current-ux-guard.js"
       - "current-ux.css"
       - "v059.js"
       - "android-agent/**"
