@@ -61,7 +61,7 @@ async function main(){
     await sb('collector_jobs',{method:'POST',body:[{
       user_id:job.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:20,
       required_capability:'marketplace_browser_fallback',preferred_executor:'browser_connector',parent_job_id:job.job_id,
-      payload_json:{...payload,cloudFailureJobId:job.job_id,pcFallback:true,executionClass:'browser_fallback'},
+      payload_json:{...payload,cloudFailureJobId:job.job_id,cloudFreshRetryOf:null,cloudFreshRetryCount:0,cloudFreshRetryQueued:false,pcFallback:true,pcFallbackQueued:false,executionClass:'browser_fallback'},
       progress_json:{stage:'queued',percent:0,detail:'Cloud scan exhausted safe retries; automatically requeued to browser fallback',updatedAt:now},
       max_attempts:3
     }],prefer:'return=minimal'});
