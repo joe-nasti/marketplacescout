@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/seller-history-orchestrator.yml"
       - "cloud-worker/seller-history-orchestrator.mjs"
+      - "cloud-worker/seller-history-normalizer.mjs"
 
 permissions:
   contents: read
@@ -38,6 +39,8 @@ jobs:
             exit 1
           fi
       - name: Validate orchestrator syntax
-        run: node --check cloud-worker/seller-history-orchestrator.mjs
+        run: |
+          node --check cloud-worker/seller-history-normalizer.mjs
+          node --check cloud-worker/seller-history-orchestrator.mjs
       - name: Coordinate authenticated Seller History probes
         run: node cloud-worker/seller-history-orchestrator.mjs
