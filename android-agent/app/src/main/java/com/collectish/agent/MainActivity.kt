@@ -26,7 +26,7 @@ class MainActivity : Activity() {
     @Volatile private var sellerPortalSnapshot = "{}"
     @Volatile private var sellerOrdersProbeState = "idle"
     @Volatile private var sellerOrdersSnapshot = "{}"
-    private val version = "0.1.7"
+    private val version = "0.1.8"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,7 +86,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun startSellerOrdersProbe(){
+    private fun startSellerOrdersProbeNative(){
         if(!::seller.isInitialized){sellerOrdersProbeState="error";sellerOrdersSnapshot="{\"error\":\"Seller WebView unavailable\"}";return}
         sellerOrdersProbeState="locating"
         sellerOrdersSnapshot="{}"
@@ -128,7 +128,7 @@ class MainActivity : Activity() {
         @JavascriptInterface fun getSellerPortalSnapshot()=sellerPortalSnapshot
         @JavascriptInterface fun getSellerOrdersProbeState()=sellerOrdersProbeState
         @JavascriptInterface fun getSellerOrdersSnapshot()=sellerOrdersSnapshot
-        @JavascriptInterface fun startSellerOrdersProbe(){runOnUiThread{startSellerOrdersProbe()}}
+        @JavascriptInterface fun startSellerOrdersProbe(){runOnUiThread{this@MainActivity.startSellerOrdersProbeNative()}}
         @JavascriptInterface fun refreshSessionState(){runOnUiThread{verifySellerSession()}}
         @JavascriptInterface fun showSellerPortal(){runOnUiThread{showSeller()}}
         @JavascriptInterface fun showCollectish(){runOnUiThread{verifySellerSession{showCollectish()}}}
