@@ -1,0 +1,40 @@
+name: Collectish SYP orchestrator
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+  push:
+    paths:
+      - "cloud-worker/syp-orchestrator.mjs"
+      - ".github/workflows/syp-orchestrator.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-syp-orchestrator
+  cancel-in-progress: false
+
+jobs:
+  syp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate worker secret
+        shell: bash
+        run: |
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Validate SYP orchestrator
+        run: node --check cloud-worker/syp-orchestrator.mjs
+      - name: Run SYP orchestrator
+        run: node cloud-worker/syp-orchestrator.mjs
