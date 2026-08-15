@@ -12,6 +12,8 @@ on:
       - "current-agent.js"
       - "current-readonly-agent.js"
       - "current-ux.js"
+      - "current-scout-parity.js"
+      - "current-scout-parity.css"
       - "current-ux-guard.js"
       - "current-ux-recovery.js"
       - "current-ux.css"
@@ -58,16 +60,16 @@ jobs:
             echo "Generated web assets already current."
             exit 0
           fi
-          git commit -m "Build consolidated Collectish web v0.8.1"
+          git commit -m "Build consolidated Collectish web v0.8.2"
           git push origin HEAD:main
 
   android-agent:
     runs-on: ubuntu-latest
     env:
       COLLECTISH_ANDROID_KEYSTORE_B64: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_B64 }}
-      COLLECTISH_KEYSTORE_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_PASSWORD }}
-      COLLECTISH_KEY_ALIAS: ${{ secrets.COLLECTISH_ANDROID_KEY_ALIAS }}
-      COLLECTISH_KEY_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEY_PASSWORD }}
+      COLLECTISH_KEYSTORE_PASSWORD: ${{ secrets.COLLECTISH_KEYSTORE_PASSWORD }}
+      COLLECTISH_KEY_ALIAS: ${{ secrets.COLLECTISH_KEY_ALIAS }}
+      COLLECTISH_KEY_PASSWORD: ${{ secrets.COLLECTISH_KEY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
