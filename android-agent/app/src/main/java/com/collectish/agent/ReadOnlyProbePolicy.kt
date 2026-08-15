@@ -4,11 +4,6 @@ import android.net.Uri
 
 /**
  * Safety policy for remotely-described read-only Seller Portal probes.
- *
- * A remote job may choose only a known TCGplayer HTTPS endpoint, a bounded
- * capture/fetch mode, and (for explicitly allowlisted read-only search/export
- * endpoints) a JSON POST body. It cannot provide JavaScript, arbitrary headers,
- * mutation endpoints, arbitrary hosts, or non-HTTPS URLs.
  */
 object ReadOnlyProbePolicy {
     val allowedHosts = setOf(
@@ -31,6 +26,11 @@ object ReadOnlyProbePolicy {
         "/admin/RO",
         "/admin/ro",
         "/admin/payment/"
+    )
+
+    private val allowedSypGetPaths = setOf(
+        "/admin/direct/GetLastUpdated",
+        "/admin/direct/ExportSYPList"
     )
 
     fun isAllowedUrl(raw: String): Boolean = try {
@@ -58,7 +58,7 @@ object ReadOnlyProbePolicy {
                 "sp-api.tcgplayer.com" -> path.equals("/Account/auth-detail", true) || path.startsWith("/account/")
                 "seller-settings-api.tcgplayer.com" -> path.startsWith("/v1/settings")
                 "sellerportal.tcgplayer.com" -> path == "/orders" || path.startsWith("/orders/")
-                "store.tcgplayer.com" -> allowedLegacyPrefixes.any { path.startsWith(it) }
+                "store.tcgplayer.com" -> allowedSypGetPaths.contains(path) || allowedLegacyPrefixes.any { path.startsWith(it) }
                 else -> false
             }
         }
@@ -70,7 +70,7 @@ object ReadOnlyProbePolicy {
     fun boundedBody(raw: String): String = raw.take(maxRequestBodyChars)
 
     const val maxRequestBodyChars = 100_000
-    const val maxResponseChars = 1_000_000
+    const val maxResponseChars = 5_000_000
     const val maxBodyChars = 200_000
     const val maxNetworkRequests = 160
 }
