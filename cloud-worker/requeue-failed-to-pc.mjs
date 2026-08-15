@@ -11,6 +11,12 @@ function chicagoDay(value){return new Intl.DateTimeFormat('en-CA',{timeZone:'Ame
 const today=chicagoDay(Date.now());
 const daily=job=>Boolean(job?.payload_json?.dailyAutoSync||job?.payload_json?.dailyCatchup);
 const setKey=job=>`${job.user_id}|${job?.payload_json?.profile?.setSlug||''}`;
+const activeRank=j=>j.status==='running'?0:j.status==='claimed'?1:2;
+
+async function cancelQueued(job,detail){
+  const now=new Date().toISOString();
+  await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.queued`,{method:'PATCH',body:{status:'cancelled',completed_at:now,error_message:null,progress_json:{stage:'cancelled',percent:100,detail,updatedAt:now}},prefer:'return=minimal'});
+}
 
 async function main(){
   let repairedLegacy=0,requeued=0,deferred=0,cancelledRedundant=0,deduped=0;
@@ -22,9 +28,7 @@ async function main(){
   const legacy=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.queued&preferred_executor=eq.browser_connector&limit=200');
   for(const job of legacy||[]){
     const now=new Date().toISOString(),payload=job.payload_json||{};
-    if(daily(job)&&completedToday.has(setKey(job))){
-      await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.queued`,{method:'PATCH',body:{status:'cancelled',completed_at:now,error_message:null,progress_json:{stage:'cancelled',percent:100,detail:'Daily set refresh already completed today; redundant legacy fallback cancelled.',updatedAt:now}},prefer:'return=minimal'});cancelledRedundant++;continue;
-    }
+    if(daily(job)&&completedToday.has(setKey(job))){await cancelQueued(job,'Daily set refresh already completed today; redundant legacy fallback cancelled.');cancelledRedundant++;continue;}
     await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.queued`,{method:'PATCH',body:{
       priority:40,preferred_executor:'cloud_worker',required_capability:'marketplace_public_api',available_at:job.available_at||now,
       payload_json:{...payload,pcFallback:false,pcFallbackQueued:false,executionClass:'cloud_public',cloudOnly:true,cloudPrimary:true},
@@ -36,13 +40,26 @@ async function main(){
   const queuedDaily=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.queued&order=created_at.asc&limit=500');
   for(const job of queuedDaily||[]){
     if(!daily(job)||!completedToday.has(setKey(job)))continue;
-    const now=new Date().toISOString();
-    await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.queued`,{method:'PATCH',body:{status:'cancelled',completed_at:now,error_message:null,progress_json:{stage:'cancelled',percent:100,detail:'Daily set refresh already completed today; redundant cloud retry cancelled.',updatedAt:now}},prefer:'return=minimal'});cancelledRedundant++;
+    await cancelQueued(job,'Daily set refresh already completed today; redundant cloud retry cancelled.');cancelledRedundant++;
   }
 
-  // Track active daily work so separate failed lineages cannot create parallel retries.
+  // Before processing failures, collapse parallel active daily retry lineages to one
+  // job per user/set. Prefer a running/claimed job; otherwise keep the earliest due.
   const activeRows=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&order=created_at.asc&limit=500');
-  const activeDaily=new Set((activeRows||[]).filter(daily).map(setKey));
+  const groups=new Map();
+  for(const job of activeRows||[]){if(!daily(job))continue;const key=setKey(job);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(job)}
+  for(const [key,rows] of groups){
+    if(rows.length<2)continue;
+    rows.sort((a,b)=>activeRank(a)-activeRank(b)||new Date(a.available_at||a.created_at)-new Date(b.available_at||b.created_at)||new Date(a.created_at)-new Date(b.created_at));
+    const keep=rows[0];
+    for(const job of rows.slice(1)){
+      if(job.status!=='queued')continue;
+      await cancelQueued(job,`Duplicate daily cloud retry suppressed; ${keep.status} sibling ${keep.job_id} retained for this set.`);cancelledRedundant++;
+    }
+  }
+
+  const activeAfter=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&order=created_at.asc&limit=500');
+  const activeDaily=new Set((activeAfter||[]).filter(daily).map(setKey));
 
   const failed=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.failed&preferred_executor=in.(cloud_worker,server)&order=completed_at.asc&limit=200');
   for(const job of failed||[]){
