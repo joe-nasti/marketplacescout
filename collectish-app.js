@@ -19,7 +19,7 @@
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
   if(realBadge)realBadge.textContent='web 0.8.4';
-  window.__collectishConsolidated={version:'0.8.4',builtAt:'2026-08-15T23:52:48.630Z'};
+  window.__collectishConsolidated={version:'0.8.4',builtAt:'2026-08-15T23:54:15.907Z'};
 })();
 
 /* ===== app.js ===== */
@@ -2661,7 +2661,7 @@ setInterval(async()=>{
   const money=n=>n==null?'—':Number(n).toLocaleString(undefined,{style:'currency',currency:'USD'}),num=n=>Number(n||0).toLocaleString();
   const date=v=>v?new Date(v).toLocaleDateString():'—';
   let products=[],events=[],tab='products',sort={key:'last_seen',dir:'desc'},installed=false,rendering=false;
-  async function paged(base,max=60000,size=5000){const out=[];for(let off=0;off<max;off+=size){const rows=await rest(`${base}&limit=${size}&offset=${off}`);out.push(...(rows||[]));if(!rows||rows.length<size)break}return out}
+  async function paged(base,max=60000,size=1000){const out=[];for(let off=0;off<max;off+=size){const rows=await rest(`${base}&limit=${size}&offset=${off}`);out.push(...(rows||[]));if(!rows||rows.length<size)break}return out}
   async function loadData(){const [p,e]=await Promise.all([paged('syp_products?select=tcgplayer_id,product_name,set_name,condition,market_price,max_quantity,current_max_quantity,first_seen,last_seen,is_currently_eligible&order=last_seen.desc',40000),paged('syp_events?select=event_id,tcgplayer_id,product_name,set_name,event_type,old_value,new_value,difference,metadata_changes,changed_at&order=changed_at.desc',60000)]);products=p;events=e}
   const maxMatch=(q,f)=>!f||(f==='0'?q===0:f==='100+'?q>=100:(()=>{const [a,b]=f.split('-').map(Number);return q>=a&&q<=b})());
   function cmp(a,b,key){let av=a[key],bv=b[key];if(['first_seen','last_seen','changed_at'].includes(key)){av=new Date(av||0).getTime();bv=new Date(bv||0).getTime()}else if(['market_price','current_max_quantity','old_value','new_value','difference'].includes(key)){av=Number(av||0);bv=Number(bv||0)}else{av=String(av||'').toLowerCase();bv=String(bv||'').toLowerCase()}return av<bv?-1:av>bv?1:0}
