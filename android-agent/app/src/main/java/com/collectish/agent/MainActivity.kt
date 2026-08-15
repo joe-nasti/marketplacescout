@@ -13,242 +13,75 @@ import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
-import android.webkit.WebResourceError
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
+import org.json.JSONArray
+import java.text.NumberFormat
+import java.util.Locale
 import java.util.UUID
+import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
-    private lateinit var collectishHost: FrameLayout
-    private lateinit var collectish: WebView
-    private lateinit var collectishStatus: LinearLayout
-    private lateinit var collectishStatusTitle: TextView
-    private lateinit var collectishStatusDetail: TextView
-    private lateinit var collectishRetry: Button
-    private lateinit var seller: WebView
+    private val api = NativeSupabase()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private lateinit var rootHost: FrameLayout
+    private lateinit var nativeShell: LinearLayout
+    private lateinit var contentHost: FrameLayout
+    private lateinit var nav: LinearLayout
+    private lateinit var agentWeb: WebView
+    private lateinit var seller: WebView
+    private var currentPage = "scout"
+    private var accessToken: String? = null
+    private var refreshToken: String? = null
+    private var accountEmail: String? = null
     @Volatile private var sellerSessionState = "unknown"
     @Volatile private var sellerPortalSnapshot = "{}"
     @Volatile private var sellerOrdersProbeState = "idle"
     @Volatile private var sellerOrdersSnapshot = "{}"
-    @Volatile private var collectishReady = false
-    private val version = "0.1.13"
-    private val collectishUrl = "https://joe-nasti.github.io/marketplacescout/"
+    private val version = "0.2.0"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         configureWindowSafely()
         CookieManager.getInstance().setAcceptCookie(true)
+        restoreSession()
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            fitsSystemWindows = true
-            setBackgroundColor(Color.rgb(245, 248, 252))
-        }
-        val content = FrameLayout(this).apply { setBackgroundColor(Color.rgb(245, 248, 252)) }
+        rootHost = FrameLayout(this).apply { setBackgroundColor(bg()) }
+        nativeShell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()) }
+        contentHost = FrameLayout(this).apply { setBackgroundColor(bg()) }
+        nav = buildNav()
+        nativeShell.addView(contentHost, LinearLayout.LayoutParams(-1, 0, 1f))
+        nativeShell.addView(nav, LinearLayout.LayoutParams(-1, dp(66)))
+        rootHost.addView(nativeShell, FrameLayout.LayoutParams(-1, -1))
 
-        collectishHost = FrameLayout(this).apply { setBackgroundColor(Color.rgb(245, 248, 252)) }
-        collectish = makeWebView().apply {
-            visibility = View.INVISIBLE
-            setBackgroundColor(Color.rgb(245, 248, 252))
-        }
-        collectishStatus = buildCollectishStatus()
-        collectishHost.addView(collectish, FrameLayout.LayoutParams(-1, -1))
-        collectishHost.addView(collectishStatus, FrameLayout.LayoutParams(-1, -1))
-
+        agentWeb = makeWebView().apply { alpha = 0.01f }
+        agentWeb.addJavascriptInterface(Bridge(), "CollectishAndroid")
         seller = makeWebView()
-        content.addView(collectishHost, FrameLayout.LayoutParams(-1, -1))
-        content.addView(seller, FrameLayout.LayoutParams(-1, -1))
+        agentWeb.addJavascriptInterface(ReadOnlyProbeBridge(this, seller) { sellerSessionState }, "CollectishReadOnly")
+        seller.webViewClient = sellerClient()
+        rootHost.addView(agentWeb, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
+        rootHost.addView(seller, FrameLayout.LayoutParams(-1, -1))
         seller.visibility = View.GONE
+        setContentView(rootHost)
 
-        val nav = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(Color.WHITE)
-        }
-        nav.addView(Button(this).apply {
-            text = "Collectish"
-            setOnClickListener { verifySellerSession { showCollectish() } }
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        nav.addView(Button(this).apply {
-            text = "TCGplayer"
-            setOnClickListener { showSeller() }
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-
-        root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
-        root.addView(nav, LinearLayout.LayoutParams(-1, -2))
-        setContentView(root)
-
-        collectish.addJavascriptInterface(Bridge(), "CollectishAndroid")
-        collectish.addJavascriptInterface(ReadOnlyProbeBridge(this, seller) { sellerSessionState }, "CollectishReadOnly")
-        collectish.webViewClient = collectishClient()
-        seller.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView, url: String) {
-                verifySellerSession()
-                if (sellerOrdersProbeState == "navigating") {
-                    sellerOrdersProbeState = "collecting"
-                    mainHandler.postDelayed({ captureSellerOrdersProbe() }, 1800)
-                }
-            }
-        }
-
-        loadCollectish()
+        agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/")
         seller.loadUrl("https://sellerportal.tcgplayer.com/")
+        if (accessToken.isNullOrBlank()) showLogin() else showPage("scout")
     }
 
-    private fun buildCollectishStatus() = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER
-        setPadding(40, 40, 40, 40)
-        setBackgroundColor(Color.rgb(245, 248, 252))
-
-        addView(TextView(this@MainActivity).apply {
-            text = "collectish"
-            textSize = 30f
-            setTextColor(Color.rgb(16, 24, 40))
-            gravity = Gravity.CENTER
-        }, LinearLayout.LayoutParams(-1, -2))
-
-        addView(TextView(this@MainActivity).apply {
-            text = "Scout • Seller • SYP"
-            textSize = 14f
-            setTextColor(Color.rgb(102, 112, 133))
-            gravity = Gravity.CENTER
-            setPadding(0, 8, 0, 28)
-        }, LinearLayout.LayoutParams(-1, -2))
-
-        addView(ProgressBar(this@MainActivity).apply { isIndeterminate = true }, LinearLayout.LayoutParams(-2, -2))
-
-        collectishStatusTitle = TextView(this@MainActivity).apply {
-            text = "Loading Collectish…"
-            textSize = 18f
-            setTextColor(Color.rgb(16, 24, 40))
-            gravity = Gravity.CENTER
-            setPadding(0, 22, 0, 6)
-        }
-        addView(collectishStatusTitle, LinearLayout.LayoutParams(-1, -2))
-
-        collectishStatusDetail = TextView(this@MainActivity).apply {
-            text = "Connecting to the Collectish dashboard."
-            textSize = 13f
-            setTextColor(Color.rgb(102, 112, 133))
-            gravity = Gravity.CENTER
-        }
-        addView(collectishStatusDetail, LinearLayout.LayoutParams(-1, -2))
-
-        collectishRetry = Button(this@MainActivity).apply {
-            text = "Retry Collectish"
-            visibility = View.GONE
-            setOnClickListener { loadCollectish() }
-        }
-        addView(collectishRetry, LinearLayout.LayoutParams(-2, -2).apply { topMargin = 20 })
-    }
-
-    private fun collectishClient() = object : WebViewClient() {
-        override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-            collectishReady = false
-            showCollectishStatus("Loading Collectish…", "Preparing a fresh dashboard session.", false)
-        }
-
-        override fun onPageFinished(view: WebView, url: String) {
-            mainHandler.postDelayed({ revealCollectishIfRendered() }, 150)
-            mainHandler.postDelayed({
-                if (!collectishReady) {
-                    revealCollectishIfRendered(finalAttempt = true)
-                }
-            }, 3500)
-        }
-
-        override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-            if (request.isForMainFrame) {
-                collectishReady = false
-                showCollectishStatus(
-                    "Collectish did not load",
-                    "The dashboard connection failed before the page rendered. Tap Retry Collectish.",
-                    true
-                )
-            }
-        }
-
-        override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: WebResourceResponse) {
-            if (request.isForMainFrame && errorResponse.statusCode >= 400) {
-                collectishReady = false
-                showCollectishStatus(
-                    "Collectish returned ${errorResponse.statusCode}",
-                    "The app is running normally, but the dashboard endpoint did not return a usable page.",
-                    true
-                )
-            }
-        }
-    }
-
-    private fun revealCollectishIfRendered(finalAttempt: Boolean = false) {
-        if (!::collectish.isInitialized) return
-        val probe = """
-            (function(){
-              try {
-                const body=document.body;
-                if(!body) return 'blank';
-                const text=(body.innerText||'').replace(/\s+/g,' ').trim();
-                const visible=[...document.querySelectorAll('main,section,header,nav,input,button')].some(el=>{
-                  const s=getComputedStyle(el); const r=el.getBoundingClientRect();
-                  return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;
-                });
-                return text.length>=8 && visible ? 'ready' : 'blank';
-              } catch(e) { return 'blank'; }
-            })();
-        """.trimIndent()
-        collectish.evaluateJavascript(probe) { raw ->
-            if (raw.contains("ready")) {
-                collectishReady = true
-                collectish.visibility = View.VISIBLE
-                collectishStatus.visibility = View.GONE
-            } else if (finalAttempt) {
-                collectishReady = false
-                collectish.visibility = View.INVISIBLE
-                showCollectishStatus(
-                    "Collectish loaded a blank page",
-                    "The old black-screen state was blocked. Retry to request a clean dashboard render.",
-                    true
-                )
-            }
-        }
-    }
-
-    private fun showCollectishStatus(title: String, detail: String, retry: Boolean) {
-        if (!::collectishStatus.isInitialized) return
-        collectishStatus.visibility = View.VISIBLE
-        collectishStatusTitle.text = title
-        collectishStatusDetail.text = detail
-        collectishRetry.visibility = if (retry) View.VISIBLE else View.GONE
-    }
-
-    private fun loadCollectish() {
-        collectishReady = false
-        if (::collectish.isInitialized) {
-            collectish.visibility = View.INVISIBLE
-            showCollectishStatus("Loading Collectish…", "Connecting to the Collectish dashboard.", false)
-            collectish.stopLoading()
-            collectish.clearHistory()
-            collectish.loadUrl(collectishUrl)
-            mainHandler.postDelayed({
-                if (!collectishReady) {
-                    showCollectishStatus(
-                        "Still connecting…",
-                        "If the dashboard stays unavailable, Retry Collectish will start a clean request without leaving a black screen.",
-                        true
-                    )
-                }
-            }, 8000)
-        }
-    }
+    private fun bg() = Color.rgb(245, 248, 252)
+    private fun ink() = Color.rgb(16, 24, 40)
+    private fun muted() = Color.rgb(102, 112, 133)
+    private fun blue() = Color.rgb(47, 109, 246)
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     private fun configureWindowSafely() {
         window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
@@ -264,121 +97,251 @@ class MainActivity : Activity() {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
-        settings.loadsImagesAutomatically = true
-        settings.useWideViewPort = true
-        settings.loadWithOverviewMode = false
         webChromeClient = WebChromeClient()
         webViewClient = WebViewClient()
         setBackgroundColor(Color.WHITE)
     }
 
-    private fun showCollectish() {
-        collectishHost.visibility = View.VISIBLE
+    private fun sellerClient() = object : WebViewClient() {
+        override fun onPageFinished(view: WebView, url: String) {
+            verifySellerSession()
+            if (sellerOrdersProbeState == "navigating") {
+                sellerOrdersProbeState = "collecting"
+                mainHandler.postDelayed({ captureSellerOrdersProbe() }, 1800)
+            }
+        }
+    }
+
+    private fun buildNav() = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER
+        setPadding(dp(4), dp(6), dp(4), dp(8))
+        setBackgroundColor(Color.WHITE)
+        listOf("scout" to "Scout", "seller" to "Seller", "syp" to "SYP", "admin" to "Admin").forEach { (key, label) ->
+            addView(Button(this@MainActivity).apply {
+                tag = key
+                text = label
+                textSize = 12f
+                isAllCaps = false
+                setOnClickListener { showPage(key) }
+            }, LinearLayout.LayoutParams(0, -1, 1f).apply { marginStart = dp(2); marginEnd = dp(2) })
+        }
+    }
+
+    private fun updateNav() {
+        for (i in 0 until nav.childCount) {
+            val b = nav.getChildAt(i) as Button
+            val active = b.tag == currentPage
+            b.setTextColor(if (active) blue() else muted())
+            b.alpha = if (active) 1f else .72f
+        }
+    }
+
+    private fun restoreSession() {
+        val p = getSharedPreferences("collectish-native", MODE_PRIVATE)
+        accessToken = p.getString("accessToken", null)
+        refreshToken = p.getString("refreshToken", null)
+        accountEmail = p.getString("email", null)
+    }
+
+    private fun saveSession(s: NativeSupabase.Session) {
+        accessToken = s.accessToken; refreshToken = s.refreshToken; accountEmail = s.email ?: accountEmail
+        getSharedPreferences("collectish-native", MODE_PRIVATE).edit()
+            .putString("accessToken", accessToken).putString("refreshToken", refreshToken).putString("email", accountEmail).apply()
+    }
+
+    private fun clearSession() {
+        accessToken = null; refreshToken = null; accountEmail = null
+        getSharedPreferences("collectish-native", MODE_PRIVATE).edit().clear().apply()
+    }
+
+    private fun showLogin(message: String? = null) {
         seller.visibility = View.GONE
-        if (collectishReady) {
-            collectish.evaluateJavascript("window.dispatchEvent(new Event('collectishAgentSessionChanged'))", null)
-        } else if (collectish.url.isNullOrBlank()) {
-            loadCollectish()
+        nav.visibility = View.GONE
+        contentHost.removeAllViews()
+        val wrap = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(24), dp(54), dp(24), dp(24)); setBackgroundColor(bg())
         }
-    }
-
-    private fun showSeller() {
-        seller.visibility = View.VISIBLE
-        collectishHost.visibility = View.GONE
-    }
-
-    private fun decodeJsString(raw: String): String = raw.replace("\\\"", "\"").replace("\\n", "\n").replace("\\\\", "\\").trim('"')
-
-    private fun verifySellerSession(after: (() -> Unit)? = null) {
-        if (!::seller.isInitialized) { after?.invoke(); return }
-        val url = seller.url.orEmpty().lowercase()
-        val cookies = CookieManager.getInstance().getCookie("https://sellerportal.tcgplayer.com/").orEmpty()
-        val probe = """(function(){try{const text=(document.body?.innerText||'');const b=text.toLowerCase();const visible=['orders','inventory','payments','shipping','messages','settings'].filter(x=>b.includes(x));const links=[...document.querySelectorAll('a[href]')].map(a=>({text:(a.innerText||a.textContent||'').trim().replace(/\s+/g,' ').slice(0,120),href:a.href})).filter(x=>x.text||/order|inventory|payment|shipping/i.test(x.href)).slice(0,80);return JSON.stringify({passwordField:!!document.querySelector('input[type=password]'),loginText:/sign in|log in|forgot password/.test(b),logoutText:/sign out|log out|logout/.test(b),sellerNav:/orders|inventory|payments|seller portal|shipping/.test(b),title:document.title||'',path:location.pathname||'/',visibleSections:visible,links,checkedAt:new Date().toISOString()})}catch(e){return JSON.stringify({error:String(e)})}})();"""
-        seller.evaluateJavascript(probe) { raw ->
-            val t = decodeJsString(raw.orEmpty())
-            sellerPortalSnapshot = t.ifBlank { "{}" }
-            val login = url.contains("login") || url.contains("signin") || url.contains("registration") || t.contains("\"passwordField\":true")
-            val auth = t.contains("\"logoutText\":true") || (t.contains("\"sellerNav\":true") && !t.contains("\"loginText\":true"))
-            sellerSessionState = when {
-                login -> "signed_out"
-                auth && url.contains("tcgplayer.com") -> "authenticated"
-                cookies.isNotBlank() && url.contains("tcgplayer.com") -> "authenticated"
-                else -> "unknown"
-            }
-            after?.invoke()
-            if (::collectish.isInitialized && collectishHost.visibility == View.VISIBLE && collectishReady) {
-                collectish.evaluateJavascript("window.dispatchEvent(new Event('collectishAgentSessionChanged'))", null)
-            }
-        }
-    }
-
-    private fun startSellerOrdersProbeNative() {
-        if (!::seller.isInitialized) {
-            sellerOrdersProbeState = "error"
-            sellerOrdersSnapshot = "{\"error\":\"Seller WebView unavailable\"}"
-            return
-        }
-        sellerOrdersProbeState = "locating"
-        sellerOrdersSnapshot = "{}"
-        verifySellerSession {
-            if (sellerSessionState != "authenticated") {
-                sellerOrdersProbeState = "error"
-                sellerOrdersSnapshot = "{\"error\":\"Seller Portal session is not authenticated\"}"
-                return@verifySellerSession
-            }
-            sellerOrdersProbeState = "navigating"
-            seller.loadUrl("https://store.tcgplayer.com/admin/orders/orderlist")
-            mainHandler.postDelayed({
-                if (sellerOrdersProbeState == "navigating") {
-                    sellerOrdersProbeState = "collecting"
-                    captureSellerOrdersProbe()
+        wrap.addView(title("collectish", 34f))
+        wrap.addView(text("Scout opportunities. Seller history. SYP changes.", 14f, muted()).apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, dp(30)) })
+        val email = EditText(this).apply { hint = "Email"; setText(accountEmail.orEmpty()); inputType = 33 }
+        val pass = EditText(this).apply { hint = "Password"; inputType = 129 }
+        val status = text(message.orEmpty(), 13f, Color.rgb(180, 35, 24)).apply { setPadding(0, dp(10), 0, dp(8)) }
+        val signIn = Button(this).apply { text = "Sign in"; isAllCaps = false; setTextColor(Color.WHITE); setBackgroundColor(blue()) }
+        wrap.addView(email, LinearLayout.LayoutParams(-1, dp(56)))
+        wrap.addView(pass, LinearLayout.LayoutParams(-1, dp(56)).apply { topMargin = dp(10) })
+        wrap.addView(status, LinearLayout.LayoutParams(-1, -2))
+        wrap.addView(signIn, LinearLayout.LayoutParams(-1, dp(54)))
+        signIn.setOnClickListener {
+            if (email.text.isBlank() || pass.text.isBlank()) { status.text = "Enter email and password."; return@setOnClickListener }
+            signIn.isEnabled = false; status.setTextColor(muted()); status.text = "Signing in…"
+            thread {
+                try {
+                    val s = api.signIn(email.text.toString().trim(), pass.text.toString())
+                    accountEmail = email.text.toString().trim(); saveSession(s)
+                    runOnUiThread { nav.visibility = View.VISIBLE; showPage("scout") }
+                } catch (e: Exception) {
+                    runOnUiThread { signIn.isEnabled = true; status.setTextColor(Color.rgb(180,35,24)); status.text = e.message ?: "Sign in failed" }
                 }
-            }, 5000)
+            }
+        }
+        contentHost.addView(ScrollView(this).apply { addView(wrap) }, FrameLayout.LayoutParams(-1, -1))
+    }
+
+    private fun showPage(page: String) {
+        if (accessToken.isNullOrBlank()) { showLogin(); return }
+        seller.visibility = View.GONE
+        nativeShell.visibility = View.VISIBLE
+        nav.visibility = View.VISIBLE
+        currentPage = page; updateNav()
+        when (page) {
+            "scout" -> loadScout()
+            "seller" -> loadSeller()
+            "syp" -> loadSyp()
+            else -> renderAdmin()
         }
     }
 
-    private fun captureSellerOrdersProbe() {
-        if (!::seller.isInitialized) return
-        val probe = """(function(){try{const clean=s=>(s||'').replace(/\s+/g,' ').trim();const tables=[...document.querySelectorAll('table')].slice(0,8).map((table,ti)=>({index:ti,headers:[...table.querySelectorAll('thead th')].map(x=>clean(x.innerText||x.textContent)).filter(Boolean),rows:[...table.querySelectorAll('tbody tr,tr')].slice(0,120).map(tr=>[...tr.querySelectorAll('th,td')].map(td=>clean(td.innerText||td.textContent).slice(0,500))).filter(r=>r.length)}));const grids=[...document.querySelectorAll('[role=row]')].slice(0,160).map(r=>[...r.querySelectorAll('[role=cell],[role=gridcell],[role=columnheader]')].map(c=>clean(c.innerText||c.textContent).slice(0,500))).filter(r=>r.length);const links=[...document.querySelectorAll('a[href]')].map(a=>({text:clean(a.innerText||a.textContent).slice(0,160),href:a.href})).filter(x=>/order|refund|payment|transaction|shipping|seller/i.test(x.text+' '+x.href)).slice(0,120);const buttons=[...document.querySelectorAll('button,[role=button]')].map(b=>clean(b.innerText||b.textContent)).filter(Boolean).slice(0,100);const forms=[...document.forms].slice(0,20).map(f=>({action:f.action,method:f.method,controls:[...f.elements].slice(0,60).map(e=>({name:e.name||'',type:e.type||'',value:(e.type==='hidden'?String(e.value||'').slice(0,300):'')}))}));const resources=performance.getEntriesByType('resource').map(r=>r.name).filter(u=>/tcgplayer|sellerportal/i.test(u)&&/api|order|refund|payment|transaction|shipping|seller/i.test(u)).slice(-160);const body=clean(document.body?.innerText||'').slice(0,30000);return JSON.stringify({title:document.title||'',url:location.href,path:location.pathname||'/',tables,grids,links,buttons,forms,resources,bodyText:body,counts:{tables:tables.length,gridRows:grids.length,links:links.length,resources:resources.length},checkedAt:new Date().toISOString()})}catch(e){return JSON.stringify({error:String(e),url:location.href,checkedAt:new Date().toISOString()})}})();"""
-        seller.evaluateJavascript(probe) { raw ->
-            val t = decodeJsString(raw.orEmpty())
-            sellerOrdersSnapshot = t.ifBlank { "{\"error\":\"Empty orders probe\"}" }
-            sellerOrdersProbeState = if (t.contains("\"error\":")) "error" else "ready"
-            if (::collectish.isInitialized && collectishHost.visibility == View.VISIBLE && collectishReady) {
-                collectish.evaluateJavascript("window.dispatchEvent(new Event('collectishAgentSessionChanged'))", null)
+    private fun pageBase(name: String, subtitle: String): LinearLayout {
+        contentHost.removeAllViews()
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(18), dp(16), dp(24)); setBackgroundColor(bg()) }
+        body.addView(title(name, 28f))
+        body.addView(text(subtitle, 14f, muted()).apply { setPadding(0, dp(4), 0, dp(14)) })
+        contentHost.addView(ScrollView(this).apply { addView(body) }, FrameLayout.LayoutParams(-1, -1))
+        return body
+    }
+
+    private fun loading(body: LinearLayout, label: String = "Loading…") {
+        body.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(18), 0, dp(18))
+            addView(ProgressBar(this@MainActivity).apply { isIndeterminate = true }, LinearLayout.LayoutParams(dp(28), dp(28)))
+            addView(text(label, 14f, muted()).apply { setPadding(dp(12), 0, 0, 0) })
+        })
+    }
+
+    private fun loadScout() {
+        val body = pageBase("Scout", "What should I buy?"); loading(body, "Ranking latest opportunities…")
+        withToken { token ->
+            val rows = api.get(token, "marketplace_scan_rows?select=sku_id,product_name,set_name,printing,condition,direct_low,sku_market_price,direct_available,avg_daily_qty_sold,opportunity_score,flag&id=not.is.null&order=id.desc&limit=750")
+            val latest = linkedMapOf<String, org.json.JSONObject>()
+            for (i in 0 until rows.length()) { val r = rows.getJSONObject(i); val k = r.optString("sku_id", "row-$i"); if (!latest.containsKey(k)) latest[k] = r }
+            val ranked = latest.values.sortedByDescending { it.optDouble("opportunity_score", 0.0) }.take(30)
+            runOnUiThread {
+                val b = pageBase("Scout", "Ranked buying and speculation opportunities.")
+                if (ranked.isEmpty()) b.addView(empty("No Scout rows are available yet."))
+                ranked.forEachIndexed { idx, r ->
+                    b.addView(card().apply {
+                        addView(text("#${idx + 1}  ${r.optString("product_name", "Unknown card")}", 16f, ink()).apply { setTypeface(typeface, 1) })
+                        addView(text("${r.optString("set_name")} • ${r.optString("printing")} • ${r.optString("condition")}", 12f, muted()).apply { setPadding(0, dp(3), 0, dp(8)) })
+                        val score = r.optDouble("opportunity_score", 0.0).toInt(); val flag = r.optString("flag")
+                        addView(text("$flag  •  Score $score/100", 13f, if (flag.equals("HOT", true)) Color.rgb(180,35,24) else blue()).apply { setTypeface(typeface, 1) })
+                        addView(text("Market ${money(r.optDouble("sku_market_price"))}   Direct ${money(r.optDouble("direct_low"))}", 13f, ink()).apply { setPadding(0, dp(6), 0, 0) })
+                        addView(text("Direct qty ${r.optInt("direct_available")}   •   ${String.format(Locale.US,"%.1f",r.optDouble("avg_daily_qty_sold"))} sales/day", 12f, muted()))
+                    }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+                }
             }
         }
     }
+
+    private fun loadSeller() {
+        val body = pageBase("Seller", "How is the business doing?"); loading(body, "Loading order history…")
+        withToken { token ->
+            val rows = api.get(token, "seller_orders?select=order_number,order_date,order_status,gross_amount,fee_amount,net_amount,refund_total,has_details&order=order_date.desc&limit=1000")
+            var gross=0.0; var fees=0.0; var net=0.0; var refunds=0.0; var missing=0
+            for(i in 0 until rows.length()){ val r=rows.getJSONObject(i); gross+=r.optDouble("gross_amount");fees+=r.optDouble("fee_amount");net+=r.optDouble("net_amount");refunds+=r.optDouble("refund_total");if(!r.optBoolean("has_details",false))missing++ }
+            runOnUiThread {
+                val b=pageBase("Seller","Latest 1,000 orders in your synced history.")
+                b.addView(kpiGrid(listOf("Orders" to rows.length().toString(),"Gross" to money(gross),"Net" to money(net),"Fees" to money(fees),"Refunds" to money(refunds),"Missing detail" to missing.toString())))
+                for(i in 0 until minOf(rows.length(),25)){ val r=rows.getJSONObject(i); b.addView(card().apply {
+                    addView(text(r.optString("order_number"),15f,ink()).apply{setTypeface(typeface,1)})
+                    addView(text("${r.optString("order_date")} • ${r.optString("order_status")}",12f,muted()))
+                    addView(text("Gross ${money(r.optDouble("gross_amount"))}   Net ${money(r.optDouble("net_amount"))}",13f,ink()).apply{setPadding(0,dp(6),0,0)})
+                },LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(9)}) }
+            }
+        }
+    }
+
+    private fun loadSyp() {
+        val body = pageBase("SYP", "What changed?"); loading(body, "Loading Store Your Products history…")
+        withToken { token ->
+            val rows=api.get(token,"syp_products?select=tcgplayer_id,product_name,set_name,condition,market_price,max_qty,is_eligible,last_seen_at&order=last_seen_at.desc&limit=750")
+            var eligible=0; for(i in 0 until rows.length()) if(rows.getJSONObject(i).optBoolean("is_eligible",false)) eligible++
+            val eventCount=runCatching{api.count(token,"syp_change_events")}.getOrDefault(0)
+            runOnUiThread {
+                val b=pageBase("SYP","Eligibility, quantities, and recent product state.")
+                b.addView(kpiGrid(listOf("Loaded" to rows.length().toString(),"Eligible" to eligible.toString(),"Change events" to eventCount.toString())))
+                for(i in 0 until minOf(rows.length(),30)){ val r=rows.getJSONObject(i); b.addView(card().apply{
+                    addView(text(r.optString("product_name","Unknown product"),15f,ink()).apply{setTypeface(typeface,1)})
+                    addView(text("${r.optString("set_name")} • ${r.optString("condition")}",12f,muted()))
+                    addView(text("${if(r.optBoolean("is_eligible")) "Eligible" else "Not eligible"}   •   Max ${r.optInt("max_qty")}   •   ${money(r.optDouble("market_price"))}",13f,if(r.optBoolean("is_eligible"))Color.rgb(2,122,72) else muted()).apply{setPadding(0,dp(6),0,0)})
+                },LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(9)}) }
+            }
+        }
+    }
+
+    private fun renderAdmin() {
+        val b=pageBase("Admin","Syncs, authentication, and backend operations.")
+        b.addView(card().apply {
+            addView(text("Collectish 0.2.0",18f,ink()).apply{setTypeface(typeface,1)})
+            addView(text(accountEmail ?: "Signed in",13f,muted()).apply{setPadding(0,dp(5),0,dp(10))})
+            addView(text("TCGplayer session: $sellerSessionState",13f,ink()))
+            addView(Button(this@MainActivity).apply { text="Open TCGplayer session";isAllCaps=false;setOnClickListener{showSeller()} },LinearLayout.LayoutParams(-1,-2).apply{topMargin=dp(12)})
+            addView(Button(this@MainActivity).apply { text="Refresh TCGplayer status";isAllCaps=false;setOnClickListener{verifySellerSession{renderAdmin()}} },LinearLayout.LayoutParams(-1,-2).apply{topMargin=dp(6)})
+            addView(Button(this@MainActivity).apply { text="Sign out of Collectish";isAllCaps=false;setOnClickListener{clearSession();showLogin()} },LinearLayout.LayoutParams(-1,-2).apply{topMargin=dp(16)})
+        })
+        b.addView(text("The Collectish UI is native. The hidden agent WebView is retained only for existing cloud orchestration while that bridge is migrated natively.",12f,muted()).apply{setPadding(0,dp(12),0,0)})
+    }
+
+    private fun withToken(work: (String) -> Unit) {
+        thread {
+            try {
+                var token=accessToken ?: throw IllegalStateException("Signed out")
+                try { work(token) } catch(first: Exception) {
+                    val refresh=refreshToken ?: throw first
+                    val s=api.refresh(refresh);saveSession(s);token=s.accessToken;work(token)
+                }
+            } catch(e: Exception) {
+                runOnUiThread {
+                    if((e.message ?: "").contains("expired",true) || (e.message ?: "").contains("401")) { clearSession();showLogin("Your session expired. Sign in again.") }
+                    else { val b=pageBase(currentPage.replaceFirstChar{it.uppercase()},"Could not load this section.");b.addView(empty(e.message ?: "Data request failed")) }
+                }
+            }
+        }
+    }
+
+    private fun title(s:String,size:Float)=text(s,size,ink()).apply{setTypeface(typeface,1)}
+    private fun text(s:String,size:Float,color:Int)=TextView(this).apply{text=s;textSize=size;setTextColor(color)}
+    private fun empty(s:String)=text(s,14f,muted()).apply{gravity=Gravity.CENTER;setPadding(dp(10),dp(34),dp(10),dp(34))}
+    private fun card()=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(14),dp(13),dp(14),dp(13));setBackgroundColor(Color.WHITE);elevation=dp(1).toFloat()}
+    private fun money(v:Double)=NumberFormat.getCurrencyInstance(Locale.US).format(v)
+    private fun kpiGrid(items:List<Pair<String,String>>)=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;items.chunked(2).forEach{rowItems->addView(LinearLayout(this@MainActivity).apply{orientation=LinearLayout.HORIZONTAL;rowItems.forEach{(k,v)->addView(card().apply{addView(text(k.uppercase(),10f,muted()));addView(text(v,19f,ink()).apply{setTypeface(typeface,1);setPadding(0,dp(4),0,0)})},LinearLayout.LayoutParams(0,-2,1f).apply{marginEnd=dp(6);bottomMargin=dp(7)})}},LinearLayout.LayoutParams(-1,-2))}}
+
+    private fun showSeller(){ nativeShell.visibility=View.GONE;seller.visibility=View.VISIBLE }
+
+    private fun decodeJsString(raw:String):String=raw.replace("\\\"","\"").replace("\\n","\n").replace("\\\\","\\").trim('"')
+    private fun verifySellerSession(after:(()->Unit)?=null){
+        val url=seller.url.orEmpty().lowercase();val cookies=CookieManager.getInstance().getCookie("https://sellerportal.tcgplayer.com/").orEmpty()
+        val probe="""(function(){try{const b=(document.body?.innerText||'').toLowerCase();return JSON.stringify({passwordField:!!document.querySelector('input[type=password]'),loginText:/sign in|log in|forgot password/.test(b),logoutText:/sign out|log out|logout/.test(b),sellerNav:/orders|inventory|payments|seller portal|shipping/.test(b),title:document.title||'',path:location.pathname||'/'})}catch(e){return JSON.stringify({error:String(e)})}})();"""
+        seller.evaluateJavascript(probe){raw->val t=decodeJsString(raw.orEmpty());sellerPortalSnapshot=t.ifBlank{"{}"};val login=url.contains("login")||url.contains("signin")||t.contains("\"passwordField\":true");val auth=t.contains("\"logoutText\":true")||(t.contains("\"sellerNav\":true")&&!t.contains("\"loginText\":true"));sellerSessionState=when{login->"signed_out";auth&&url.contains("tcgplayer.com")->"authenticated";cookies.isNotBlank()&&url.contains("tcgplayer.com")->"authenticated";else->"unknown"};after?.invoke()}
+    }
+
+    private fun startSellerOrdersProbeNative(){if(sellerSessionState!="authenticated"){sellerOrdersProbeState="error";sellerOrdersSnapshot="{\"error\":\"Seller Portal session is not authenticated\"}";return};sellerOrdersProbeState="navigating";seller.loadUrl("https://store.tcgplayer.com/admin/orders/orderlist");mainHandler.postDelayed({if(sellerOrdersProbeState=="navigating"){sellerOrdersProbeState="collecting";captureSellerOrdersProbe()}},5000)}
+    private fun captureSellerOrdersProbe(){val probe="""(function(){try{const clean=s=>(s||'').replace(/\s+/g,' ').trim();const tables=[...document.querySelectorAll('table')].slice(0,8).map(t=>({headers:[...t.querySelectorAll('thead th')].map(x=>clean(x.innerText||x.textContent)),rows:[...t.querySelectorAll('tbody tr')].slice(0,120).map(tr=>[...tr.querySelectorAll('td')].map(td=>clean(td.innerText||td.textContent)))}));return JSON.stringify({title:document.title||'',url:location.href,tables,bodyText:clean(document.body?.innerText||'').slice(0,30000),checkedAt:new Date().toISOString()})}catch(e){return JSON.stringify({error:String(e)})}})();""";seller.evaluateJavascript(probe){raw->val t=decodeJsString(raw.orEmpty());sellerOrdersSnapshot=t.ifBlank{"{\"error\":\"Empty orders probe\"}"};sellerOrdersProbeState=if(t.contains("\"error\":"))"error" else "ready"}}
 
     inner class Bridge {
-        @JavascriptInterface fun getVersion() = version
-        @JavascriptInterface fun getCollectorId(): String {
-            val p = getSharedPreferences("collectish-agent", MODE_PRIVATE)
-            return p.getString("collectorId", null) ?: UUID.randomUUID().toString().also {
-                p.edit().putString("collectorId", it).apply()
-            }
-        }
-        @JavascriptInterface fun getSessionState() = sellerSessionState
-        @JavascriptInterface fun getSellerPortalSnapshot() = sellerPortalSnapshot
-        @JavascriptInterface fun getSellerOrdersProbeState() = sellerOrdersProbeState
-        @JavascriptInterface fun getSellerOrdersSnapshot() = sellerOrdersSnapshot
-        @JavascriptInterface fun startSellerOrdersProbe() { runOnUiThread { this@MainActivity.startSellerOrdersProbeNative() } }
-        @JavascriptInterface fun refreshSessionState() { runOnUiThread { verifySellerSession() } }
-        @JavascriptInterface fun showSellerPortal() { runOnUiThread { showSeller() } }
-        @JavascriptInterface fun showCollectish() { runOnUiThread { verifySellerSession { showCollectish() } } }
+        @JavascriptInterface fun getVersion()=version
+        @JavascriptInterface fun getCollectorId():String{val p=getSharedPreferences("collectish-agent",MODE_PRIVATE);return p.getString("collectorId",null)?:UUID.randomUUID().toString().also{p.edit().putString("collectorId",it).apply()}}
+        @JavascriptInterface fun getSessionState()=sellerSessionState
+        @JavascriptInterface fun getSellerPortalSnapshot()=sellerPortalSnapshot
+        @JavascriptInterface fun getSellerOrdersProbeState()=sellerOrdersProbeState
+        @JavascriptInterface fun getSellerOrdersSnapshot()=sellerOrdersSnapshot
+        @JavascriptInterface fun startSellerOrdersProbe(){runOnUiThread{startSellerOrdersProbeNative()}}
+        @JavascriptInterface fun refreshSessionState(){runOnUiThread{verifySellerSession()}}
+        @JavascriptInterface fun showSellerPortal(){runOnUiThread{showSeller()}}
+        @JavascriptInterface fun showCollectish(){runOnUiThread{nativeShell.visibility=View.VISIBLE;seller.visibility=View.GONE;showPage(currentPage)}}
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (::seller.isInitialized) verifySellerSession()
-    }
-
-    override fun onBackPressed() {
-        when {
-            seller.visibility == View.VISIBLE && seller.canGoBack() -> seller.goBack()
-            collectishHost.visibility == View.VISIBLE && collectishReady && collectish.canGoBack() -> collectish.goBack()
-            seller.visibility == View.VISIBLE -> verifySellerSession { showCollectish() }
-            else -> super.onBackPressed()
-        }
-    }
+    override fun onResume(){super.onResume();if(::seller.isInitialized)verifySellerSession()}
+    override fun onBackPressed(){when{seller.visibility==View.VISIBLE&&seller.canGoBack()->seller.goBack();seller.visibility==View.VISIBLE->{seller.visibility=View.GONE;nativeShell.visibility=View.VISIBLE};else->super.onBackPressed()}}
 }
