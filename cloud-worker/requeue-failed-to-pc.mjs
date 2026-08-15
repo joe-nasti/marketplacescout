@@ -10,13 +10,13 @@ function isTransient(message=''){
 }
 async function main(){
   const failed=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.failed&preferred_executor=in.(cloud_worker,server)&order=completed_at.asc&limit=20');
-  let retried=0,fallback=0;
+  let retried=0,freshCloud=0,fallback=0;
   for(const job of failed||[]){
     const payload=job.payload_json||{};
     const attempts=Number(job.attempt_count||0),max=Math.max(1,Number(job.max_attempts||3));
     const error=String(job.error_message||job.progress_json?.detail||'');
 
-    // Keep transient public-endpoint failures in the cloud while attempts remain.
+    // Keep transient public-endpoint failures in the same job while attempts remain.
     // Deprioritize retries slightly so first-attempt coverage for other sets can
     // continue before a flaky endpoint consumes another slot.
     if(attempts<max && isTransient(error)){
@@ -31,8 +31,31 @@ async function main(){
       continue;
     }
 
+    // A large set can encounter a random upstream 500 after hundreds of successful
+    // pages. Once the original job exhausts its attempts, allow exactly one brand-new
+    // cloud job so it can start with a clean lease/request history. Cancel any still-
+    // queued browser fallback first so one-set-per-day coverage cannot duplicate.
+    const freshCount=Number(payload.cloudFreshRetryCount||0);
+    if(attempts>=max && isTransient(error) && freshCount<1 && !payload.cloudFreshRetryQueued){
+      const existingCloud=await sb(`collector_jobs?parent_job_id=eq.${enc(job.job_id)}&preferred_executor=eq.cloud_worker&status=in.(queued,claimed,running,completed)&limit=1`);
+      const now=new Date().toISOString();
+      if(!existingCloud?.length){
+        await sb(`collector_jobs?parent_job_id=eq.${enc(job.job_id)}&preferred_executor=eq.browser_connector&status=eq.queued`,{method:'PATCH',body:{status:'cancelled',completed_at:now,progress_json:{stage:'cancelled',percent:0,detail:'Superseded by one final fresh cloud retry after transient upstream failures',updatedAt:now}},prefer:'return=minimal'});
+        await sb('collector_jobs',{method:'POST',body:[{
+          user_id:job.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:35,
+          required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',parent_job_id:job.job_id,
+          payload_json:{...payload,pcFallbackQueued:false,cloudFreshRetryCount:1,cloudFreshRetryOf:job.job_id,executionClass:'cloud_public'},
+          progress_json:{stage:'queued',percent:0,detail:'Original cloud job exhausted transient retries; trying one fresh cloud job before browser fallback',updatedAt:now},
+          max_attempts:max
+        }],prefer:'return=minimal'});
+      }
+      await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}`,{method:'PATCH',body:{payload_json:{...payload,cloudFreshRetryQueued:true,cloudFreshRetryQueuedAt:now}},prefer:'return=minimal'});
+      freshCloud++;
+      continue;
+    }
+
     if(payload.pcFallbackQueued)continue;
-    const existing=await sb(`collector_jobs?parent_job_id=eq.${enc(job.job_id)}&preferred_executor=eq.browser_connector&limit=1`);
+    const existing=await sb(`collector_jobs?parent_job_id=eq.${enc(job.job_id)}&preferred_executor=eq.browser_connector&status=in.(queued,claimed,running,completed)&limit=1`);
     if(existing?.length)continue;
     const now=new Date().toISOString();
     await sb('collector_jobs',{method:'POST',body:[{
@@ -45,6 +68,6 @@ async function main(){
     await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}`,{method:'PATCH',body:{payload_json:{...payload,pcFallbackQueued:true,pcFallbackQueuedAt:now}},prefer:'return=minimal'});
     fallback++;
   }
-  console.log(`Cloud failure recovery: ${retried} transient cloud retry(s), ${fallback} browser fallback(s).`);
+  console.log(`Cloud failure recovery: ${retried} same-job retry(s), ${freshCloud} fresh cloud retry job(s), ${fallback} browser fallback(s).`);
 }
 await main();
