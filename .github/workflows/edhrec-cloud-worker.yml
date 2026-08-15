@@ -1,0 +1,39 @@
+name: Collectish EDHREC cloud context
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 10 * * *"
+  push:
+    paths:
+      - ".github/workflows/edhrec-cloud-worker.yml"
+      - "cloud-worker/edhrec-worker.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-edhrec-cloud
+  cancel-in-progress: false
+
+jobs:
+  edhrec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      COLLECTISH_EDHREC_RECENT_SETS: "8"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate worker
+        run: |
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          node --check cloud-worker/edhrec-worker.mjs
+      - name: Collect EDHREC context
+        run: node cloud-worker/edhrec-worker.mjs
