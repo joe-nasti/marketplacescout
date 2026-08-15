@@ -5,6 +5,7 @@ s = p.read_text()
 
 s = s.replace('private val version = "0.2.1"', 'private val version = "0.2.2"')
 s = s.replace('Collectish 0.2.1', 'Collectish 0.2.2')
+s = s.replace('Collectish/0.2.1', 'Collectish/0.2.2')
 
 s = s.replace(
     'syp_products?select=tcgplayer_id,product_name,set_name,condition,market_price,max_qty,is_eligible,last_seen_at&order=last_seen_at.desc&limit=750',
@@ -22,6 +23,6 @@ p.write_text(s)
 
 b = Path('android-agent/app/build.gradle.kts')
 t = b.read_text()
-t = t.replace('versionCode = 20', 'versionCode = 22')
-t = t.replace('versionName = "0.2.0"', 'versionName = "0.2.2"')
+t = t.replace('versionCode = 21', 'versionCode = 22').replace('versionCode = 20', 'versionCode = 22')
+t = t.replace('versionName = "0.2.1"', 'versionName = "0.2.2"').replace('versionName = "0.2.0"', 'versionName = "0.2.2"')
 b.write_text(t)
