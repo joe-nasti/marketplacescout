@@ -1,4 +1,4 @@
-// Collectish consolidated web 0.7.7
+// Collectish consolidated web 0.7.8
 // Generated; do not edit directly. Run tools/build-consolidated-web.mjs.
 (()=>{
   const realBadge=document.querySelector('#appVersion');
@@ -18,8 +18,8 @@
   const append=Element.prototype.append;Element.prototype.append=function(...n){return append.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
-  if(realBadge)realBadge.textContent='web 0.7.7';
-  window.__collectishConsolidated={version:'0.7.7',builtAt:'2026-08-15T02:32:11.362Z'};
+  if(realBadge)realBadge.textContent='web 0.7.8';
+  window.__collectishConsolidated={version:'0.7.8',builtAt:'2026-08-15T03:26:44.168Z'};
 })();
 
 /* ===== app.js ===== */
@@ -2237,9 +2237,96 @@ setInterval(async()=>{
 })();
 
 
+/* ===== current-readonly-agent.js ===== */
+(() => {
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  let busy=false;
+
+  async function claimOne(collectorId){
+    const claimed=await rest('rpc/claim_collector_job',{method:'POST',body:{
+      p_source:'agent',
+      p_action:'seller_portal_readonly_probe',
+      p_preferred_executors:['android_agent'],
+      p_required_capability:'tcgplayer_authenticated_session',
+      p_collector_id:collectorId,
+      p_lease_seconds:300
+    }});
+    return Array.isArray(claimed)?claimed[0]:(claimed?.job_id?claimed:null);
+  }
+
+  async function finish(job,collectorId,version,status,detail,readOnlyProbe,probeState){
+    const completedAt=new Date().toISOString();
+    const progress={stage:status==='completed'?'completed':'failed',percent:100,detail,updatedAt:completedAt,readOnlyProbe,probeState};
+    await rest(`collector_jobs?job_id=eq.${encodeURIComponent(job.job_id)}`,{method:'PATCH',body:{
+      status,
+      completed_at:completedAt,
+      lease_expires_at:null,
+      progress_json:progress,
+      error_message:status==='completed'?null:detail
+    },prefer:'return=minimal'});
+    await rest('collector_job_events',{method:'POST',body:[{
+      job_id:job.job_id,
+      user_id:job.user_id,
+      event_type:status==='completed'?'completed':'failed',
+      collector_id:collectorId,
+      progress_json:progress,
+      message:detail,
+      metadata_json:{platform:'android',agentVersion:version,probeState}
+    }],prefer:'return=minimal'});
+  }
+
+  async function run(){
+    if(busy||typeof rest!=='function'||typeof session!=='function')return;
+    const a=window.CollectishAndroid,ro=window.CollectishReadOnly,s=session();
+    if(!a||!ro||!s?.user?.id)return;
+    if(typeof ro.startReadOnlyProbe!=='function'||typeof ro.getReadOnlyProbeState!=='function'||typeof ro.getReadOnlyProbeResult!=='function')return;
+    if(String(a.getSessionState?.()||'unknown')!=='authenticated')return;
+    busy=true;
+    let job=null;
+    try{
+      const collectorId=String(a.getCollectorId()),version=String(a.getVersion());
+      job=await claimOne(collectorId);
+      if(!job)return;
+      const payload=job.payload_json||{};
+      const config=payload.probe||payload.config||{};
+      ro.startReadOnlyProbe(JSON.stringify(config));
+      let state='starting';
+      for(let i=0;i<80;i++){
+        await wait(500);
+        state=String(ro.getReadOnlyProbeState?.()||'unknown');
+        if(state==='ready'||state==='error')break;
+      }
+      let probe={};
+      try{probe=JSON.parse(String(ro.getReadOnlyProbeResult?.()||'{}'))}catch{probe={error:'Read-only probe JSON parse failed'}}
+      if(state==='ready'){
+        await finish(job,collectorId,version,'completed','Authenticated read-only Seller Portal probe completed',probe,state);
+      }else{
+        await finish(job,collectorId,version,'failed',state==='error'?(probe.error||'Read-only Seller Portal probe failed'):'Read-only Seller Portal probe timed out',probe,state);
+      }
+      window.dispatchEvent(new Event('collectishAgentSessionChanged'));
+    }catch(e){
+      if(job){
+        try{
+          const collectorId=String(a.getCollectorId()),version=String(a.getVersion());
+          await finish(job,collectorId,version,'failed',String(e?.message||e),{error:String(e?.message||e)},'exception');
+        }catch{}
+      }
+    }finally{busy=false}
+  }
+
+  const kick=()=>run().catch(()=>{});
+  setInterval(kick,30000);
+  setTimeout(kick,1800);
+  window.addEventListener('collectishAgentSessionChanged',()=>setTimeout(kick,100));
+  window.addEventListener('pageshow',kick);
+  window.addEventListener('focus',kick);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')kick()});
+})();
+
+
 // Consolidated startup finalizer
 (()=>{
-  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.7.7';
+  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.7.8';
   let s=null;try{s=JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{}
   if(!s?.token){
     const banner=document.querySelector('#activityBanner');if(banner){banner.hidden=true;banner.style.display='none'}
