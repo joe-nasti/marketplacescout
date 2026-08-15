@@ -7,6 +7,7 @@ on:
   push:
     paths:
       - ".github/workflows/seller-history-orchestrator.yml"
+      - "cloud-worker/seller-history-seed.mjs"
       - "cloud-worker/seller-history-orchestrator.mjs"
       - "cloud-worker/seller-history-normalizer.mjs"
       - "cloud-worker/seller-history-detail-backfill.mjs"
@@ -41,9 +42,12 @@ jobs:
           fi
       - name: Validate orchestrator syntax
         run: |
+          node --check cloud-worker/seller-history-seed.mjs
           node --check cloud-worker/seller-history-normalizer.mjs
           node --check cloud-worker/seller-history-orchestrator.mjs
           node --check cloud-worker/seller-history-detail-backfill.mjs
+      - name: Ensure authenticated incremental sync seed
+        run: node cloud-worker/seller-history-seed.mjs
       - name: Coordinate authenticated Seller History probes
         run: node cloud-worker/seller-history-orchestrator.mjs
       - name: Queue bounded historical order-detail backfill
