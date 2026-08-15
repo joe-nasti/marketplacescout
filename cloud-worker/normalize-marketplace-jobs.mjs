@@ -19,10 +19,16 @@ async function main(){
     const verificationPc=verificationRole==='pc';
     const verificationCloud=verificationRole==='cloud'||preferred==='verification';
     // A fresh cloud retry is deliberately a child of the failed job, so parent_job_id
-    // alone must not convert it into browser fallback. The explicit fresh-retry marker
-    // is authoritative and survives older normalizer rewrites of executionClass.
-    const freshCloudRetry=Boolean(payload.cloudFreshRetryOf||Number(payload.cloudFreshRetryCount||0)>0);
-    const explicitFallback=!freshCloudRetry&&Boolean(payload.pcFallback||payload.cloudFailureJobId||payload.executionClass==='browser_fallback'||job.parent_job_id||verificationPc);
+    // alone must not convert it into browser fallback. But once a fallback is created
+    // from that fresh retry, cloudFailureJobId/pcFallback/browser_fallback are authoritative.
+    const freshCloudRetry=Boolean(
+      (payload.cloudFreshRetryOf||Number(payload.cloudFreshRetryCount||0)>0) &&
+      !payload.cloudFailureJobId && payload.pcFallback!==true && payload.executionClass!=='browser_fallback'
+    );
+    const explicitFallback=Boolean(
+      payload.pcFallback||payload.cloudFailureJobId||payload.executionClass==='browser_fallback'||
+      (!freshCloudRetry&&job.parent_job_id)||verificationPc
+    );
 
     if(authRequired){
       if(preferred!=='browser_connector'||capability!=='tcgplayer_authenticated_session'){
@@ -44,7 +50,7 @@ async function main(){
       continue;
     }
     if(explicitFallback){
-      if(preferred!=='browser_connector'||capability!=='marketplace_browser_fallback'){
+      if(preferred!=='browser_connector'||capability!=='marketplace_browser_fallback'||payload.executionClass!=='browser_fallback'||payload.pcFallback!==true){
         await patch(job,{preferred_executor:'browser_connector',required_capability:'marketplace_browser_fallback',payload_json:{...payload,executionClass:verificationPc?'browser_verification':'browser_fallback',pcFallback:true}});fallback++;
       }else untouched++;
       continue;
