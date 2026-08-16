@@ -22,14 +22,21 @@ export function validateOrderSearchResponse(body){
 export function normalizeSummaryOrder(userId,order,collectedAt=new Date().toISOString()){
   const orderNumber=text(order?.orderNumber).trim();
   if(!orderNumber)return null;
-  // Summary overlap writes are intentionally minimal. Existing detailed rows may
-  // contain fees/refunds/reviews that are not present in the search response, so
-  // the search pass only establishes identity/date/freshness and detail probes do
-  // the authoritative enrichment.
+  // Search results contain enough business-facing fields to make a newly discovered
+  // order useful immediately. Fees/refunds/reviews/net remain detail-authoritative
+  // and are deliberately not touched here.
   return {
     user_id:userId,
     order_number:orderNumber,
     order_date:iso(order?.orderDate||order?.createdAt),
+    order_status:nullableText(order?.orderStatus||order?.status),
+    order_channel:nullableText(order?.orderChannel),
+    order_fulfillment:nullableText(order?.orderFulfillment),
+    buyer_name:nullableText(order?.buyerName),
+    shipping_type:nullableText(order?.shippingType),
+    product_amount:num(order?.productAmount),
+    shipping_amount:num(order?.shippingAmount),
+    gross_amount:num(order?.totalAmount??order?.grossAmount),
     collected_at:collectedAt
   };
 }
