@@ -1,0 +1,38 @@
+name: Collectish Scout 24h score refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */3 * * *"
+  push:
+    paths:
+      - ".github/workflows/scout-score-refresh.yml"
+      - "cloud-worker/refresh-scout-24h.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-scout-24h-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate worker
+        run: |
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          node --check cloud-worker/refresh-scout-24h.mjs
+      - name: Refresh 24-hour Scout scores
+        run: node cloud-worker/refresh-scout-24h.mjs
