@@ -42,7 +42,7 @@ for(const p of profiles||[]){
   if(scheduledActive?.length){skipped++;break}
 
   const next=advanceSlot(p);
-  const job={user_id:p.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:20,required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',payload_json:{profile:{setName:p.set_name,setSlug:p.set_slug,language:p.language||'English',printing:p.printing||'Both',condition:p.condition||'Near Mint',scanDepth:p.scan_depth||'Smart',salesEnrich:0},cloudPrimary:true,configuredSchedule:true,executionClass:'cloud_public',scheduledFor:p.next_due_at||nowIso},progress_json:{stage:'queued',percent:0,detail:`Configured scan: ${p.set_name}`,updatedAt:nowIso},attempt_count:0,max_attempts:2,available_at:nowIso};
+  const job={user_id:p.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:20,required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',payload_json:{profile:{setName:p.set_name,setSlug:p.set_slug,language:p.language||'English',printing:p.printing||'Both',condition:p.condition||'Near Mint',scanDepth:p.scan_depth||'Smart',salesEnrich:0},cloudPrimary:true,cloudOnly:true,pcFallback:false,pcFallbackQueued:false,configuredSchedule:true,executionClass:'cloud_public',scheduledFor:p.next_due_at||nowIso},progress_json:{stage:'queued',percent:0,detail:`Configured scan: ${p.set_name}`,updatedAt:nowIso},attempt_count:0,max_attempts:2,available_at:nowIso};
   await sb('collector_jobs',{method:'POST',body:[job],prefer:'return=minimal'});
   await sb(`marketplace_scan_profiles?user_id=eq.${encodeURIComponent(p.user_id)}&set_slug=eq.${encodeURIComponent(p.set_slug)}`,{method:'PATCH',body:{last_queued_at:nowIso,next_due_at:next,updated_at:nowIso},prefer:'return=minimal'});
   queued++;
