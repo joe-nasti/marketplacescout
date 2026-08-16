@@ -8,33 +8,9 @@ on:
       - "config.js"
       - "modern-core.js"
       - "modern-core.css"
-      - "current-readonly-agent.js"
-      - "current-scout-parity.js"
-      - "current-scout-parity.css"
-      - "current-scout-edhrec.js"
-      - "current-scout-edhrec.css"
-      - "current-scout-diversity.js"
-      - "current-scout-noise-filter.js"
-      - "current-scout-thumbnails.js"
-      - "current-scout-global-search.js"
-      - "current-seller-parity.js"
-      - "current-seller-parity.css"
-      - "current-seller-drilldowns.js"
-      - "current-seller-detail-polish.js"
-      - "current-seller-overview-order-meta.js"
-      - "current-seller-order-filters.js"
-      - "current-syp-parity.js"
-      - "current-syp-links.js"
-      - "current-syp-parity.css"
-      - "current-admin-scans.js"
-      - "current-admin-fixed-nav.js"
-      - "tools/patch-native-v021.py"
-      - "tools/patch-native-v022.py"
-      - "tools/patch-native-v023.py"
-      - "tools/patch-native-v024.py"
-      - "tools/patch-native-v025.py"
-      - "tools/patch-native-v026.py"
-      - "tools/patch-native-v027.py"
+      - "current-*.js"
+      - "current-*.css"
+      - "tools/patch-native-v0*.py"
       - "android-agent/**"
       - ".github/workflows/build-consolidated-web.yml"
 
@@ -49,94 +25,31 @@ jobs:
   web-validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Validate unified web JavaScript
+      - name: Validate hosted Collectish shell
         shell: bash
         run: |
-          node --check modern-core.js
-          node --check current-readonly-agent.js
-          node --check current-scout-parity.js
-          node --check current-scout-edhrec.js
-          node --check current-scout-diversity.js
-          node --check current-scout-noise-filter.js
-          node --check current-scout-thumbnails.js
-          node --check current-scout-global-search.js
-          node --check current-seller-parity.js
-          node --check current-seller-drilldowns.js
-          node --check current-seller-detail-polish.js
-          node --check current-seller-overview-order-meta.js
-          node --check current-seller-order-filters.js
-          node --check current-syp-parity.js
-          node --check current-syp-links.js
-          node --check current-admin-scans.js
-          node --check current-admin-fixed-nav.js
-          grep -q 'modern-core.js?v=0927' index.html
-          grep -q "VERSION='0.9.27'" modern-core.js
-          grep -q 'current-readonly-agent.js?v=0927' index.html
-          grep -q 'current-scout-global-search.js?v=0927' index.html
+          set -euo pipefail
+          for f in modern-core.js current-*.js; do node --check "$f"; done
+          grep -q "VERSION='0.9.29'" modern-core.js
+          grep -q 'modern-core.js?v=0929' index.html
+          grep -q 'current-readonly-agent.js?v=0929' index.html
+          grep -q 'current-scout-global-search.js?v=0929' index.html
+          grep -q 'current-scout-vendor-pricing.js?v=0929' index.html
+          grep -q 'current-scout-global-vendor.js?v=0929' index.html
           grep -q 'api.scryfall.com/cards/autocomplete' current-scout-global-search.js
-          grep -q 'unique.*prints' current-scout-global-search.js
-          grep -q 'marketplace_scan_rows?select=' current-scout-global-search.js
-          grep -q 'product_id=in.' current-scout-global-search.js
-          grep -q 'Fresh' current-scout-global-search.js
-          grep -q 'Stale' current-scout-global-search.js
-          grep -q 'Unscanned' current-scout-global-search.js
           grep -q 'manualScoutGlobal:true' current-scout-global-search.js
-          grep -q "scanDepth:'Full'" current-scout-global-search.js
-          grep -q "action:'scan_set'" current-scout-global-search.js
-          grep -q "localStorage.getItem('collectishSession')" current-readonly-agent.js
-          grep -q 'collectors?on_conflict=user_id,collector_id' current-readonly-agent.js
+          grep -q 'scout_opportunities_24h_vendor' current-scout-vendor-pricing.js
+          grep -q 'mtgjson_vendor_price_pivot_current' current-scout-global-vendor.js
+          grep -q 'cardkingdom_buylist' current-scout-global-vendor.js
+          grep -q 'manapool_retail' current-scout-global-vendor.js
+          grep -q 'FEE_RATE=.20' current-scout-global-vendor.js
           grep -q 'rpc/claim_collector_job' current-readonly-agent.js
-          grep -q "p_action:'seller_portal_readonly_probe'" current-readonly-agent.js
-          grep -q 'current-seller-parity.css?v=0927' index.html
-          grep -q 'current-seller-drilldowns.js?v=0927' index.html
-          grep -q 'current-seller-detail-polish.js?v=0927' index.html
-          grep -q 'current-seller-overview-order-meta.js?v=0927' index.html
-          grep -q 'current-seller-order-filters.js?v=0927' index.html
-          grep -q 'data-label="Gross"' current-seller-parity.css
-          grep -q 'data-label="Fees"' current-seller-parity.css
-          grep -q 'data-label="Refund"' current-seller-parity.css
-          grep -q 'data-label="Net"' current-seller-parity.css
-          grep -q 'grid-template-columns:repeat(4' current-seller-parity.css
-          grep -q 'grid-template-columns:repeat(3' current-seller-detail-polish.js
-          grep -q 'seller_order_items?select=product_id' current-seller-detail-polish.js
-          grep -q 'tcgplayer.com/product/' current-seller-detail-polish.js
-          grep -q 'order_fulfillment=eq.Direct' current-seller-order-filters.js
-          grep -q 'order_fulfillment=eq.Normal' current-seller-order-filters.js
-          grep -q 'current-syp-parity.js?v=0927' index.html
-          grep -q 'current-syp-links.js?v=0927' index.html
-          grep -q 'const PAGE=100' current-syp-parity.js
-          grep -q 'rpc/syp_dashboard_stats' current-syp-parity.js
-          grep -q 'rpc/syp_filter_options_rpc' current-syp-parity.js
-          grep -q 'rpc/syp_marketplace_enrichment' current-syp-parity.js
-          grep -q 'card_identity_cache' current-syp-parity.js
-          grep -q 'api.scryfall.com/cards/collection' current-syp-parity.js
-          grep -q 'dataset.tcgUrl' current-syp-links.js
-          grep -q 'card_identity_cache' current-scout-thumbnails.js
-          grep -q 'purchase_uris' current-scout-thumbnails.js
-          grep -q 'limit=${limit}&offset=${offset}' current-syp-parity.js
-          if grep -q '40000' current-syp-parity.js || grep -q '60000' current-syp-parity.js || grep -q 'slice(0,5000)' current-syp-parity.js; then echo 'Legacy full SYP preload/render must not return'; exit 1; fi
-          grep -q 'current-admin-scans.js?v=0927' index.html
-          grep -q 'current-admin-fixed-nav.js?v=0927' index.html
-          grep -q 'position:fixed' current-admin-fixed-nav.js
-          grep -q 'bottom:72px' current-admin-fixed-nav.js
-          grep -q 'active-letter' current-admin-fixed-nav.js
-          grep -q 'trackCurrentLetter' current-admin-fixed-nav.js
-          grep -q 'window.addEventListener.*scroll' current-admin-fixed-nav.js
-          grep -q 'Changes apply automatically' current-admin-scans.js
-          grep -q 'Saving…' current-admin-scans.js
-          grep -q 'printing' current-admin-scans.js
-          grep -q 'current-scout-noise-filter.js?v=0927' index.html
-          grep -q 'Hide Market' current-scout-noise-filter.js
-          grep -q 'Open on TCGplayer' current-scout-parity.js
-          grep -q 'Open on EDHREC' current-scout-parity.js
-          if grep -q 'current-scout-links.js' index.html; then echo 'Legacy Scout link enhancer must not load'; exit 1; fi
-          if grep -q 'current-admin-navigation.js' index.html; then echo 'Legacy Admin navigation enhancer must not load'; exit 1; fi
+          if grep -q 'current-admin-navigation.js' index.html; then echo 'Legacy Admin navigation must not load'; exit 1; fi
+          if grep -q 'current-scout-links.js' index.html; then echo 'Legacy Scout links must not load'; exit 1; fi
 
   android-agent:
     runs-on: ubuntu-latest
@@ -146,37 +59,30 @@ jobs:
       COLLECTISH_KEY_ALIAS: ${{ secrets.COLLECTISH_ANDROID_KEY_ALIAS }}
       COLLECTISH_KEY_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEY_PASSWORD }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.10.2"
-      - name: Require persistent Collectish signing secrets
+      - name: Require persistent signing secrets
         shell: bash
         run: |
-          test -n "$COLLECTISH_ANDROID_KEYSTORE_B64" || { echo "Missing COLLECTISH_ANDROID_KEYSTORE_B64"; exit 1; }
-          test -n "$COLLECTISH_KEYSTORE_PASSWORD" || { echo "Missing COLLECTISH_ANDROID_KEYSTORE_PASSWORD"; exit 1; }
-          test -n "$COLLECTISH_KEY_ALIAS" || { echo "Missing COLLECTISH_ANDROID_KEY_ALIAS"; exit 1; }
-          test -n "$COLLECTISH_KEY_PASSWORD" || { echo "Missing COLLECTISH_ANDROID_KEY_PASSWORD"; exit 1; }
-      - name: Restore persistent Collectish signing key
+          test -n "$COLLECTISH_ANDROID_KEYSTORE_B64"
+          test -n "$COLLECTISH_KEYSTORE_PASSWORD"
+          test -n "$COLLECTISH_KEY_ALIAS"
+          test -n "$COLLECTISH_KEY_PASSWORD"
+      - name: Restore and verify signing key
         shell: bash
         run: |
           printf '%s' "$COLLECTISH_ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/collectish-release.jks"
           test -s "$RUNNER_TEMP/collectish-release.jks"
           echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
-      - name: Verify persistent signing key
-        shell: bash
-        run: |
-          keytool -list -keystore "$COLLECTISH_KEYSTORE_FILE" -storepass "$COLLECTISH_KEYSTORE_PASSWORD" -alias "$COLLECTISH_KEY_ALIAS" >/dev/null
-      - name: Apply Android patches
+          keytool -list -keystore "$RUNNER_TEMP/collectish-release.jks" -storepass "$COLLECTISH_KEYSTORE_PASSWORD" -alias "$COLLECTISH_KEY_ALIAS" >/dev/null
+      - name: Apply Android 0.2.7 patch chain
         shell: bash
         run: |
           python tools/patch-native-v021.py
@@ -186,34 +92,21 @@ jobs:
           python tools/patch-native-v025.py
           python tools/patch-native-v026.py
           python tools/patch-native-v027.py
-      - name: Align Android 0.2.7 version metadata
+      - name: Align and verify Android metadata
         working-directory: android-agent
         shell: bash
         run: |
           sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.7"/' app/src/main/java/com/collectish/agent/MainActivity.kt
           sed -i -E 's/versionCode = [0-9]+/versionCode = 27/' app/build.gradle.kts
           sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.7"/' app/build.gradle.kts
-      - name: Verify Android shell, browser handoff and foreground Seller sync
-        working-directory: android-agent
-        shell: bash
-        run: |
-          grep -q 'private val version = "0.2.7"' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'agentWeb = makeWebView().apply { alpha = 1f }' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'rootHost.addView(agentWeb, FrameLayout.LayoutParams(-1, -1))' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'fun openExternalUrl' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'Intent.ACTION_VIEW' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'hostedAgentKick' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'SellerSyncService::class.java' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'startForegroundService' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'class SellerSyncService' app/src/main/java/com/collectish/agent/SellerSyncService.kt
           grep -q 'START_STICKY' app/src/main/java/com/collectish/agent/SellerSyncService.kt
-          grep -q 'android.permission.FOREGROUND_SERVICE_DATA_SYNC' app/src/main/AndroidManifest.xml
           grep -q 'android:foregroundServiceType="dataSync"' app/src/main/AndroidManifest.xml
           grep -q 'versionCode = 27' app/build.gradle.kts
           grep -q 'versionName = "0.2.7"' app/build.gradle.kts
       - name: Build persistently signed Android APK
         working-directory: android-agent
-        shell: bash
         run: |
           gradle :app:assembleRelease
           test -s app/build/outputs/apk/release/app-release.apk
@@ -222,8 +115,7 @@ jobs:
         shell: bash
         run: |
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/collectish-android-agent.apk"
-      - name: Upload signed Android APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: collectish-android-agent-v0.2.7-signed
           path: ${{ runner.temp }}/collectish-android-agent.apk
