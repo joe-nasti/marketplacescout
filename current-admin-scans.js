@@ -17,18 +17,51 @@
     const uid=userId();if(!uid)throw Error('Sign in required');
     const body={user_id:uid,set_slug:c.tcgplayer_slug,set_name:c.name,enabled,cadence_hours:24,printing:'Both',condition:'Near Mint',language:'English',scan_depth:'Smart',next_due_at:null,updated_at:new Date().toISOString()};
     await rest('marketplace_scan_profiles?on_conflict=user_id,set_slug',{method:'POST',body,prefer:'resolution=merge-duplicates,return=minimal'});
-    await rebalance();
+    return body;
+  }
+
+  function setRowEnabledVisual(row,on,configured=true){
+    row.classList.toggle('cx-admin-enabled',on);
+    row.classList.toggle('cx-admin-configured',configured);
+    row.classList.toggle('cx-admin-unconfigured',!configured);
+    for(const el of row.querySelectorAll('select,[data-act="save"],[data-act="scan"]')) el.disabled=!on;
+    const due=row.querySelector('.cx-admin-scan-time small:first-child b');
+    if(due&&!on)due.textContent='Disabled';
+    const msg=row.querySelector('.cx-scan-msg');
+    if(msg)msg.textContent=on?'Saving…':'Disabling…';
+  }
+
+  async function refreshRowSchedule(row,c){
+    try{
+      const rows=await rest(`marketplace_scan_profiles?select=next_due_at,last_queued_at&set_slug=eq.${encodeURIComponent(c.tcgplayer_slug)}&limit=1`);
+      const p=rows?.[0];if(!p)return;
+      const cells=row.querySelectorAll('.cx-admin-scan-time small b');
+      if(cells[0])cells[0].textContent=fmt(p.next_due_at);
+      if(cells[1])cells[1].textContent=fmt(p.last_queued_at);
+    }catch{}
   }
 
   async function setEnabled(c,p,row,on){
-    const msg=row.querySelector('.cx-scan-msg');
-    msg.textContent=on?'Enabling…':'Disabling…';
-    if(!p){await createProfile(c,on)}
-    else{
-      await rest(`marketplace_scan_profiles?user_id=eq.${encodeURIComponent(p.user_id)}&set_slug=eq.${encodeURIComponent(p.set_slug)}`,{method:'PATCH',body:{enabled:on,next_due_at:null,updated_at:new Date().toISOString()}});
+    const toggle=row.querySelector('[data-f="enabled"]');
+    const wasOn=!on;
+    setRowEnabledVisual(row,on,true);
+    toggle.disabled=true;
+    try{
+      if(!p) await createProfile(c,on);
+      else await rest(`marketplace_scan_profiles?user_id=eq.${encodeURIComponent(p.user_id)}&set_slug=eq.${encodeURIComponent(p.set_slug)}`,{method:'PATCH',body:{enabled:on,next_due_at:null,updated_at:new Date().toISOString()}});
+      row.querySelector('.cx-scan-msg').textContent=on?'Enabled':'Disabled';
+      toggle.disabled=false;
       await rebalance();
+      await refreshRowSchedule(row,c);
+      // Newly-created rows need fresh closures/profile data for Save and Scan now.
+      if(!p)setTimeout(render,0);
+    }catch(e){
+      toggle.checked=wasOn;
+      toggle.disabled=false;
+      setRowEnabledVisual(row,wasOn,Boolean(p));
+      row.querySelector('.cx-scan-msg').textContent=e.message||'Save failed';
+      throw e;
     }
-    await render();
   }
 
   async function saveProfile(p,row){
@@ -96,7 +129,7 @@
       search.oninput=applyFilter;configuredOnly.onchange=applyFilter;applyFilter();
       host.querySelectorAll('.cx-admin-scan-row').forEach((row,i)=>{
         const item=rows[i],c=item.catalog,p=item.profile,toggle=row.querySelector('[data-f="enabled"]');
-        toggle.onchange=async()=>{toggle.disabled=true;try{await setEnabled(c,p,row,toggle.checked)}catch(e){row.querySelector('.cx-scan-msg').textContent=e.message;toggle.checked=!toggle.checked;toggle.disabled=false}};
+        toggle.onchange=async()=>{try{await setEnabled(c,p,row,toggle.checked)}catch{}};
         const save=row.querySelector('[data-act="save"]'),scan=row.querySelector('[data-act="scan"]');
         if(save)save.onclick=async()=>{const m=row.querySelector('.cx-scan-msg');m.textContent='Saving…';try{await saveProfile(p,row);await render()}catch(e){m.textContent=e.message}};
         if(scan)scan.onclick=async()=>{const m=row.querySelector('.cx-scan-msg');m.textContent='Queueing…';try{await saveProfile(p,row);await scanNow(p,row)}catch(e){m.textContent=e.message}};
