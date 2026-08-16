@@ -20,6 +20,7 @@
   const loading=t=>`<div class="cx-seller-drill-head"><h3>${esc(t)}</h3></div><div class="cx-empty">Loading…</div>`;
   const stat=(k,v)=>`<div class="cx-seller-drill-stat"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`;
   function miniTable(headers,rows){return `<div class="cx-table-wrap"><table class="cx-table"><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((v,i)=>`<td data-label="${esc(headers[i])}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
+  const flow=(k,v,cls='')=>`<div class="cx-order-flow-step ${cls}"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`;
 
   async function showOrder(orderNumber){
     const my=++seq;open(loading(`Order ${orderNumber}`));
@@ -31,11 +32,25 @@
         rest(`seller_reviews?select=rating,review_text,created_at_source&order_number=eq.${encodeURIComponent(orderNumber)}&limit=1`)
       ]);if(my!==seq)return;
       const x=o?.[0]||{};
-      open(`<div class="cx-seller-drill-head"><h3>Order ${esc(orderNumber)}</h3><p>${esc(x.order_status||'')} ${x.order_fulfillment?'• '+esc(x.order_fulfillment):''}</p></div>
-        <div class="cx-seller-drill-stats">${stat('Date',date(x.order_date))}${stat('Buyer',x.buyer_name||'—')}${stat('Gross',money(x.gross_amount))}${stat('Fees',money(Number(x.fee_amount||0)+Number(x.direct_fee_amount||0)))}${stat('Refunds',money(x.refund_total))}${stat('Net',money(Number(x.net_amount||0)-Number(x.refund_total||0)))}</div>
-        <h4>Items (${num(i?.length)})</h4>${i?.length?miniTable(['Product','Qty','Unit','Extended'],i.map(y=>[y.product_name||`SKU ${y.sku_id||''}`,num(y.quantity),money(y.unit_price??y.listing_price),money(y.extended_price)])):'<div class="cx-empty">Order item detail has not been backfilled yet.</div>'}
-        <h4>Refunds</h4>${r?.length?miniTable(['Date','Amount','Origin','Type','Reason'],r.map(y=>[date(y.created_at_source),money(Number(y.amount||0)+Number(y.shipping_amount||0)),y.origin||'',y.type||'',y.reason_text||y.reason||''])):'<div class="cx-empty">No refunds.</div>'}
-        <h4>Review</h4>${v?.[0]?`<div class="cx-card"><strong>${Number(v[0].rating||0)}★</strong><p>${esc(v[0].review_text||'')}</p><small>${esc(date(v[0].created_at_source))}</small></div>`:'<div class="cx-empty">No review.</div>'}`);
+      const products=Number(x.product_amount||0),shipping=Number(x.shipping_amount||0),gross=Number(x.gross_amount||0),fees=Number(x.fee_amount||0)+Number(x.direct_fee_amount||0),refunds=Number(x.refund_total||0),net=Number(x.net_amount||0)-refunds;
+      open(`<div class="cx-seller-drill-head cx-order-head"><div><h3>Order ${esc(orderNumber)}</h3><p>${esc(x.order_status||'')} ${x.order_fulfillment?'• '+esc(x.order_fulfillment):''}</p></div></div>
+        <div class="cx-order-meta">${stat('Date',date(x.order_date))}${stat('Buyer',x.buyer_name||'—')}</div>
+        <div class="cx-order-flow">
+          ${flow('Products',money(products))}
+          <div class="cx-order-flow-symbol">+</div>
+          ${flow('Shipping',money(shipping))}
+          <div class="cx-order-flow-symbol">=</div>
+          ${flow('Gross',money(gross),'gross')}
+          <div class="cx-order-flow-symbol">−</div>
+          ${flow('Fees',money(fees))}
+          <div class="cx-order-flow-symbol">−</div>
+          ${flow('Refunds',money(refunds))}
+          <div class="cx-order-flow-symbol">=</div>
+          ${flow('Net',money(net),'net')}
+        </div>
+        <h4>Items (${num(i?.length)})</h4>${i?.length?miniTable(['Product','Qty','Unit','Extended'],i.map(y=>[y.product_name||`SKU ${y.sku_id||''}`,num(y.quantity),money(y.unit_price??y.listing_price),money(y.extended_price)])):'<div class="cx-seller-drill-empty">Order item detail has not been backfilled yet.</div>'}
+        <h4>Refunds</h4>${r?.length?miniTable(['Date','Amount','Origin','Type','Reason'],r.map(y=>[date(y.created_at_source),money(Number(y.amount||0)+Number(y.shipping_amount||0)),y.origin||'',y.type||'',y.reason_text||y.reason||''])):'<div class="cx-seller-drill-empty">No refunds.</div>'}
+        <h4>Review</h4>${v?.[0]?`<div class="cx-card cx-review-card"><strong>${Number(v[0].rating||0)}★</strong><p>${esc(v[0].review_text||'')}</p><small>${esc(date(v[0].created_at_source))}</small></div>`:'<div class="cx-seller-drill-empty">No review.</div>'}`);
     }catch(e){if(my===seq)open(`<div class="cx-empty">${esc(e.message)}</div>`)}
   }
 
@@ -91,9 +106,11 @@
   const style=document.createElement('style');style.textContent=`
     #cxSellerParityBody tbody tr{cursor:pointer}
     .cx-seller-drill{display:none}.cx-seller-drill.open{display:block;position:fixed;inset:0;z-index:12000}.cx-seller-drill-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.35)}
-    .cx-seller-drill-panel{position:absolute;right:0;top:0;bottom:0;width:min(720px,92vw);overflow:auto;background:var(--cx-card,#fff);padding:22px 18px 40px;box-shadow:-8px 0 30px rgba(15,23,42,.18)}
+    .cx-seller-drill-panel{position:absolute;right:0;top:0;bottom:0;width:min(760px,94vw);overflow:auto;background:var(--cx-card,#fff);padding:22px 18px 40px;box-shadow:-8px 0 30px rgba(15,23,42,.18)}
     .cx-seller-drill-close{position:sticky;top:0;float:right;z-index:2;width:38px;height:38px;border-radius:999px;border:1px solid var(--cx-line);background:var(--cx-card);font-size:24px}.cx-seller-drill-head h3{margin:0 50px 4px 0}.cx-seller-drill-head p{margin:0 0 14px;color:var(--cx-muted)}
-    .cx-seller-drill-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0 20px}.cx-seller-drill-stat{border:1px solid var(--cx-line);border-radius:12px;padding:10px}.cx-seller-drill-stat span,.cx-seller-drill-stat strong{display:block}.cx-seller-drill-stat span{font-size:10px;font-weight:800;color:var(--cx-muted);text-transform:uppercase}.cx-seller-drill-stat strong{margin-top:3px}.cx-seller-drill-panel h4{margin:18px 0 8px}.cx-seller-drill-note{margin-top:12px;padding:12px;border-radius:10px;background:var(--cx-bg);color:var(--cx-muted);font-size:12px}
-    @media(max-width:980px){.cx-seller-drill-panel{left:0;right:0;top:8vh;bottom:0;width:auto;border-radius:18px 18px 0 0;padding-bottom:90px}.cx-seller-drill-stats{grid-template-columns:1fr 1fr}}
+    .cx-seller-drill-stats,.cx-order-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0 20px}.cx-order-meta{grid-template-columns:1fr 1fr;margin-bottom:10px}.cx-seller-drill-stat{border:1px solid var(--cx-line);border-radius:12px;padding:10px}.cx-seller-drill-stat span,.cx-seller-drill-stat strong{display:block}.cx-seller-drill-stat span{font-size:10px;font-weight:800;color:var(--cx-muted);text-transform:uppercase}.cx-seller-drill-stat strong{margin-top:3px}
+    .cx-order-flow{display:grid;grid-template-columns:repeat(13,minmax(0,auto));align-items:stretch;gap:6px;margin:10px 0 20px;overflow-x:auto;padding-bottom:2px}.cx-order-flow-step{min-width:88px;border:1px solid var(--cx-line);border-radius:12px;padding:10px;background:var(--cx-card)}.cx-order-flow-step span,.cx-order-flow-step strong{display:block}.cx-order-flow-step span{font-size:9px;font-weight:850;color:var(--cx-muted);text-transform:uppercase;letter-spacing:.03em}.cx-order-flow-step strong{font-size:15px;margin-top:3px}.cx-order-flow-step.gross{background:#f8faff}.cx-order-flow-step.net{background:var(--cx-blue-soft,#eaf1ff);border-color:#c9d9ff}.cx-order-flow-step.net strong{color:var(--cx-blue,#2f6df6);font-size:17px}.cx-order-flow-symbol{display:grid;place-items:center;color:var(--cx-muted);font-weight:900;font-size:16px;min-width:14px}
+    .cx-seller-drill-panel h4{margin:18px 0 8px}.cx-seller-drill-empty{padding:10px 2px 4px;color:var(--cx-muted);font-size:13px}.cx-review-card{margin:0}.cx-seller-drill-note{margin-top:12px;padding:12px;border-radius:10px;background:var(--cx-bg);color:var(--cx-muted);font-size:12px}
+    @media(max-width:980px){.cx-seller-drill-panel{left:0;right:0;top:8vh;bottom:0;width:auto;border-radius:18px 18px 0 0;padding:18px 14px 90px}.cx-seller-drill-stats{grid-template-columns:1fr 1fr}.cx-order-meta{grid-template-columns:1fr 1fr}.cx-order-flow{grid-template-columns:repeat(7,minmax(92px,1fr));gap:5px}.cx-order-flow-symbol{display:none}.cx-order-flow-step{min-width:0}.cx-order-flow-step span{font-size:9px}.cx-order-flow-step strong{font-size:14px}.cx-order-flow-step.net strong{font-size:16px}.cx-seller-drill-panel h4{margin-top:14px}.cx-seller-drill-empty{padding-top:6px}}
   `;document.head.appendChild(style);
 })();
