@@ -58,18 +58,20 @@
     if(!host||!host.closest('#cxScout.active'))return;
     if(host.querySelector('.cx-empty'))return;
     const sku=currentSku();if(!sku)return;
-    const my=++seq;
     let section=host.querySelector('.cx-vendor-pricing');
+    if(section?.dataset?.vendorSku===String(sku)&&section.dataset.vendorLoaded==='1')return;
+    const my=++seq;
     if(!section){
-      section=document.createElement('div');section.className='cx-vendor-pricing';section.innerHTML='<div class="cx-section-title">Vendor pricing · MTGJSON</div><small>Loading vendor prices…</small>';
+      section=document.createElement('div');section.className='cx-vendor-pricing';section.dataset.vendorSku=String(sku);section.innerHTML='<div class="cx-section-title">Vendor pricing · MTGJSON</div><small>Loading vendor prices…</small>';
       const links=host.querySelector('.cx-scout-external-links');
       if(links)host.insertBefore(section,links);else host.appendChild(section);
-    }
+    }else section.dataset.vendorSku=String(sku);
     try{
       const r=await getVendor(String(sku));if(my!==seq)return;
       const wrap=document.createElement('div');wrap.innerHTML=renderSection(r);
-      section.replaceWith(wrap.firstElementChild);
-    }catch(e){if(my!==seq)return;section.innerHTML=`<div class="cx-section-title">Vendor pricing · MTGJSON</div><small>${esc(e.message||e)}</small>`;}
+      const next=wrap.firstElementChild;next.dataset.vendorSku=String(sku);next.dataset.vendorLoaded='1';
+      section.replaceWith(next);
+    }catch(e){if(my!==seq)return;section.dataset.vendorLoaded='1';section.innerHTML=`<div class="cx-section-title">Vendor pricing · MTGJSON</div><small>${esc(e.message||e)}</small>`;}
   }
 
   const style=document.createElement('style');style.textContent=`
