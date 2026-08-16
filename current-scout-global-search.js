@@ -1,0 +1,172 @@
+// Collectish Scout global Magic search — Scryfall printing universe + Collectish marketplace overlay.
+(() => {
+  const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const money=n=>n==null||n===''?'—':Number(n).toLocaleString(undefined,{style:'currency',currency:'USD'});
+  const fmtDate=x=>x?new Date(x).toLocaleString():'—';
+  const session=()=>{try{return JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{return null}};
+  const userId=()=>session()?.user?.id||'';
+  const FRESH_MS=24*60*60*1000;
+  let boundInput=null, suggestSeq=0, searchSeq=0, timer=null, currentName='', currentPrintings=[], currentOverlay=new Map(), currentCatalog=new Map();
+
+  function imageUrl(card){return card?.image_uris?.normal||card?.image_uris?.large||card?.card_faces?.find(f=>f.image_uris)?.image_uris?.normal||''}
+  function finishes(card){return (card?.finishes||[]).map(x=>x==='nonfoil'?'Normal':x==='foil'?'Foil':x==='etched'?'Etched':x).join(' / ')||'—'}
+  function newest(rows){return (rows||[]).reduce((a,b)=>!a||new Date(b.captured_at)>new Date(a.captured_at)?b:a,null)}
+  function freshness(rows){const n=newest(rows);if(!n)return {key:'unscanned',label:'Unscanned',at:null};const age=Date.now()-new Date(n.captured_at).getTime();return age<=FRESH_MS?{key:'fresh',label:'Fresh',at:n.captured_at}:{key:'stale',label:'Stale',at:n.captured_at}}
+
+  function ensurePanel(){
+    const layout=document.querySelector('#cxScout .cx-scout-layout');if(!layout)return null;
+    let p=document.getElementById('cxGlobalScoutSearch');
+    if(!p){p=document.createElement('section');p.id='cxGlobalScoutSearch';p.className='cx-global-search';p.hidden=true;layout.parentNode.insertBefore(p,layout)}
+    return p;
+  }
+  function setGlobalMode(on){
+    const layout=document.querySelector('#cxScout .cx-scout-layout'),grade=document.getElementById('cxParityGrade'),set=document.getElementById('cxParitySet'),panel=ensurePanel();
+    if(layout)layout.hidden=Boolean(on);if(grade)grade.hidden=Boolean(on);if(set)set.hidden=Boolean(on);if(panel)panel.hidden=!on;
+  }
+  function clearGlobal(){currentName='';currentPrintings=[];currentOverlay=new Map();currentCatalog=new Map();setGlobalMode(false);const p=ensurePanel();if(p)p.innerHTML='';removeSuggest()}
+
+  function suggestHost(){
+    const input=document.getElementById('cxParitySearch');if(!input)return null;
+    let h=document.getElementById('cxGlobalSuggest');
+    if(!h){h=document.createElement('div');h.id='cxGlobalSuggest';h.className='cx-global-suggest';input.parentNode.insertBefore(h,input.nextSibling)}
+    return h;
+  }
+  function removeSuggest(){document.getElementById('cxGlobalSuggest')?.remove()}
+
+  async function autocomplete(q){
+    const seq=++suggestSeq;
+    try{
+      const r=await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(q)}&include_extras=true`);if(!r.ok)return [];
+      const j=await r.json();if(seq!==suggestSeq)return [];
+      return (j.data||[]).slice(0,12);
+    }catch{return []}
+  }
+
+  function renderSuggestions(names,q){
+    const h=suggestHost();if(!h)return;
+    if(!names.length){h.innerHTML='<div class="cx-global-suggest-empty">No Magic card names found.</div>';return}
+    h.innerHTML=names.map(n=>`<button type="button" data-global-card="${esc(n)}"><strong>${esc(n)}</strong>${String(n).toLowerCase()===String(q).toLowerCase()?'<small>Exact match</small>':''}</button>`).join('');
+    h.querySelectorAll('[data-global-card]').forEach(b=>b.onclick=()=>loadCard(b.dataset.globalCard));
+  }
+
+  async function fetchAllPrintings(name){
+    let url=`https://api.scryfall.com/cards/search?${new URLSearchParams({q:`!\"${name}\" game:paper`,unique:'prints',order:'released',dir:'desc',include_extras:'true'}).toString()}`;
+    const out=[];let pages=0;
+    while(url&&pages<20){const r=await fetch(url);if(!r.ok)throw Error(`Scryfall search failed (${r.status})`);const j=await r.json();out.push(...(j.data||[]));url=j.has_more?j.next_page:null;pages++;}
+    return out;
+  }
+
+  async function overlayMarketplace(printings){
+    const ids=[...new Set(printings.map(c=>String(c.tcgplayer_id||'')).filter(Boolean))];
+    if(!ids.length)return new Map();
+    const raw=[];
+    for(let i=0;i<ids.length;i+=50){
+      const batch=ids.slice(i,i+50);
+      const rows=await rest(`marketplace_scan_rows?select=scan_id,sku_id,product_id,product_name,set_name,set_code,collector_number,printing,condition,language,direct_low,sku_market_price,direct_available,direct_listings,avg_daily_qty_sold,opportunity_score,supply_type&product_id=in.(${batch.map(encodeURIComponent).join(',')})&limit=5000`);
+      raw.push(...(rows||[]));
+    }
+    const scanIds=[...new Set(raw.map(r=>r.scan_id).filter(Boolean))],scanTimes=new Map();
+    for(let i=0;i<scanIds.length;i+=80){
+      const batch=scanIds.slice(i,i+80),scans=await rest(`marketplace_scans?select=scan_id,captured_at&scan_id=in.(${batch.map(encodeURIComponent).join(',')})`);
+      for(const s of scans||[])scanTimes.set(String(s.scan_id),s.captured_at);
+    }
+    const byProduct=new Map(),latestSku=new Map();
+    for(const r of raw){
+      r.captured_at=scanTimes.get(String(r.scan_id))||null;
+      const key=`${r.product_id}|${r.sku_id}`,old=latestSku.get(key);
+      if(!old||new Date(r.captured_at||0)>new Date(old.captured_at||0))latestSku.set(key,r);
+    }
+    for(const r of latestSku.values()){const k=String(r.product_id);if(!byProduct.has(k))byProduct.set(k,[]);byProduct.get(k).push(r)}
+    for(const rows of byProduct.values())rows.sort((a,b)=>new Date(b.captured_at||0)-new Date(a.captured_at||0));
+    return byProduct;
+  }
+
+  async function fetchCatalog(printings){
+    const codes=[...new Set(printings.map(c=>String(c.set||'').toLowerCase()).filter(Boolean))],m=new Map();
+    for(let i=0;i<codes.length;i+=70){
+      const batch=codes.slice(i,i+70),rows=await rest(`magic_set_catalog?select=code,name,tcgplayer_slug,tcgplayer_group_id&code=in.(${batch.map(encodeURIComponent).join(',')})`);
+      for(const r of rows||[])m.set(String(r.code||'').toLowerCase(),r);
+    }
+    return m;
+  }
+
+  function renderVariantRows(rows){
+    if(!rows?.length)return '<div class="cx-global-market-empty">No Collectish marketplace scan yet.</div>';
+    return `<div class="cx-global-market">${rows.slice(0,6).map(r=>`<div><span>${esc(r.printing||'')} · ${esc(r.condition||'')} · ${esc(r.language||'')}</span><b>${money(r.sku_market_price)}</b><span>Direct ${money(r.direct_low)} · qty ${Number(r.direct_available||0).toLocaleString()}</span><span>${Number(r.avg_daily_qty_sold||0).toFixed(1)}/day</span></div>`).join('')}</div>`;
+  }
+
+  function missingSets(){
+    const sets=new Map();
+    for(const card of currentPrintings){
+      const pid=String(card.tcgplayer_id||''),rows=currentOverlay.get(pid)||[],f=freshness(rows);if(f.key==='fresh')continue;
+      const cat=currentCatalog.get(String(card.set||'').toLowerCase());if(!cat?.tcgplayer_slug)continue;
+      if(!sets.has(cat.tcgplayer_slug))sets.set(cat.tcgplayer_slug,{...cat,statuses:new Set(),cards:0});
+      const x=sets.get(cat.tcgplayer_slug);x.statuses.add(f.key);x.cards++;
+    }
+    return [...sets.values()];
+  }
+
+  function renderGlobal(){
+    const p=ensurePanel();if(!p)return;
+    const miss=missingSets(),fresh=currentPrintings.filter(c=>freshness(currentOverlay.get(String(c.tcgplayer_id||''))||[]).key==='fresh').length;
+    const stale=currentPrintings.filter(c=>freshness(currentOverlay.get(String(c.tcgplayer_id||''))||[]).key==='stale').length;
+    const unscanned=currentPrintings.length-fresh-stale;
+    p.innerHTML=`<div class="cx-global-head"><div><div class="cx-section-title">${esc(currentName)}</div><p>Global paper-printing search • ${currentPrintings.length} printings</p><div class="cx-global-counts"><span class="fresh">${fresh} fresh</span><span class="stale">${stale} stale</span><span class="unscanned">${unscanned} unscanned</span></div></div><button type="button" class="cx-primary" id="cxScanGlobalVariants" ${miss.length?'':'disabled'}>${miss.length?`Scan missing/stale variants · ${miss.length} set${miss.length===1?'':'s'}`:'All scannable variants fresh'}</button></div><div class="cx-global-printings">${currentPrintings.map(card=>{
+      const pid=String(card.tcgplayer_id||''),rows=currentOverlay.get(pid)||[],f=freshness(rows),img=imageUrl(card),cat=currentCatalog.get(String(card.set||'').toLowerCase());
+      return `<article class="cx-global-print"><div class="cx-global-print-img">${img?`<img loading="lazy" src="${esc(img)}" alt="${esc(card.name)}">`:'<div>?</div>'}</div><div class="cx-global-print-main"><div class="cx-global-print-title"><div><strong>${esc(card.set_name)}</strong><small>${esc(String(card.set||'').toUpperCase())} · #${esc(card.collector_number||'—')} · ${esc(finishes(card))}</small></div><span class="cx-global-state ${f.key}">${esc(f.label)}</span></div>${renderVariantRows(rows)}<div class="cx-global-print-foot"><span>${f.at?`Last scanned ${esc(fmtDate(f.at))}`:'Never scanned by Collectish'}${cat?.tcgplayer_slug?'': ' · no TCGplayer set mapping'}</span>${pid?`<a target="_blank" rel="noopener" href="${esc(card.purchase_uris?.tcgplayer||`https://www.tcgplayer.com/product/${pid}`)}">TCGplayer</a>`:''}</div></div></article>`}).join('')}</div>`;
+    p.querySelector('#cxScanGlobalVariants')?.addEventListener('click',queueMissingSets);
+  }
+
+  async function queueMissingSets(){
+    const btn=document.getElementById('cxScanGlobalVariants'),sets=missingSets();if(!sets.length||!btn)return;
+    if(sets.length>8&&!window.confirm(`This will queue ${sets.length} one-off Full set scans to cover all missing/stale ${currentName} variants. Continue?`))return;
+    btn.disabled=true;btn.textContent='Checking active scans…';
+    try{
+      const active=await rest('collector_jobs?select=job_id,status,payload_json&source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&limit=500');
+      const activeSlugs=new Set((active||[]).map(j=>String(j.payload_json?.profile?.setSlug||'')));
+      const todo=sets.filter(s=>!activeSlugs.has(String(s.tcgplayer_slug)));
+      const now=new Date().toISOString(),uid=userId();if(!uid)throw Error('Sign in again to queue scans.');
+      const jobs=todo.map(s=>({user_id:uid,source:'marketplace',action:'scan_set',status:'queued',priority:4,required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',payload_json:{profile:{setName:s.name,setSlug:s.tcgplayer_slug,printing:'Both',condition:'Near Mint',language:'English',scanDepth:'Full',salesEnrich:0},cloudOnly:true,pcFallback:false,pcFallbackQueued:false,cloudPrimary:true,manualScoutGlobal:true,globalCardName:currentName,executionClass:'cloud_public'},progress_json:{stage:'queued',percent:0,detail:`Scout global variant scan: ${currentName} · ${s.name}`,updatedAt:now},attempt_count:0,max_attempts:2,available_at:now}));
+      if(jobs.length)await rest('collector_jobs',{method:'POST',body:jobs});
+      btn.textContent=jobs.length?`Queued ${jobs.length} set scan${jobs.length===1?'':'s'}`:'Relevant set scans already queued';
+    }catch(e){btn.disabled=false;btn.textContent=`Scan failed: ${e.message||e}`}
+  }
+
+  async function loadCard(name){
+    name=String(name||'').trim();if(!name)return;currentName=name;removeSuggest();setGlobalMode(true);
+    const p=ensurePanel();if(p)p.innerHTML='<div class="cx-empty">Loading every paper printing and matching Collectish scans…</div>';
+    const seq=++searchSeq;
+    try{
+      const printings=await fetchAllPrintings(name);if(seq!==searchSeq)return;
+      const [overlay,catalog]=await Promise.all([overlayMarketplace(printings),fetchCatalog(printings)]);if(seq!==searchSeq)return;
+      currentPrintings=printings;currentOverlay=overlay;currentCatalog=catalog;renderGlobal();
+      const input=document.getElementById('cxParitySearch');if(input&&input.value!==name)input.value=name;
+    }catch(e){if(seq===searchSeq&&p)p.innerHTML=`<div class="cx-empty">${esc(e.message||e)}</div>`}
+  }
+
+  async function onInput(e){
+    const input=e.currentTarget,q=input.value.trim();clearTimeout(timer);
+    if(q.length<2){clearGlobal();return}
+    timer=setTimeout(async()=>{
+      const names=await autocomplete(q);if(input.value.trim()!==q)return;renderSuggestions(names,q);
+      const exact=names.find(n=>n.toLowerCase()===q.toLowerCase());if(exact)loadCard(exact);
+    },220);
+  }
+
+  function bind(){
+    const input=document.getElementById('cxParitySearch');if(!input||input===boundInput)return false;
+    boundInput=input;input.placeholder='Search all Magic cards…';input.autocomplete='off';input.addEventListener('input',onInput);
+    input.addEventListener('keydown',async e=>{if(e.key==='Escape'){removeSuggest();if(!input.value.trim())clearGlobal();return}if(e.key!=='Enter'||input.value.trim().length<2)return;e.preventDefault();const names=await autocomplete(input.value.trim());if(names[0])loadCard(names[0])});
+    return true;
+  }
+
+  const style=document.createElement('style');style.textContent=`
+  .cx-scout-toolbar{position:relative}.cx-global-suggest{position:absolute;z-index:40;left:0;top:100%;width:min(520px,100%);background:var(--cx-card);border:1px solid var(--cx-line);border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.18);overflow:hidden}.cx-global-suggest button{display:flex;width:100%;justify-content:space-between;gap:10px;text-align:left;padding:10px 12px;border:0;border-bottom:1px solid var(--cx-line);background:transparent;color:var(--cx-text)}.cx-global-suggest button:last-child{border-bottom:0}.cx-global-suggest button:hover{background:var(--cx-bg)}.cx-global-suggest small,.cx-global-suggest-empty{color:var(--cx-muted);padding:10px 12px}
+  .cx-global-search{margin-top:14px}.cx-global-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;background:var(--cx-card);border:1px solid var(--cx-line);border-radius:16px;padding:14px;margin-bottom:12px}.cx-global-head p{margin:3px 0;color:var(--cx-muted)}.cx-global-counts{display:flex;gap:7px;flex-wrap:wrap}.cx-global-counts span,.cx-global-state{font-size:11px;font-weight:800;border-radius:999px;padding:4px 8px}.cx-global-counts .fresh,.cx-global-state.fresh{background:#e8f7ee;color:#19733b}.cx-global-counts .stale,.cx-global-state.stale{background:#fff3d9;color:#8b5a00}.cx-global-counts .unscanned,.cx-global-state.unscanned{background:var(--cx-bg);color:var(--cx-muted)}
+  .cx-global-printings{display:grid;gap:10px}.cx-global-print{display:grid;grid-template-columns:84px 1fr;gap:12px;background:var(--cx-card);border:1px solid var(--cx-line);border-radius:15px;padding:10px}.cx-global-print-img img{display:block;width:84px;border-radius:9px}.cx-global-print-img>div{width:84px;aspect-ratio:5/7;border-radius:9px;background:var(--cx-bg);display:grid;place-items:center}.cx-global-print-title{display:flex;justify-content:space-between;gap:10px}.cx-global-print-title strong,.cx-global-print-title small{display:block}.cx-global-print-title small{color:var(--cx-muted);margin-top:2px}.cx-global-market{display:grid;gap:5px;margin-top:8px}.cx-global-market>div{display:grid;grid-template-columns:minmax(180px,1.5fr) .7fr 1.2fr .6fr;gap:8px;padding:7px 9px;border-radius:9px;background:var(--cx-bg);font-size:12px;align-items:center}.cx-global-market-empty{margin-top:8px;color:var(--cx-muted);font-size:12px}.cx-global-print-foot{display:flex;justify-content:space-between;gap:10px;margin-top:8px;font-size:11px;color:var(--cx-muted)}.cx-global-print-foot a{font-weight:800}
+  @media(max-width:700px){.cx-global-head{display:grid}.cx-global-head button{width:100%}.cx-global-print{grid-template-columns:62px 1fr}.cx-global-print-img img,.cx-global-print-img>div{width:62px}.cx-global-market>div{grid-template-columns:1fr 1fr}.cx-global-print-foot{display:grid}.cx-global-print-title{align-items:flex-start}.cx-global-state{white-space:nowrap}}
+  `;document.head.appendChild(style);
+  const mo=new MutationObserver(bind);mo.observe(document.documentElement,{childList:true,subtree:true});
+  document.addEventListener('click',e=>{if(!e.target.closest('.cx-scout-toolbar'))removeSuggest()});
+  bind();
+})();
