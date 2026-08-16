@@ -1,3 +1,64 @@
 // Collectish modern product shell — single frontend for desktop and Android WebView
 (() => {
   const VERSION='0.9.24';
+  const c=window.COLLECTISH_CONFIG;
+  const K='collectishSession';
+  const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+  const H=t=>({apikey:c.publishableKey,Authorization:`Bearer ${t||c.publishableKey}`,'Content-Type':'application/json'});
+  const session=()=>{try{return JSON.parse(localStorage.getItem(K)||'null')}catch{return null}};
+  const save=s=>s?localStorage.setItem(K,JSON.stringify(s)):localStorage.removeItem(K);
+  window.COLLECTISH_WEB_VERSION=VERSION;
+
+  async function valid(){
+    let s=session(); if(!s)return null;
+    if(Date.now()<Number(s.exp||0)-60000)return s;
+    if(!s.refresh){save(null);return null}
+    const r=await fetch(`${c.supabaseUrl}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:H(),body:JSON.stringify({refresh_token:s.refresh})});
+    if(!r.ok){save(null);return null}
+    const d=await r.json(); s={token:d.access_token,refresh:d.refresh_token||s.refresh,exp:Date.now()+d.expires_in*1000,user:d.user}; save(s); return s;
+  }
+  window.rest=async function(path,o={}){
+    const s=await valid(); if(!s)throw Error('Sign in required');
+    const r=await fetch(`${c.supabaseUrl}/rest/v1/${path}`,{method:o.method||'GET',headers:{...H(s.token),...(o.prefer?{Prefer:o.prefer}:{})},body:o.body===undefined?undefined:JSON.stringify(o.body)});
+    const t=await r.text(); let d; try{d=t?JSON.parse(t):null}catch{d=t}
+    if(!r.ok)throw Error(d?.message||`HTTP ${r.status}`); return d;
+  };
+
+  function loginView(message=''){
+    document.body.innerHTML=`<main class="cx-auth"><section class="cx-auth-card"><div class="cx-brand">collectish</div><div class="cx-version">web ${VERSION}</div><h1>Sign in</h1><p>Scout opportunities, Seller analytics, SYP changes, and operations.</p><input id="modernEmail" type="email" autocomplete="email" placeholder="Email"><input id="modernPassword" type="password" autocomplete="current-password" placeholder="Password"><button id="modernSignIn" class="cx-primary">Sign in</button><div id="modernMsg" class="cx-auth-msg">${esc(message)}</div></section></main>`;
+    document.getElementById('modernSignIn').onclick=login;
+    document.getElementById('modernPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
+  }
+  async function login(){
+    const email=document.getElementById('modernEmail')?.value.trim(),password=document.getElementById('modernPassword')?.value||'',msg=document.getElementById('modernMsg'),btn=document.getElementById('modernSignIn');
+    if(!email||!password){msg.textContent='Enter email and password.';return}
+    btn.disabled=true;msg.textContent='Signing in…';
+    try{
+      const r=await fetch(`${c.supabaseUrl}/auth/v1/token?grant_type=password`,{method:'POST',headers:H(),body:JSON.stringify({email,password})});
+      const d=await r.json(); if(!r.ok)throw Error(d.message||'Sign in failed');
+      save({token:d.access_token,refresh:d.refresh_token,exp:Date.now()+d.expires_in*1000,user:d.user}); boot();
+    }catch(e){btn.disabled=false;msg.textContent=e.message||'Sign in failed'}
+  }
+  function adminView(){
+    const h=document.getElementById('cxAdmin');if(!h)return;
+    h.innerHTML=`<div class="cx-page-head"><div><h2>Admin</h2><p>Cloud operations and build identity.</p></div></div><div class="cx-grid"><div class="cx-card cx-span-6"><div class="cx-section-title">Build</div><div class="cx-detail-list"><div class="cx-detail-stat"><span>Web UI</span><strong>${VERSION}</strong></div><div class="cx-detail-stat"><span>Frontend</span><strong>Unified hosted shell</strong></div><div class="cx-detail-stat"><span>Scout source</span><strong>24h precomputed rankings</strong></div></div></div><div class="cx-card cx-span-6"><div class="cx-section-title">Account</div><button id="modernSignOut" class="cx-refresh">Sign out</button></div></div>`;
+    document.getElementById('modernSignOut').onclick=()=>{save(null);loginView()};
+  }
+  function switchPage(name){
+    document.querySelectorAll('.cx-page').forEach(x=>x.classList.toggle('active',x.id===`cx${name[0].toUpperCase()+name.slice(1)}`));
+    document.querySelectorAll('[data-cx-page]').forEach(x=>x.classList.toggle('active',x.dataset.cxPage===name));
+    if(name==='admin')adminView();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function shell(){
+    document.body.innerHTML=`<div class="cx-top-version">web ${VERSION}</div><main id="app" class="collectish-modern-app"><section id="collectishUxShell" class="collectish-product-shell"><aside class="cx-side"><div class="cx-brand">collectish</div><nav class="cx-nav">${['scout','seller','syp','admin'].map((k,i)=>`<button data-cx-page="${k}" class="${i===0?'active':''}">${k==='syp'?'SYP':k[0].toUpperCase()+k.slice(1)}</button>`).join('')}</nav><div class="cx-side-spacer"></div><div class="cx-side-meta">web ${VERSION}<br>Smarter data. Better decisions.</div></aside><div class="cx-main"><section id="cxScout" class="cx-page active"></section><section id="cxSeller" class="cx-page"></section><section id="cxSyp" class="cx-page"></section><section id="cxAdmin" class="cx-page"></section></div><nav class="cx-mobile-nav">${['scout','seller','syp','admin'].map((k,i)=>`<button data-cx-page="${k}" class="${i===0?'active':''}">${k==='syp'?'SYP':k[0].toUpperCase()+k.slice(1)}</button>`).join('')}</nav></section></main>`;
+    document.addEventListener('click',e=>{const b=e.target.closest('[data-cx-page]');if(b)switchPage(b.dataset.cxPage)},true);
+    adminView();
+  }
+  async function boot(){
+    const s=await valid(); if(!s){loginView();return}
+    shell();
+    document.dispatchEvent(new CustomEvent('collectish:ready',{detail:{version:VERSION,user:s.user}}));
+  }
+  boot();
+})();
