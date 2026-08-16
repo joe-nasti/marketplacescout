@@ -13,6 +13,7 @@ on:
       - "current-scout-edhrec.js"
       - "current-scout-edhrec.css"
       - "current-scout-diversity.js"
+      - "current-scout-noise-filter.js"
       - "current-seller-parity.js"
       - "current-seller-parity.css"
       - "current-syp-parity.js"
@@ -49,10 +50,13 @@ jobs:
           node --check current-scout-parity.js
           node --check current-scout-edhrec.js
           node --check current-scout-diversity.js
+          node --check current-scout-noise-filter.js
           node --check current-seller-parity.js
           node --check current-syp-parity.js
-          grep -q 'modern-core.js?v=096' index.html
-          grep -q "VERSION='0.9.6'" modern-core.js
+          grep -q 'modern-core.js?v=097' index.html
+          grep -q "VERSION='0.9.7'" modern-core.js
+          grep -q 'current-scout-noise-filter.js?v=097' index.html
+          grep -q 'Hide Market' current-scout-noise-filter.js
           grep -q 'Open on TCGplayer' current-scout-parity.js
           grep -q 'Open on EDHREC' current-scout-parity.js
           if grep -q 'current-scout-links.js' index.html; then echo 'Legacy Scout link enhancer must not load'; exit 1; fi
