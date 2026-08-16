@@ -13,6 +13,7 @@ const daily=job=>Boolean(job?.payload_json?.dailyAutoSync||job?.payload_json?.da
 const managedRetry=job=>daily(job)||job?.payload_json?.cloudFreshRetryCount!=null||Boolean(job?.payload_json?.cloudFreshRetryOf);
 const setKey=job=>`${job.user_id}|${job?.payload_json?.profile?.setSlug||''}`;
 const activeRank=j=>j.status==='running'?0:j.status==='claimed'?1:2;
+function retryJitterMinutes(key,span=12){let h=2166136261;for(const ch of String(key||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return (h>>>0)%(Math.max(0,span)+1)}
 
 async function cancelQueued(job,detail){
   const now=new Date().toISOString();
@@ -75,7 +76,7 @@ async function main(){
     if(isDaily&&completedToday.has(key))continue;
     if(isManaged&&activeManaged.has(key)){deduped++;continue;}
 
-    const now=new Date(),backoffMinutes=Math.min(180,Math.max(10,15*Math.max(1,attempts)));
+    const now=new Date(),baseBackoffMinutes=Math.max(10,15*Math.max(1,attempts)),backoffMinutes=Math.min(180,baseBackoffMinutes+retryJitterMinutes(key,12));
     const availableAt=new Date(now.getTime()+backoffMinutes*60000).toISOString();
     if(attempts<max){
       await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.failed`,{method:'PATCH',body:{
@@ -89,12 +90,12 @@ async function main(){
     const freshCount=Number(payload.cloudFreshRetryCount||0);
     if(freshCount>=2)continue;
     if(activeManaged.has(key)){deduped++;continue;}
-    const childAt=new Date(now.getTime()+60*60000).toISOString();
+    const freshCooldownMinutes=60+retryJitterMinutes(key,20),childAt=new Date(now.getTime()+freshCooldownMinutes*60000).toISOString();
     await sb('collector_jobs',{method:'POST',body:[{
       user_id:job.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:45,available_at:childAt,
       required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',parent_job_id:job.job_id,
       payload_json:{...payload,pcFallback:false,pcFallbackQueued:false,cloudFreshRetryCount:freshCount+1,cloudFreshRetryOf:job.job_id,executionClass:'cloud_public',cloudOnly:true,cloudPrimary:true},
-      progress_json:{stage:'deferred',percent:0,detail:'Cloud attempts exhausted on transient upstream errors; fresh cloud retry scheduled after 60m cool-down.',updatedAt:now.toISOString()},
+      progress_json:{stage:'deferred',percent:0,detail:`Cloud attempts exhausted on transient upstream errors; fresh cloud retry scheduled after ${freshCooldownMinutes}m cool-down.`,updatedAt:now.toISOString()},
       max_attempts:max
     }],prefer:'return=minimal'});deferred++;activeManaged.add(key);
   }
