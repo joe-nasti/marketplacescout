@@ -1,15 +1,19 @@
-// Collectish SYP parity — server-paged for fast mobile browsing
+// Collectish SYP parity — server-paged for fast mobile browsing + lazy shared enrichment
 (() => {
   const PAGE=100;
   const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const money=n=>n==null?'—':Number(n).toLocaleString(undefined,{style:'currency',currency:'USD'});
-  const num=n=>Number(n||0).toLocaleString();
+  const num=n=>n==null?'—':Number(n||0).toLocaleString();
   const date=v=>v?new Date(v).toLocaleDateString():'—';
+  const session=()=>{try{return JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{return null}};
+  const userId=()=>session()?.user?.id||'';
   let tab='products',page=0,sort={key:'last_seen',dir:'desc'},stats=null,opts={sets:[],conditions:[],event_types:[]},installed=false,loading=false,seq=0,debounce=0;
 
   const qp=(k,v)=>`${k}=${encodeURIComponent(v)}`;
   const sortOrder=()=>`${sort.key}.${sort.dir}`;
   const searchOr=(q,fields)=>q?`&or=(${fields.map(f=>`${f}.ilike.*${String(q).replace(/[,*()]/g,' ')}*`).join(',')})`:'';
+  const imageUrl=c=>c?.image_uris?.normal||c?.image_uris?.large||c?.card_faces?.find(x=>x.image_uris)?.image_uris?.normal||'';
+  const tcgUrl=c=>c?.purchase_uris?.tcgplayer||(c?.tcgplayer_id?`https://www.tcgplayer.com/product/${encodeURIComponent(c.tcgplayer_id)}`:'');
 
   function shell(host){
     host.innerHTML=`<div class="cx-page-head"><div><h2>SYP</h2><p>Eligibility, quantities and product-state changes.</p></div><button id="cxSypParityRefresh" class="cx-refresh">Refresh</button></div>
@@ -24,7 +28,7 @@
 
   function productPath(limit=PAGE,offset=page*PAGE){
     const q=document.getElementById('cxSypSearch')?.value.trim()||'',set=document.getElementById('cxSypSet')?.value||'',cond=document.getElementById('cxSypCondition')?.value||'',mq=document.getElementById('cxSypMax')?.value||'',first=document.getElementById('cxSypFirst')?.value,last=document.getElementById('cxSypLast')?.value;
-    let s=`syp_products?select=tcgplayer_id,product_name,set_name,condition,market_price,current_max_quantity,first_seen,last_seen,is_currently_eligible&is_currently_eligible=eq.true&order=${sortOrder()}&limit=${limit}&offset=${offset}`;
+    let s=`syp_products?select=tcgplayer_id,product_name,set_name,number,condition,market_price,current_max_quantity,first_seen,last_seen,is_currently_eligible&is_currently_eligible=eq.true&order=${sortOrder()}&limit=${limit}&offset=${offset}`;
     s+=searchOr(q,['product_name','set_name','tcgplayer_id']);
     if(set)s+=`&${qp('set_name','eq.'+set)}`; if(cond)s+=`&${qp('condition','eq.'+cond)}`;
     if(mq==='0')s+='&current_max_quantity=eq.0'; else if(mq==='100+')s+='&current_max_quantity=gte.100'; else if(mq){const [a,b]=mq.split('-');s+=`&current_max_quantity=gte.${a}&current_max_quantity=lte.${b}`}
@@ -37,17 +41,68 @@
     s+=searchOr(q,['product_name','set_name','tcgplayer_id']); if(type)s+=`&${qp('event_type','eq.'+type)}`;return s;
   }
 
-  function header(label,key){return `<th data-syp-sort="${key}" class="${sort.key===key?'sorted '+sort.dir:''}">${esc(label)}${sort.key===key?(sort.dir==='asc'?' ↑':' ↓'):''}</th>`}
+  function header(label,key=''){return key?`<th data-syp-sort="${key}" class="${sort.key===key?'sorted '+sort.dir:''}">${esc(label)}${sort.key===key?(sort.dir==='asc'?' ↑':' ↓'):''}</th>`:`<th>${esc(label)}</th>`}
   function pager(rows){const h=document.getElementById('cxSypPager');if(!h)return;h.innerHTML=`<button class="cx-refresh" id="cxSypPrev" ${page===0?'disabled':''}>Previous</button><span>Page ${page+1}</span><button class="cx-refresh" id="cxSypNext" ${rows.length<PAGE?'disabled':''}>Next</button>`;h.querySelector('#cxSypPrev').onclick=()=>{if(page){page--;loadPage()}};h.querySelector('#cxSypNext').onclick=()=>{if(rows.length===PAGE){page++;loadPage()}}}
   function wireSort(){document.querySelectorAll('#cxSypTable [data-syp-sort]').forEach(th=>th.onclick=()=>{const k=th.dataset.sypSort;if(sort.key===k)sort.dir=sort.dir==='asc'?'desc':'asc';else{sort.key=k;sort.dir=['product_name','set_name','condition','event_type'].includes(k)?'asc':'desc'}page=0;loadPage()})}
+
+  async function loadIdentityCache(skus){
+    if(!skus.length)return new Map();
+    try{const r=await rest(`card_identity_cache?select=sku_id,scryfall_id,tcgplayer_product_id,tcgplayer_url,image_url,set_code,collector_number&sku_id=in.(${skus.map(encodeURIComponent).join(',')})`);return new Map((r||[]).map(x=>[String(x.sku_id),x]))}catch{return new Map()}
+  }
+
+  async function setCodeMap(rows){
+    const names=[...new Set(rows.map(x=>x.set_name).filter(Boolean))];if(!names.length)return new Map();
+    try{const r=await rest(`magic_set_catalog?select=name,code&name=in.(${names.map(x=>encodeURIComponent('"'+x+'"')).join(',')})`);return new Map((r||[]).map(x=>[String(x.name).toLowerCase(),String(x.code||'').toLowerCase()]))}catch{return new Map()}
+  }
+
+  async function resolveMissingIdentity(rows,cache,my){
+    const missing=rows.filter(r=>!cache.has(String(r.tcgplayer_id))&&r.number&&r.set_name);if(!missing.length)return cache;
+    const codes=await setCodeMap(missing);if(my!==seq)return cache;
+    const candidates=missing.map(r=>({row:r,set:codes.get(String(r.set_name).toLowerCase())})).filter(x=>x.set);
+    for(let i=0;i<candidates.length;i+=75){
+      const batch=candidates.slice(i,i+75);
+      try{
+        const resp=await fetch('https://api.scryfall.com/cards/collection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifiers:batch.map(x=>({set:x.set,collector_number:String(x.row.number)}))})});
+        if(!resp.ok)continue;const body=await resp.json();
+        const byKey=new Map((body.data||[]).map(c=>[`${String(c.set||'').toLowerCase()}|${String(c.collector_number||'')}`,c]));
+        const writes=[];
+        for(const x of batch){const c=byKey.get(`${x.set}|${String(x.row.number)}`);if(!c)continue;const sku=String(x.row.tcgplayer_id),id={sku_id:sku,scryfall_id:c.id,tcgplayer_product_id:c.tcgplayer_id==null?null:String(c.tcgplayer_id),tcgplayer_url:tcgUrl(c)||null,image_url:imageUrl(c)||null,set_code:c.set,collector_number:c.collector_number};cache.set(sku,id);writes.push({...id,user_id:userId(),product_name:x.row.product_name,resolved_at:new Date().toISOString()})}
+        if(writes.length&&userId())rest('card_identity_cache?on_conflict=user_id,sku_id',{method:'POST',body:writes,prefer:'resolution=merge-duplicates,return=minimal'}).catch(()=>{});
+      }catch{}
+    }
+    return cache;
+  }
+
+  async function marketplaceEnrichment(skus){
+    try{const r=await rest('rpc/syp_marketplace_enrichment',{method:'POST',body:{p_skus:skus}});return new Map((r||[]).map(x=>[String(x.sku_id),x]))}catch{return new Map()}
+  }
+
+  function applyEnrichment(rows,identities,market){
+    for(const p of rows){
+      const sku=String(p.tcgplayer_id),tr=document.querySelector(`#cxSypTable tr[data-sku="${CSS.escape(sku)}"]`);if(!tr)continue;
+      const id=identities.get(sku),m=market.get(sku),cell=tr.querySelector('.cx-cardname');
+      if(cell&&id?.tcgplayer_url){cell.dataset.tcgUrl=id.tcgplayer_url;cell.title='Open on TCGplayer'}
+      const set=(role,val)=>{const n=tr.querySelector(`[data-role="${role}"]`);if(n)n.textContent=val};
+      set('direct-low',money(m?.direct_low));set('direct-qty',num(m?.direct_available));set('direct-listings',num(m?.direct_listings));set('market-listings',num(m?.total_marketplace_listings));
+    }
+  }
+
+  async function enrichProductPage(rows,my){
+    const skus=rows.map(r=>String(r.tcgplayer_id)).filter(Boolean);if(!skus.length)return;
+    let [ids,market]=await Promise.all([loadIdentityCache(skus),marketplaceEnrichment(skus)]);if(my!==seq)return;
+    applyEnrichment(rows,ids,market);
+    ids=await resolveMissingIdentity(rows,ids,my);if(my!==seq)return;applyEnrichment(rows,ids,market);
+  }
 
   async function loadPage(){
     const my=++seq,table=document.getElementById('cxSypTable'),count=document.getElementById('cxSypCount');if(!table)return;table.innerHTML='<div class="cx-empty">Loading…</div>';
     try{
       const rows=await rest(tab==='products'?productPath():eventPath());if(my!==seq)return;
       if(count)count.textContent=`${num(rows.length)} rows on this page • ${PAGE} per page`;
-      if(tab==='products')table.innerHTML=`<div class="cx-table-wrap"><table class="cx-table cx-syp-table"><thead><tr>${header('Product','product_name')}${header('Set','set_name')}${header('Condition','condition')}${header('Market','market_price')}${header('Max qty','current_max_quantity')}${header('First seen','first_seen')}${header('Last seen','last_seen')}</tr></thead><tbody>${rows.map(p=>`<tr><td data-label="Product" class="cx-cardname">${esc(p.product_name)}<span class="cx-sub">TCG ${esc(p.tcgplayer_id)}</span></td><td data-label="Set">${esc(p.set_name)}</td><td data-label="Condition">${esc(p.condition)}</td><td data-label="Market">${money(p.market_price)}</td><td data-label="Max qty">${num(p.current_max_quantity)}</td><td data-label="First seen">${date(p.first_seen)}</td><td data-label="Last seen">${date(p.last_seen)}</td></tr>`).join('')}</tbody></table></div>`;
-      else table.innerHTML=`<div class="cx-table-wrap"><table class="cx-table cx-syp-table"><thead><tr>${header('Changed','changed_at')}${header('Type','event_type')}${header('Product','product_name')}${header('Set','set_name')}${header('Old','old_value')}${header('New','new_value')}${header('Δ','difference')}</tr></thead><tbody>${rows.map(e=>`<tr><td data-label="Changed">${date(e.changed_at)}</td><td data-label="Type"><span class="cx-syp-event cx-syp-${String(e.event_type||'').toLowerCase()}">${esc(e.event_type)}</span></td><td data-label="Product" class="cx-cardname">${esc(e.product_name)}<span class="cx-sub">TCG ${esc(e.tcgplayer_id)}</span></td><td data-label="Set">${esc(e.set_name)}</td><td data-label="Old">${e.old_value==null?'—':num(e.old_value)}</td><td data-label="New">${e.new_value==null?'—':num(e.new_value)}</td><td data-label="Δ">${e.difference==null?'—':num(e.difference)}</td></tr>`).join('')}</tbody></table></div>`;
+      if(tab==='products'){
+        table.innerHTML=`<div class="cx-table-wrap"><table class="cx-table cx-syp-table"><thead><tr>${header('Product','product_name')}${header('Set','set_name')}${header('Condition','condition')}${header('Market','market_price')}${header('Direct')}${header('D qty')}${header('D listings')}${header('Mkt listings')}${header('SYP max','current_max_quantity')}${header('First seen','first_seen')}${header('Last seen','last_seen')}</tr></thead><tbody>${rows.map(p=>`<tr data-sku="${esc(p.tcgplayer_id)}"><td data-label="Product" class="cx-cardname">${esc(p.product_name)}<span class="cx-sub">TCG SKU ${esc(p.tcgplayer_id)}</span></td><td data-label="Set">${esc(p.set_name)}</td><td data-label="Condition">${esc(p.condition)}</td><td data-label="Market">${money(p.market_price)}</td><td data-label="Direct" data-role="direct-low">—</td><td data-label="D qty" data-role="direct-qty">—</td><td data-label="D listings" data-role="direct-listings">—</td><td data-label="Mkt listings" data-role="market-listings">—</td><td data-label="SYP max">${num(p.current_max_quantity)}</td><td data-label="First seen">${date(p.first_seen)}</td><td data-label="Last seen">${date(p.last_seen)}</td></tr>`).join('')}</tbody></table></div>`;
+        enrichProductPage(rows,my);
+      } else table.innerHTML=`<div class="cx-table-wrap"><table class="cx-table cx-syp-table"><thead><tr>${header('Changed','changed_at')}${header('Type','event_type')}${header('Product','product_name')}${header('Set','set_name')}${header('Old','old_value')}${header('New','new_value')}${header('Δ','difference')}</tr></thead><tbody>${rows.map(e=>`<tr><td data-label="Changed">${date(e.changed_at)}</td><td data-label="Type"><span class="cx-syp-event cx-syp-${String(e.event_type||'').toLowerCase()}">${esc(e.event_type)}</span></td><td data-label="Product" class="cx-cardname">${esc(e.product_name)}<span class="cx-sub">TCG SKU ${esc(e.tcgplayer_id)}</span></td><td data-label="Set">${esc(e.set_name)}</td><td data-label="Old">${e.old_value==null?'—':num(e.old_value)}</td><td data-label="New">${e.new_value==null?'—':num(e.new_value)}</td><td data-label="Δ">${e.difference==null?'—':num(e.difference)}</td></tr>`).join('')}</tbody></table></div>`;
       wireSort();pager(rows);
     }catch(e){if(my===seq)table.innerHTML=`<div class="cx-empty">${esc(e.message)}</div>`}
   }
@@ -55,7 +110,7 @@
   function schedulePage(){clearTimeout(debounce);debounce=setTimeout(()=>{page=0;loadPage()},250)}
   async function exportAll(){
     const btn=document.getElementById('cxSypExport');if(btn){btn.disabled=true;btn.textContent='Preparing…'}
-    try{const out=[];for(let off=0;;off+=1000){const path=tab==='products'?productPath(1000,off):eventPath(1000,off);const r=await rest(path);out.push(...r);if(r.length<1000)break}const fields=tab==='products'?[['TCGplayer ID','tcgplayer_id'],['Product','product_name'],['Set','set_name'],['Condition','condition'],['Market Price','market_price'],['Max Quantity','current_max_quantity'],['First Seen','first_seen'],['Last Seen','last_seen']]:[['Changed At','changed_at'],['Event Type','event_type'],['TCGplayer ID','tcgplayer_id'],['Product','product_name'],['Set','set_name'],['Old Value','old_value'],['New Value','new_value'],['Difference','difference']];const quote=v=>`"${String(v??'').replace(/"/g,'""')}"`,text=[fields.map(x=>quote(x[0])).join(','),...out.map(r=>fields.map(x=>quote(r[x[1]])).join(','))].join('\n'),blob=new Blob([text],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=tab==='products'?'TCGplayer_SYP_current_eligible_filtered.csv':'TCGplayer_SYP_latest_changes_filtered.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}finally{if(btn){btn.disabled=false;btn.textContent='Export filtered CSV'}}
+    try{const out=[];for(let off=0;;off+=1000){const path=tab==='products'?productPath(1000,off):eventPath(1000,off);const r=await rest(path);out.push(...r);if(r.length<1000)break}const fields=tab==='products'?[['TCGplayer SKU','tcgplayer_id'],['Product','product_name'],['Set','set_name'],['Condition','condition'],['Market Price','market_price'],['Max Quantity','current_max_quantity'],['First Seen','first_seen'],['Last Seen','last_seen']]:[['Changed At','changed_at'],['Event Type','event_type'],['TCGplayer SKU','tcgplayer_id'],['Product','product_name'],['Set','set_name'],['Old Value','old_value'],['New Value','new_value'],['Difference','difference']];const quote=v=>`"${String(v??'').replace(/"/g,'""')}"`,text=[fields.map(x=>quote(x[0])).join(','),...out.map(r=>fields.map(x=>quote(r[x[1]])).join(','))].join('\n'),blob=new Blob([text],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=tab==='products'?'TCGplayer_SYP_current_eligible_filtered.csv':'TCGplayer_SYP_latest_changes_filtered.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}finally{if(btn){btn.disabled=false;btn.textContent='Export filtered CSV'}}
   }
 
   function renderBody(){const body=document.getElementById('cxSypParityBody');if(!body)return;body.innerHTML=tab==='products'?productFilters():eventFilters();if(tab==='products'){['cxSypSet','cxSypCondition','cxSypMax','cxSypFirst','cxSypLast'].forEach(id=>document.getElementById(id).onchange=schedulePage);document.getElementById('cxSypSearch').oninput=schedulePage}else{document.getElementById('cxSypEventSearch').oninput=schedulePage;document.getElementById('cxSypEventType').onchange=schedulePage}document.getElementById('cxSypExport').onclick=exportAll;loadPage()}
@@ -67,5 +122,5 @@
   function install(){const h=document.getElementById('cxSyp');if(!h)return false;if(!installed){installed=true;document.addEventListener('click',e=>{if(e.target.closest('[data-cx-page="syp"]'))setTimeout(()=>{if(document.getElementById('cxSyp')?.dataset.sypParity!=='ready')load()},60)},true)}if(h.classList.contains('active')&&h.dataset.sypParity!=='ready')load();return true}
   const mo=new MutationObserver(()=>install());mo.observe(document.documentElement,{childList:true,subtree:true});if(!install())setTimeout(install,100);
 
-  const style=document.createElement('style');style.textContent=`.cx-syp-pager{display:flex;justify-content:center;align-items:center;gap:10px;margin:12px 0 4px}.cx-syp-pager button:disabled{opacity:.4}`;document.head.appendChild(style);
+  const style=document.createElement('style');style.textContent=`.cx-syp-pager{display:flex;justify-content:center;align-items:center;gap:10px;margin:12px 0 4px}.cx-syp-pager button:disabled{opacity:.4}#cxSyp .cx-cardname{cursor:pointer}#cxSyp .cx-cardname:hover{text-decoration:underline;text-underline-offset:2px}`;document.head.appendChild(style);
 })();
