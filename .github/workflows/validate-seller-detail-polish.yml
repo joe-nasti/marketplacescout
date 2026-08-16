@@ -1,0 +1,33 @@
+name: Validate Seller detail polish
+
+on:
+  push:
+    paths:
+      - "index.html"
+      - "modern-core.js"
+      - "current-seller-drilldowns.js"
+      - "current-seller-detail-polish.js"
+      - ".github/workflows/validate-seller-detail-polish.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate Seller detail mobile flow and item links
+        shell: bash
+        run: |
+          node --check current-seller-drilldowns.js
+          node --check current-seller-detail-polish.js
+          grep -q "VERSION='0.9.22'" modern-core.js
+          grep -q 'current-seller-detail-polish.js?v=0922' index.html
+          grep -q 'grid-template-columns:repeat(3' current-seller-detail-polish.js
+          grep -q 'seller_order_items?select=product_id' current-seller-detail-polish.js
+          grep -q 'tcgplayer.com/product/' current-seller-detail-polish.js
