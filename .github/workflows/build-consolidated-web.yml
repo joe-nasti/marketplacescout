@@ -34,20 +34,23 @@ jobs:
         run: |
           set -euo pipefail
           for f in modern-core.js current-*.js; do node --check "$f"; done
-          grep -q "VERSION='0.9.29'" modern-core.js
-          grep -q 'modern-core.js?v=0929' index.html
-          grep -q 'current-readonly-agent.js?v=0929' index.html
-          grep -q 'current-scout-global-search.js?v=0929' index.html
-          grep -q 'current-scout-vendor-pricing.js?v=0929' index.html
-          grep -q 'current-scout-global-vendor.js?v=0929' index.html
+          grep -q "VERSION='0.9.30'" modern-core.js
+          grep -q 'modern-core.js?v=0930' index.html
+          grep -q 'current-readonly-agent.js?v=0930' index.html
+          grep -q 'current-scout-global-search.js?v=0930' index.html
+          grep -q 'current-scout-vendor-pricing.js?v=0930' index.html
+          grep -q 'current-scout-global-vendor.js?v=0930' index.html
           grep -q 'api.scryfall.com/cards/autocomplete' current-scout-global-search.js
           grep -q 'manualScoutGlobal:true' current-scout-global-search.js
-          grep -q 'scout_opportunities_24h_vendor' current-scout-vendor-pricing.js
-          grep -q 'mtgjson_vendor_price_pivot_current' current-scout-global-vendor.js
+          grep -q 'mtgjson_tcgplayer_skus' current-scout-vendor-pricing.js
+          grep -q 'mtgjson_vendor_prices' current-scout-vendor-pricing.js
+          grep -q 'mtgjson_vendor_prices' current-scout-global-vendor.js
           grep -q 'cardkingdom_buylist' current-scout-global-vendor.js
           grep -q 'manapool_retail' current-scout-global-vendor.js
           grep -q 'FEE_RATE=.20' current-scout-global-vendor.js
           grep -q 'rpc/claim_collector_job' current-readonly-agent.js
+          if grep -q 'scout_opportunities_24h_vendor' current-scout-vendor-pricing.js current-scout-global-vendor.js; then echo 'Heavy vendor Scout view must not be used by frontend'; exit 1; fi
+          if grep -q 'mtgjson_vendor_price_pivot_current' current-scout-vendor-pricing.js current-scout-global-vendor.js; then echo 'Vendor pivot view must not be used by frontend'; exit 1; fi
           if grep -q 'current-admin-navigation.js' index.html; then echo 'Legacy Admin navigation must not load'; exit 1; fi
           if grep -q 'current-scout-links.js' index.html; then echo 'Legacy Scout links must not load'; exit 1; fi
 
