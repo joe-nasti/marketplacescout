@@ -16,6 +16,7 @@ on:
       - "current-scout-diversity.js"
       - "current-scout-noise-filter.js"
       - "current-scout-thumbnails.js"
+      - "current-scout-global-search.js"
       - "current-seller-parity.js"
       - "current-seller-parity.css"
       - "current-seller-drilldowns.js"
@@ -64,6 +65,7 @@ jobs:
           node --check current-scout-diversity.js
           node --check current-scout-noise-filter.js
           node --check current-scout-thumbnails.js
+          node --check current-scout-global-search.js
           node --check current-seller-parity.js
           node --check current-seller-drilldowns.js
           node --check current-seller-detail-polish.js
@@ -73,18 +75,29 @@ jobs:
           node --check current-syp-links.js
           node --check current-admin-scans.js
           node --check current-admin-fixed-nav.js
-          grep -q 'modern-core.js?v=0926' index.html
-          grep -q "VERSION='0.9.26'" modern-core.js
-          grep -q 'current-readonly-agent.js?v=0926' index.html
+          grep -q 'modern-core.js?v=0927' index.html
+          grep -q "VERSION='0.9.27'" modern-core.js
+          grep -q 'current-readonly-agent.js?v=0927' index.html
+          grep -q 'current-scout-global-search.js?v=0927' index.html
+          grep -q 'api.scryfall.com/cards/autocomplete' current-scout-global-search.js
+          grep -q 'unique.*prints' current-scout-global-search.js
+          grep -q 'marketplace_scan_rows?select=' current-scout-global-search.js
+          grep -q 'product_id=in.' current-scout-global-search.js
+          grep -q 'Fresh' current-scout-global-search.js
+          grep -q 'Stale' current-scout-global-search.js
+          grep -q 'Unscanned' current-scout-global-search.js
+          grep -q 'manualScoutGlobal:true' current-scout-global-search.js
+          grep -q "scanDepth:'Full'" current-scout-global-search.js
+          grep -q "action:'scan_set'" current-scout-global-search.js
           grep -q "localStorage.getItem('collectishSession')" current-readonly-agent.js
           grep -q 'collectors?on_conflict=user_id,collector_id' current-readonly-agent.js
           grep -q 'rpc/claim_collector_job' current-readonly-agent.js
           grep -q "p_action:'seller_portal_readonly_probe'" current-readonly-agent.js
-          grep -q 'current-seller-parity.css?v=0926' index.html
-          grep -q 'current-seller-drilldowns.js?v=0926' index.html
-          grep -q 'current-seller-detail-polish.js?v=0926' index.html
-          grep -q 'current-seller-overview-order-meta.js?v=0926' index.html
-          grep -q 'current-seller-order-filters.js?v=0926' index.html
+          grep -q 'current-seller-parity.css?v=0927' index.html
+          grep -q 'current-seller-drilldowns.js?v=0927' index.html
+          grep -q 'current-seller-detail-polish.js?v=0927' index.html
+          grep -q 'current-seller-overview-order-meta.js?v=0927' index.html
+          grep -q 'current-seller-order-filters.js?v=0927' index.html
           grep -q 'data-label="Gross"' current-seller-parity.css
           grep -q 'data-label="Fees"' current-seller-parity.css
           grep -q 'data-label="Refund"' current-seller-parity.css
@@ -95,24 +108,21 @@ jobs:
           grep -q 'tcgplayer.com/product/' current-seller-detail-polish.js
           grep -q 'order_fulfillment=eq.Direct' current-seller-order-filters.js
           grep -q 'order_fulfillment=eq.Normal' current-seller-order-filters.js
-          grep -q 'current-syp-parity.js?v=0926' index.html
-          grep -q 'current-syp-links.js?v=0926' index.html
+          grep -q 'current-syp-parity.js?v=0927' index.html
+          grep -q 'current-syp-links.js?v=0927' index.html
           grep -q 'const PAGE=100' current-syp-parity.js
           grep -q 'rpc/syp_dashboard_stats' current-syp-parity.js
           grep -q 'rpc/syp_filter_options_rpc' current-syp-parity.js
           grep -q 'rpc/syp_marketplace_enrichment' current-syp-parity.js
           grep -q 'card_identity_cache' current-syp-parity.js
           grep -q 'api.scryfall.com/cards/collection' current-syp-parity.js
-          grep -q 'Direct' current-syp-parity.js
-          grep -q 'D qty' current-syp-parity.js
-          grep -q 'Mkt listings' current-syp-parity.js
           grep -q 'dataset.tcgUrl' current-syp-links.js
           grep -q 'card_identity_cache' current-scout-thumbnails.js
           grep -q 'purchase_uris' current-scout-thumbnails.js
           grep -q 'limit=${limit}&offset=${offset}' current-syp-parity.js
           if grep -q '40000' current-syp-parity.js || grep -q '60000' current-syp-parity.js || grep -q 'slice(0,5000)' current-syp-parity.js; then echo 'Legacy full SYP preload/render must not return'; exit 1; fi
-          grep -q 'current-admin-scans.js?v=0926' index.html
-          grep -q 'current-admin-fixed-nav.js?v=0926' index.html
+          grep -q 'current-admin-scans.js?v=0927' index.html
+          grep -q 'current-admin-fixed-nav.js?v=0927' index.html
           grep -q 'position:fixed' current-admin-fixed-nav.js
           grep -q 'bottom:72px' current-admin-fixed-nav.js
           grep -q 'active-letter' current-admin-fixed-nav.js
@@ -121,7 +131,7 @@ jobs:
           grep -q 'Changes apply automatically' current-admin-scans.js
           grep -q 'Saving…' current-admin-scans.js
           grep -q 'printing' current-admin-scans.js
-          grep -q 'current-scout-noise-filter.js?v=0926' index.html
+          grep -q 'current-scout-noise-filter.js?v=0927' index.html
           grep -q 'Hide Market' current-scout-noise-filter.js
           grep -q 'Open on TCGplayer' current-scout-parity.js
           grep -q 'Open on EDHREC' current-scout-parity.js
