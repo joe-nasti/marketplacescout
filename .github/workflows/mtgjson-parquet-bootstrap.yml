@@ -27,11 +27,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Validate
-        run: python -m py_compile cloud-worker/mtgjson-parquet-sync.py
+      - name: Validate bounded importer
+        run: |
+          python -m py_compile cloud-worker/mtgjson-parquet-sync.py
+          grep -q 'collectish_used_skus' cloud-worker/mtgjson-parquet-sync.py
+          grep -q 'TcgplayerSkus filtered' cloud-worker/mtgjson-parquet-sync.py
       - name: Install PyArrow
         run: python -m pip install --disable-pip-version-check pyarrow==18.1.0
       - name: Require service role key
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
-      - name: Import normalized MTGJSON catalog
+      - name: Import bounded MTGJSON catalog
         run: python cloud-worker/mtgjson-parquet-sync.py
