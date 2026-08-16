@@ -65,6 +65,7 @@ jobs:
             echo "MTGJSON_MODE=${{ inputs.mode }}" >> "$GITHUB_ENV"
           elif [ "${{ github.event_name }}" = "push" ]; then
             echo "MTGJSON_MODE=identity" >> "$GITHUB_ENV"
+            echo "MTGJSON_SKIP_CARDS=1" >> "$GITHUB_ENV"
           elif [ "${{ github.event.schedule }}" = "0 12 * * 0" ]; then
             echo "MTGJSON_MODE=identity" >> "$GITHUB_ENV"
           else
