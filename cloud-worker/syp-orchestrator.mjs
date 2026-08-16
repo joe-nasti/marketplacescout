@@ -9,13 +9,26 @@ const H={apikey:SERVICE_KEY,Authorization:`Bearer ${SERVICE_KEY}`,'Content-Type'
 const FULL_REFRESH_MS=24*60*60*1000;
 const LAST_UPDATED_URL='https://store.tcgplayer.com/admin/direct/GetLastUpdated?categoryId=1';
 const EXPORT_URL='https://store.tcgplayer.com/admin/direct/ExportSYPList?categoryid=1&setNameId=&conditionId=';
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const transientStatus=status=>[429,502,503,504].includes(Number(status));
+function retrySafe(path,method){return method==='GET'||method==='PATCH'||(method==='POST'&&String(path).includes('on_conflict='));}
 
 async function sb(path,{method='GET',body,prefer}={}){
   const headers={...H,...(prefer?{Prefer:prefer}:{})};
-  const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
-  const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch{d=t}
-  if(!r.ok)throw new Error(d?.message||d?.hint||`Supabase HTTP ${r.status}`);
-  return d;
+  const maxRetries=retrySafe(path,method)?3:0;
+  for(let attempt=0;;attempt++){
+    let r;
+    try{
+      r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
+    }catch(error){
+      if(attempt<maxRetries){await sleep(350*(2**attempt));continue;}
+      throw error;
+    }
+    const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch{d=t}
+    if(r.ok)return d;
+    if(transientStatus(r.status)&&attempt<maxRetries){await sleep(350*(2**attempt));continue;}
+    throw new Error(d?.message||d?.hint||`Supabase HTTP ${r.status}`);
+  }
 }
 const enc=v=>encodeURIComponent(String(v??''));
 const nowIso=()=>new Date().toISOString();
@@ -50,8 +63,9 @@ async function processExport(job,lastUpdated,csv){
     products.push({user_id:job.user_id,tcgplayer_id:row.tcgplayerId,product_line:row.productLine||null,product_name:row.product||null,number:row.number||null,rarity:row.rarity||null,set_name:row.set||null,condition:row.condition||null,market_price:row.marketPrice,max_quantity:row.maxQuantity,current_max_quantity:row.maxQuantity,first_seen:first,last_seen:lastUpdated||capturedAt,is_currently_eligible:true,collected_at:capturedAt,raw_json:{...row,firstSeen:first,lastSeen:lastUpdated||capturedAt,isCurrentlyEligible:true,currentMaxQuantity:row.maxQuantity}});
   }
   for(const [id,o] of oldMap)if(o.is_currently_eligible&&!currentIds.has(id)){events.push(makeEvent(snap,id,'REMOVED',{product:o.product_name,set:o.set_name},Number(o.current_max_quantity??o.max_quantity??0),null));products.push({...o,is_currently_eligible:false,last_seen:lastUpdated||capturedAt,collected_at:capturedAt,raw_json:{...(o.raw_json||{}),isCurrentlyEligible:false,lastSeen:lastUpdated||capturedAt}})}
-  for(let i=0;i<products.length;i+=500)await sb('syp_products?on_conflict=user_id,tcgplayer_id',{method:'POST',body:products.slice(i,i+500),prefer:'resolution=merge-duplicates,return=minimal'});
-  for(let i=0;i<events.length;i+=500){const b=events.slice(i,i+500).map(e=>({...e,user_id:job.user_id}));await sb('syp_events?on_conflict=user_id,event_id',{method:'POST',body:b,prefer:'resolution=merge-duplicates,return=minimal'})}
+  // Smaller idempotent upsert batches plus transient retries keep a full refresh from overloading PostgREST.
+  for(let i=0;i<products.length;i+=250)await sb('syp_products?on_conflict=user_id,tcgplayer_id',{method:'POST',body:products.slice(i,i+250),prefer:'resolution=merge-duplicates,return=minimal'});
+  for(let i=0;i<events.length;i+=250){const b=events.slice(i,i+250).map(e=>({...e,user_id:job.user_id}));await sb('syp_events?on_conflict=user_id,event_id',{method:'POST',body:b,prefer:'resolution=merge-duplicates,return=minimal'})}
   await sb('syp_snapshots?on_conflict=user_id,snapshot_id',{method:'POST',body:[snap],prefer:'resolution=merge-duplicates,return=minimal'});
   await sb('source_captures?on_conflict=user_id,source,capture_type,source_key',{method:'POST',body:[{user_id:job.user_id,source:'tcgplayer',capture_type:'syp_csv',source_key:sid,captured_at:capturedAt,content_type:'text/csv',payload_text:csv,metadata_json:{lastUpdated,rowCount:rows.length}}],prefer:'resolution=ignore-duplicates,return=minimal'});
   return{rows:rows.length,events:events.length,snapshotId:sid};
@@ -77,7 +91,7 @@ async function main(){
       }
       if(k==='export'){
         const latestCheck=(completed||[]).filter(x=>x.user_id===job.user_id&&x.payload_json?.sypKind==='last_updated'&&x.progress_json?.sypLastUpdated).sort((a,b)=>new Date(b.completed_at)-new Date(a.completed_at))[0];
-        const lu=latestCheck?.progress_json?.sypLastUpdated||nowIso();
+        const lu=latestCheck?.progress_json?.sypLastUpdated||cleanLastUpdated((completed||[]).find(x=>x.user_id===job.user_id&&x.payload_json?.sypKind==='last_updated')?.progress_json?.readOnlyProbe?.body)||nowIso();
         const out=await processExport(job,lu,String(probeBody(job)??''));
         await mark(job,{sypStatus:'snapshot_normalized',sypRows:out.rows,sypEvents:out.events,sypSnapshotId:out.snapshotId});exports++;
       }
