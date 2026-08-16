@@ -34,10 +34,13 @@ jobs:
         run: |
           set -euo pipefail
           for f in modern-core.js current-*.js; do node --check "$f"; done
-          grep -q "VERSION='0.9.31'" modern-core.js
-          grep -q 'modern-core.js?v=0931' index.html
-          grep -q 'current-scout-vendor-pricing.js?v=0931' index.html
-          grep -q 'current-scout-global-vendor.js?v=0931' index.html
+          grep -q "VERSION='0.9.32'" modern-core.js
+          grep -q 'modern-core.js?v=0932' index.html
+          grep -q 'current-scout-vendor-pricing.js?v=0932' index.html
+          grep -q 'current-scout-global-vendor.js?v=0932' index.html
+          grep -q 'current-scout-actionability-guard.js?v=0932' index.html
+          grep -q 'BUYLIST SPREAD · VERIFY SOURCE' current-scout-actionability-guard.js
+          grep -q 'market\*.20' current-scout-actionability-guard.js
           grep -q 'api.scryfall.com/cards/autocomplete' current-scout-global-search.js
           grep -q 'manualScoutGlobal:true' current-scout-global-search.js
           grep -q 'mtgjson_tcgplayer_skus' current-scout-vendor-pricing.js
