@@ -24,9 +24,6 @@ concurrency:
 jobs:
   marketplace-worker:
     runs-on: ubuntu-latest
-    # A full Smart refresh can legitimately take 10-20+ minutes for large sets.
-    # Four sequential set jobs fit safely inside this window without a runner
-    # being killed mid-set and leaving a stale lease to recover.
     timeout-minutes: 90
     env:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
@@ -47,8 +44,8 @@ jobs:
             echo "Missing repository secret SUPABASE_SERVICE_ROLE_KEY"
             exit 1
           fi
-      - name: Ensure daily one-scan-per-set refresh queue
-        run: node cloud-worker/queue-daily-set-refresh.mjs
+      - name: Queue configured set scans
+        run: node cloud-worker/queue-configured-set-refresh.mjs
       - name: Validate atomic claim RPC
         run: node cloud-worker/validate-claim-rpc.mjs
       - name: Normalize Marketplace executor capabilities
@@ -83,6 +80,7 @@ jobs:
         run: node cloud-worker/enable-atomic-claim.mjs
       - name: Validate patched worker
         run: |
+          node --check cloud-worker/queue-configured-set-refresh.mjs
           node --check cloud-worker/marketplace-worker.mjs
           node --check cloud-worker/enrich-scout-scryfall.mjs
       - name: Run cloud-targeted Marketplace jobs
