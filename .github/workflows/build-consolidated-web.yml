@@ -16,6 +16,7 @@ on:
       - "current-scout-parity.css"
       - "current-scout-edhrec.js"
       - "current-scout-edhrec.css"
+      - "current-scout-diversity.js"
       - "current-seller-parity.js"
       - "current-seller-parity.css"
       - "current-syp-parity.js"
@@ -66,7 +67,7 @@ jobs:
             echo "Generated web assets already current."
             exit 0
           fi
-          git commit -m "Build consolidated Collectish web v0.8.4"
+          git commit -m "Build consolidated Collectish web v0.8.6"
           git push origin HEAD:main
 
   android-agent:
