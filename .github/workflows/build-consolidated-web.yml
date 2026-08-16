@@ -33,6 +33,7 @@ on:
       - "tools/patch-native-v024.py"
       - "tools/patch-native-v025.py"
       - "tools/patch-native-v026.py"
+      - "tools/patch-native-v027.py"
       - "android-agent/**"
       - ".github/workflows/build-consolidated-web.yml"
 
@@ -174,27 +175,32 @@ jobs:
           python tools/patch-native-v024.py
           python tools/patch-native-v025.py
           python tools/patch-native-v026.py
-      - name: Align Android 0.2.6 version metadata
+          python tools/patch-native-v027.py
+      - name: Align Android 0.2.7 version metadata
         working-directory: android-agent
         shell: bash
         run: |
-          sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.6"/' app/src/main/java/com/collectish/agent/MainActivity.kt
-          sed -i -E 's/versionCode = [0-9]+/versionCode = 26/' app/build.gradle.kts
-          sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.6"/' app/build.gradle.kts
-      - name: Verify unified Android shell, browser handoff and Seller claimant lifecycle
+          sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.7"/' app/src/main/java/com/collectish/agent/MainActivity.kt
+          sed -i -E 's/versionCode = [0-9]+/versionCode = 27/' app/build.gradle.kts
+          sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.7"/' app/build.gradle.kts
+      - name: Verify Android shell, browser handoff and foreground Seller sync
         working-directory: android-agent
         shell: bash
         run: |
-          grep -q 'private val version = "0.2.6"' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'private val version = "0.2.7"' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'agentWeb = makeWebView().apply { alpha = 1f }' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'rootHost.addView(agentWeb, FrameLayout.LayoutParams(-1, -1))' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'fun openExternalUrl' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'Intent.ACTION_VIEW' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'hostedAgentKick' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'override fun onResume()' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'agentWeb.reload()' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'versionCode = 26' app/build.gradle.kts
-          grep -q 'versionName = "0.2.6"' app/build.gradle.kts
+          grep -q 'SellerSyncService::class.java' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'startForegroundService' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'class SellerSyncService' app/src/main/java/com/collectish/agent/SellerSyncService.kt
+          grep -q 'START_STICKY' app/src/main/java/com/collectish/agent/SellerSyncService.kt
+          grep -q 'android.permission.FOREGROUND_SERVICE_DATA_SYNC' app/src/main/AndroidManifest.xml
+          grep -q 'android:foregroundServiceType="dataSync"' app/src/main/AndroidManifest.xml
+          grep -q 'versionCode = 27' app/build.gradle.kts
+          grep -q 'versionName = "0.2.7"' app/build.gradle.kts
       - name: Build persistently signed Android APK
         working-directory: android-agent
         shell: bash
@@ -209,5 +215,5 @@ jobs:
       - name: Upload signed Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: collectish-android-agent-v0.2.6-signed
+          name: collectish-android-agent-v0.2.7-signed
           path: ${{ runner.temp }}/collectish-android-agent.apk
