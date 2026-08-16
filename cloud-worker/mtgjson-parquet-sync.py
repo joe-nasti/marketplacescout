@@ -54,11 +54,16 @@ def sb(path,method='GET',body=None,prefer=None):
         time.sleep(.5*(2**attempt))
     raise last
 
+def dedupe(rows,conflict):
+    keys=[x.strip() for x in conflict.split(',')]
+    return list({tuple(str(r.get(k,'')) for k in keys):r for r in rows}.values())
+
 def upsert(table,rows,conflict):
     if not rows:return 0
+    rows=dedupe(rows,conflict)
     count=0
     for i in range(0,len(rows),BATCH):
-        part=rows[i:i+BATCH]
+        part=dedupe(rows[i:i+BATCH],conflict)
         sb(f'{table}?on_conflict={urllib.parse.quote(conflict)}','POST',part,'resolution=merge-duplicates,return=minimal')
         count+=len(part)
         if count%5000<BATCH: print(f'{table}: {count}/{len(rows)}',flush=True)
@@ -130,7 +135,7 @@ def sync_skus(valid):
         if uid not in valid or sku is None or product is None:continue
         out.append({'sku_id':str(sku),'uuid':uid,'product_id':str(product),'condition':str(pick(s,'condition',default='') or ''),
           'finish':text(pick(s,'finish')),'language':str(pick(s,'language',default='') or ''),'printing':text(pick(s,'printing')),'source_updated_at':now()})
-    upsert('mtgjson_tcgplayer_skus',out,'sku_id');return len(out)
+    return upsert('mtgjson_tcgplayer_skus',out,'sku_id')
 
 def sync_sealed():
     out=[]
@@ -146,7 +151,7 @@ def sync_sealed():
           'cardkingdom_id':text(idget(ids,'cardKingdomId') or pick(p,'cardKingdomId')),'csi_id':text(idget(ids,'csiId') or pick(p,'csiId')),
           'cardmarket_id':text(idget(ids,'mcmId') or pick(p,'mcmId')),'identifiers':ids,'purchase_urls':pick(p,'purchaseUrls','purchase_urls',default={}) or {},
           'contents':pick(p,'contents'),'source_updated_at':now()})
-    upsert('mtgjson_sealed_products',out,'uuid');return len(out)
+    return upsert('mtgjson_sealed_products',out,'uuid')
 
 def deck_key(r):
     raw='|'.join(str(pick(r,x,default='') or '') for x in ('code','name','type','releaseDate'))
@@ -169,8 +174,9 @@ def sync_decks(valid):
                 try:q=int(qty or 1)
                 except:q=1
                 card_rows.append({'deck_key':key,'card_uuid':uid,'zone':zone,'quantity':q})
-    upsert('mtgjson_decks',deck_rows,'deck_key');upsert('mtgjson_deck_cards',card_rows,'deck_key,card_uuid,zone')
-    return len(deck_rows),len(card_rows)
+    decks_written=upsert('mtgjson_decks',deck_rows,'deck_key')
+    cards_written=upsert('mtgjson_deck_cards',card_rows,'deck_key,card_uuid,zone')
+    return decks_written,cards_written
 
 def main():
     started=now(); sb('mtgjson_sync_state?on_conflict=feed','POST',[{'feed':'parquet_catalog','last_started_at':started,'status':'running','detail':{'mode':'parquet'}}],'resolution=merge-duplicates,return=minimal')
