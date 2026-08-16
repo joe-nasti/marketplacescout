@@ -33,7 +33,8 @@ async function refreshV3(){
     if(!n||next<=after)break;after=next;
   }
   const refreshed=await rpc('refresh_scout_opportunities_24h');
-  return {rescored:total,refreshed};
+  const annotated=await rpc('annotate_scout_sales_confidence');
+  return {rescored:total,refreshed,annotated};
 }
 
 const candidates=await rpc('get_scout_sales_enrichment_candidates',{p_limit:LIMIT})||[];
