@@ -16,15 +16,28 @@ const SERVICE_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 if(!SUPABASE_URL||!SERVICE_KEY)throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
 
 const H={apikey:SERVICE_KEY,Authorization:`Bearer ${SERVICE_KEY}`,'Content-Type':'application/json'};
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const transientStatus=status=>[429,502,503,504].includes(Number(status));
+function retrySafe(path,method){return method==='GET'||method==='PATCH'||(method==='POST'&&String(path).includes('on_conflict='));}
 async function sb(path,{method='GET',body,prefer}={}){
   const headers={...H,...(prefer?{Prefer:prefer}:{})};
-  const response=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{
-    method,headers,body:body===undefined?undefined:JSON.stringify(body)
-  });
-  const text=await response.text();
-  let data=null;try{data=text?JSON.parse(text):null}catch{data=text}
-  if(!response.ok)throw new Error(data?.message||data?.hint||`Supabase HTTP ${response.status}: ${String(text).slice(0,220)}`);
-  return data;
+  const maxRetries=retrySafe(path,method)?3:0;
+  for(let attempt=0;;attempt++){
+    let response;
+    try{
+      response=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{
+        method,headers,body:body===undefined?undefined:JSON.stringify(body)
+      });
+    }catch(error){
+      if(attempt<maxRetries){await sleep(350*(2**attempt));continue;}
+      throw error;
+    }
+    const text=await response.text();
+    let data=null;try{data=text?JSON.parse(text):null}catch{data=text}
+    if(response.ok)return data;
+    if(transientStatus(response.status)&&attempt<maxRetries){await sleep(350*(2**attempt));continue;}
+    throw new Error(data?.message||data?.hint||`Supabase HTTP ${response.status}: ${String(text).slice(0,220)}`);
+  }
 }
 const enc=v=>encodeURIComponent(String(v??''));
 const DAY=86400000;
@@ -137,7 +150,8 @@ async function upsertDetailBundle(job){
   return bundle.order.order_number;
 }
 async function main(){
-  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&order=completed_at.desc&limit=500');
+  // Keep each run bounded so a large Android completion burst does not overload PostgREST.
+  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&order=completed_at.desc&limit=125');
   let authProcessed=0,searchProcessed=0,detailProcessed=0,other=0;
   for(const job of completed||[]){if(job.progress_json?.orchestratedAt)continue;const k=kind(job);try{
     if(k==='auth_detail'){const body=probeBody(job),sellerKey=body?.seller?.sellerKey;if(!sellerKey){await markOrchestrated(job,{orchestratorStatus:'auth_result_missing_seller_key'});continue;}const queued=await queueIncrementalSearch(job,String(sellerKey));await markOrchestrated(job,{orchestratorStatus:queued?'incremental_search_queued':'incremental_search_already_active'});authProcessed++;continue;}
