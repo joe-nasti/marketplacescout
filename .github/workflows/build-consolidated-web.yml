@@ -56,6 +56,8 @@ jobs:
       - name: Validate unified web JavaScript
         shell: bash
         run: |
+          PS4='+ validate line ${LINENO}: '
+          set -x
           node --check modern-core.js
           node --check current-readonly-agent.js
           node --check current-scout-parity.js
@@ -132,8 +134,8 @@ jobs:
     env:
       COLLECTISH_ANDROID_KEYSTORE_B64: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_B64 }}
       COLLECTISH_KEYSTORE_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_PASSWORD }}
-      COLLECTISH_KEY_ALIAS: ${{ secrets.COLLECTISH_ANDROID_KEY_ALIAS }}
-      COLLECTISH_KEY_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEY_PASSWORD }}
+      COLLECTISH_KEY_ALIAS: ${{ secrets.COLLECTISH_KEY_ALIAS }}
+      COLLECTISH_KEY_PASSWORD: ${{ secrets.COLLECTISH_KEY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -153,8 +155,8 @@ jobs:
         run: |
           test -n "$COLLECTISH_ANDROID_KEYSTORE_B64" || { echo "Missing COLLECTISH_ANDROID_KEYSTORE_B64"; exit 1; }
           test -n "$COLLECTISH_KEYSTORE_PASSWORD" || { echo "Missing COLLECTISH_ANDROID_KEYSTORE_PASSWORD"; exit 1; }
-          test -n "$COLLECTISH_KEY_ALIAS" || { echo "Missing COLLECTISH_ANDROID_KEY_ALIAS"; exit 1; }
-          test -n "$COLLECTISH_KEY_PASSWORD" || { echo "Missing COLLECTISH_ANDROID_KEY_PASSWORD"; exit 1; }
+          test -n "$COLLECTISH_KEY_ALIAS" || { echo "Missing COLLECTISH_KEY_ALIAS"; exit 1; }
+          test -n "$COLLECTISH_KEY_PASSWORD" || { echo "Missing COLLECTISH_KEY_PASSWORD"; exit 1; }
       - name: Restore persistent Collectish signing key
         shell: bash
         run: |
