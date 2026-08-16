@@ -80,12 +80,18 @@
 
   const style=document.createElement('style');
   style.textContent=`
-    .cx-admin-smart-nav{position:sticky;top:0;z-index:8;margin:0 -4px 12px;padding:8px 4px;background:color-mix(in srgb,var(--cx-card) 94%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--cx-line)}
+    .cx-admin-smart-nav{position:sticky;top:0;z-index:18;margin:0 -4px 12px;padding:8px 4px;background:color-mix(in srgb,var(--cx-card) 94%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--cx-line)}
     .cx-admin-mode-chips{display:flex;gap:6px;margin-bottom:8px}.cx-admin-mode-chips button,.cx-admin-alpha button{border:1px solid var(--cx-line);background:var(--cx-card);color:var(--cx-muted);border-radius:999px;font-weight:800;cursor:pointer}
     .cx-admin-mode-chips button{padding:7px 11px;font-size:11px}.cx-admin-mode-chips button.active{background:var(--cx-blue,#2f6df6);color:#fff;border-color:transparent}
-    .cx-admin-alpha{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}.cx-admin-alpha::-webkit-scrollbar{display:none}.cx-admin-alpha button{flex:0 0 28px;width:28px;height:28px;padding:0;font-size:10px}.cx-admin-alpha button:disabled{opacity:.22;cursor:default}
+    .cx-admin-alpha{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;overscroll-behavior-x:contain}.cx-admin-alpha::-webkit-scrollbar{display:none}.cx-admin-alpha button{flex:0 0 28px;width:28px;height:28px;padding:0;font-size:10px}.cx-admin-alpha button:disabled{opacity:.22;cursor:default}
     .cx-admin-scan-row{scroll-margin-top:92px}.cx-admin-jump-flash{outline:2px solid var(--cx-blue,#2f6df6);outline-offset:2px}
-    @media(max-width:980px){.cx-admin-smart-nav{top:0;margin-left:-8px;margin-right:-8px;padding:8px}.cx-admin-mode-chips{overflow-x:auto}.cx-admin-alpha button{flex-basis:30px;width:30px;height:30px}.cx-admin-scan-row{scroll-margin-top:105px}}
+    @media(max-width:980px){
+      #cxAdmin{padding-bottom:150px!important}
+      .cx-admin-smart-nav{position:fixed;left:8px;right:8px;bottom:74px;top:auto;z-index:60;margin:0;padding:7px 9px;border:1px solid var(--cx-line);border-radius:16px;background:color-mix(in srgb,var(--cx-card) 96%,transparent);box-shadow:0 8px 28px rgba(15,23,42,.16);backdrop-filter:blur(14px)}
+      .cx-admin-mode-chips{margin-bottom:6px;overflow-x:auto}.cx-admin-mode-chips button{padding:5px 10px;font-size:10px}
+      .cx-admin-alpha button{flex-basis:30px;width:30px;height:30px;font-size:11px}
+      .cx-admin-scan-row{scroll-margin-top:18px}
+    }
   `;
   document.head.appendChild(style);
   setTimeout(schedule,200);
