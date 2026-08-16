@@ -59,9 +59,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       COLLECTISH_ANDROID_KEYSTORE_B64: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_B64 }}
-      COLLECTISH_KEYSTORE_PASSWORD: ${{ secrets.COLLECTISH_KEYSTORE_PASSWORD }}
-      COLLECTISH_KEY_ALIAS: ${{ secrets.COLLECTISH_KEY_ALIAS }}
-      COLLECTISH_KEY_PASSWORD: ${{ secrets.COLLECTISH_KEY_PASSWORD }}
+      COLLECTISH_KEYSTORE_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_PASSWORD }}
+      COLLECTISH_KEY_ALIAS: ${{ secrets.COLLECTISH_ANDROID_KEY_ALIAS }}
+      COLLECTISH_KEY_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -76,12 +76,23 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.10.2"
+      - name: Require persistent Collectish signing secrets
+        shell: bash
+        run: |
+          test -n "$COLLECTISH_ANDROID_KEYSTORE_B64" || { echo "Missing COLLECTISH_ANDROID_KEYSTORE_B64"; exit 1; }
+          test -n "$COLLECTISH_KEYSTORE_PASSWORD" || { echo "Missing COLLECTISH_ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "$COLLECTISH_KEY_ALIAS" || { echo "Missing COLLECTISH_ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "$COLLECTISH_KEY_PASSWORD" || { echo "Missing COLLECTISH_ANDROID_KEY_PASSWORD"; exit 1; }
       - name: Restore persistent Collectish signing key
-        if: ${{ env.COLLECTISH_ANDROID_KEYSTORE_B64 != '' && env.COLLECTISH_KEYSTORE_PASSWORD != '' && env.COLLECTISH_KEY_ALIAS != '' && env.COLLECTISH_KEY_PASSWORD != '' }}
         shell: bash
         run: |
           printf '%s' "$COLLECTISH_ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/collectish-release.jks"
+          test -s "$RUNNER_TEMP/collectish-release.jks"
           echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
+      - name: Verify persistent signing key
+        shell: bash
+        run: |
+          keytool -list -keystore "$COLLECTISH_KEYSTORE_FILE" -storepass "$COLLECTISH_KEYSTORE_PASSWORD" -alias "$COLLECTISH_KEY_ALIAS" >/dev/null
       - name: Apply Android patches
         shell: bash
         run: |
@@ -105,19 +116,19 @@ jobs:
           grep -q 'rootHost.addView(agentWeb, FrameLayout.LayoutParams(-1, -1))' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'versionCode = 24' app/build.gradle.kts
           grep -q 'versionName = "0.2.4"' app/build.gradle.kts
-      - name: Build Android APK
+      - name: Build persistently signed Android APK
         working-directory: android-agent
         shell: bash
         run: |
-          if [ -n "${COLLECTISH_KEYSTORE_FILE:-}" ]; then
-            gradle :app:assembleRelease
-            cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/collectish-android-agent.apk"
-          else
-            gradle :app:assembleDebug
-            cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/collectish-android-agent.apk"
-          fi
-      - name: Upload Android APK
+          gradle :app:assembleRelease
+          test -s app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/collectish-android-agent.apk"
+      - name: Verify APK signature
+        shell: bash
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/collectish-android-agent.apk"
+      - name: Upload signed Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: collectish-android-agent-v0.2.4
+          name: collectish-android-agent-v0.2.4-signed
           path: ${{ runner.temp }}/collectish-android-agent.apk
