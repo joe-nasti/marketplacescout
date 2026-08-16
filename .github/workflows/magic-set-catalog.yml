@@ -1,0 +1,32 @@
+name: Collectish Magic set catalog refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 11 * * *"
+  push:
+    paths:
+      - "cloud-worker/refresh-magic-set-catalog.mjs"
+      - ".github/workflows/magic-set-catalog.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate catalog worker
+        run: |
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          node --check cloud-worker/refresh-magic-set-catalog.mjs
+      - name: Refresh Magic set catalog
+        run: node cloud-worker/refresh-magic-set-catalog.mjs
