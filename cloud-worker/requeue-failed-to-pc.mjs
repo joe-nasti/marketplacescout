@@ -22,8 +22,11 @@ async function cancelQueued(job,detail){
 async function main(){
   let repairedLegacy=0,requeued=0,deferred=0,cancelledRedundant=0,deduped=0;
 
-  const scans=await sb('marketplace_scans?select=user_id,set_slug,captured_at&order=captured_at.desc&limit=1000');
-  const completedToday=new Set((scans||[]).filter(s=>s.set_slug&&chicagoDay(s.captured_at)===today).map(s=>`${s.user_id}|${s.set_slug}`));
+  // A scan counts as complete only when its collector job reached completed. The
+  // worker writes the scan header before row batches, so a failed row insert can
+  // otherwise leave a zero-row header that falsely suppresses the needed retry.
+  const completed=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.completed&select=user_id,payload_json,completed_at&order=completed_at.desc&limit=500');
+  const completedToday=new Set((completed||[]).filter(j=>j.completed_at&&chicagoDay(j.completed_at)===today).map(setKey));
 
   // Any legacy browser fallback still waiting is moved back to cloud immediately.
   const legacy=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.queued&preferred_executor=eq.browser_connector&limit=200');
@@ -37,7 +40,7 @@ async function main(){
     },prefer:'return=minimal'});repairedLegacy++;
   }
 
-  // Cancel stale queued daily siblings after any successful scan for the same user/set today.
+  // Cancel stale queued daily siblings after any successful completed job for the same user/set today.
   const queuedDaily=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.queued&order=created_at.asc&limit=500');
   for(const job of queuedDaily||[]){
     if(!daily(job)||!completedToday.has(setKey(job)))continue;
