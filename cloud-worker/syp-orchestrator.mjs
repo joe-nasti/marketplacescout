@@ -30,6 +30,16 @@ async function sb(path,{method='GET',body,prefer}={}){
     throw new Error(d?.message||d?.hint||`Supabase HTTP ${r.status}`);
   }
 }
+async function allRows(path,pageSize=1000,maxRows=50000){
+  const out=[];
+  for(let offset=0;offset<maxRows;offset+=pageSize){
+    const sep=path.includes('?')?'&':'?';
+    const page=await sb(`${path}${sep}offset=${offset}&limit=${Math.min(pageSize,maxRows-offset)}`);
+    out.push(...(page||[]));
+    if(!page||page.length<pageSize)break;
+  }
+  return out;
+}
 const enc=v=>encodeURIComponent(String(v??''));
 const nowIso=()=>new Date().toISOString();
 function probeBody(job){return job?.progress_json?.readOnlyProbe?.body ?? null}
@@ -50,7 +60,10 @@ async function processExport(job,lastUpdated,csv){
   const rows=normalizeCsv(csv);if(!rows.length)throw new Error('SYP export returned no recognizable rows');
   const capturedAt=nowIso(),sid=snapshotId(lastUpdated);
   const snap={user_id:job.user_id,snapshot_id:sid,category_id:1,category_name:'Magic',set_name_id:'',condition_id:'',last_updated:lastUpdated,captured_at:capturedAt,row_count:rows.length,data_version:2,collected_at:capturedAt,raw_json:{snapshotId:sid,categoryId:1,categoryName:'Magic',setNameId:'',conditionId:'',lastUpdated,capturedAt,rowCount:rows.length,dataVersion:2}};
-  const old=await sb(`syp_products?select=*&user_id=eq.${enc(job.user_id)}&limit=50000`),oldMap=new Map((old||[]).map(x=>[String(x.tcgplayer_id),x])),currentIds=new Set(rows.map(x=>x.tcgplayerId)),events=[],products=[];
+  // PostgREST can cap a single response even when a larger limit is requested.
+  // Page the entire historical product baseline before diffing so full SYP history
+  // is compared, rather than accidentally treating rows beyond page 1 as ADDED.
+  const old=await allRows(`syp_products?select=*&user_id=eq.${enc(job.user_id)}`,1000,50000),oldMap=new Map((old||[]).map(x=>[String(x.tcgplayer_id),x])),currentIds=new Set(rows.map(x=>x.tcgplayerId)),events=[],products=[];
   for(const row of rows){
     const o=oldMap.get(row.tcgplayerId),first=o?.first_seen||lastUpdated||capturedAt;
     if(!o)events.push(makeEvent(snap,row.tcgplayerId,'ADDED',row,null,row.maxQuantity));
@@ -63,9 +76,11 @@ async function processExport(job,lastUpdated,csv){
     products.push({user_id:job.user_id,tcgplayer_id:row.tcgplayerId,product_line:row.productLine||null,product_name:row.product||null,number:row.number||null,rarity:row.rarity||null,set_name:row.set||null,condition:row.condition||null,market_price:row.marketPrice,max_quantity:row.maxQuantity,current_max_quantity:row.maxQuantity,first_seen:first,last_seen:lastUpdated||capturedAt,is_currently_eligible:true,collected_at:capturedAt,raw_json:{...row,firstSeen:first,lastSeen:lastUpdated||capturedAt,isCurrentlyEligible:true,currentMaxQuantity:row.maxQuantity}});
   }
   for(const [id,o] of oldMap)if(o.is_currently_eligible&&!currentIds.has(id)){events.push(makeEvent(snap,id,'REMOVED',{product:o.product_name,set:o.set_name},Number(o.current_max_quantity??o.max_quantity??0),null));products.push({...o,is_currently_eligible:false,last_seen:lastUpdated||capturedAt,collected_at:capturedAt,raw_json:{...(o.raw_json||{}),isCurrentlyEligible:false,lastSeen:lastUpdated||capturedAt}})}
-  // Smaller idempotent upsert batches plus transient retries keep a full refresh from overloading PostgREST.
-  for(let i=0;i<products.length;i+=250)await sb('syp_products?on_conflict=user_id,tcgplayer_id',{method:'POST',body:products.slice(i,i+250),prefer:'resolution=merge-duplicates,return=minimal'});
+  // Persist the immutable/idempotent event diff before mutating product state. If
+  // a product upsert later hits a transient failure, the next run cannot lose the
+  // already-computed event history by diffing against a partially-updated baseline.
   for(let i=0;i<events.length;i+=250){const b=events.slice(i,i+250).map(e=>({...e,user_id:job.user_id}));await sb('syp_events?on_conflict=user_id,event_id',{method:'POST',body:b,prefer:'resolution=merge-duplicates,return=minimal'})}
+  for(let i=0;i<products.length;i+=250)await sb('syp_products?on_conflict=user_id,tcgplayer_id',{method:'POST',body:products.slice(i,i+250),prefer:'resolution=merge-duplicates,return=minimal'});
   await sb('syp_snapshots?on_conflict=user_id,snapshot_id',{method:'POST',body:[snap],prefer:'resolution=merge-duplicates,return=minimal'});
   await sb('source_captures?on_conflict=user_id,source,capture_type,source_key',{method:'POST',body:[{user_id:job.user_id,source:'tcgplayer',capture_type:'syp_csv',source_key:sid,captured_at:capturedAt,content_type:'text/csv',payload_text:csv,metadata_json:{lastUpdated,rowCount:rows.length}}],prefer:'resolution=ignore-duplicates,return=minimal'});
   return{rows:rows.length,events:events.length,snapshotId:sid};
