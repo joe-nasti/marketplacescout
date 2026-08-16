@@ -52,8 +52,8 @@ jobs:
           node --check current-scout-links.js
           node --check current-seller-parity.js
           node --check current-syp-parity.js
-          grep -q 'modern-core.js?v=094' index.html
-          grep -q "VERSION='0.9.4'" modern-core.js
+          grep -q 'modern-core.js?v=095' index.html
+          grep -q "VERSION='0.9.5'" modern-core.js
 
   android-agent:
     runs-on: ubuntu-latest
