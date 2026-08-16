@@ -1,4 +1,4 @@
-// Collectish Scout thumbnail loader — viewport-aware artwork loading with detail-to-list sync.
+// Collectish Scout thumbnail loader — viewport-aware artwork loading with shared card identity persistence.
 (() => {
   const rowMeta = new Map();
   const imageBySku = new Map();
@@ -7,6 +7,8 @@
   let refreshQueued = false;
 
   const esc = s => String(s ?? '').replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const session=()=>{try{return JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{return null}};
+  const userId=()=>session()?.user?.id||'';
 
   function slotForSku(sku){
     try { return document.querySelector(`#cxParityCards [data-thumb="${CSS.escape(String(sku))}"]`); }
@@ -27,10 +29,30 @@
     return card?.image_uris?.normal || card?.image_uris?.large || card?.card_faces?.find(x=>x.image_uris)?.image_uris?.normal || '';
   }
 
+  function tcgUrl(card){
+    return card?.purchase_uris?.tcgplayer || (card?.tcgplayer_id ? `https://www.tcgplayer.com/product/${encodeURIComponent(card.tcgplayer_id)}` : '');
+  }
+
+  async function persistIdentity(sku, meta, card){
+    const uid=userId(); if(!uid||!sku||!card?.id)return;
+    const body={
+      user_id:uid,
+      sku_id:String(sku),
+      scryfall_id:card.id,
+      tcgplayer_product_id:card.tcgplayer_id==null?null:String(card.tcgplayer_id),
+      tcgplayer_url:tcgUrl(card)||null,
+      image_url:imageUrl(card)||null,
+      set_code:card.set||meta?.set_code||null,
+      collector_number:card.collector_number||meta?.collector_number||null,
+      product_name:meta?.product_name||card.name||null,
+      resolved_at:new Date().toISOString()
+    };
+    try{await rest('card_identity_cache?on_conflict=user_id,sku_id',{method:'POST',body,prefer:'resolution=merge-duplicates,return=minimal'})}catch(e){console.warn('Card identity cache unavailable',e)}
+  }
+
   async function ensureMetaForCards(cards){
     const missing = [...new Set(cards.map(c=>String(c.dataset.sku||'')).filter(s=>s && !rowMeta.has(s)))];
     if(!missing.length) return;
-    // Keep URLs comfortably below browser/proxy limits.
     for(let i=0;i<missing.length;i+=50){
       const ids = missing.slice(i,i+50);
       try {
@@ -57,7 +79,6 @@
     }
     if(!targets.length) return;
 
-    // Scryfall collection endpoint resolves up to 75 exact IDs in one request.
     const withId=targets.filter(x=>x.meta.scryfall_id);
     for(let i=0;i<withId.length;i+=75){
       const batch=withId.slice(i,i+75);
@@ -72,13 +93,14 @@
           const byId=new Map((body.data||[]).map(c=>[String(c.id||''),c]));
           for(const x of batch){
             const c=byId.get(String(x.meta.scryfall_id||''));
+            if(!c)continue;
             const u=imageUrl(c); if(u) paint(x.sku,u,x.meta.product_name||'');
+            persistIdentity(x.sku,x.meta,c);
           }
         }
       }catch(e){ console.warn('Scout thumbnail batch failed', e); }
     }
 
-    // Rare rows without a stored Scryfall ID: resolve individually only when visible.
     const fallback=targets.filter(x=>!x.meta.scryfall_id);
     for(const x of fallback){
       try{
@@ -91,6 +113,7 @@
         if(!url) continue;
         const r=await fetch(url); if(!r.ok) continue;
         const c=await r.json(),u=imageUrl(c); if(u) paint(x.sku,u,x.meta.product_name||'');
+        persistIdentity(x.sku,x.meta,c);
       }catch{}
     }
     for(const x of targets) loadingSku.delete(x.sku);
