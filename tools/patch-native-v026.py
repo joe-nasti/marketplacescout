@@ -18,11 +18,25 @@ if old not in s:
     raise SystemExit('v026 load anchor not found')
 s=s.replace(old,new)
 
-insert='''\n    override fun onResume() {\n        super.onResume()\n        mainHandler.postDelayed({\n            if (::agentWeb.isInitialized) {\n                val now = System.currentTimeMillis()\n                if (now - lastHostedRefreshAt >= 5L * 60L * 1000L) {\n                    lastHostedRefreshAt = now\n                    agentWeb.reload()\n                } else {\n                    agentWeb.evaluateJavascript(\"window.dispatchEvent(new Event('pageshow'));\", null)\n                }\n            }\n            if (::seller.isInitialized) verifySellerSession()\n        }, 350L)\n    }\n\n    override fun onDestroy() {\n        mainHandler.removeCallbacks(hostedAgentKick)\n        super.onDestroy()\n    }\n'''
-marker='''    private fun bg() = Color.rgb(245, 248, 252)'''
-if marker not in s:
-    raise SystemExit('v026 lifecycle marker not found')
-s=s.replace(marker,insert+'\n'+marker)
+resume_kick='''        mainHandler.postDelayed({\n            if (::agentWeb.isInitialized) {\n                val now = System.currentTimeMillis()\n                if (now - lastHostedRefreshAt >= 5L * 60L * 1000L) {\n                    lastHostedRefreshAt = now\n                    agentWeb.reload()\n                } else {\n                    agentWeb.evaluateJavascript(\"window.dispatchEvent(new Event('pageshow'));\", null)\n                }\n            }\n            if (::seller.isInitialized) verifySellerSession()\n        }, 350L)'''
+
+# Earlier native code already has onResume(). Extend it rather than introducing a duplicate override.
+resume_anchor='''    override fun onResume() {\n        super.onResume()'''
+if resume_anchor not in s:
+    raise SystemExit('v026 existing onResume anchor not found')
+s=s.replace(resume_anchor,resume_anchor+'\n'+resume_kick,1)
+
+# Add teardown only if one is not already present.
+if 'override fun onDestroy() {' in s:
+    destroy_anchor='''    override fun onDestroy() {\n        super.onDestroy()'''
+    if destroy_anchor in s:
+        s=s.replace(destroy_anchor,'''    override fun onDestroy() {\n        mainHandler.removeCallbacks(hostedAgentKick)\n        super.onDestroy()''',1)
+else:
+    marker='''    private fun bg() = Color.rgb(245, 248, 252)'''
+    if marker not in s:
+        raise SystemExit('v026 onDestroy marker not found')
+    destroy='''    override fun onDestroy() {\n        mainHandler.removeCallbacks(hostedAgentKick)\n        super.onDestroy()\n    }\n\n'''
+    s=s.replace(marker,destroy+marker,1)
 
 p.write_text(s)
 
