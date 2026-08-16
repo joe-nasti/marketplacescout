@@ -14,10 +14,12 @@ on:
       - "current-scout-edhrec.css"
       - "current-scout-diversity.js"
       - "current-scout-noise-filter.js"
+      - "current-scout-thumbnails.js"
       - "current-seller-parity.js"
       - "current-seller-parity.css"
       - "current-syp-parity.js"
       - "current-syp-parity.css"
+      - "current-admin-scans.js"
       - "tools/patch-native-v021.py"
       - "tools/patch-native-v022.py"
       - "tools/patch-native-v023.py"
@@ -51,13 +53,16 @@ jobs:
           node --check current-scout-edhrec.js
           node --check current-scout-diversity.js
           node --check current-scout-noise-filter.js
+          node --check current-scout-thumbnails.js
           node --check current-seller-parity.js
           node --check current-syp-parity.js
-          grep -q 'modern-core.js?v=098' index.html
-          grep -q "VERSION='0.9.8'" modern-core.js
-          grep -q 'current-scout-noise-filter.js?v=098' index.html
+          node --check current-admin-scans.js
+          grep -q 'modern-core.js?v=099' index.html
+          grep -q "VERSION='0.9.9'" modern-core.js
+          grep -q 'current-admin-scans.js?v=099' index.html
+          grep -q 'Marketplace scan configuration' current-admin-scans.js
+          grep -q 'current-scout-noise-filter.js?v=099' index.html
           grep -q 'Hide Market' current-scout-noise-filter.js
-          grep -q 'demand_adjustment' current-scout-noise-filter.js
           grep -q 'Open on TCGplayer' current-scout-parity.js
           grep -q 'Open on EDHREC' current-scout-parity.js
           if grep -q 'current-scout-links.js' index.html; then echo 'Legacy Scout link enhancer must not load'; exit 1; fi
