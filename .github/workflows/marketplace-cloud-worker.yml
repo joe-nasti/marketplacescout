@@ -83,8 +83,14 @@ jobs:
           node --check cloud-worker/queue-configured-set-refresh.mjs
           node --check cloud-worker/marketplace-worker.mjs
           node --check cloud-worker/enrich-scout-scryfall.mjs
+          node --check cloud-worker/rescore-new-scout-v4.mjs
+          grep -q 'recalculate_scout_base_v4_batch' cloud-worker/rescore-new-scout-v4.mjs
+      - name: Capture Scout row watermark
+        run: node cloud-worker/rescore-new-scout-v4.mjs capture
       - name: Run cloud-targeted Marketplace jobs
         run: node cloud-worker/marketplace-worker.mjs
+      - name: Canonically score newly inserted Marketplace rows
+        run: node cloud-worker/rescore-new-scout-v4.mjs rescore
       - name: Enrich Scout card metadata
         if: always()
         continue-on-error: true
