@@ -72,6 +72,7 @@ for(const job of failedRows||[]){
   const availableAt=new Date(now.getTime()+delayMinutes*60000).toISOString();
   await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.failed`,{method:'PATCH',body:{
     status:'queued',completed_at:null,claimed_at:null,claimed_by:null,lease_expires_at:null,error_message:null,
+    priority:kind==='order_detail'?5:(kind==='order_search'?4:3),
     preferred_executor:'android_agent',required_capability:'tcgplayer_authenticated_session',available_at:availableAt,
     progress_json:{...(job.progress_json||{}),stage:'deferred',percent:0,detail:`Transient Android Seller History failure recovered; retry deferred ${delayMinutes}m.`,updatedAt:now.toISOString()}
   },prefer:'return=minimal'});
