@@ -1,7 +1,6 @@
 // Collectish Admin navigation — sticky filters and A–Z jump rail for long set catalogs.
 (() => {
   let mode='all';
-  let installed=false;
   let raf=0;
 
   function rows(){return [...document.querySelectorAll('#cxAdminScanConfig .cx-admin-scan-row')];}
@@ -10,6 +9,8 @@
   function ensure(){
     const host=document.getElementById('cxAdminScanConfig'),base=tools();
     if(!host||!base)return false;
+    const oldConfigured=document.getElementById('cxShowConfiguredOnly');
+    if(oldConfigured?.closest('label')) oldConfigured.closest('label').style.display='none';
     let nav=host.querySelector('.cx-admin-smart-nav');
     if(!nav){
       nav=document.createElement('div');
@@ -25,7 +26,6 @@
       alpha.innerHTML='#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(x=>`<button type="button" data-letter="${x}">${x}</button>`).join('');
       alpha.querySelectorAll('[data-letter]').forEach(b=>b.onclick=()=>jump(b.dataset.letter));
     }
-    installed=true;
     syncMode();
     return true;
   }
