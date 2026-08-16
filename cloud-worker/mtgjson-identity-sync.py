@@ -120,7 +120,7 @@ def main():
             cards=import_cards(download('AllIdentifiers'))
         skus=import_skus(download('TcgplayerSkus'))
         detail={'cards':cards,'tcgplayerSkus':skus,'streaming':True,'skipCards':SKIP_CARDS}
-        sync_state('complete',last_started_at=started,last_completed_at=now(),row_count=cards,status='complete' if False else 'complete',detail=detail)
+        sync_state('complete',last_started_at=started,last_completed_at=now(),row_count=cards,detail=detail)
         print(json.dumps({'ok':True,**detail}),flush=True)
     except Exception as e:
         sync_state('failed',last_started_at=started,detail={'error':repr(e),'streaming':True,'skipCards':SKIP_CARDS}); raise
