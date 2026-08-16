@@ -11,6 +11,7 @@ on:
       - "cloud-worker/seller-history-seed.mjs"
       - "cloud-worker/seller-history-orchestrator.mjs"
       - "cloud-worker/seller-history-normalizer.mjs"
+      - "cloud-worker/promote-fresh-seller-details.mjs"
       - "cloud-worker/seller-history-detail-backfill.mjs"
 
 permissions:
@@ -47,6 +48,7 @@ jobs:
           node --check cloud-worker/seller-history-seed.mjs
           node --check cloud-worker/seller-history-normalizer.mjs
           node --check cloud-worker/seller-history-orchestrator.mjs
+          node --check cloud-worker/promote-fresh-seller-details.mjs
           node --check cloud-worker/seller-history-detail-backfill.mjs
       - name: Recover expired authenticated Android probes
         run: node cloud-worker/recover-agent-probe-leases.mjs
@@ -54,5 +56,7 @@ jobs:
         run: node cloud-worker/seller-history-seed.mjs
       - name: Coordinate authenticated Seller History probes
         run: node cloud-worker/seller-history-orchestrator.mjs
+      - name: Promote newest incomplete Seller orders
+        run: node cloud-worker/promote-fresh-seller-details.mjs
       - name: Queue bounded historical order-detail backfill
         run: node cloud-worker/seller-history-detail-backfill.mjs
