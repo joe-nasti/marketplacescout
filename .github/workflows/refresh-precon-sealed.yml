@@ -7,6 +7,7 @@ on:
   push:
     paths:
       - "cloud-worker/refresh-sealed-commander-prices.mjs"
+      - "cloud-worker/refresh-sealed-cardkingdom-prices.mjs"
       - "cloud-worker/refresh-precon-ev.mjs"
       - ".github/workflows/refresh-precon-sealed.yml"
 
@@ -31,8 +32,10 @@ jobs:
         with:
           node-version: "24"
       - name: Validate workers
-        run: node --check cloud-worker/refresh-sealed-commander-prices.mjs cloud-worker/refresh-precon-ev.mjs
-      - name: Refresh sealed acquisition prices
+        run: node --check cloud-worker/refresh-sealed-commander-prices.mjs cloud-worker/refresh-sealed-cardkingdom-prices.mjs cloud-worker/refresh-precon-ev.mjs
+      - name: Refresh TCGplayer sealed acquisition prices
         run: node cloud-worker/refresh-sealed-commander-prices.mjs
+      - name: Refresh Card Kingdom sealed retail prices
+        run: node cloud-worker/refresh-sealed-cardkingdom-prices.mjs
       - name: Recalculate precon EV and Scout Sealed scores
         run: node cloud-worker/refresh-precon-ev.mjs
