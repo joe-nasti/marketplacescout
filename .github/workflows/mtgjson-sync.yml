@@ -13,9 +13,7 @@ on:
           - identity
           - all
   schedule:
-    # MTGJSON v5 files are rebuilt daily; prices can refresh daily after the build window.
     - cron: "15 11 * * *"
-    # Slower-moving commerce identity / SKU graph refreshes weekly.
     - cron: "0 12 * * 0"
   push:
     paths:
@@ -40,7 +38,6 @@ jobs:
       - run: node --check cloud-worker/mtgjson-sync.mjs
 
   sync:
-    if: github.event_name != 'push'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -58,6 +55,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "MTGJSON_MODE=${{ inputs.mode }}" >> "$GITHUB_ENV"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "MTGJSON_MODE=identity" >> "$GITHUB_ENV"
           elif [ "${{ github.event.schedule }}" = "0 12 * * 0" ]; then
             echo "MTGJSON_MODE=identity" >> "$GITHUB_ENV"
           else
