@@ -21,6 +21,7 @@ on:
       - "tools/patch-native-v022.py"
       - "tools/patch-native-v023.py"
       - "tools/patch-native-v024.py"
+      - "tools/patch-native-v025.py"
       - "android-agent/**"
       - ".github/workflows/build-consolidated-web.yml"
 
@@ -101,22 +102,25 @@ jobs:
           python tools/patch-native-v022.py
           python tools/patch-native-v023.py
           python tools/patch-native-v024.py
-      - name: Align Android 0.2.4 version metadata
+          python tools/patch-native-v025.py
+      - name: Align Android 0.2.5 version metadata
         working-directory: android-agent
         shell: bash
         run: |
-          sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.4"/' app/src/main/java/com/collectish/agent/MainActivity.kt
-          sed -i -E 's/versionCode = [0-9]+/versionCode = 24/' app/build.gradle.kts
-          sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.4"/' app/build.gradle.kts
-      - name: Verify unified Android shell
+          sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.5"/' app/src/main/java/com/collectish/agent/MainActivity.kt
+          sed -i -E 's/versionCode = [0-9]+/versionCode = 25/' app/build.gradle.kts
+          sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.5"/' app/build.gradle.kts
+      - name: Verify unified Android shell and browser handoff
         working-directory: android-agent
         shell: bash
         run: |
-          grep -q 'private val version = "0.2.4"' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'private val version = "0.2.5"' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'agentWeb = makeWebView().apply { alpha = 1f }' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'rootHost.addView(agentWeb, FrameLayout.LayoutParams(-1, -1))' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'versionCode = 24' app/build.gradle.kts
-          grep -q 'versionName = "0.2.4"' app/build.gradle.kts
+          grep -q 'fun openExternalUrl' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'Intent.ACTION_VIEW' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'versionCode = 25' app/build.gradle.kts
+          grep -q 'versionName = "0.2.5"' app/build.gradle.kts
       - name: Build persistently signed Android APK
         working-directory: android-agent
         shell: bash
@@ -131,5 +135,5 @@ jobs:
       - name: Upload signed Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: collectish-android-agent-v0.2.4-signed
+          name: collectish-android-agent-v0.2.5-signed
           path: ${{ runner.temp }}/collectish-android-agent.apk
