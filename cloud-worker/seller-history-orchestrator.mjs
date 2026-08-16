@@ -150,10 +150,12 @@ async function upsertDetailBundle(job){
   return bundle.order.order_number;
 }
 async function main(){
-  // Keep each run small so a large Android completion burst does not overload PostgREST.
-  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&order=completed_at.desc&limit=50');
+  // Filter to genuinely unprocessed completions before applying the batch limit;
+  // otherwise a large wall of already-normalized newer refreshes can starve an
+  // older pending orders/search result forever.
+  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&progress_json->>orchestratedAt=is.null&order=completed_at.asc&limit=50');
   let authProcessed=0,searchProcessed=0,detailProcessed=0,other=0;
-  for(const job of completed||[]){if(job.progress_json?.orchestratedAt)continue;const k=kind(job);try{
+  for(const job of completed||[]){const k=kind(job);try{
     if(k==='auth_detail'){const body=probeBody(job),sellerKey=body?.seller?.sellerKey;if(!sellerKey){await markOrchestrated(job,{orchestratorStatus:'auth_result_missing_seller_key'});continue;}const queued=await queueIncrementalSearch(job,String(sellerKey));await markOrchestrated(job,{orchestratorStatus:queued?'incremental_search_queued':'incremental_search_already_active'});authProcessed++;continue;}
     if(k==='order_search'){await processSearchJob(job);searchProcessed++;continue;}
     if(k==='order_detail'){await upsertDetailBundle(job);detailProcessed++;continue;}
