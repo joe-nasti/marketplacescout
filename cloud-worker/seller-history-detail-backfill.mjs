@@ -93,7 +93,9 @@ for(const [userId,rows] of byUser){
     source:'agent',
     action:'seller_portal_readonly_probe',
     status:'queued',
-    priority:8,
+    // Missing historical detail should drain before refresh probes for orders that
+    // are already fully normalized, while fresh auth/search work stays ahead.
+    priority:5,
     required_capability:'tcgplayer_authenticated_session',
     preferred_executor:'android_agent',
     payload_json:{
