@@ -23,6 +23,7 @@ on:
       - "cloud-worker/mtgjson-deck-metadata-sync.py"
       - "cloud-worker/mtgjson-deck-content-sync.py"
       - "cloud-worker/refresh-sealed-commander-prices.mjs"
+      - "cloud-worker/refresh-precon-direct.mjs"
       - "cloud-worker/refresh-precon-ev.mjs"
       - ".github/workflows/mtgjson-sync.yml"
 
@@ -44,7 +45,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: node --check cloud-worker/mtgjson-sync.mjs cloud-worker/refresh-sealed-commander-prices.mjs cloud-worker/refresh-precon-ev.mjs
+      - run: node --check cloud-worker/mtgjson-sync.mjs cloud-worker/refresh-sealed-commander-prices.mjs cloud-worker/refresh-precon-direct.mjs cloud-worker/refresh-precon-ev.mjs
       - run: python -m py_compile cloud-worker/mtgjson-parquet-sync.py cloud-worker/mtgjson-deck-sku-sync.py cloud-worker/mtgjson-deck-metadata-sync.py cloud-worker/mtgjson-deck-content-sync.py
 
   sync:
@@ -58,6 +59,8 @@ jobs:
       MTGJSON_BASE_URL: https://mtgjson.com/api/v5
       MTGJSON_PARQUET_BASE_URL: https://mtgjson.com/api/v5/parquet
       PRECON_RELEASE_FROM: "2025-01-01"
+      PRECON_DIRECT_MIN_MARKET: "1"
+      PRECON_DIRECT_CONCURRENCY: "4"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -98,5 +101,9 @@ jobs:
         run: node cloud-worker/mtgjson-sync.mjs prices
       - name: Refresh public TCG sealed Commander prices
         run: node cloud-worker/refresh-sealed-commander-prices.mjs
-      - name: Refresh recent Commander precon EV cache
+      - name: Build current precon EV target cache
+        run: node cloud-worker/refresh-precon-ev.mjs
+      - name: Refresh economically meaningful precon Direct SKUs
+        run: node cloud-worker/refresh-precon-direct.mjs
+      - name: Recalculate recent Commander precon EV with fresh Direct data
         run: node cloud-worker/refresh-precon-ev.mjs
