@@ -13,6 +13,7 @@ on:
     paths:
       - ".github/workflows/marketplace-cloud-worker.yml"
       - "cloud-worker/**"
+      - "tools/patch-marketplace-set-filter.py"
 
 permissions:
   contents: read
@@ -63,6 +64,8 @@ jobs:
         run: |
           sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/marketplace-worker.mjs
           sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/parity-check.mjs
+      - name: Harden TCGplayer set filter
+        run: python tools/patch-marketplace-set-filter.py
       - name: Harden scan-row persistence
         shell: bash
         run: |
@@ -80,10 +83,13 @@ jobs:
         run: node cloud-worker/enable-atomic-claim.mjs
       - name: Validate patched worker
         run: |
+          python -m py_compile tools/patch-marketplace-set-filter.py
           node --check cloud-worker/queue-configured-set-refresh.mjs
           node --check cloud-worker/marketplace-worker.mjs
           node --check cloud-worker/enrich-scout-scryfall.mjs
           node --check cloud-worker/rescore-new-scout-v4.mjs
+          grep -q 'Set filter mismatch' cloud-worker/marketplace-worker.mjs
+          grep -q 'setName:profile.setName' cloud-worker/marketplace-worker.mjs
           grep -q 'recalculate_scout_base_v4_batch' cloud-worker/rescore-new-scout-v4.mjs
       - name: Capture Scout row watermark
         run: node cloud-worker/rescore-new-scout-v4.mjs capture
