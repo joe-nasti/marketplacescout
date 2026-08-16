@@ -34,13 +34,13 @@ jobs:
         run: |
           set -euo pipefail
           for f in modern-core.js current-*.js; do node --check "$f"; done
-          grep -q "VERSION='0.9.37'" modern-core.js
-          grep -q 'modern-core.js?v=0937' index.html
-          grep -q 'current-scout-v5-promoted.js?v=0937' index.html
-          grep -q 'current-scout-global-search.js?v=0937' index.html
-          grep -q 'current-scout-global-vendor.js?v=0937' index.html
-          grep -q 'current-scout-tcg-price-semantics.js?v=0937' index.html
-          grep -q 'current-sealed-ev.js?v=0937' index.html
+          grep -q "VERSION='0.9.38'" modern-core.js
+          grep -q 'modern-core.js?v=0938' index.html
+          grep -q 'current-scout-v5-promoted.js?v=0938' index.html
+          grep -q 'current-sealed-ev.js?v=0938' index.html
+          grep -q 'current-sealed-detail-focus.js?v=0938' index.html
+          grep -q 'cx-sealed-detail-open' current-sealed-detail-focus.js
+          grep -q 'cx-sealed-detail-close' current-sealed-detail-focus.js
           grep -q 'scout_opportunities_v5' current-scout-v5-promoted.js
           grep -q 'DIRECT BACKED' current-scout-v5-promoted.js
           grep -q "component('Thesis'" current-scout-v5-promoted.js
@@ -50,7 +50,6 @@ jobs:
           grep -q "stat('TCG Market'" current-scout-v5-promoted.js
           grep -q "stat('TCG Low'" current-scout-v5-promoted.js
           grep -q "stat('TCG Direct Low'" current-scout-v5-promoted.js
-          grep -q 'Legacy v4 score' current-scout-v5-promoted.js
           grep -q 'scout_sealed_score' current-sealed-ev.js
           grep -q "component('Economics'" current-sealed-ev.js
           grep -q "component('Exit floor'" current-sealed-ev.js
