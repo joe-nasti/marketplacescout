@@ -13,17 +13,17 @@ const latest=new Map();const completedToday=new Set();
 for(const s of scans){const key=`${s.user_id}|${s.set_slug}`;if(!latest.has(key))latest.set(key,s);if(chicagoDay(s.captured_at)===today)completedToday.add(key)}
 
 // Active work always blocks a duplicate. A failed daily job from today also blocks one:
-// the failure-recovery step later in the same workflow will either retry it in cloud or
-// create exactly one browser fallback. Recent catch-up work also blocks the normal daily
-// queue across the Chicago-midnight boundary so an overnight catch-up does not cause a
-// second scan of the same set minutes later just because the calendar day rolled over.
+// the failure-recovery step later in the same workflow will retry it in cloud only.
+// Recent catch-up work also blocks the normal daily queue across the Chicago-midnight
+// boundary so an overnight catch-up does not cause a second scan of the same set minutes
+// later just because the calendar day rolled over.
 const existing=await allRows('collector_jobs?select=user_id,status,payload_json,created_at,completed_at&source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running,failed,completed)');
 const coveredByJob=new Set();
 for(const j of existing){
   const slug=j.payload_json?.profile?.setSlug;if(!slug)continue;
   const key=`${j.user_id}|${slug}`;
   if(['queued','claimed','running'].includes(j.status)){coveredByJob.add(key);continue;}
-  const isDaily=Boolean(j.payload_json?.dailyAutoSync||j.payload_json?.dailyCatchup);
+  const isDaily=Boolean(j.payload_json?.dailyAutoSync||j.payload_json?.dailyCatchup||j.payload_json?.dailySync);
   if(j.status==='failed'&&isDaily&&j.created_at&&chicagoDay(j.created_at)===today){coveredByJob.add(key);continue;}
   const isRecentCatchup=Boolean(j.payload_json?.dailyCatchup)&&j.created_at&&new Date(j.created_at).getTime()>=recentCatchupCutoff;
   if(isRecentCatchup&&['completed','failed'].includes(j.status))coveredByJob.add(key);
