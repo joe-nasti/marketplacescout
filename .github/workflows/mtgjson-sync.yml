@@ -20,7 +20,9 @@ on:
       - "cloud-worker/mtgjson-sync.mjs"
       - "cloud-worker/mtgjson-parquet-sync.py"
       - "cloud-worker/mtgjson-deck-sku-sync.py"
+      - "cloud-worker/mtgjson-deck-metadata-sync.py"
       - "cloud-worker/mtgjson-deck-content-sync.py"
+      - "cloud-worker/refresh-precon-ev.mjs"
       - ".github/workflows/mtgjson-sync.yml"
 
 permissions:
@@ -41,10 +43,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: node --check cloud-worker/mtgjson-sync.mjs
-      - run: python -m py_compile cloud-worker/mtgjson-parquet-sync.py cloud-worker/mtgjson-deck-sku-sync.py cloud-worker/mtgjson-deck-content-sync.py
+      - run: node --check cloud-worker/mtgjson-sync.mjs cloud-worker/refresh-precon-ev.mjs
+      - run: python -m py_compile cloud-worker/mtgjson-parquet-sync.py cloud-worker/mtgjson-deck-sku-sync.py cloud-worker/mtgjson-deck-metadata-sync.py cloud-worker/mtgjson-deck-content-sync.py
 
   sync:
+    if: github.event_name != 'push'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -53,6 +56,7 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       MTGJSON_BASE_URL: https://mtgjson.com/api/v5
       MTGJSON_PARQUET_BASE_URL: https://mtgjson.com/api/v5/parquet
+      PRECON_RELEASE_FROM: "2025-01-01"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -64,9 +68,7 @@ jobs:
       - name: Resolve mode
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "MTGJSON_MODE=identity" >> "$GITHUB_ENV"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "MTGJSON_MODE=${{ inputs.mode }}" >> "$GITHUB_ENV"
           elif [ "${{ github.event.schedule }}" = "0 12 * * 0" ]; then
             echo "MTGJSON_MODE=identity" >> "$GITHUB_ENV"
@@ -84,9 +86,14 @@ jobs:
       - name: Import deterministic deck NM English SKU mappings
         if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
         run: python cloud-worker/mtgjson-deck-sku-sync.py
+      - name: Normalize deck sealed product identities
+        if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
+        run: python cloud-worker/mtgjson-deck-metadata-sync.py
       - name: Import MTGJSON deck contents
         if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
         run: python cloud-worker/mtgjson-deck-content-sync.py
       - name: Import MTGJSON daily prices
         if: env.MTGJSON_MODE == 'prices' || env.MTGJSON_MODE == 'all'
         run: node cloud-worker/mtgjson-sync.mjs prices
+      - name: Refresh recent Commander precon EV cache
+        run: node cloud-worker/refresh-precon-ev.mjs
