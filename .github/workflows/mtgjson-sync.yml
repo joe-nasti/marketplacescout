@@ -18,6 +18,7 @@ on:
   push:
     paths:
       - "cloud-worker/mtgjson-sync.mjs"
+      - "cloud-worker/mtgjson-identity-sync.py"
       - ".github/workflows/mtgjson-sync.yml"
 
 permissions:
@@ -35,7 +36,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - run: node --check cloud-worker/mtgjson-sync.mjs
+      - run: python -m py_compile cloud-worker/mtgjson-identity-sync.py
 
   sync:
     needs: validate
@@ -50,6 +55,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Resolve mode
         shell: bash
         run: |
@@ -64,5 +72,12 @@ jobs:
           fi
       - name: Require service role key
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
-      - name: Import MTGJSON
-        run: node --max-old-space-size=6144 cloud-worker/mtgjson-sync.mjs "$MTGJSON_MODE"
+      - name: Install streaming parser
+        if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
+        run: python -m pip install --disable-pip-version-check ijson==3.3.0
+      - name: Import MTGJSON identity graph
+        if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
+        run: python cloud-worker/mtgjson-identity-sync.py
+      - name: Import MTGJSON daily prices
+        if: env.MTGJSON_MODE == 'prices' || env.MTGJSON_MODE == 'all'
+        run: node cloud-worker/mtgjson-sync.mjs prices
