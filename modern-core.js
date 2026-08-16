@@ -1,6 +1,6 @@
 // Collectish modern product shell — single frontend for desktop and Android WebView
 (() => {
-  const VERSION='0.9.35';
+  const VERSION='0.9.36';
   const c=window.COLLECTISH_CONFIG;
   const K='collectishSession';
   const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
@@ -25,7 +25,7 @@
   };
 
   function loginView(message=''){
-    document.body.innerHTML=`<main class="cx-auth"><section class="cx-auth-card"><div class="cx-brand">collectish</div><div class="cx-version">web ${VERSION}</div><h1>Sign in</h1><p>Scout opportunities, Seller analytics, SYP changes, and operations.</p><input id="modernEmail" type="email" autocomplete="email" placeholder="Email"><input id="modernPassword" type="password" autocomplete="current-password" placeholder="Password"><button id="modernSignIn" class="cx-primary">Sign in</button><div id="modernMsg" class="cx-auth-msg">${esc(message)}</div></section></main>`;
+    document.body.innerHTML=`<main class="cx-auth"><section class="cx-auth-card"><div class="cx-brand">collectish</div><div class="cx-version">web ${VERSION}</div><h1>Sign in</h1><p>Scout opportunities, sealed EV, Seller analytics, SYP changes, and operations.</p><input id="modernEmail" type="email" autocomplete="email" placeholder="Email"><input id="modernPassword" type="password" autocomplete="current-password" placeholder="Password"><button id="modernSignIn" class="cx-primary">Sign in</button><div id="modernMsg" class="cx-auth-msg">${esc(message)}</div></section></main>`;
     document.getElementById('modernSignIn').onclick=login;
     document.getElementById('modernPassword').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
   }
@@ -51,7 +51,9 @@
     window.scrollTo({top:0,behavior:'smooth'});
   }
   function shell(){
-    document.body.innerHTML=`<div class="cx-top-version">web ${VERSION}</div><main id="app" class="collectish-modern-app"><section id="collectishUxShell" class="collectish-product-shell"><aside class="cx-side"><div class="cx-brand">collectish</div><nav class="cx-nav">${['scout','seller','syp','admin'].map((k,i)=>`<button data-cx-page="${k}" class="${i===0?'active':''}">${k==='syp'?'SYP':k[0].toUpperCase()+k.slice(1)}</button>`).join('')}</nav><div class="cx-side-spacer"></div><div class="cx-side-meta">web ${VERSION}<br>Smarter data. Better decisions.</div></aside><div class="cx-main"><section id="cxScout" class="cx-page active"></section><section id="cxSeller" class="cx-page"></section><section id="cxSyp" class="cx-page"></section><section id="cxAdmin" class="cx-page"></section></div><nav class="cx-mobile-nav">${['scout','seller','syp','admin'].map((k,i)=>`<button data-cx-page="${k}" class="${i===0?'active':''}">${k==='syp'?'SYP':k[0].toUpperCase()+k.slice(1)}</button>`).join('')}</nav></section></main>`;
+    const pages=['scout','sealed','seller','syp','admin'];
+    const label=k=>k==='syp'?'SYP':k==='sealed'?'Sealed':k[0].toUpperCase()+k.slice(1);
+    document.body.innerHTML=`<div class="cx-top-version">web ${VERSION}</div><main id="app" class="collectish-modern-app"><section id="collectishUxShell" class="collectish-product-shell"><aside class="cx-side"><div class="cx-brand">collectish</div><nav class="cx-nav">${pages.map((k,i)=>`<button data-cx-page="${k}" class="${i===0?'active':''}">${label(k)}</button>`).join('')}</nav><div class="cx-side-spacer"></div><div class="cx-side-meta">web ${VERSION}<br>Smarter data. Better decisions.</div></aside><div class="cx-main"><section id="cxScout" class="cx-page active"></section><section id="cxSealed" class="cx-page"></section><section id="cxSeller" class="cx-page"></section><section id="cxSyp" class="cx-page"></section><section id="cxAdmin" class="cx-page"></section></div><nav class="cx-mobile-nav">${pages.map((k,i)=>`<button data-cx-page="${k}" class="${i===0?'active':''}">${label(k)}</button>`).join('')}</nav></section></main>`;
     document.addEventListener('click',e=>{const b=e.target.closest('[data-cx-page]');if(b)switchPage(b.dataset.cxPage)},true);
     adminView();
   }
