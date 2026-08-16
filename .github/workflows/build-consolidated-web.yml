@@ -1,17 +1,13 @@
-name: Build consolidated Collectish web
+name: Validate Collectish web and build Android
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - "tools/build-consolidated-web.mjs"
-      - "tools/patch-native-v021.py"
-      - "tools/patch-native-v022.py"
-      - "tools/patch-native-v023.py"
-      - "current-data.js"
-      - "current-agent.js"
-      - "current-readonly-agent.js"
-      - "current-ux.js"
+      - "index.html"
+      - "config.js"
+      - "modern-core.js"
+      - "modern-core.css"
       - "current-scout-parity.js"
       - "current-scout-parity.css"
       - "current-scout-edhrec.js"
@@ -21,54 +17,41 @@ on:
       - "current-seller-parity.css"
       - "current-syp-parity.js"
       - "current-syp-parity.css"
-      - "current-ux-guard.js"
-      - "current-ux-recovery.js"
-      - "current-ux.css"
-      - "v059.js"
+      - "tools/patch-native-v021.py"
+      - "tools/patch-native-v022.py"
+      - "tools/patch-native-v023.py"
+      - "tools/patch-native-v024.py"
       - "android-agent/**"
       - ".github/workflows/build-consolidated-web.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: collectish-web-build
+  group: collectish-unified-build
   cancel-in-progress: false
 
 jobs:
-  build:
+  web-validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Build consolidated app
-        run: node tools/build-consolidated-web.mjs
-      - name: Validate JavaScript
-        run: node --check collectish-app.js
-      - name: Commit generated web release
-        if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Validate unified web JavaScript
         shell: bash
         run: |
-          git fetch origin main
-          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
-            echo "Skipping generated asset push from stale workflow revision."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add collectish-app.js collectish-app.css index.html
-          if git diff --cached --quiet; then
-            echo "Generated web assets already current."
-            exit 0
-          fi
-          git commit -m "Build consolidated Collectish web v0.8.6"
-          git push origin HEAD:main
+          node --check modern-core.js
+          node --check current-scout-parity.js
+          node --check current-scout-edhrec.js
+          node --check current-scout-diversity.js
+          node --check current-seller-parity.js
+          node --check current-syp-parity.js
+          grep -q 'modern-core.js?v=090' index.html
+          grep -q "VERSION='0.9.0'" modern-core.js
 
   android-agent:
     runs-on: ubuntu-latest
@@ -97,26 +80,29 @@ jobs:
         run: |
           printf '%s' "$COLLECTISH_ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/collectish-release.jks"
           echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
-      - name: Apply native 0.2.1 UI patch
-        run: python tools/patch-native-v021.py
-      - name: Apply native 0.2.2 SYP patch
-        run: python tools/patch-native-v022.py
-      - name: Apply native 0.2.3 data mapping patch
-        run: python tools/patch-native-v023.py
-      - name: Align Android 0.2.3 version metadata
+      - name: Apply Android patches
+        shell: bash
+        run: |
+          python tools/patch-native-v021.py
+          python tools/patch-native-v022.py
+          python tools/patch-native-v023.py
+          python tools/patch-native-v024.py
+      - name: Align Android 0.2.4 version metadata
         working-directory: android-agent
         shell: bash
         run: |
-          sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.3"/' app/src/main/java/com/collectish/agent/MainActivity.kt
-          sed -i -E 's/versionCode = [0-9]+/versionCode = 23/' app/build.gradle.kts
-          sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.3"/' app/build.gradle.kts
-      - name: Verify Android native version bridge
+          sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.4"/' app/src/main/java/com/collectish/agent/MainActivity.kt
+          sed -i -E 's/versionCode = [0-9]+/versionCode = 24/' app/build.gradle.kts
+          sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.4"/' app/build.gradle.kts
+      - name: Verify unified Android shell
         working-directory: android-agent
         shell: bash
         run: |
-          grep -q 'private val version = "0.2.3"' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'versionCode = 23' app/build.gradle.kts
-          grep -q 'versionName = "0.2.3"' app/build.gradle.kts
+          grep -q 'private val version = "0.2.4"' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'agentWeb = makeWebView().apply { alpha = 1f }' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'rootHost.addView(agentWeb, FrameLayout.LayoutParams(-1, -1))' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'versionCode = 24' app/build.gradle.kts
+          grep -q 'versionName = "0.2.4"' app/build.gradle.kts
       - name: Build Android APK
         working-directory: android-agent
         shell: bash
@@ -131,5 +117,5 @@ jobs:
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: collectish-android-agent
+          name: collectish-android-agent-v0.2.4
           path: ${{ runner.temp }}/collectish-android-agent.apk
