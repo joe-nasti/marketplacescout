@@ -53,10 +53,11 @@ jobs:
           node --check current-scout-noise-filter.js
           node --check current-seller-parity.js
           node --check current-syp-parity.js
-          grep -q 'modern-core.js?v=097' index.html
-          grep -q "VERSION='0.9.7'" modern-core.js
-          grep -q 'current-scout-noise-filter.js?v=097' index.html
+          grep -q 'modern-core.js?v=098' index.html
+          grep -q "VERSION='0.9.8'" modern-core.js
+          grep -q 'current-scout-noise-filter.js?v=098' index.html
           grep -q 'Hide Market' current-scout-noise-filter.js
+          grep -q 'demand_adjustment' current-scout-noise-filter.js
           grep -q 'Open on TCGplayer' current-scout-parity.js
           grep -q 'Open on EDHREC' current-scout-parity.js
           if grep -q 'current-scout-links.js' index.html; then echo 'Legacy Scout link enhancer must not load'; exit 1; fi
