@@ -40,18 +40,25 @@ def deck_key(r):
     return hashlib.sha1(raw.encode()).hexdigest()
 
 def decode_list(v):
+    # MTGJSON parquet list columns can arrive as nested JSON strings, e.g.
+    # ['["uuid"]'] or even ['["[\\"uuid\\"]"]']. Peel those layers until
+    # we have the actual scalar values, then flatten them into one clean list.
     if v is None:return []
-    if isinstance(v,list):
-        if len(v)==1 and isinstance(v[0],str) and v[0].lstrip().startswith('['):
-            try:
-                x=json.loads(v[0]);return x if isinstance(x,list) else v
-            except:return v
-        return v
     if isinstance(v,str):
+        s=v.strip()
+        if not s:return []
         try:
-            x=json.loads(v);return x if isinstance(x,list) else []
-        except:return []
-    return []
+            x=json.loads(s)
+        except Exception:
+            return [v]
+        if x==v:return [v]
+        return decode_list(x)
+    if isinstance(v,(list,tuple)):
+        out=[]
+        for x in v:
+            out.extend(decode_list(x))
+        return out
+    return [v]
 
 def main():
     rows=pq.read_table(download()).to_pylist();out=[]
