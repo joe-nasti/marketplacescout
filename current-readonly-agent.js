@@ -1,8 +1,34 @@
 (() => {
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
-  const DRAIN_MAX=3;
-  const BETWEEN_JOBS_MS=1500;
+  const DRAIN_MAX=5;
+  const BETWEEN_JOBS_MS=1000;
   let busy=false;
+
+  const modernSession=()=>{
+    try{return JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{return null}
+  };
+
+  async function registerCollector(a,s,collectorId,version,state){
+    const authenticated=state==='authenticated',now=new Date().toISOString();
+    await rest('collectors?on_conflict=user_id,collector_id',{method:'POST',body:[{
+      user_id:s.user.id,
+      collector_id:collectorId,
+      name:'Collectish Android',
+      collector_type:'mobile_agent',
+      platform:'android',
+      last_seen_at:now,
+      status:'online',
+      app_version:version,
+      capabilities_json:{
+        tcgplayer_authenticated_session:authenticated,
+        authenticated_agent:true,
+        android_agent:true,
+        seller_portal_readonly_probe:authenticated
+      },
+      session_health_json:{authenticated,state,checkedAt:now,provider:'tcgplayer'},
+      metadata_json:{executionRole:'android_agent',claimant:'modern-readonly-agent'}
+    }],prefer:'resolution=merge-duplicates,return=minimal'});
+  }
 
   async function claimOne(collectorId){
     const claimed=await rest('rpc/claim_collector_job',{method:'POST',body:{
@@ -33,7 +59,7 @@
       collector_id:collectorId,
       progress_json:progress,
       message:detail,
-      metadata_json:{platform:'android',agentVersion:version,probeState}
+      metadata_json:{platform:'android',agentVersion:version,probeState,claimant:'modern-readonly-agent'}
     }],prefer:'return=minimal'});
   }
 
@@ -58,15 +84,22 @@
   }
 
   async function run(){
-    if(busy||typeof rest!=='function'||typeof session!=='function')return;
-    const a=window.CollectishAndroid,ro=window.CollectishReadOnly,s=session();
+    if(busy||typeof rest!=='function')return;
+    const a=window.CollectishAndroid,ro=window.CollectishReadOnly,s=modernSession();
     if(!a||!ro||!s?.user?.id)return;
     if(typeof ro.startReadOnlyProbe!=='function'||typeof ro.getReadOnlyProbeState!=='function'||typeof ro.getReadOnlyProbeResult!=='function')return;
-    if(String(a.getSessionState?.()||'unknown')!=='authenticated')return;
+
+    const state=String(a.getSessionState?.()||'unknown');
+    const collectorId=String(a.getCollectorId?.()||'');
+    const version=String(a.getVersion?.()||'unknown');
+    if(!collectorId)return;
+
     busy=true;
     let job=null;
     try{
-      const collectorId=String(a.getCollectorId()),version=String(a.getVersion());
+      await registerCollector(a,s,collectorId,version,state);
+      if(state!=='authenticated')return;
+
       let completed=0;
       for(let i=0;i<DRAIN_MAX;i++){
         job=await claimOne(collectorId);
@@ -77,20 +110,19 @@
         completed++;
         if(i<DRAIN_MAX-1)await wait(BETWEEN_JOBS_MS);
       }
+      window.COLLECTISH_SELLER_AGENT_STATE={state,collectorId,version,lastRunAt:new Date().toISOString(),completed};
       if(completed>0)window.dispatchEvent(new Event('collectishAgentSessionChanged'));
     }catch(e){
+      window.COLLECTISH_SELLER_AGENT_STATE={state:'error',collectorId,version,lastRunAt:new Date().toISOString(),error:String(e?.message||e)};
       if(job){
-        try{
-          const collectorId=String(a.getCollectorId()),version=String(a.getVersion());
-          await finish(job,collectorId,version,'failed',String(e?.message||e),{error:String(e?.message||e)},'exception');
-        }catch{}
+        try{await finish(job,collectorId,version,'failed',String(e?.message||e),{error:String(e?.message||e)},'exception')}catch{}
       }
     }finally{busy=false}
   }
 
   const kick=()=>run().catch(()=>{});
-  setInterval(kick,30000);
-  setTimeout(kick,1800);
+  setInterval(kick,15000);
+  setTimeout(kick,1200);
   window.addEventListener('collectishAgentSessionChanged',()=>setTimeout(kick,100));
   window.addEventListener('pageshow',kick);
   window.addEventListener('focus',kick);
