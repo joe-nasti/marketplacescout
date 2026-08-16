@@ -25,10 +25,10 @@ async function jsonFetch(url,retries=3){
   }
   throw last;
 }
-async function refreshV3(){
+async function refreshV4(){
   let after=0,total=0;
   for(let i=0;i<100;i++){
-    const d=await rpc('recalculate_scout_base_v3_batch',{p_after_id:after,p_limit:750});
+    const d=await rpc('recalculate_scout_base_v4_batch',{p_after_id:after,p_limit:750});
     const n=Number(d?.count||0),next=Number(d?.last_id||after);total+=n;
     if(!n||next<=after)break;after=next;
   }
@@ -48,5 +48,5 @@ for(const c of candidates){
   }catch(e){failed++;console.error(`sales ${c.product_id} ${c.product_name}: ${e.message}`);}
   await sleep(90);
 }
-const refresh=await refreshV3();
-console.log(JSON.stringify({candidateCount:candidates.length,fetched,failed,appliedRows,...refresh,limit:LIMIT},null,2));
+const refresh=await refreshV4();
+console.log(JSON.stringify({candidateCount:candidates.length,fetched,failed,appliedRows,...refresh,scoringVersion:'supply-structure-v4',limit:LIMIT},null,2));
