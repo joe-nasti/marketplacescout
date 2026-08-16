@@ -10,33 +10,39 @@ anchor='''    @Volatile private var sellerOrdersSnapshot = "{}"\n    private val
 replacement='''    @Volatile private var sellerOrdersSnapshot = "{}"\n    private var lastHostedRefreshAt = 0L\n    private val hostedAgentKick = object : Runnable {\n        override fun run() {\n            if (::agentWeb.isInitialized) {\n                agentWeb.evaluateJavascript(\"window.dispatchEvent(new Event('pageshow'));\", null)\n            }\n            if (::seller.isInitialized) verifySellerSession()\n            mainHandler.postDelayed(this, 15_000L)\n        }\n    }\n    private val version = "0.2.6"'''
 if anchor not in s:
     raise SystemExit('v026 field anchor not found')
-s=s.replace(anchor,replacement)
+s=s.replace(anchor,replacement,1)
 
 old='''        agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/")\n        seller.loadUrl("https://sellerportal.tcgplayer.com/")'''
 new='''        agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/")\n        lastHostedRefreshAt = System.currentTimeMillis()\n        seller.loadUrl("https://sellerportal.tcgplayer.com/")\n        mainHandler.postDelayed(hostedAgentKick, 5_000L)'''
 if old not in s:
     raise SystemExit('v026 load anchor not found')
-s=s.replace(old,new)
+s=s.replace(old,new,1)
 
-resume_kick='''        mainHandler.postDelayed({\n            if (::agentWeb.isInitialized) {\n                val now = System.currentTimeMillis()\n                if (now - lastHostedRefreshAt >= 5L * 60L * 1000L) {\n                    lastHostedRefreshAt = now\n                    agentWeb.reload()\n                } else {\n                    agentWeb.evaluateJavascript(\"window.dispatchEvent(new Event('pageshow'));\", null)\n                }\n            }\n            if (::seller.isInitialized) verifySellerSession()\n        }, 350L)'''
+resume_kick='''\n        mainHandler.postDelayed({\n            if (::agentWeb.isInitialized) {\n                val now = System.currentTimeMillis()\n                if (now - lastHostedRefreshAt >= 5L * 60L * 1000L) {\n                    lastHostedRefreshAt = now\n                    agentWeb.reload()\n                } else {\n                    agentWeb.evaluateJavascript(\"window.dispatchEvent(new Event('pageshow'));\", null)\n                }\n            }\n            if (::seller.isInitialized) verifySellerSession()\n        }, 350L)'''
 
-# Earlier native code already has onResume(). Extend it rather than introducing a duplicate override.
-resume_anchor='''    override fun onResume() {\n        super.onResume()'''
-if resume_anchor not in s:
-    raise SystemExit('v026 existing onResume anchor not found')
-s=s.replace(resume_anchor,resume_anchor+'\n'+resume_kick,1)
+# Native source already contains onResume, but historical patches changed its exact whitespace/body.
+# Match the declaration structurally and inject immediately after its opening brace.
+m=re.search(r'override\s+fun\s+onResume\s*\(\s*\)\s*\{',s)
+if not m:
+    raise SystemExit('v026 existing onResume declaration not found')
+s=s[:m.end()]+resume_kick+s[m.end():]
 
-# Add teardown only if one is not already present.
-if 'override fun onDestroy() {' in s:
-    destroy_anchor='''    override fun onDestroy() {\n        super.onDestroy()'''
-    if destroy_anchor in s:
-        s=s.replace(destroy_anchor,'''    override fun onDestroy() {\n        mainHandler.removeCallbacks(hostedAgentKick)\n        super.onDestroy()''',1)
+# Add hosted-agent teardown to an existing onDestroy when present, otherwise create one.
+destroy_match=re.search(r'override\s+fun\s+onDestroy\s*\(\s*\)\s*\{',s)
+if destroy_match:
+    s=s[:destroy_match.end()]+'\n        mainHandler.removeCallbacks(hostedAgentKick)'+s[destroy_match.end():]
 else:
     marker='''    private fun bg() = Color.rgb(245, 248, 252)'''
     if marker not in s:
         raise SystemExit('v026 onDestroy marker not found')
     destroy='''    override fun onDestroy() {\n        mainHandler.removeCallbacks(hostedAgentKick)\n        super.onDestroy()\n    }\n\n'''
     s=s.replace(marker,destroy+marker,1)
+
+# Guard against accidentally creating duplicate lifecycle methods.
+if len(re.findall(r'override\s+fun\s+onResume\s*\(',s)) != 1:
+    raise SystemExit('v026 expected exactly one onResume after patch')
+if len(re.findall(r'override\s+fun\s+onDestroy\s*\(',s)) != 1:
+    raise SystemExit('v026 expected exactly one onDestroy after patch')
 
 p.write_text(s)
 
