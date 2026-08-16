@@ -44,6 +44,11 @@ function isProtected(job){
 }
 
 const MAX_ACTIVE_DETAILS=50;
+// Keep a small guaranteed lane for orders that still have no normalized detail.
+// Incremental refresh probes can temporarily exceed MAX_ACTIVE_DETAILS after a
+// large orders/search delta; without this reserve they could starve historical
+// missing-detail backfill for many Android sessions.
+const MIN_MISSING_DETAIL_SLOTS=25;
 const missing=await allRows(
   'seller_orders?select=user_id,order_number,order_date&or=(has_details.eq.false,has_details.is.null)&order=order_date.asc.nullslast',
   1000,
@@ -72,9 +77,16 @@ for(const [userId,rows] of byUser){
 
   const protectedDetails=protectedJobs.filter(j=>probeKind(j)==='order_detail');
   const activeIds=new Set(protectedDetails.map(j=>String(j.payload_json?.orderNumber||'')).filter(Boolean));
-  const capacity=Math.max(0,MAX_ACTIVE_DETAILS-protectedDetails.length);
+  const missingIds=new Set(rows.map(row=>String(row.order_number||'')).filter(Boolean));
+  const activeMissingCount=protectedDetails.reduce((count,j)=>{
+    const orderNumber=String(j.payload_json?.orderNumber||'');
+    return count+(orderNumber&&missingIds.has(orderNumber)?1:0);
+  },0);
+  const normalCapacity=Math.max(0,MAX_ACTIVE_DETAILS-protectedDetails.length);
+  const missingReserveCapacity=Math.max(0,MIN_MISSING_DETAIL_SLOTS-activeMissingCount);
+  const capacity=Math.max(normalCapacity,missingReserveCapacity);
   if(!capacity){
-    console.log(`Seller History detail backfill ${userId}: ${protectedDetails.length} detail probes already active/pending normalization.`);
+    console.log(`Seller History detail backfill ${userId}: ${protectedDetails.length} detail probes active/pending, including ${activeMissingCount} missing-detail orders.`);
     continue;
   }
 
