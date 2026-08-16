@@ -57,13 +57,13 @@ jobs:
           node --check current-seller-parity.js
           node --check current-syp-parity.js
           node --check current-admin-scans.js
-          grep -q 'modern-core.js?v=0910' index.html
-          grep -q "VERSION='0.9.10'" modern-core.js
+          grep -q 'modern-core.js?v=0912' index.html
+          grep -q "VERSION='0.9.12'" modern-core.js
           grep -q 'current-admin-scans.js?v=0912' index.html
           grep -q 'Changes apply automatically' current-admin-scans.js
           grep -q 'Saving…' current-admin-scans.js
           grep -q 'printing' current-admin-scans.js
-          grep -q 'current-scout-noise-filter.js?v=0910' index.html
+          grep -q 'current-scout-noise-filter.js?v=0912' index.html
           grep -q 'Hide Market' current-scout-noise-filter.js
           grep -q 'Open on TCGplayer' current-scout-parity.js
           grep -q 'Open on EDHREC' current-scout-parity.js
