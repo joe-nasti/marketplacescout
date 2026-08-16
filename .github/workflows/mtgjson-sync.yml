@@ -1,0 +1,69 @@
+name: Collectish MTGJSON sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: MTGJSON sync mode
+        required: true
+        default: prices
+        type: choice
+        options:
+          - prices
+          - identity
+          - all
+  schedule:
+    # MTGJSON v5 files are rebuilt daily; prices can refresh daily after the build window.
+    - cron: "15 11 * * *"
+    # Slower-moving commerce identity / SKU graph refreshes weekly.
+    - cron: "0 12 * * 0"
+  push:
+    paths:
+      - "cloud-worker/mtgjson-sync.mjs"
+      - ".github/workflows/mtgjson-sync.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-mtgjson-sync
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: node --check cloud-worker/mtgjson-sync.mjs
+
+  sync:
+    if: github.event_name != 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MTGJSON_BASE_URL: https://mtgjson.com/api/v5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Resolve mode
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "MTGJSON_MODE=${{ inputs.mode }}" >> "$GITHUB_ENV"
+          elif [ "${{ github.event.schedule }}" = "0 12 * * 0" ]; then
+            echo "MTGJSON_MODE=identity" >> "$GITHUB_ENV"
+          else
+            echo "MTGJSON_MODE=prices" >> "$GITHUB_ENV"
+          fi
+      - name: Require service role key
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Import MTGJSON
+        run: node --max-old-space-size=6144 cloud-worker/mtgjson-sync.mjs "$MTGJSON_MODE"
