@@ -13,6 +13,7 @@ on:
       - "current-scout-edhrec.js"
       - "current-scout-edhrec.css"
       - "current-scout-diversity.js"
+      - "current-scout-links.js"
       - "current-seller-parity.js"
       - "current-seller-parity.css"
       - "current-syp-parity.js"
@@ -48,10 +49,11 @@ jobs:
           node --check current-scout-parity.js
           node --check current-scout-edhrec.js
           node --check current-scout-diversity.js
+          node --check current-scout-links.js
           node --check current-seller-parity.js
           node --check current-syp-parity.js
-          grep -q 'modern-core.js?v=090' index.html
-          grep -q "VERSION='0.9.0'" modern-core.js
+          grep -q 'modern-core.js?v=091' index.html
+          grep -q "VERSION='0.9.1'" modern-core.js
 
   android-agent:
     runs-on: ubuntu-latest
