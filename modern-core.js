@@ -1,6 +1,6 @@
 // Collectish modern product shell — single frontend for desktop and Android WebView
 (() => {
-  const VERSION='0.9.34';
+  const VERSION='0.9.35';
   const c=window.COLLECTISH_CONFIG;
   const K='collectishSession';
   const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
@@ -41,7 +41,7 @@
   }
   function adminView(){
     const h=document.getElementById('cxAdmin');if(!h)return;
-    h.innerHTML=`<div class="cx-page-head"><div><h2>Admin</h2><p>Cloud operations and build identity.</p></div></div><div class="cx-grid"><div class="cx-card cx-span-6"><div class="cx-section-title">Build</div><div class="cx-detail-list"><div class="cx-detail-stat"><span>Web UI</span><strong>${VERSION}</strong></div><div class="cx-detail-stat"><span>Frontend</span><strong>Unified hosted shell</strong></div><div class="cx-detail-stat"><span>Scout source</span><strong>24h precomputed rankings</strong></div></div></div><div class="cx-card cx-span-6"><div class="cx-section-title">Account</div><button id="modernSignOut" class="cx-refresh">Sign out</button></div></div>`;
+    h.innerHTML=`<div class="cx-page-head"><div><h2>Admin</h2><p>Cloud operations and build identity.</p></div></div><div class="cx-grid"><div class="cx-card cx-span-6"><div class="cx-section-title">Build</div><div class="cx-detail-list"><div class="cx-detail-stat"><span>Web UI</span><strong>${VERSION}</strong></div><div class="cx-detail-stat"><span>Frontend</span><strong>Unified hosted shell</strong></div><div class="cx-detail-stat"><span>Scout source</span><strong>v5 promoted rankings</strong></div></div></div><div class="cx-card cx-span-6"><div class="cx-section-title">Account</div><button id="modernSignOut" class="cx-refresh">Sign out</button></div></div>`;
     document.getElementById('modernSignOut').onclick=()=>{save(null);loginView()};
   }
   function switchPage(name){
