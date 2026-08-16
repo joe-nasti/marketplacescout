@@ -18,7 +18,7 @@ if old not in s:
     raise SystemExit('v026 load anchor not found')
 s=s.replace(old,new,1)
 
-resume_kick='''\n        mainHandler.postDelayed({\n            if (::agentWeb.isInitialized) {\n                val now = System.currentTimeMillis()\n                if (now - lastHostedRefreshAt >= 5L * 60L * 1000L) {\n                    lastHostedRefreshAt = now\n                    agentWeb.reload()\n                } else {\n                    agentWeb.evaluateJavascript(\"window.dispatchEvent(new Event('pageshow'));\", null)\n                }\n            }\n            if (::seller.isInitialized) verifySellerSession()\n        }, 350L)'''
+resume_kick='''\n        mainHandler.postDelayed({\n            if (::agentWeb.isInitialized) {\n                val now = System.currentTimeMillis()\n                if (now - lastHostedRefreshAt >= 5L * 60L * 1000L) {\n                    lastHostedRefreshAt = now\n                    agentWeb.reload()\n                } else {\n                    agentWeb.evaluateJavascript(\"window.dispatchEvent(new Event('pageshow'));\", null)\n                }\n            }\n            if (::seller.isInitialized) verifySellerSession()\n        }, 350L)\n        '''
 
 # Native source already contains onResume, but historical patches changed its exact whitespace/body.
 # Match the declaration structurally and inject immediately after its opening brace.
@@ -30,7 +30,7 @@ s=s[:m.end()]+resume_kick+s[m.end():]
 # Add hosted-agent teardown to an existing onDestroy when present, otherwise create one.
 destroy_match=re.search(r'override\s+fun\s+onDestroy\s*\(\s*\)\s*\{',s)
 if destroy_match:
-    s=s[:destroy_match.end()]+'\n        mainHandler.removeCallbacks(hostedAgentKick)'+s[destroy_match.end():]
+    s=s[:destroy_match.end()]+'\n        mainHandler.removeCallbacks(hostedAgentKick)\n        '+s[destroy_match.end():]
 else:
     marker='''    private fun bg() = Color.rgb(245, 248, 252)'''
     if marker not in s:
