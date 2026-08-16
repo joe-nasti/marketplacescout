@@ -71,10 +71,11 @@ def upsert(table,rows,conflict):
         if count%5000<BATCH:print(f'{table}: {count}/{len(rows)}',flush=True)
     return count
 
-def paged_values(table,column):
+def paged_values(table,column,extra=''):
     values=set();offset=0
+    suffix=f'&{extra}' if extra else ''
     while True:
-        batch=sb(f'{table}?select={column}&{column}=not.is.null&limit={PAGE}&offset={offset}') or []
+        batch=sb(f'{table}?select={column}&{column}=not.is.null{suffix}&limit={PAGE}&offset={offset}') or []
         for r in batch:
             if r.get(column) not in (None,''):values.add(str(r[column]))
         if len(batch)<PAGE:break
@@ -82,15 +83,20 @@ def paged_values(table,column):
     return values
 
 def collectish_used_skus():
-    used=paged_values('marketplace_scan_rows','sku_id')
-    used.update(paged_values('seller_order_items','sku_id'))
-    print(f'Collectish relevant exact TCGplayer SKUs: {len(used)}',flush=True)
+    marketplace=paged_values('marketplace_scan_rows','sku_id')
+    seller=paged_values('seller_order_items','sku_id')
+    # SYP tcgplayer_id is the exact TCGplayer SKU identifier (condition/finish specific).
+    # Keeping these mappings lets sealed/precon EV recognize cards TCGplayer wants
+    # replenished even when that SKU is temporarily absent from Direct inventory.
+    syp=paged_values('syp_products','tcgplayer_id','product_line=eq.Magic')
+    used=set(marketplace);used.update(seller);used.update(syp)
+    print(f'Collectish relevant exact TCGplayer SKUs: {len(used)} (marketplace={len(marketplace)}, seller={len(seller)}, syp={len(syp)})',flush=True)
     return used
 
 def download(name):
     url=f'{BASE}/{name}.parquet';dest=f'/tmp/{name}.parquet'
     print('Downloading',url,flush=True)
-    req=urllib.request.Request(url,headers={'User-Agent':'Collectish-MTGJSON-Sync/1.1'})
+    req=urllib.request.Request(url,headers={'User-Agent':'Collectish-MTGJSON-Sync/1.2'})
     with urllib.request.urlopen(req,timeout=300) as r,open(dest,'wb') as out:
         while True:
             b=r.read(1024*1024)
@@ -198,14 +204,14 @@ def sync_decks(valid):
     return upsert('mtgjson_decks',deck_rows,'deck_key'),upsert('mtgjson_deck_cards',card_rows,'deck_key,card_uuid,zone')
 
 def main():
-    started=now();sb('mtgjson_sync_state?on_conflict=feed','POST',[{'feed':'parquet_catalog','last_started_at':started,'status':'running','detail':{'mode':'parquet-relevant-skus'}}],'resolution=merge-duplicates,return=minimal')
+    started=now();sb('mtgjson_sync_state?on_conflict=feed','POST',[{'feed':'parquet_catalog','last_started_at':started,'status':'running','detail':{'mode':'parquet-relevant-skus+syp'}}],'resolution=merge-duplicates,return=minimal')
     try:
         used=collectish_used_skus();valid,cards=sync_cards();skus=sync_skus(valid,used);sealed=sync_sealed();decks,deck_cards=sync_decks(valid)
-        detail={'cards':cards,'relevantSkuUniverse':len(used),'tcgplayerSkus':skus,'sealedProducts':sealed,'decks':decks,'deckCards':deck_cards,'source':'parquet'}
+        detail={'cards':cards,'relevantSkuUniverse':len(used),'tcgplayerSkus':skus,'sealedProducts':sealed,'decks':decks,'deckCards':deck_cards,'source':'parquet','sypIncluded':True}
         sb('mtgjson_sync_state?on_conflict=feed','POST',[{'feed':'parquet_catalog','last_started_at':started,'last_completed_at':now(),'status':'complete','row_count':cards,'detail':detail}],'resolution=merge-duplicates,return=minimal')
         print(json.dumps(detail),flush=True)
     except Exception as e:
-        sb('mtgjson_sync_state?on_conflict=feed','POST',[{'feed':'parquet_catalog','last_started_at':started,'status':'failed','detail':{'error':repr(e),'source':'parquet-relevant-skus'}}],'resolution=merge-duplicates,return=minimal')
+        sb('mtgjson_sync_state?on_conflict=feed','POST',[{'feed':'parquet_catalog','last_started_at':started,'status':'failed','detail':{'error':repr(e),'source':'parquet-relevant-skus+syp'}}],'resolution=merge-duplicates,return=minimal')
         raise
 
 if __name__=='__main__':main()
