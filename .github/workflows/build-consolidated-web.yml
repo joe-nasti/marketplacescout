@@ -34,39 +34,31 @@ jobs:
         run: |
           set -euo pipefail
           for f in modern-core.js current-*.js; do node --check "$f"; done
-          grep -q "VERSION='0.9.34'" modern-core.js
-          grep -q 'modern-core.js?v=0934' index.html
-          grep -q 'current-scout-vendor-pricing.js?v=0934' index.html
-          grep -q 'current-scout-global-vendor.js?v=0934' index.html
-          grep -q 'current-scout-actionability-guard.js?v=0934' index.html
-          grep -q 'current-scout-tcg-price-semantics.js?v=0934' index.html
-          grep -q 'current-scout-v5-preview.js?v=0934' index.html
-          grep -q 'TCG Market = index/reference' current-scout-tcg-price-semantics.js
-          grep -q "'TCG Low'" current-scout-tcg-price-semantics.js
-          grep -q 'TCG Direct Low' current-scout-tcg-price-semantics.js
-          grep -q 'US retail acquisition' current-scout-tcg-price-semantics.js
-          grep -q 'Direct benchmark / modeled exit' current-scout-tcg-price-semantics.js
-          if grep -q "sources.push({name:'TCG Direct Low'" current-scout-tcg-price-semantics.js; then echo 'Direct Low must not be an acquisition candidate'; exit 1; fi
-          grep -q 'Scout v5 preview' current-scout-v5-preview.js
-          grep -q 'production grade unchanged' current-scout-v5-preview.js
-          grep -q 'scout_v5_shadow' current-scout-v5-preview.js
-          grep -q 'BUYLIST SPREAD · VERIFY SOURCE' current-scout-actionability-guard.js
+          grep -q "VERSION='0.9.35'" modern-core.js
+          grep -q 'modern-core.js?v=0935' index.html
+          grep -q 'current-scout-v5-promoted.js?v=0935' index.html
+          grep -q 'current-scout-global-search.js?v=0935' index.html
+          grep -q 'current-scout-global-vendor.js?v=0935' index.html
+          grep -q 'current-scout-tcg-price-semantics.js?v=0935' index.html
+          grep -q 'scout_opportunities_v5' current-scout-v5-promoted.js
+          grep -q 'DIRECT BACKED' current-scout-v5-promoted.js
+          grep -q "component('Thesis'" current-scout-v5-promoted.js
+          grep -q "component('Execution'" current-scout-v5-promoted.js
+          grep -q "component('Exit / Floor'" current-scout-v5-promoted.js
+          grep -q "component('Confirmation'" current-scout-v5-promoted.js
+          grep -q "stat('TCG Market'" current-scout-v5-promoted.js
+          grep -q "stat('TCG Low'" current-scout-v5-promoted.js
+          grep -q "stat('TCG Direct Low'" current-scout-v5-promoted.js
+          grep -q 'Legacy v4 score' current-scout-v5-promoted.js
           grep -q 'api.scryfall.com/cards/autocomplete' current-scout-global-search.js
           grep -q 'manualScoutGlobal:true' current-scout-global-search.js
-          grep -q 'mtgjson_tcgplayer_skus' current-scout-vendor-pricing.js
-          grep -q 'mtgjson_vendor_prices' current-scout-vendor-pricing.js
-          grep -q 'mtgjson_vendor_prices' current-scout-global-vendor.js
-          grep -q 'BUYLIST BACKED' current-scout-vendor-pricing.js
-          grep -q 'BUYLIST BACKED' current-scout-global-vendor.js
-          grep -q 'cardkingdom.com/catalog/search' current-scout-vendor-pricing.js
-          grep -q 'cardkingdom.com/purchasing/mtg_singles' current-scout-vendor-pricing.js
-          grep -q 'manapool.com/card/' current-scout-vendor-pricing.js
-          grep -q 'cardmarket.com/en/Magic/Products?idProduct=' current-scout-vendor-pricing.js
-          grep -q 'excluded from actionability' current-scout-vendor-pricing.js
           grep -q 'excluded' current-scout-global-vendor.js
+          grep -q 'TCG Market = index/reference' current-scout-tcg-price-semantics.js
           grep -q 'rpc/claim_collector_job' current-readonly-agent.js
-          if grep -q 'scout_opportunities_24h_vendor' current-scout-vendor-pricing.js current-scout-global-vendor.js; then echo 'Heavy vendor Scout view must not be used by frontend'; exit 1; fi
-          if grep -q 'mtgjson_vendor_price_pivot_current' current-scout-vendor-pricing.js current-scout-global-vendor.js; then echo 'Vendor pivot view must not be used by frontend'; exit 1; fi
+          if grep -q 'current-scout-parity.js' index.html; then echo 'Legacy Scout renderer must not load after v5 promotion'; exit 1; fi
+          if grep -q 'current-scout-vendor-pricing.js' index.html; then echo 'Legacy Scout vendor detail layer must not load after v5 promotion'; exit 1; fi
+          if grep -q 'current-scout-v5-preview.js' index.html; then echo 'v5 preview must not load after promotion'; exit 1; fi
+          if grep -q 'current-scout-actionability-guard.js' index.html; then echo 'Legacy actionability guard must not load after v5 promotion'; exit 1; fi
           if grep -q 'current-admin-navigation.js' index.html; then echo 'Legacy Admin navigation must not load'; exit 1; fi
           if grep -q 'current-scout-links.js' index.html; then echo 'Legacy Scout links must not load'; exit 1; fi
 
