@@ -81,7 +81,7 @@
     await flushDraft(d,row);
     if(!d.enabled)throw Error('Enable this set first');
     const profile={setName:d.set_name,setSlug:d.set_slug,printing:d.printing,condition:d.condition,language:d.language,scanDepth:d.scan_depth,salesEnrich:0};
-    const body={user_id:d.user_id||userId(),source:'marketplace',action:'scan_set',status:'queued',priority:5,required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',payload_json:{profile,cloudPrimary:true,manualAdmin:true,executionClass:'cloud_public'},progress_json:{stage:'queued',percent:0,detail:`Manual Admin scan: ${d.set_name}`,updatedAt:new Date().toISOString()},attempt_count:0,max_attempts:2,available_at:new Date().toISOString()};
+    const body={user_id:d.user_id||userId(),source:'marketplace',action:'scan_set',status:'queued',priority:5,required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',payload_json:{profile,cloudOnly:true,pcFallback:false,pcFallbackQueued:false,cloudPrimary:true,manualAdmin:true,executionClass:'cloud_public'},progress_json:{stage:'queued',percent:0,detail:`Manual Admin scan: ${d.set_name}`,updatedAt:new Date().toISOString()},attempt_count:0,max_attempts:2,available_at:new Date().toISOString()};
     await rest('collector_jobs',{method:'POST',body});
     const msg=row.querySelector('.cx-scan-msg');if(msg)msg.textContent='Scan queued';
   }
