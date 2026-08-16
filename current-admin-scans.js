@@ -8,10 +8,16 @@
   const opt=(values,current)=>values.map(v=>{const [value,label]=Array.isArray(v)?v:[v,v];return `<option value="${esc(value)}" ${String(value)===String(current)?'selected':''}>${esc(label)}</option>`}).join('');
   const fmt=x=>x?new Date(x).toLocaleString():'—';
 
+  async function rebalance(uid){
+    if(!uid)return;
+    await rest('rpc/rebalance_marketplace_scan_schedule',{method:'POST',body:{p_user_id:uid}});
+  }
+
   async function saveProfile(p,row){
     const body={enabled:row.querySelector('[data-f="enabled"]').checked,cadence_hours:Number(row.querySelector('[data-f="cadence"]').value),printing:row.querySelector('[data-f="printing"]').value,condition:row.querySelector('[data-f="condition"]').value,language:row.querySelector('[data-f="language"]').value,scan_depth:row.querySelector('[data-f="depth"]').value,updated_at:new Date().toISOString()};
     await rest(`marketplace_scan_profiles?user_id=eq.${encodeURIComponent(p.user_id)}&set_slug=eq.${encodeURIComponent(p.set_slug)}`,{method:'PATCH',body});
-    row.querySelector('.cx-scan-msg').textContent='Saved';
+    await rebalance(p.user_id);
+    row.querySelector('.cx-scan-msg').textContent='Saved • schedule spaced';
   }
 
   async function scanNow(p,row){
@@ -36,21 +42,22 @@
     const name=host.querySelector('#cxAddSetName').value.trim(),slug=host.querySelector('#cxAddSetSlug').value.trim();
     if(!name||!slug)throw Error('Set name and slug are required');
     const uid=userId();if(!uid)throw Error('Sign in required');
-    await rest('marketplace_scan_profiles',{method:'POST',body:{user_id:uid,set_slug:slug,set_name:name,enabled:true,cadence_hours:24,printing:'Both',condition:'Near Mint',language:'English',scan_depth:'Smart',next_due_at:new Date().toISOString()}});
-    await render();
+    await rest('marketplace_scan_profiles',{method:'POST',body:{user_id:uid,set_slug:slug,set_name:name,enabled:true,cadence_hours:24,printing:'Both',condition:'Near Mint',language:'English',scan_depth:'Smart',next_due_at:null}});
+    await rebalance(uid);
+    await render(true);
   }
 
-  async function render(){
-    if(loading)return;const admin=document.getElementById('cxAdmin');if(!admin||!admin.classList.contains('active'))return;loading=true;
+  async function render(force=false){
+    if(loading&&!force)return;const admin=document.getElementById('cxAdmin');if(!admin||!admin.classList.contains('active'))return;loading=true;
     try{
       const rows=await rest('marketplace_scan_profiles?select=*&order=set_name.asc');
       let host=admin.querySelector('#cxAdminScanConfig');
       if(!host){host=document.createElement('section');host.id='cxAdminScanConfig';host.className='cx-admin-scan-card';admin.appendChild(host)}
-      host.innerHTML=`<div class="cx-admin-scan-head"><div><div class="cx-section-title">Marketplace scan configuration</div><p>These settings are the source of truth for scheduled cloud set scans.</p></div><span>${rows.length} sets</span></div>
+      host.innerHTML=`<div class="cx-admin-scan-head"><div><div class="cx-section-title">Marketplace scan configuration</div><p>These settings are the source of truth for scheduled cloud set scans. Next-due slots are staggered across each cadence window.</p></div><span>${rows.length} sets</span></div>
         <div class="cx-admin-add"><input id="cxAddSetName" placeholder="Set name"><input id="cxAddSetSlug" placeholder="Set slug"><button class="cx-refresh" id="cxAddSet">Add set</button><small id="cxAddSetMsg"></small></div>
         <div class="cx-admin-scan-list">${rows.map(rowHtml).join('')||'<div class="cx-empty">No scan profiles yet.</div>'}</div>`;
       host.querySelector('#cxAddSet').onclick=async()=>{const m=host.querySelector('#cxAddSetMsg');m.textContent='';try{await addSet(host)}catch(e){m.textContent=e.message}};
-      host.querySelectorAll('.cx-admin-scan-row').forEach((row,i)=>{const p=rows[i];row.querySelector('[data-act="save"]').onclick=async()=>{const m=row.querySelector('.cx-scan-msg');m.textContent='Saving…';try{await saveProfile(p,row)}catch(e){m.textContent=e.message}};row.querySelector('[data-act="scan"]').onclick=async()=>{const m=row.querySelector('.cx-scan-msg');m.textContent='Queueing…';try{await saveProfile(p,row);await scanNow(p,row)}catch(e){m.textContent=e.message}}});
+      host.querySelectorAll('.cx-admin-scan-row').forEach((row,i)=>{const p=rows[i];row.querySelector('[data-act="save"]').onclick=async()=>{const m=row.querySelector('.cx-scan-msg');m.textContent='Saving…';try{await saveProfile(p,row);setTimeout(()=>render(true),350)}catch(e){m.textContent=e.message}};row.querySelector('[data-act="scan"]').onclick=async()=>{const m=row.querySelector('.cx-scan-msg');m.textContent='Queueing…';try{await saveProfile(p,row);await scanNow(p,row)}catch(e){m.textContent=e.message}}});
     }catch(e){console.error(e)}finally{loading=false}
   }
 
