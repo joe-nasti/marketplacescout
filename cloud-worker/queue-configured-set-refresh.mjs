@@ -22,6 +22,12 @@ function advanceSlot(p){
   while(t<=Date.now())t+=cadenceMs;
   return new Date(t).toISOString();
 }
+function runnable(j){
+  if(!j)return false;
+  if(j.status==='claimed'||j.status==='running')return true;
+  if(j.status!=='queued')return false;
+  return !j.available_at||new Date(j.available_at)<=now;
+}
 
 for(const p of profiles||[]){
   // A newly added/rebalanced profile can have no next_due_at yet. Give it its stored
@@ -33,13 +39,15 @@ for(const p of profiles||[]){
     if(new Date(first)>now)continue;
   }
 
-  const sameSet=await sb(`collector_jobs?select=job_id,status&user_id=eq.${encodeURIComponent(p.user_id)}&source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&payload_json->profile->>setSlug=eq.${encodeURIComponent(p.set_slug)}&limit=1`);
-  if(sameSet?.length){skipped++;continue}
+  // A future-dated transient retry must not reserve the entire configured scheduler.
+  // Only a runnable queued job, or an actually claimed/running job, blocks admission.
+  const sameSet=await sb(`collector_jobs?select=job_id,status,available_at&user_id=eq.${encodeURIComponent(p.user_id)}&source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&payload_json->profile->>setSlug=eq.${encodeURIComponent(p.set_slug)}&limit=20`);
+  if((sameSet||[]).some(runnable)){skipped++;continue}
 
-  // Do not build a serial configured-scan backlog. If one scheduled profile is already
-  // waiting/running for this user, let it finish before another due slot is admitted.
-  const scheduledActive=await sb(`collector_jobs?select=job_id,status&user_id=eq.${encodeURIComponent(p.user_id)}&source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&payload_json->>configuredSchedule=eq.true&limit=1`);
-  if(scheduledActive?.length){skipped++;break}
+  // Keep at most one runnable configured scan admitted at a time, while allowing other
+  // due profiles to proceed during the cool-down window of an upstream-failure retry.
+  const scheduledActive=await sb(`collector_jobs?select=job_id,status,available_at&user_id=eq.${encodeURIComponent(p.user_id)}&source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&payload_json->>configuredSchedule=eq.true&limit=50`);
+  if((scheduledActive||[]).some(runnable)){skipped++;break}
 
   const next=advanceSlot(p);
   const job={user_id:p.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:20,required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',payload_json:{profile:{setName:p.set_name,setSlug:p.set_slug,language:p.language||'English',printing:p.printing||'Both',condition:p.condition||'Near Mint',scanDepth:p.scan_depth||'Smart',salesEnrich:0},cloudPrimary:true,cloudOnly:true,pcFallback:false,pcFallbackQueued:false,configuredSchedule:true,executionClass:'cloud_public',scheduledFor:p.next_due_at||nowIso},progress_json:{stage:'queued',percent:0,detail:`Configured scan: ${p.set_name}`,updatedAt:nowIso},attempt_count:0,max_attempts:2,available_at:nowIso};
@@ -48,4 +56,4 @@ for(const p of profiles||[]){
   queued++;
   break;
 }
-console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,mode:'staggered-one-at-a-time'},null,2));
+console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,mode:'staggered-one-runnable-at-a-time'},null,2));
