@@ -44,7 +44,6 @@ jobs:
       - run: python -m py_compile cloud-worker/mtgjson-parquet-sync.py cloud-worker/mtgjson-deck-content-sync.py
 
   sync:
-    if: github.event_name != 'push'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -64,7 +63,9 @@ jobs:
       - name: Resolve mode
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "MTGJSON_MODE=identity" >> "$GITHUB_ENV"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "MTGJSON_MODE=${{ inputs.mode }}" >> "$GITHUB_ENV"
           elif [ "${{ github.event.schedule }}" = "0 12 * * 0" ]; then
             echo "MTGJSON_MODE=identity" >> "$GITHUB_ENV"
