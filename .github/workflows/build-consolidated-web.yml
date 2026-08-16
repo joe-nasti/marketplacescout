@@ -17,6 +17,7 @@ on:
       - "current-scout-thumbnails.js"
       - "current-seller-parity.js"
       - "current-seller-parity.css"
+      - "current-seller-drilldowns.js"
       - "current-syp-parity.js"
       - "current-syp-links.js"
       - "current-syp-parity.css"
@@ -57,14 +58,22 @@ jobs:
           node --check current-scout-noise-filter.js
           node --check current-scout-thumbnails.js
           node --check current-seller-parity.js
+          node --check current-seller-drilldowns.js
           node --check current-syp-parity.js
           node --check current-syp-links.js
           node --check current-admin-scans.js
           node --check current-admin-fixed-nav.js
-          grep -q 'modern-core.js?v=0918' index.html
-          grep -q "VERSION='0.9.18'" modern-core.js
-          grep -q 'current-syp-parity.js?v=0918' index.html
-          grep -q 'current-syp-links.js?v=0918' index.html
+          grep -q 'modern-core.js?v=0920' index.html
+          grep -q "VERSION='0.9.20'" modern-core.js
+          grep -q 'current-seller-parity.css?v=0920' index.html
+          grep -q 'current-seller-drilldowns.js?v=0920' index.html
+          grep -q 'data-label="Gross"' current-seller-parity.css
+          grep -q 'data-label="Fees"' current-seller-parity.css
+          grep -q 'data-label="Refund"' current-seller-parity.css
+          grep -q 'data-label="Net"' current-seller-parity.css
+          grep -q 'grid-template-columns:repeat(4' current-seller-parity.css
+          grep -q 'current-syp-parity.js?v=0920' index.html
+          grep -q 'current-syp-links.js?v=0920' index.html
           grep -q 'const PAGE=100' current-syp-parity.js
           grep -q 'rpc/syp_dashboard_stats' current-syp-parity.js
           grep -q 'rpc/syp_filter_options_rpc' current-syp-parity.js
@@ -79,8 +88,8 @@ jobs:
           grep -q 'purchase_uris' current-scout-thumbnails.js
           grep -q 'limit=${limit}&offset=${offset}' current-syp-parity.js
           if grep -q '40000' current-syp-parity.js || grep -q '60000' current-syp-parity.js || grep -q 'slice(0,5000)' current-syp-parity.js; then echo 'Legacy full SYP preload/render must not return'; exit 1; fi
-          grep -q 'current-admin-scans.js?v=0918' index.html
-          grep -q 'current-admin-fixed-nav.js?v=0918' index.html
+          grep -q 'current-admin-scans.js?v=0920' index.html
+          grep -q 'current-admin-fixed-nav.js?v=0920' index.html
           grep -q 'position:fixed' current-admin-fixed-nav.js
           grep -q 'bottom:72px' current-admin-fixed-nav.js
           grep -q 'active-letter' current-admin-fixed-nav.js
@@ -89,7 +98,7 @@ jobs:
           grep -q 'Changes apply automatically' current-admin-scans.js
           grep -q 'Saving…' current-admin-scans.js
           grep -q 'printing' current-admin-scans.js
-          grep -q 'current-scout-noise-filter.js?v=0918' index.html
+          grep -q 'current-scout-noise-filter.js?v=0920' index.html
           grep -q 'Hide Market' current-scout-noise-filter.js
           grep -q 'Open on TCGplayer' current-scout-parity.js
           grep -q 'Open on EDHREC' current-scout-parity.js
