@@ -66,7 +66,7 @@ jobs:
         run: |
           sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/marketplace-worker.mjs
           sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/parity-check.mjs
-      - name: Use bounded scan-row persistence batches
+      - name: Harden scan-row persistence
         shell: bash
         run: |
           python - <<'PY'
@@ -74,7 +74,7 @@ jobs:
           p = Path('cloud-worker/marketplace-worker.mjs')
           s = p.read_text()
           old = 'for(let i=0;i<rr.length;i+=200)await sb("marketplace_scan_rows?on_conflict=user_id,scan_id,sku_id",{method:"POST",body:rr.slice(i,i+200),prefer:"resolution=merge-duplicates,return=minimal"})'
-          new = 'for(let i=0;i<rr.length;i+=25)await sb("marketplace_scan_rows?on_conflict=user_id,scan_id,sku_id",{method:"POST",body:rr.slice(i,i+25),prefer:"resolution=merge-duplicates,return=minimal"})'
+          new = 'try{for(let i=0;i<rr.length;i+=25)await sb("marketplace_scan_rows?on_conflict=user_id,scan_id,sku_id",{method:"POST",body:rr.slice(i,i+25),prefer:"resolution=merge-duplicates,return=minimal"})}catch(e){try{await sb(`marketplace_scan_rows?user_id=eq.${encodeURIComponent(job.user_id)}&scan_id=eq.${encodeURIComponent(scan.scanId)}`,{method:"DELETE",prefer:"return=minimal"})}catch{}try{await sb(`marketplace_scans?user_id=eq.${encodeURIComponent(job.user_id)}&scan_id=eq.${encodeURIComponent(scan.scanId)}`,{method:"DELETE",prefer:"return=minimal"})}catch{}throw e}'
           if old not in s:
               raise SystemExit('Expected Marketplace persistence batch code was not found')
           p.write_text(s.replace(old, new))
