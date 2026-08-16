@@ -1,7 +1,8 @@
-// Collectish Scout feed noise filter — hide sub-$2 Market rows unless EDHREC demand is surging.
+// Collectish Scout feed noise filter v2 — hide sub-$2 Market rows unless demand momentum is genuinely positive.
 (() => {
   const LOW_MARKET = 2;
-  const STORAGE_KEY = 'collectishScoutHideLowMarket';
+  // Versioned key intentionally resets the default to ON after the stricter filter ships.
+  const STORAGE_KEY = 'collectishScoutHideLowMarketV2';
   let meta = new Map();
   let loading = false;
   let queued = false;
@@ -17,20 +18,32 @@
     try { localStorage.setItem(STORAGE_KEY, v ? 'true' : 'false'); } catch {}
   }
 
+  function n(v){ const x=Number(v); return Number.isFinite(x)?x:0; }
+
   function isSurging(r){
     if (!r) return false;
-    const signal = String(r.demand_signal || '').toLowerCase();
-    if (signal.includes('surg')) return true;
     const edh = r.demand_sources?.edhrec || {};
-    const text = JSON.stringify(edh).toLowerCase();
-    return text.includes('surg');
+    const adjustment = n(r.demand_adjustment);
+    if (adjustment >= 5) return true;
+
+    // Only measurable positive movement counts as a low-value exception.
+    // demand_signal_score itself is deliberately ignored because high values can mean reprint risk.
+    const deck = n(edh.deckChangePct);
+    const commanderDeck = n(edh.commanderDeckChangePct);
+    const rank = n(edh.rankChange);
+    const commanderRank = n(edh.commanderRankChange);
+    if (deck >= 0.25 || commanderDeck >= 0.25) return true;
+    if ((rank >= 250 || commanderRank >= 250) && adjustment > 0) return true;
+
+    const signal = String(r.demand_signal || '').toLowerCase();
+    return adjustment > 0 && (signal.includes('surging') || signal.includes('breakout') || signal.includes('accelerating'));
   }
 
   async function loadMeta(){
     if (loading) return;
     loading = true;
     try {
-      const rows = await rest('scout_opportunities_24h?select=sku_id,sku_market_price,demand_signal,demand_sources,demand_adjustment&order=opportunity_score.desc,observation_count.desc&limit=500');
+      const rows = await rest('scout_opportunities_24h?select=sku_id,sku_market_price,demand_signal,demand_signal_score,demand_sources,demand_adjustment&order=opportunity_score.desc,observation_count.desc&limit=1000');
       meta = new Map((rows || []).map(r => [String(r.sku_id || ''), r]));
     } catch (e) {
       console.warn('Scout low-market filter metadata unavailable', e);
@@ -38,6 +51,12 @@
       loading = false;
       apply();
     }
+  }
+
+  function marketFromCard(card){
+    const metric=[...card.querySelectorAll('.cx-scout-card-metrics span')].find(x=>/^Market\b/i.test(x.textContent||''));
+    const m=(metric?.textContent||'').match(/\$([0-9,.]+)/);
+    return m ? Number(m[1].replace(/,/g,'')) : NaN;
   }
 
   function ensureUi(){
@@ -48,7 +67,7 @@
     if (!wrap) {
       wrap = document.createElement('div');
       wrap.className = 'cx-scout-noise-filter';
-      wrap.innerHTML = `<label><input type="checkbox" id="cxScoutHideLowMarket"> <span>Hide Market &lt; $${LOW_MARKET.toFixed(0)} unless surging</span></label><small id="cxScoutNoiseCount"></small>`;
+      wrap.innerHTML = `<label><input type="checkbox" id="cxScoutHideLowMarket"> <span>Hide Market &lt; $${LOW_MARKET.toFixed(0)} unless demand is surging</span></label><small id="cxScoutNoiseCount"></small>`;
       toolbar.insertAdjacentElement('afterend', wrap);
       const input = wrap.querySelector('#cxScoutHideLowMarket');
       input.checked = enabled();
@@ -66,12 +85,14 @@
     if (!page || !host) return;
     const wrap = ensureUi();
     const hide = enabled();
-    let hidden = 0, exceptions = 0, visible = 0;
+    let hidden = 0, exceptions = 0;
 
     for (const card of host.querySelectorAll('.cx-scout-card')) {
       const sku = String(card.dataset.sku || '');
       const r = meta.get(sku);
-      const market = Number(r?.sku_market_price);
+      const dbMarket = Number(r?.sku_market_price);
+      const fallbackMarket = marketFromCard(card);
+      const market = Number.isFinite(dbMarket) ? dbMarket : fallbackMarket;
       const low = Number.isFinite(market) && market >= 0 && market < LOW_MARKET;
       const surge = isSurging(r);
       const shouldHide = hide && low && !surge;
@@ -79,16 +100,13 @@
       card.dataset.lowMarket = low ? 'true' : 'false';
       card.dataset.surging = surge ? 'true' : 'false';
       if (shouldHide) hidden++;
-      else {
-        visible++;
-        if (low && surge) exceptions++;
-      }
+      else if (low && surge) exceptions++;
     }
 
     const count = wrap?.querySelector('#cxScoutNoiseCount');
     if (count) {
       if (!hide) count.textContent = 'Showing all Market prices';
-      else count.textContent = `${hidden} low-value ${hidden === 1 ? 'row' : 'rows'} hidden${exceptions ? ` • ${exceptions} surging exception${exceptions === 1 ? '' : 's'} kept` : ''}`;
+      else count.textContent = `${hidden} sub-$2 ${hidden === 1 ? 'card' : 'cards'} hidden${exceptions ? ` • ${exceptions} true surge exception${exceptions === 1 ? '' : 's'}` : ''}`;
     }
   }
 
@@ -119,5 +137,5 @@
     if (e.target.closest?.('[data-cx-page="scout"]')) setTimeout(() => { ensureUi(); loadMeta(); }, 100);
   },true);
 
-  setTimeout(() => { ensureUi(); loadMeta(); }, 150);
+  setTimeout(() => { ensureUi(); loadMeta(); }, 100);
 })();
