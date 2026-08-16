@@ -1,0 +1,62 @@
+// Collectish Scout Sealed — deterministic precon EV surface.
+(() => {
+  const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const money=n=>n==null||n===''||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString(undefined,{style:'currency',currency:'USD'});
+  const pct=n=>n==null||!Number.isFinite(Number(n))?'—':`${Number(n).toFixed(1)}%`;
+  const num=n=>Number(n||0).toLocaleString();
+  let rows=[],visible=[],selected=null,loading=false,installed=false;
+
+  const parseUuids=v=>{
+    if(Array.isArray(v))return v.flatMap(parseUuids);
+    if(typeof v==='string'){
+      try{const x=JSON.parse(v);if(x!==v)return parseUuids(x)}catch{}
+      return /^[0-9a-f-]{36}$/i.test(v)?[v]:[];
+    }
+    return [];
+  };
+  const acquire=r=>Number(r?.sealed_low_with_shipping??r?.sealed_low??r?.sealed_market??0)||null;
+  const spread=(ev,r)=>{const a=acquire(r);return a&&ev!=null?Number(ev)-a:null};
+  const roi=(ev,r)=>{const a=acquire(r),s=spread(ev,r);return a&&s!=null?s/a*100:null};
+  const bestEV=r=>Math.max(Number(r.syp_adjusted_direct_net_ev||0),Number(r.direct_live_net_ev||0),Number(r.cardkingdom_buylist_ev||0));
+  function badges(r){const a=acquire(r),out=[];if(a&&Number(r.cardkingdom_buylist_ev||0)>a)out.push('<span class="cx-sealed-badge buylist">BUYLIST BACKED</span>');if(a&&Number(r.direct_live_net_ev||0)>a)out.push('<span class="cx-sealed-badge direct">DIRECT BACKED</span>');if(a&&Number(r.syp_adjusted_direct_net_ev||0)>a&&Number(r.direct_live_net_ev||0)<=a)out.push('<span class="cx-sealed-badge syp">SYP UPSIDE</span>');if(a&&Number(r.tcg_market_ev||0)>a*1.25&&Number(r.cardkingdom_buylist_ev||0)<a)out.push('<span class="cx-sealed-badge risk">HIGH EV / LOW FLOOR</span>');if(!a)out.push('<span class="cx-sealed-badge risk">SEALED PRICE PENDING</span>');return out.join('')}
+  function metric(label,value,sub='',cls=''){return `<div class="cx-sealed-metric ${cls}"><span>${esc(label)}</span><b>${value}</b>${sub?`<small>${esc(sub)}</small>`:''}</div>`}
+  function stat(label,value,sub=''){return `<div class="cx-sealed-stat"><span>${esc(label)}</span><strong>${value}</strong>${sub?`<small>${esc(sub)}</small>`:''}</div>`}
+
+  async function fetchRows(){
+    const ev=await rest('precon_ev_current?select=*&order=release_date.desc,deck_name.asc');
+    const decks=await rest('mtgjson_decks?select=deck_key,sealed_product_uuids&deck_type=eq.Commander%20Deck&release_date=gte.2025-01-01');
+    const byDeck=new Map(decks.map(d=>[d.deck_key,parseUuids(d.sealed_product_uuids)]));
+    const uuids=[...new Set(decks.flatMap(d=>parseUuids(d.sealed_product_uuids)))];
+    let products=[],prices=[];
+    if(uuids.length){
+      const inq=uuids.map(encodeURIComponent).join(',');
+      products=await rest(`mtgjson_sealed_products?select=uuid,name,tcgplayer_product_id&uuid=in.(${inq})`);
+      prices=await rest(`sealed_product_price_current?select=*&source=eq.tcgplayer_public&sealed_uuid=in.(${inq})`);
+    }
+    const prod=new Map(products.map(x=>[x.uuid,x])),price=new Map(prices.map(x=>[x.sealed_uuid,x]));
+    return (ev||[]).map(r=>{
+      const ids=byDeck.get(r.deck_key)||[],id=ids[0]||null,p=id?prod.get(id):null,sp=id?price.get(id):null;
+      return {...r,sealed_uuid:id,sealed_name:p?.name||null,sealed_product_id:sp?.product_id||p?.tcgplayer_product_id||null,sealed_market:sp?.market_price??null,sealed_low:sp?.low_price??null,sealed_low_with_shipping:sp?.low_with_shipping??null,sealed_total_listings:sp?.total_listings??null,sealed_captured_at:sp?.captured_at??null};
+    });
+  }
+
+  function sortRows(a,b){
+    const aa=acquire(a),ba=acquire(b);if(aa&&ba)return (bestEV(b)-ba)-(bestEV(a)-aa);if(aa)return -1;if(ba)return 1;return Number(b.tcg_market_ev||0)-Number(a.tcg_market_ev||0);
+  }
+  function renderShell(h){
+    h.innerHTML=`<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Deterministic precon EV, current cash floor, and Direct/SYP upside.</p><small class="cx-sub">Recent Commander decks · fixed contents first</small></div><button class="cx-refresh" id="cxSealedRefresh">Refresh</button></div><div class="cx-sealed-toolbar"><input id="cxSealedSearch" placeholder="Search precons…"><select id="cxSealedFilter"><option value="">All products</option><option value="buylist">Buylist backed</option><option value="direct">Direct backed</option><option value="syp">SYP upside</option><option value="priced">Sealed price available</option></select></div><div class="cx-sealed-layout"><section><div id="cxSealedRows" class="cx-sealed-list"></div></section><aside id="cxSealedDetail" class="cx-card cx-sealed-detail"></aside></div>`;
+    const apply=()=>{const q=document.getElementById('cxSealedSearch').value.trim().toLowerCase(),f=document.getElementById('cxSealedFilter').value;visible=rows.filter(r=>(!q||`${r.deck_name} ${r.code}`.toLowerCase().includes(q))&&(!f||(f==='priced'&&acquire(r))||(f==='buylist'&&acquire(r)&&Number(r.cardkingdom_buylist_ev||0)>acquire(r))||(f==='direct'&&acquire(r)&&Number(r.direct_live_net_ev||0)>acquire(r))||(f==='syp'&&acquire(r)&&Number(r.syp_adjusted_direct_net_ev||0)>acquire(r)))).sort(sortRows);if(!selected||!visible.includes(selected))selected=visible[0]||null;renderRows();renderDetail(selected)};
+    document.getElementById('cxSealedSearch').oninput=apply;document.getElementById('cxSealedFilter').onchange=apply;document.getElementById('cxSealedRefresh').onclick=load;document.getElementById('cxSealedRows').addEventListener('click',e=>{const b=e.target.closest('[data-deck]');if(!b)return;selected=visible.find(r=>r.deck_key===b.dataset.deck)||null;renderRows();renderDetail(selected)},true);apply();
+  }
+  function renderRows(){const h=document.getElementById('cxSealedRows');if(!h)return;if(!visible.length){h.innerHTML='<div class="cx-empty">No sealed products match these filters.</div>';return}h.innerHTML=visible.map(r=>{const a=acquire(r),s=spread(r.syp_adjusted_direct_net_ev,r),rr=roi(r.syp_adjusted_direct_net_ev,r);return `<button type="button" class="cx-sealed-row ${selected===r?'selected':''}" data-deck="${esc(r.deck_key)}"><div class="cx-sealed-name"><strong>${esc(r.deck_name)}</strong><small>${esc(r.code||'')} · ${esc(r.release_date||'')}</small><div class="cx-sealed-badges">${badges(r)}</div></div>${metric('Sealed buy',money(a),a?(r.sealed_low_with_shipping!=null?'TCG Low + ship':r.sealed_low!=null?'TCG Low':'TCG Market'):'waiting for refresh')}${metric('Market EV',money(r.tcg_market_ev),`${pct(r.market_coverage_pct)} covered`)}${metric('SYP Direct net',money(r.syp_adjusted_direct_net_ev),`${pct(r.syp_adjusted_coverage_pct)} covered`,'cx-sealed-hide-mobile')}${metric('CK buylist',money(r.cardkingdom_buylist_ev),`${pct(r.buylist_coverage_pct)} covered`,'cx-sealed-hide-mid cx-sealed-hide-mobile')}${metric('Spread',s==null?'—':money(s),rr==null?'':`${rr>=0?'+':''}${rr.toFixed(1)}%`,s==null?'cx-sealed-pending':s>=0?'cx-sealed-positive':'cx-sealed-negative')}</button>`}).join('')}
+
+  async function renderDetail(r){const h=document.getElementById('cxSealedDetail');if(!h)return;if(!r){h.innerHTML='<div class="cx-empty">Select a precon.</div>';return}h.innerHTML='<div class="cx-empty">Loading deck contents…</div>';let cards=[];try{cards=await rest(`precon_card_ev_current?select=*&deck_key=eq.${encodeURIComponent(r.deck_key)}&order=tcg_market.desc.nullslast`)}catch(e){h.innerHTML=`<div class="cx-empty">${esc(e.message||e)}</div>`;return}
+    const a=acquire(r),market=Number(r.tcg_market_ev||0),direct=Number(r.direct_live_net_ev||0),syp=Number(r.syp_adjusted_direct_net_ev||0),ck=Number(r.cardkingdom_buylist_ev||0),valued=[...cards].map(c=>({...c,marketValue:Number(c.quantity||0)*Number(c.tcg_market||0)})).sort((x,y)=>y.marketValue-x.marketValue),top5=valued.slice(0,5).reduce((s,c)=>s+c.marketValue,0),top10=valued.slice(0,10).reduce((s,c)=>s+c.marketValue,0),sellable=valued.filter(c=>Number(c.tcg_market||0)>=2).reduce((s,c)=>s+Number(c.quantity||0),0),bulk=valued.filter(c=>Number(c.tcg_market||0)<1).reduce((s,c)=>s+Number(c.quantity||0),0),top5pct=market?top5/market*100:0,top10pct=market?top10/market*100:0;
+    const best=Math.max(direct,syp,ck),bestLabel=best===ck?'CK buylist':best===direct?'Direct live net':'SYP-adjusted Direct net',bestSpread=a?best-a:null,bestRoi=a?bestSpread/a*100:null;
+    h.innerHTML=`<h3>${esc(r.deck_name)}</h3><span class="cx-sub">${esc(r.code||'')} · ${esc(r.release_date||'')}</span><div class="cx-sealed-badges">${badges(r)}</div><div class="cx-sealed-grid">${stat('Sealed acquisition',money(a),a?'current TCG sealed reference':'price refresh pending')}${stat('TCG Market EV',money(market),`${pct(r.market_coverage_pct)} coverage`)}${stat('Direct live net',money(direct),`${pct(r.direct_live_coverage_pct)} coverage`)}${stat('SYP-adjusted net',money(syp),`${pct(r.syp_adjusted_coverage_pct)} coverage`)}${stat('CK buylist floor',money(ck),`${pct(r.buylist_coverage_pct)} coverage`)}${stat('Best backed spread',bestSpread==null?'—':money(bestSpread),bestRoi==null?bestLabel:`${bestLabel} · ${bestRoi>=0?'+':''}${bestRoi.toFixed(1)}%`)}</div><div class="cx-sealed-summary"><strong>EV quality:</strong> top 5 cards are ${top5pct.toFixed(0)}% of Market EV; top 10 are ${top10pct.toFixed(0)}%. ${sellable} cards are currently ≥$2 Market and ${bulk} cards are below $1. SYP marks ${num(r.syp_eligible_cards)} included cards eligible and currently requests ${num(r.syp_requested_quantity)} copies across those SKUs.</div><div class="cx-sealed-cards"><div class="cx-section-title">Top value cards</div>${valued.slice(0,15).map(c=>`<div class="cx-sealed-cardline"><strong>${esc(c.card_name)}${Number(c.quantity||1)>1?` ×${num(c.quantity)}`:''}</strong><span>${esc(c.direct_status||'')}</span><b>${money(c.marketValue)}</b></div>`).join('')}</div>`;
+  }
+
+  async function load(){const h=document.getElementById('cxSealed');if(!h||loading)return;loading=true;h.innerHTML='<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Loading deterministic precon EV…</p></div></div><div class="cx-empty">Loading precon values…</div>';try{rows=await fetchRows();selected=rows.sort(sortRows)[0]||null;renderShell(h)}catch(e){h.innerHTML=`<div class="cx-empty">${esc(e.message||e)}</div>`}finally{loading=false}}
+  function install(){const h=document.getElementById('cxSealed');if(!h||installed)return;installed=true;load()}
+  document.addEventListener('collectish:ready',install);if(document.getElementById('cxSealed'))install();
+})();
