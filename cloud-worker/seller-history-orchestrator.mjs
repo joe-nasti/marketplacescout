@@ -150,15 +150,19 @@ async function upsertDetailBundle(job){
   return bundle.order.order_number;
 }
 async function main(){
-  // Keep each run bounded so a large Android completion burst does not overload PostgREST.
-  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&order=completed_at.desc&limit=125');
+  // Keep each run small so a large Android completion burst does not overload PostgREST.
+  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&order=completed_at.desc&limit=50');
   let authProcessed=0,searchProcessed=0,detailProcessed=0,other=0;
   for(const job of completed||[]){if(job.progress_json?.orchestratedAt)continue;const k=kind(job);try{
     if(k==='auth_detail'){const body=probeBody(job),sellerKey=body?.seller?.sellerKey;if(!sellerKey){await markOrchestrated(job,{orchestratorStatus:'auth_result_missing_seller_key'});continue;}const queued=await queueIncrementalSearch(job,String(sellerKey));await markOrchestrated(job,{orchestratorStatus:queued?'incremental_search_queued':'incremental_search_already_active'});authProcessed++;continue;}
     if(k==='order_search'){await processSearchJob(job);searchProcessed++;continue;}
     if(k==='order_detail'){await upsertDetailBundle(job);detailProcessed++;continue;}
     other++;
-  }catch(error){await markOrchestrated(job,{orchestratorStatus:'normalization_failed',orchestratorError:String(error?.message||error)});}}
+  }catch(error){
+    // A transient marker outage must not abort the rest of an idempotent normalization batch.
+    try{await markOrchestrated(job,{orchestratorStatus:'normalization_failed',orchestratorError:String(error?.message||error)});}
+    catch(markError){console.error(`Seller History marker deferred for ${job.job_id}: ${String(markError?.message||markError)}`);}
+  }}
   console.log(`Seller History orchestrator: ${authProcessed} auth, ${searchProcessed} search, ${detailProcessed} detail result(s) processed; ${other} unrelated.`);
 }
 await main();
