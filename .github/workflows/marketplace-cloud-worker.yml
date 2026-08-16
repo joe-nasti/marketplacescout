@@ -74,7 +74,7 @@ jobs:
           p = Path('cloud-worker/marketplace-worker.mjs')
           s = p.read_text()
           old = 'for(let i=0;i<rr.length;i+=200)await sb("marketplace_scan_rows?on_conflict=user_id,scan_id,sku_id",{method:"POST",body:rr.slice(i,i+200),prefer:"resolution=merge-duplicates,return=minimal"})'
-          new = 'for(let i=0;i<rr.length;i+=50)await sb("marketplace_scan_rows?on_conflict=user_id,scan_id,sku_id",{method:"POST",body:rr.slice(i,i+50),prefer:"resolution=merge-duplicates,return=minimal"})'
+          new = 'for(let i=0;i<rr.length;i+=25)await sb("marketplace_scan_rows?on_conflict=user_id,scan_id,sku_id",{method:"POST",body:rr.slice(i,i+25),prefer:"resolution=merge-duplicates,return=minimal"})'
           if old not in s:
               raise SystemExit('Expected Marketplace persistence batch code was not found')
           p.write_text(s.replace(old, new))
