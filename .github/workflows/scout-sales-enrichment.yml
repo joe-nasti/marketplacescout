@@ -1,0 +1,44 @@
+name: Collectish Scout prioritized sales enrichment
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Maximum product history calls this run
+        required: false
+        default: "150"
+  schedule:
+    - cron: "5 */3 * * *"
+  push:
+    paths:
+      - ".github/workflows/scout-sales-enrichment.yml"
+      - "cloud-worker/scout-sales-enrichment.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-scout-sales-enrichment
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      COLLECTISH_SCOUT_SALES_LIMIT: ${{ github.event.inputs.limit || '150' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate worker
+        run: |
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          node --check cloud-worker/scout-sales-enrichment.mjs
+      - name: Enrich prioritized Scout products and refresh scores
+        run: node cloud-worker/scout-sales-enrichment.mjs
