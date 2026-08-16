@@ -1,4 +1,4 @@
-// Collectish consolidated web 0.8.4
+// Collectish consolidated web 0.8.5
 // Generated; do not edit directly. Run tools/build-consolidated-web.mjs.
 (()=>{
   const realBadge=document.querySelector('#appVersion');
@@ -18,8 +18,8 @@
   const append=Element.prototype.append;Element.prototype.append=function(...n){return append.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const prepend=Element.prototype.prepend;Element.prototype.prepend=function(...n){return prepend.apply(this,n.filter(x=>!isLegacyAsset(x)))};
   const adjacent=Element.prototype.insertAdjacentElement;Element.prototype.insertAdjacentElement=function(p,n){return isLegacyAsset(n)?n:adjacent.call(this,p,n)};
-  if(realBadge)realBadge.textContent='web 0.8.4';
-  window.__collectishConsolidated={version:'0.8.4',builtAt:'2026-08-16T00:01:05.837Z'};
+  if(realBadge)realBadge.textContent='web 0.8.5';
+  window.__collectishConsolidated={version:'0.8.5',builtAt:'2026-08-16T00:02:53.221Z'};
 })();
 
 /* ===== app.js ===== */
@@ -2520,13 +2520,13 @@ setInterval(async()=>{
     const token=++seq;lastName=name;
     let old=detail.querySelector('.cx-edhrec-context');if(old)old.remove();
     try{
-      const rows=await rest(`marketplace_scan_rows?select=base_opportunity_score,opportunity_score,demand_adjustment,demand_signal,demand_signal_score,demand_sources,edhrec_rank,edhrec_signal,edhrec_signal_score,edhrec_observed_at&product_name=eq.${encodeURIComponent(name)}&order=id.desc&limit=1`);
+      const rows=await rest(`scout_opportunities_24h?select=base_score_24h,opportunity_score,demand_adjustment,demand_signal,demand_signal_score,demand_sources,edhrec_rank,computed_at&product_name=eq.${encodeURIComponent(name)}&order=opportunity_score.desc&limit=1`);
       if(token!==seq||lastName!==name||!rows?.[0])return;
-      const r=rows[0],source=r.demand_sources?.edhrec||{},signal=r.demand_signal||r.edhrec_signal;if(!signal)return;
+      const r=rows[0],source=r.demand_sources?.edhrec||{},signal=r.demand_signal;if(!signal)return;
       const box=document.createElement('div');box.className=`cx-edhrec-context cx-edhrec-${String(signal).toLowerCase().replace(/[^a-z0-9]+/g,'-')}`;
-      const rank=Number(source.rank??r.edhrec_rank??0),score=Number(r.demand_signal_score??r.edhrec_signal_score??0),adj=Number(r.demand_adjustment||0),base=Number(r.base_opportunity_score??r.opportunity_score??0),final=Number(r.opportunity_score||0);
+      const rank=Number(source.rank??r.edhrec_rank??0),score=Number(r.demand_signal_score??0),adj=Number(r.demand_adjustment||0),base=Number(r.base_score_24h||0),final=Number(r.opportunity_score||0);
       const movement=[];if(Number(source.rankChange||0))movement.push(`rank ${Number(source.rankChange)>0?'+':''}${Number(source.rankChange)}`);if(Number.isFinite(Number(source.deckChangePct)))movement.push(`decks ${Number(source.deckChangePct)>=0?'+':''}${(100*Number(source.deckChangePct)).toFixed(0)}%`);if(Number(source.commanderRankChange||0))movement.push(`commander rank ${Number(source.commanderRankChange)>0?'+':''}${Number(source.commanderRankChange)}`);if(Number.isFinite(Number(source.commanderDeckChangePct)))movement.push(`commander decks ${Number(source.commanderDeckChangePct)>=0?'+':''}${(100*Number(source.commanderDeckChangePct)).toFixed(0)}%`);
-      box.innerHTML=`<div class="cx-edhrec-head"><div><span class="cx-edhrec-kicker">Demand signal • EDHREC</span><strong>${esc(signal)}</strong></div><span class="cx-edhrec-score">${adj?`${adj>0?'+':''}${adj} Scout`:score?`${score}/100`:''}</span></div><div class="cx-edhrec-meta">${rank?`Weekly rank #${num(rank)}`:'EDHREC demand context'}${movement.length?` • ${esc(movement.join(' • '))}`:''}${r.edhrec_observed_at?` • updated ${new Date(r.edhrec_observed_at).toLocaleDateString()}`:''}</div><small>Base Scout ${num(base)} ${adj?`${adj>0?'+':''}${adj} demand adjustment`:''} → final Scout ${num(final)}. EDHREC is one demand source; other constructed-format signals can be added later.</small>`;
+      box.innerHTML=`<div class="cx-edhrec-head"><div><span class="cx-edhrec-kicker">Demand signal • EDHREC</span><strong>${esc(signal)}</strong></div><span class="cx-edhrec-score">${adj?`${adj>0?'+':''}${adj} Scout`:score?`${score}/100`:''}</span></div><div class="cx-edhrec-meta">${rank?`Weekly rank #${num(rank)}`:'EDHREC demand context'}${movement.length?` • ${esc(movement.join(' • '))}`:''}${source.observedAt?` • updated ${new Date(source.observedAt).toLocaleDateString()}`:''}</div><small>24h base ${Number(base).toFixed(1)} ${adj?`${adj>0?'+':''}${adj} demand adjustment`:''} → final Scout ${num(final)}. EDHREC is one demand source; other constructed-format signals can plug into the same demand layer later.</small>`;
       const thesis=detail.querySelector('.cx-thesis');if(thesis)thesis.insertAdjacentElement('afterend',box);else detail.appendChild(box);
     }catch{}
   }
@@ -2641,7 +2641,7 @@ setInterval(async()=>{
 
 // Consolidated startup finalizer
 (()=>{
-  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.8.4';
+  const b=document.querySelector('#appVersion');if(b)b.textContent='web 0.8.5';
   let s=null;try{s=JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{}
   if(!s?.token){
     const banner=document.querySelector('#activityBanner');if(banner){banner.hidden=true;banner.style.display='none'}
