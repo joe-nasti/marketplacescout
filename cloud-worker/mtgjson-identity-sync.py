@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import gzip, json, os, sys, time, urllib.request, urllib.error
+import gzip, json, os, time, urllib.request, urllib.error, urllib.parse
 from datetime import datetime, timezone
 import ijson
 
@@ -7,6 +7,7 @@ SUPABASE_URL=os.environ.get('SUPABASE_URL','').rstrip('/')
 SERVICE_KEY=os.environ.get('SUPABASE_SERVICE_ROLE_KEY','')
 BASE=os.environ.get('MTGJSON_BASE_URL','https://mtgjson.com/api/v5').rstrip('/')
 BATCH=max(25,min(500,int(os.environ.get('MTGJSON_BATCH_SIZE','200'))))
+SKIP_CARDS=os.environ.get('MTGJSON_SKIP_CARDS','0')=='1'
 if not SUPABASE_URL or not SERVICE_KEY:
     raise RuntimeError('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required')
 
@@ -27,8 +28,7 @@ def request_json(path, method='GET', body=None, prefer=None):
         try:
             req=urllib.request.Request(url,data=data,headers=headers,method=method)
             with urllib.request.urlopen(req,timeout=120) as r:
-                raw=r.read()
-                return json.loads(raw) if raw else None
+                raw=r.read(); return json.loads(raw) if raw else None
         except urllib.error.HTTPError as e:
             raw=e.read().decode('utf-8','replace')
             last=RuntimeError(f'Supabase HTTP {e.code}: {raw[:300]}')
@@ -38,12 +38,10 @@ def request_json(path, method='GET', body=None, prefer=None):
     raise last
 
 def sync_state(status, **extra):
-    row={'feed':'identity','status':status,**extra}
-    request_json('mtgjson_sync_state?on_conflict=feed','POST',[row],'resolution=merge-duplicates,return=minimal')
+    request_json('mtgjson_sync_state?on_conflict=feed','POST',[{'feed':'identity','status':status,**extra}],'resolution=merge-duplicates,return=minimal')
 
 def download(file_name):
-    url=f'{BASE}/{file_name}.json.gz'
-    dest=f'/tmp/{file_name}.json.gz'
+    url=f'{BASE}/{file_name}.json.gz'; dest=f'/tmp/{file_name}.json.gz'
     print('Downloading',url,flush=True)
     req=urllib.request.Request(url,headers={'User-Agent':'Collectish-MTGJSON-Sync/1.0'})
     with urllib.request.urlopen(req,timeout=300) as r, open(dest,'wb') as out:
@@ -52,14 +50,16 @@ def download(file_name):
             chunk=r.read(1024*1024)
             if not chunk: break
             out.write(chunk); total+=len(chunk)
-            if total%(25*1024*1024)<1024*1024: print(f'{file_name}: {total/1024/1024:.0f} MiB downloaded',flush=True)
     print(f'{file_name}: {total/1024/1024:.1f} MiB compressed',flush=True)
     return dest
 
 def flush(table, rows, conflict):
-    if not rows: return
-    request_json(f'{table}?on_conflict={urllib.parse.quote(conflict)}','POST',rows,'resolution=merge-duplicates,return=minimal')
-    rows.clear()
+    if not rows:return 0
+    keys=[x.strip() for x in conflict.split(',')]
+    dedup={tuple(str(r.get(k,'')) for k in keys):r for r in rows}
+    payload=list(dedup.values())
+    request_json(f'{table}?on_conflict={urllib.parse.quote(conflict)}','POST',payload,'resolution=merge-duplicates,return=minimal')
+    rows.clear(); return len(payload)
 
 def card_row(uid,c):
     if not is_uuid(uid): return None
@@ -68,23 +68,15 @@ def card_row(uid,c):
         v=x.get(k); return v if is_uuid(v) else None
     def text(v): return None if v is None else str(v)
     rel=c.get('releaseDate') or c.get('originalReleaseDate')
-    if rel and len(str(rel))>=10: rel=str(rel)[:10]
-    else: rel=None
-    return {
-      'uuid':uid,'name':str(c.get('name') or '').strip() or '(unknown)',
-      'set_code':str(c.get('setCode') or '').strip(),'collector_number':text(c.get('number')),
-      'language':text(c.get('language')),'rarity':text(c.get('rarity')),'release_date':rel,
-      'finishes':c.get('finishes') if isinstance(c.get('finishes'),list) else [],
-      'availability':c.get('availability') if isinstance(c.get('availability'),list) else [],
-      'scryfall_id':uidv('scryfallId'),'scryfall_oracle_id':uidv('scryfallOracleId'),
-      'tcgplayer_product_id':text(x.get('tcgplayerProductId')),
-      'tcgplayer_etched_product_id':text(x.get('tcgplayerEtchedProductId')),
-      'tcgplayer_alt_foil_product_id':text(x.get('tcgplayerAlternativeFoilProductId')),
-      'cardkingdom_id':text(x.get('cardKingdomId')),'cardkingdom_foil_id':text(x.get('cardKingdomFoilId')),
-      'cardkingdom_etched_id':text(x.get('cardKingdomEtchedId')),'csi_id':text(x.get('csiId')),
-      'cardmarket_id':text(x.get('mcmId')),'cardmarket_meta_id':text(x.get('mcmMetaId')),
-      'scg_id':text(x.get('scgId')),'identifiers':x,'source_updated_at':now()
-    }
+    rel=str(rel)[:10] if rel and len(str(rel))>=10 else None
+    return {'uuid':uid,'name':str(c.get('name') or '').strip() or '(unknown)','set_code':str(c.get('setCode') or '').strip(),
+      'collector_number':text(c.get('number')),'language':text(c.get('language')),'rarity':text(c.get('rarity')),'release_date':rel,
+      'finishes':c.get('finishes') if isinstance(c.get('finishes'),list) else [],'availability':c.get('availability') if isinstance(c.get('availability'),list) else [],
+      'scryfall_id':uidv('scryfallId'),'scryfall_oracle_id':uidv('scryfallOracleId'),'tcgplayer_product_id':text(x.get('tcgplayerProductId')),
+      'tcgplayer_etched_product_id':text(x.get('tcgplayerEtchedProductId')),'tcgplayer_alt_foil_product_id':text(x.get('tcgplayerAlternativeFoilProductId')),
+      'cardkingdom_id':text(x.get('cardKingdomId')),'cardkingdom_foil_id':text(x.get('cardKingdomFoilId')),'cardkingdom_etched_id':text(x.get('cardKingdomEtchedId')),
+      'csi_id':text(x.get('csiId')),'cardmarket_id':text(x.get('mcmId')),'cardmarket_meta_id':text(x.get('mcmMetaId')),'scg_id':text(x.get('scgId')),
+      'identifiers':x,'source_updated_at':now()}
 
 def import_cards(path):
     rows=[]; count=0
@@ -95,37 +87,42 @@ def import_cards(path):
             rows.append(r); count+=1
             if len(rows)>=BATCH: flush('mtgjson_cards',rows,'uuid')
             if count%5000==0: print('mtgjson_cards:',count,flush=True)
-    flush('mtgjson_cards',rows,'uuid')
-    return count
+    flush('mtgjson_cards',rows,'uuid'); return count
 
 def import_skus(path):
-    rows=[]; count=0
+    rows=[]; seen=0; written=0; duplicates=0
+    pending=set()
     with gzip.open(path,'rb') as f:
         for uid,items in ijson.kvitems(f,'data'):
             if not is_uuid(uid) or not isinstance(items,list): continue
             for s in items:
                 if not s.get('skuId') or not s.get('productId'): continue
-                rows.append({'sku_id':str(s['skuId']),'uuid':uid,'product_id':str(s['productId']),
-                  'condition':str(s.get('condition') or ''),'finish':None if s.get('finish') is None else str(s.get('finish')),
-                  'language':str(s.get('language') or ''),'printing':None if s.get('printing') is None else str(s.get('printing')),
-                  'source_updated_at':now()})
-                count+=1
-                if len(rows)>=BATCH: flush('mtgjson_tcgplayer_skus',rows,'sku_id')
-                if count%25000==0: print('mtgjson_tcgplayer_skus:',count,flush=True)
-    flush('mtgjson_tcgplayer_skus',rows,'sku_id')
-    return count
+                sku=str(s['skuId']); seen+=1
+                if sku in pending: duplicates+=1
+                rows.append({'sku_id':sku,'uuid':uid,'product_id':str(s['productId']),'condition':str(s.get('condition') or ''),
+                  'finish':None if s.get('finish') is None else str(s.get('finish')),'language':str(s.get('language') or ''),
+                  'printing':None if s.get('printing') is None else str(s.get('printing')),'source_updated_at':now()})
+                pending.add(sku)
+                if len(rows)>=BATCH:
+                    written+=flush('mtgjson_tcgplayer_skus',rows,'sku_id'); pending.clear()
+                if seen%25000==0: print(f'mtgjson_tcgplayer_skus: seen={seen} written={written} duplicate_batch_entries={duplicates}',flush=True)
+    written+=flush('mtgjson_tcgplayer_skus',rows,'sku_id')
+    print(f'mtgjson_tcgplayer_skus complete: seen={seen} written={written} duplicate_batch_entries={duplicates}',flush=True)
+    return written
 
 def main():
-    started=now(); sync_state('running',last_started_at=started,detail={'mode':'identity-stream'})
+    started=now(); sync_state('running',last_started_at=started,detail={'mode':'identity-stream','skipCards':SKIP_CARDS})
     try:
-        cards_path=download('AllIdentifiers')
-        cards=import_cards(cards_path)
-        sku_path=download('TcgplayerSkus')
-        skus=import_skus(sku_path)
-        sync_state('complete',last_started_at=started,last_completed_at=now(),row_count=cards,detail={'cards':cards,'tcgplayerSkus':skus,'streaming':True})
-        print(json.dumps({'ok':True,'cards':cards,'tcgplayerSkus':skus}),flush=True)
+        cards=None
+        if SKIP_CARDS:
+            print('Skipping AllIdentifiers card phase; resuming TCGplayer SKUs.',flush=True)
+        else:
+            cards=import_cards(download('AllIdentifiers'))
+        skus=import_skus(download('TcgplayerSkus'))
+        detail={'cards':cards,'tcgplayerSkus':skus,'streaming':True,'skipCards':SKIP_CARDS}
+        sync_state('complete',last_started_at=started,last_completed_at=now(),row_count=cards,status='complete' if False else 'complete',detail=detail)
+        print(json.dumps({'ok':True,**detail}),flush=True)
     except Exception as e:
-        sync_state('failed',last_started_at=started,detail={'error':repr(e),'streaming':True})
-        raise
+        sync_state('failed',last_started_at=started,detail={'error':repr(e),'streaming':True,'skipCards':SKIP_CARDS}); raise
 
 if __name__=='__main__': main()
