@@ -1,6 +1,6 @@
 // Collectish modern product shell — single frontend for desktop and Android WebView
 (() => {
-  const VERSION='0.9.32';
+  const VERSION='0.9.33';
   const c=window.COLLECTISH_CONFIG;
   const K='collectishSession';
   const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
