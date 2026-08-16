@@ -56,8 +56,6 @@ jobs:
       - name: Validate unified web JavaScript
         shell: bash
         run: |
-          PS4='+ validate line ${LINENO}: '
-          set -x
           node --check modern-core.js
           node --check current-readonly-agent.js
           node --check current-scout-parity.js
@@ -107,7 +105,7 @@ jobs:
           grep -q 'Direct' current-syp-parity.js
           grep -q 'D qty' current-syp-parity.js
           grep -q 'Mkt listings' current-syp-parity.js
-          grep -q 'data.tcgUrl' current-syp-links.js
+          grep -q 'dataset.tcgUrl' current-syp-links.js
           grep -q 'card_identity_cache' current-scout-thumbnails.js
           grep -q 'purchase_uris' current-scout-thumbnails.js
           grep -q 'limit=${limit}&offset=${offset}' current-syp-parity.js
