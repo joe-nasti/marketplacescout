@@ -1,0 +1,38 @@
+name: Refresh Scout Sealed
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "35 11 * * *"
+  push:
+    paths:
+      - "cloud-worker/refresh-sealed-commander-prices.mjs"
+      - "cloud-worker/refresh-precon-ev.mjs"
+      - ".github/workflows/refresh-precon-sealed.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-scout-sealed-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PRECON_RELEASE_FROM: "2025-01-01"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate workers
+        run: node --check cloud-worker/refresh-sealed-commander-prices.mjs cloud-worker/refresh-precon-ev.mjs
+      - name: Refresh sealed acquisition prices
+        run: node cloud-worker/refresh-sealed-commander-prices.mjs
+      - name: Recalculate precon EV and Scout Sealed scores
+        run: node cloud-worker/refresh-precon-ev.mjs
