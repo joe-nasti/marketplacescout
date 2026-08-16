@@ -1,0 +1,34 @@
+name: Collectish MTGJSON price bootstrap
+
+on:
+  push:
+    paths:
+      - ".github/workflows/mtgjson-price-bootstrap.yml"
+      - "cloud-worker/mtgjson-sync.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-mtgjson-price-bootstrap
+  cancel-in-progress: true
+
+jobs:
+  prices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MTGJSON_BASE_URL: https://mtgjson.com/api/v5
+      MTGJSON_MODE: prices
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: node --check cloud-worker/mtgjson-sync.mjs
+      - run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Import current vendor prices
+        run: node cloud-worker/mtgjson-sync.mjs prices
