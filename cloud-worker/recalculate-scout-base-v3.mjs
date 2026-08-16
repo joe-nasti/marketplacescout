@@ -18,4 +18,5 @@ for(;;){
   if(count<750)break;
 }
 const refreshed=await rpc('refresh_scout_opportunities_24h');
-console.log(JSON.stringify({rescored:total,batches,refreshed,scoringVersion:'supply-structure-v3'},null,2));
+const annotated=await rpc('annotate_scout_sales_confidence');
+console.log(JSON.stringify({rescored:total,batches,refreshed,annotated,scoringVersion:'supply-structure-v3'},null,2));
