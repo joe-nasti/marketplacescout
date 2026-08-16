@@ -1,5 +1,7 @@
 -- Canonical public.claim_collector_job definition used by cloud and Android agents.
 -- Deferred retries must not be claimable before collector_jobs.available_at.
+-- Expired claims get a short grace period, then may be reclaimed through the same
+-- ownership, routing, capability, and attempt-limit checks as queued jobs.
 -- service_role may claim globally; authenticated clients may claim only their own
 -- jobs and only with a collector_id already registered to the same user.
 create or replace function public.claim_collector_job(
@@ -31,8 +33,12 @@ begin
 
   select j.job_id into v_job_id
   from public.collector_jobs j
-  where j.status = 'queued'
-    and coalesce(j.available_at, v_now) <= v_now
+  where (
+      (j.status = 'queued' and coalesce(j.available_at, v_now) <= v_now)
+      or
+      (j.status = 'claimed' and j.lease_expires_at is not null and j.lease_expires_at <= v_now - interval '2 minutes')
+    )
+    and coalesce(j.attempt_count,0) < coalesce(j.max_attempts,5)
     and (v_role = 'service_role' or j.user_id = v_uid)
     and (p_source is null or j.source = p_source)
     and (p_action is null or j.action = p_action)
