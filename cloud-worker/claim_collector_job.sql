@@ -1,5 +1,7 @@
 -- Canonical public.claim_collector_job definition used by cloud and Android agents.
 -- Deferred retries must not be claimable before collector_jobs.available_at.
+-- service_role may claim globally; authenticated clients may claim only their own
+-- jobs and only with a collector_id already registered to the same user.
 create or replace function public.claim_collector_job(
   p_source text,
   p_action text,
@@ -16,11 +18,22 @@ as $function$
 declare
   v_job_id uuid;
   v_now timestamptz := now();
+  v_role text := auth.role();
+  v_uid uuid := auth.uid();
 begin
+  if coalesce(v_role,'') <> 'service_role' then
+    if v_uid is null then return; end if;
+    if not exists (
+      select 1 from public.collectors c
+      where c.user_id = v_uid and c.collector_id = p_collector_id
+    ) then return; end if;
+  end if;
+
   select j.job_id into v_job_id
   from public.collector_jobs j
   where j.status = 'queued'
     and coalesce(j.available_at, v_now) <= v_now
+    and (v_role = 'service_role' or j.user_id = v_uid)
     and (p_source is null or j.source = p_source)
     and (p_action is null or j.action = p_action)
     and (p_preferred_executors is null or cardinality(p_preferred_executors)=0 or j.preferred_executor = any(p_preferred_executors))
@@ -47,3 +60,6 @@ begin
   returning j.*;
 end;
 $function$;
+
+revoke all on function public.claim_collector_job(text,text,text[],text,uuid,integer) from public, anon;
+grant execute on function public.claim_collector_job(text,text,text[],text,uuid,integer) to authenticated, service_role;
