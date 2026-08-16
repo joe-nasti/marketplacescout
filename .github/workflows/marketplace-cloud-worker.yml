@@ -66,6 +66,19 @@ jobs:
         run: |
           sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/marketplace-worker.mjs
           sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/parity-check.mjs
+      - name: Use bounded scan-row persistence batches
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('cloud-worker/marketplace-worker.mjs')
+          s = p.read_text()
+          old = 'for(let i=0;i<rr.length;i+=200)await sb("marketplace_scan_rows?on_conflict=user_id,scan_id,sku_id",{method:"POST",body:rr.slice(i,i+200),prefer:"resolution=merge-duplicates,return=minimal"})'
+          new = 'for(let i=0;i<rr.length;i+=50)await sb("marketplace_scan_rows?on_conflict=user_id,scan_id,sku_id",{method:"POST",body:rr.slice(i,i+50),prefer:"resolution=merge-duplicates,return=minimal"})'
+          if old not in s:
+              raise SystemExit('Expected Marketplace persistence batch code was not found')
+          p.write_text(s.replace(old, new))
+          PY
       - name: Enable atomic job claim
         run: node cloud-worker/enable-atomic-claim.mjs
       - name: Validate patched worker
