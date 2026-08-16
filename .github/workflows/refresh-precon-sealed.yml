@@ -36,6 +36,8 @@ jobs:
       - name: Refresh TCGplayer sealed acquisition prices
         run: node cloud-worker/refresh-sealed-commander-prices.mjs
       - name: Refresh Card Kingdom sealed retail prices
+        continue-on-error: true
         run: node cloud-worker/refresh-sealed-cardkingdom-prices.mjs
       - name: Recalculate precon EV and Scout Sealed scores
+        if: always()
         run: node cloud-worker/refresh-precon-ev.mjs
