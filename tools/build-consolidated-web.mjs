@@ -1,13 +1,13 @@
 import fs from 'node:fs';
 
-const VERSION='0.8.5';
-const CACHE='085';
+const VERSION='0.8.6';
+const CACHE='086';
 const jsFiles=[
   'app.js','v032.js','v033.js','v035.js','v036.js','v038.js','v039.js','v042.js',
   'v044.js','v045.js','v046.js','v047.js','v048.js','v049.js','v050.js','v051.js',
   'v052.js','v054.js','v055.js','v056.js','v057.js','v058.js','v059.js','v060.js',
   'current-data.js','current-agent.js','current-readonly-agent.js','current-ux.js',
-  'current-scout-parity.js','current-scout-edhrec.js','current-seller-parity.js','current-syp-parity.js',
+  'current-scout-parity.js','current-scout-edhrec.js','current-scout-diversity.js','current-seller-parity.js','current-syp-parity.js',
   'current-ux-guard.js','current-ux-recovery.js'
 ];
 const cssFiles=[
