@@ -19,6 +19,7 @@ on:
     paths:
       - "cloud-worker/mtgjson-sync.mjs"
       - "cloud-worker/mtgjson-parquet-sync.py"
+      - "cloud-worker/mtgjson-deck-sku-sync.py"
       - "cloud-worker/mtgjson-deck-content-sync.py"
       - ".github/workflows/mtgjson-sync.yml"
 
@@ -41,7 +42,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: node --check cloud-worker/mtgjson-sync.mjs
-      - run: python -m py_compile cloud-worker/mtgjson-parquet-sync.py cloud-worker/mtgjson-deck-content-sync.py
+      - run: python -m py_compile cloud-worker/mtgjson-parquet-sync.py cloud-worker/mtgjson-deck-sku-sync.py cloud-worker/mtgjson-deck-content-sync.py
 
   sync:
     needs: validate
@@ -80,6 +81,9 @@ jobs:
       - name: Import MTGJSON commerce catalog
         if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
         run: python cloud-worker/mtgjson-parquet-sync.py
+      - name: Import deterministic deck NM English SKU mappings
+        if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
+        run: python cloud-worker/mtgjson-deck-sku-sync.py
       - name: Import MTGJSON deck contents
         if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
         run: python cloud-worker/mtgjson-deck-content-sync.py
