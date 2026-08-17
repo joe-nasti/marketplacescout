@@ -26,15 +26,20 @@
     }
     close();return out.join('');
   }
+  function renderElement(el){
+    if(!el||el.dataset?.md==='1')return;
+    const text=el.textContent||'';
+    if(!/[\n*_#`-]/.test(text))return;
+    el.innerHTML=markdown(text);
+    el.dataset.md='1';
+  }
   function render(){
-    document.querySelectorAll('#cxAskMessages .cx-ask-assistant .cx-ask-msg-body:not([data-md])').forEach(el=>{
-      const text=el.textContent||'';
-      if(!/[\n*_#`-]/.test(text))return;
-      el.innerHTML=markdown(text);
-      el.dataset.md='1';
-    });
+    document.querySelectorAll('#cxAskMessages .cx-ask-assistant .cx-ask-msg-body:not([data-md])').forEach(renderElement);
   }
   function schedule(){[0,80,250,700,1500,3000,6000].forEach(ms=>setTimeout(render,ms))}
+  document.addEventListener('collectish:ask-message-rendered',e=>{
+    if(e.detail?.role==='assistant')renderElement(e.detail.element);
+  });
   document.addEventListener('submit',e=>{if(e.target?.id==='cxAskForm')schedule()},true);
   document.addEventListener('click',e=>{if(e.target.closest?.('#cxAskInvestigate,.cx-ask-starter,.cx-v3-starter'))schedule()},true);
   document.addEventListener('collectish:ask-v3-response',schedule);
