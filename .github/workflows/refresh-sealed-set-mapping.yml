@@ -42,10 +42,15 @@ jobs:
       - name: Enrich all sealed products from native MTGJSON set JSON
         run: python cloud-worker/mtgjson-set-sealed-sync.py
       - name: Refresh TCG sealed acquisition prices
+        continue-on-error: true
         run: node cloud-worker/refresh-sealed-commander-prices.mjs
       - name: Recalculate sealed EV
+        if: always()
         run: node cloud-worker/refresh-precon-ev.mjs
       - name: Refresh economically meaningful Direct components
+        if: always()
+        continue-on-error: true
         run: node cloud-worker/refresh-precon-direct.mjs
       - name: Recalculate sealed EV with fresh Direct
+        if: always()
         run: node cloud-worker/refresh-precon-ev.mjs
