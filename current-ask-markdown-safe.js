@@ -6,8 +6,8 @@
     x=x.replace(/`([^`]+)`/g,'<code>$1</code>');
     x=x.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
     x=x.replace(/__([^_]+)__/g,'<strong>$1</strong>');
-    x=x.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g,'<em>$1</em>');
-    x=x.replace(/(?<!_)_([^_\n]+)_(?!_)/g,'<em>$1</em>');
+    x=x.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,'$1<em>$2</em>');
+    x=x.replace(/(^|[^_])_([^_\n]+)_(?!_)/g,'$1<em>$2</em>');
     return x;
   }
   function markdown(src){
@@ -27,16 +27,19 @@
     close();return out.join('');
   }
   function renderElement(el){
-    if(!el||el.dataset?.md==='1')return;
+    if(!el||el.dataset?.md==='1')return el;
     const text=el.textContent||'';
-    if(!/[\n*_#`-]/.test(text))return;
+    if(!/[\n*_#`-]/.test(text))return el;
     el.innerHTML=markdown(text);
     el.dataset.md='1';
+    return el;
   }
   function render(){
     document.querySelectorAll('#cxAskMessages .cx-ask-assistant .cx-ask-msg-body:not([data-md])').forEach(renderElement);
   }
   function schedule(){[0,80,250,700,1500,3000,6000].forEach(ms=>setTimeout(render,ms))}
+  window.CollectishRenderMarkdown=renderElement;
+  window.CollectishRenderAllMarkdown=render;
   document.addEventListener('collectish:ask-message-rendered',e=>{
     if(e.detail?.role==='assistant')renderElement(e.detail.element);
   });
