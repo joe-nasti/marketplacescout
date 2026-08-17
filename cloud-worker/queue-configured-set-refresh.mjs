@@ -7,6 +7,26 @@ async function sb(path,{method='GET',body,prefer}={}){const r=await fetch(`${SUP
 const now=new Date();
 const nowIso=now.toISOString();
 
+async function marketplaceHealthGate(){
+  const windowHours=3;
+  const since=new Date(Date.now()-windowHours*3600000).toISOString();
+  const recent=await sb(`collector_jobs?select=status,error_message,created_at&source=eq.marketplace&action=eq.scan_set&created_at=gte.${encodeURIComponent(since)}&status=in.(completed,failed)&order=created_at.desc&limit=250`);
+  const terminal=recent||[];
+  const failed=terminal.filter(x=>x.status==='failed');
+  const completed=terminal.filter(x=>x.status==='completed');
+  const http500=failed.filter(x=>/HTTP 500 .*tcgplayer\.com/i.test(String(x.error_message||''))).length;
+  const setMismatch=failed.filter(x=>/Set filter mismatch/i.test(String(x.error_message||''))).length;
+  const failureRate=terminal.length?failed.length/terminal.length:0;
+  const open=(setMismatch>=2)||(http500>=5)||(terminal.length>=6&&failureRate>=0.40);
+  return {open,windowHours,terminal:terminal.length,failed:failed.length,completed:completed.length,http500,setMismatch,failureRate:Number(failureRate.toFixed(3)),checkedAt:nowIso};
+}
+
+const health=await marketplaceHealthGate();
+if(health.open){
+  console.error(JSON.stringify({admission:'paused',reason:'marketplace_circuit_breaker',health},null,2));
+  process.exit(0);
+}
+
 // Profiles own stable phase slots inside their cadence window. Never turn a group of
 // overdue profiles into a backlog: queue at most one configured scan per scheduler pass.
 const profiles=await sb(`marketplace_scan_profiles?select=*&enabled=eq.true&or=(next_due_at.is.null,next_due_at.lte.${encodeURIComponent(nowIso)})&order=next_due_at.asc.nullsfirst,set_slug.asc&limit=25`);
@@ -65,4 +85,4 @@ for(const p of profiles||[]){
   queued++;
   break;
 }
-console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,mode:'staggered-one-runnable-at-a-time',setIdentity:'biweekly-tcg-id-cache'},null,2));
+console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,health,mode:'staggered-one-runnable-at-a-time',setIdentity:'biweekly-tcg-id-cache'},null,2));
