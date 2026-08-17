@@ -38,7 +38,6 @@
     const scan=admin?.querySelector('#cxAdminScanConfig');if(scan&&scan.parentElement!==singles)singles.appendChild(scan);
     const mh=admin?.querySelector('.cx-marketplace-health');if(mh&&mh.parentElement!==overview)overview.appendChild(mh);
     const rh=admin?.querySelector('.cx-runtime-health');if(rh&&rh.parentElement!==system)system.appendChild(rh);
-    // Any legacy top-level cards/modules belong under System unless explicitly classified above.
     [...(admin?.children||[])].filter(x=>x!==shell).forEach(x=>system.appendChild(x));
   }
 
@@ -49,6 +48,7 @@
     shell.querySelectorAll('[data-admin-tab]').forEach(b=>b.classList.toggle('active',b.dataset.adminTab===active));
     shell.querySelectorAll('[data-admin-panel]').forEach(p=>p.hidden=p.dataset.adminPanel!==active);
     document.body.classList.toggle('cx-admin-singles-active',active==='singles');
+    document.dispatchEvent(new CustomEvent('collectish:admin-section-change',{detail:{section:active}}));
     if(refresh)load();
   }
 
