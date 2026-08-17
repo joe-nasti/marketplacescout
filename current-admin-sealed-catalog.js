@@ -9,27 +9,27 @@
     const panel=document.querySelector('[data-admin-panel="sealed"]');if(!panel)return null;
     let card=panel.querySelector('#cxAdminSealedCatalog');if(card)return card;
     card=document.createElement('section');card.id='cxAdminSealedCatalog';card.className='cx-admin-catalog-card';
-    card.innerHTML=`<div class="cx-admin-catalog-head"><div><div class="cx-section-title">Sealed product catalog</div><p>Browse MTGJSON sealed identity separately from what Scout Sealed currently scores.</p></div><span id="cxAdminSealedCount" class="cx-sub"></span></div>
-      <div class="cx-admin-sealed-tools"><input id="cxAdminSealedSearch" placeholder="Search sealed products… e.g. Secret Lair"><select id="cxAdminSealedCategory"><option value="">All categories</option><option value="box_set">Box set</option><option value="deck">Deck</option><option value="bundle">Bundle</option><option value="bundle_case">Bundle case</option></select><select id="cxAdminSealedMapping"><option value="">All identity</option><option value="mapped">TCG mapped</option><option value="unmapped">Needs TCG match</option></select></div>
+    card.innerHTML=`<div class="cx-admin-catalog-head"><div><div class="cx-section-title">Sealed product catalog</div><p>Browse the full MTGJSON sealed universe. Scout Sealed currently scores only the promoted precon pipeline.</p></div><span id="cxAdminSealedCount" class="cx-sub"></span></div>
+      <div class="cx-admin-sealed-tools"><input id="cxAdminSealedSearch" placeholder="Search sealed products… e.g. Secret Lair"><select id="cxAdminSealedType"><option value="">All product types</option><option value="secret_lair">Secret Lair drops</option><option value="secret_lair_bundle">Secret Lair bundles</option><option value="commander">Commander decks</option></select><select id="cxAdminSealedMapping"><option value="">All identity</option><option value="mapped">TCG mapped</option><option value="unmapped">Needs TCG match</option></select></div>
       <div id="cxAdminSealedResults" class="cx-admin-sealed-results"><div class="cx-admin-loading">Open Sealed to load catalog…</div></div>`;
     panel.appendChild(card);
     const schedule=()=>{clearTimeout(timer);timer=setTimeout(()=>load(true),220)};
     card.querySelector('#cxAdminSealedSearch').addEventListener('input',schedule);
-    card.querySelector('#cxAdminSealedCategory').addEventListener('change',()=>load(true));
+    card.querySelector('#cxAdminSealedType').addEventListener('change',()=>load(true));
     card.querySelector('#cxAdminSealedMapping').addEventListener('change',()=>load(true));
     return card;
   }
   async function load(force=false){
     if(!active()||loading)return;const card=ensure();if(!card)return;
     const q=String(card.querySelector('#cxAdminSealedSearch')?.value||'').trim();
-    const category=String(card.querySelector('#cxAdminSealedCategory')?.value||'');
+    const subtype=String(card.querySelector('#cxAdminSealedType')?.value||'');
     const mapping=String(card.querySelector('#cxAdminSealedMapping')?.value||'');
-    const key=`${q}|${category}|${mapping}`;if(!force&&key===lastKey)return;lastKey=key;loading=true;
+    const key=`${q}|${subtype}|${mapping}`;if(!force&&key===lastKey)return;lastKey=key;loading=true;
     const out=card.querySelector('#cxAdminSealedResults'),count=card.querySelector('#cxAdminSealedCount');if(out)out.innerHTML='<div class="cx-admin-loading">Loading sealed catalog…</div>';
     try{
       let path='mtgjson_sealed_products?select=uuid,name,set_code,category,subtype,release_date,tcgplayer_product_id,cardkingdom_id&order=release_date.desc.nullslast,name.asc&limit=60';
       if(q)path+=`&name=ilike.*${encodeURIComponent(q)}*`;
-      if(category)path+=`&category=eq.${encodeURIComponent(category)}`;
+      if(subtype)path+=`&subtype=eq.${encodeURIComponent(subtype)}`;
       if(mapping==='mapped')path+='&tcgplayer_product_id=not.is.null';
       if(mapping==='unmapped')path+='&tcgplayer_product_id=is.null';
       const rows=await rest(path);
@@ -42,7 +42,7 @@
       if(count)count.textContent=`${(rows||[]).length}${(rows||[]).length===60?'+' : ''} shown`;
       if(!rows?.length){out.innerHTML='<div class="cx-admin-sealed-empty">No sealed products match these filters.</div>';return}
       out.innerHTML=rows.map(r=>{
-        const pp=pm.get(String(r.uuid))||[],tcg=pp.find(x=>x.source==='tcgplayer'),ck=pp.find(x=>x.source==='cardkingdom');
+        const pp=pm.get(String(r.uuid))||[],tcg=pp.find(x=>x.source==='tcgplayer_public'),ck=pp.find(x=>x.source==='cardkingdom_public');
         const mapped=Boolean(r.tcgplayer_product_id),priceTracked=Boolean(tcg||ck);
         const tags=[`<span class="cx-admin-sealed-tag">${esc(r.category||'unknown')}</span>`,`<span class="cx-admin-sealed-tag">${esc(r.subtype||'—')}</span>`,mapped?'<span class="cx-admin-sealed-tag good">TCG mapped</span>':'<span class="cx-admin-sealed-tag warn">Needs TCG match</span>',priceTracked?'<span class="cx-admin-sealed-tag good">Price tracked</span>':'<span class="cx-admin-sealed-tag">Catalog only</span>'].join('');
         const px=tcg?.low_price??tcg?.market_price??ck?.market_price??null;
