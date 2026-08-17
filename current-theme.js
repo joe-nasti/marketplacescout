@@ -7,13 +7,13 @@
   const resolved=m=>m==='system'?(mq.matches?'dark':'light'):m;
   function syncNative(theme){try{window.CollectishAndroid?.setTheme?.(theme)}catch{}}
   function apply(mode=saved()){
-    const theme=resolved(mode);
+    const theme=resolved(mode),bg=theme==='dark'?'#0b1538':'#f5f8ff';
     document.documentElement.dataset.cxTheme=theme;
     document.documentElement.dataset.cxThemeMode=mode;
     document.documentElement.style.colorScheme=theme;
-    document.documentElement.style.backgroundColor=theme==='dark'?'#0b1220':'#f5f8fc';
-    if(document.body)document.body.style.backgroundColor=theme==='dark'?'#0b1220':'#f5f8fc';
-    const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.content=theme==='dark'?'#0b1220':'#f5f8fc';
+    document.documentElement.style.backgroundColor=bg;
+    if(document.body)document.body.style.backgroundColor=bg;
+    const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.content=bg;
     syncNative(theme);
     document.querySelectorAll('[data-cx-theme-toggle]').forEach(b=>{b.textContent=mode==='system'?'◐':mode==='dark'?'☾':'☀';b.title=`Theme: ${mode}. Tap to change.`;b.setAttribute('aria-label',`Theme: ${mode}. Tap to change.`)});
   }
