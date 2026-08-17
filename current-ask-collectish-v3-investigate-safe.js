@@ -22,7 +22,9 @@
     const w=document.createElement('div');w.className=`cx-ask-msg cx-ask-${role}`;
     const b=document.createElement('div');b.className='cx-ask-msg-body';b.textContent=text;w.append(b);
     if(meta){const s=document.createElement('small');s.textContent=meta;w.append(s)}
-    h.append(w);h.scrollTop=h.scrollHeight;return w;
+    h.append(w);h.scrollTop=h.scrollHeight;
+    document.dispatchEvent(new CustomEvent('collectish:ask-message-rendered',{detail:{role,element:b}}));
+    return w;
   }
   async function api(body){
     const token=session()?.token;if(!token)throw Error('Sign in required');
