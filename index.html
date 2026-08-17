@@ -35,7 +35,7 @@
   <script src="current-lazy-data-pages.js?v=0958"></script>
   <script src="current-runtime-health.js?v=0962"></script>
   <script src="current-readonly-agent.js?v=0950"></script>
-  <script src="current-scout-v5-promoted.js?v=0950"></script>
+  <script src="current-scout-bootstrap-safe.js?v=0963"></script>
   <script src="current-scout-list-images.js?v=0960"></script>
   <script src="current-scout-noise-filter.js?v=0950"></script>
   <script src="current-scout-global-search.js?v=0950"></script>
@@ -52,6 +52,7 @@
   <script src="current-ask-collectish-v3-investigate-safe.js?v=0955"></script>
   <script src="current-ask-collectish-v3-actions-safe.js?v=0952"></script>
   <script src="current-ask-collectish-v3-admin-safe.js?v=0952"></script>
+  <!-- Scout renderer is loaded after collectish:ready to avoid the legacy pre-shell MutationObserver reload loop. -->
   <!-- Seller, Sealed, and SYP feature bundles are lazy-loaded on first navigation. -->
   <!-- Legacy monolithic V3 client remains disabled; V3 is restored only through startup-safe modules. -->
 </body>
