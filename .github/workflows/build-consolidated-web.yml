@@ -36,22 +36,29 @@ jobs:
         run: |
           set -euo pipefail
           for f in modern-core.js current-*.js; do node --check "$f"; done
-          grep -q "VERSION='0.9.48'" modern-core.js
-          grep -q 'modern-core.js?v=0948' index.html
-          grep -q 'current-theme.js?v=0948' index.html
-          grep -q 'current-theme.css?v=0948' index.html
-          grep -q 'collectish-icon-192.png?v=0948' index.html
+          grep -q "VERSION='0.9.49'" modern-core.js
+          grep -q 'modern-core.js?v=0949' index.html
+          grep -q 'current-theme.js?v=0949' index.html
+          grep -q 'current-theme.css?v=0949' index.html
+          grep -q 'collectish-icon-192.png?v=0949' index.html
+          grep -q 'current-ask-collectish.js?v=0949' index.html
+          grep -q 'current-ask-collectish.css?v=0949' index.html
+          grep -q 'functions/v1/ask-collectish' current-ask-collectish.js
+          grep -q "action:'health'" current-ask-collectish.js
+          grep -q "action:'investigate'" current-ask-collectish.js
+          grep -q 'Ask Collectish · AI diagnostics' current-ask-collectish.js
+          grep -q 'cx-ask-panel' current-ask-collectish.css
           grep -q 'cx-brand-ish' modern-core.js
           grep -q '#0b1538' current-theme.css
           grep -q '#1866e8' current-theme.css
           grep -q '#2f8cfa' current-theme.css
           grep -q '#87b8ff' current-theme.css
           grep -q 'CollectishAndroid.*setTheme' current-theme.js
-          grep -q 'current-sealed-ev.js?v=0948' index.html
-          grep -q 'current-sealed-detail-focus.js?v=0948' index.html
-          grep -q 'current-sealed-metric-drilldown.js?v=0948' index.html
-          grep -q 'current-sealed-score-tooltips.js?v=0948' index.html
-          grep -q 'current-mobile-detail-swipe.js?v=0948' index.html
+          grep -q 'current-sealed-ev.js?v=0949' index.html
+          grep -q 'current-sealed-detail-focus.js?v=0949' index.html
+          grep -q 'current-sealed-metric-drilldown.js?v=0949' index.html
+          grep -q 'current-sealed-score-tooltips.js?v=0949' index.html
+          grep -q 'current-mobile-detail-swipe.js?v=0949' index.html
           grep -q 'scout_opportunities_v5' current-scout-v5-promoted.js
           test -s collectish-icon-192.png
 
