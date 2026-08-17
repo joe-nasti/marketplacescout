@@ -28,10 +28,10 @@ jobs:
           set -euo pipefail
           node --check current-theme.js
           node --check modern-core.js
-          grep -q "VERSION='0.9.49'" modern-core.js
-          grep -q 'current-theme.css?v=0949' index.html
-          grep -q 'current-theme.js?v=0949' index.html
-          grep -q 'collectish-icon-192.png?v=0949' index.html
+          grep -q "VERSION='0.9.50'" modern-core.js
+          grep -q 'current-theme.css?v=0950' index.html
+          grep -q 'current-theme.js?v=0950' index.html
+          grep -q 'collectish-icon-192.png?v=0950' index.html
           grep -q 'cx-brand-ish' modern-core.js
           grep -q "collectishTheme" current-theme.js
           grep -q "prefers-color-scheme: dark" current-theme.js
