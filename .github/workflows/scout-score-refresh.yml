@@ -36,5 +36,6 @@ jobs:
           node --check cloud-worker/refresh-scout-24h.mjs
           grep -q "refresh_scout_opportunities_24h" cloud-worker/refresh-scout-24h.mjs
           grep -q "refresh_scout_v5_shadow" cloud-worker/refresh-scout-24h.mjs
-      - name: Refresh 24-hour Scout scores and v5 shadow
+          grep -q "refresh_scout_opportunities_v5_cache" cloud-worker/refresh-scout-24h.mjs
+      - name: Refresh 24-hour Scout scores, v5 shadow and promoted cache
         run: node cloud-worker/refresh-scout-24h.mjs
