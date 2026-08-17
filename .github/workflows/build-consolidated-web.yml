@@ -34,14 +34,17 @@ jobs:
         run: |
           set -euo pipefail
           for f in modern-core.js current-*.js; do node --check "$f"; done
-          grep -q "VERSION='0.9.39'" modern-core.js
-          grep -q 'modern-core.js?v=0939' index.html
-          grep -q 'current-scout-v5-promoted.js?v=0939' index.html
-          grep -q 'current-sealed-ev.js?v=0939' index.html
-          grep -q 'current-sealed-detail-focus.js?v=0939' index.html
-          grep -q 'current-sealed-source-checks.js?v=0939' index.html
+          grep -q "VERSION='0.9.40'" modern-core.js
+          grep -q 'modern-core.js?v=0940' index.html
+          grep -q 'current-scout-v5-promoted.js?v=0940' index.html
+          grep -q 'current-sealed-ev.js?v=0940' index.html
+          grep -q 'current-sealed-detail-focus.js?v=0940' index.html
+          grep -q 'current-sealed-source-checks.js?v=0940' index.html
           grep -q 'cx-sealed-detail-open' current-sealed-detail-focus.js
           grep -q 'cx-sealed-detail-close' current-sealed-detail-focus.js
+          grep -q 'height:100dvh' current-sealed-ev.css
+          grep -q 'overflow-y:scroll' current-sealed-ev.css
+          grep -q 'touch-action:pan-y' current-sealed-ev.css
           grep -q 'cardkingdom_public' current-sealed-source-checks.js
           grep -q 'standalone-v3' current-sealed-source-checks.js
           grep -q 'scout_opportunities_v5' current-scout-v5-promoted.js
