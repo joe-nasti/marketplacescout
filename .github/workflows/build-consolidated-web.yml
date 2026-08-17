@@ -42,13 +42,18 @@ jobs:
           grep -q 'jwt issued at future' modern-core.js
           grep -q 'serverExp' modern-core.js
           grep -q 'collectish:auth-invalid' modern-core.js
-          grep -q 'current-rest-read-retry.js?v=0957' index.html
-          grep -q 'current-lazy-data-pages.js?v=0957' index.html
-          grep -q 'statement timeout' current-rest-read-retry.js
+          grep -q 'current-rest-read-retry.js?v=0958' index.html
+          grep -q 'current-lazy-data-pages.js?v=0958' index.html
+          grep -q 'current-runtime-health.js?v=0958' index.html
+          grep -q 'statement_timeout_retries' current-rest-read-retry.js
           grep -q "method!=='GET'" current-rest-read-retry.js
+          grep -q 'collectish:runtime-health' current-rest-read-retry.js
           grep -q "sealed:\[" current-lazy-data-pages.js
           grep -q "seller:\[" current-lazy-data-pages.js
           grep -q "syp:\[" current-lazy-data-pages.js
+          grep -q 'collectish:lazy-page-loaded' current-lazy-data-pages.js
+          grep -q 'Runtime health' current-runtime-health.js
+          grep -q 'scout_first_load_ms' current-runtime-health.js
           ! grep -q '<script src="current-sealed-ev.js' index.html
           ! grep -q '<script src="current-seller-parity.js' index.html
           ! grep -q '<script src="current-syp-parity.js' index.html
