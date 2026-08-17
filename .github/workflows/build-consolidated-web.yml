@@ -45,6 +45,8 @@ jobs:
           grep -q 'current-ask-collectish-v2.css?v=0950' index.html
           grep -q 'current-ask-collectish-v3.js?v=0951' index.html
           grep -q 'current-ask-collectish-v3.css?v=0951' index.html
+          grep -q 'current-ask-collectish-v3-diagnostics.js?v=0951' index.html
+          grep -q 'ask_collectish_v3_diagnostics_summary' current-ask-collectish-v3-diagnostics.js
           grep -q 'current-inventory-v2.js?v=0950' index.html
           grep -q "pages=\['scout','sealed','seller','syp','inventory','admin'\]" modern-core.js
           grep -q 'functions/v1/ask-collectish' current-ask-collectish.js
