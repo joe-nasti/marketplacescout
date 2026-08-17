@@ -64,6 +64,14 @@ jobs:
           grep -q 'current-ask-markdown-safe.css?v=0955' index.html
           grep -q 'current-ask-investigate-presentation.js?v=0956' index.html
           grep -q 'current-ask-investigate-presentation.css?v=0956' index.html
+          grep -q 'current-ask-concise-view.js?v=0959' index.html
+          grep -q 'current-ask-concise-view.css?v=0959' index.html
+          grep -q 'progressive disclosure' current-ask-concise-view.js
+          grep -q 'Show deeper evidence' current-ask-concise-view.js
+          grep -q 'Show full analysis' current-ask-concise-view.js
+          grep -q 'CORE SETUP' current-ask-concise-view.js
+          ! grep -q 'MutationObserver' current-ask-concise-view.js
+          ! grep -q 'window.fetch=' current-ask-concise-view.js
           ! grep -q '<script src="current-ask-collectish-v3.js' index.html
           ! grep -q '<script src="current-ask-collectish-v3-diagnostics.js' index.html
           grep -q 'no MutationObserver' current-ask-collectish-v3-investigate-safe.js
