@@ -1,0 +1,15 @@
+/* Scout Sealed cards deliberately inherit Scout card UX. */
+.cx-sealed-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.cx-sealed-row.cx-sealed-scout-card{display:grid;grid-template-columns:82px minmax(0,1fr);gap:12px;align-items:start;padding:10px;min-height:120px;border:1px solid var(--cx-line);border-radius:14px;background:var(--cx-card);color:var(--cx-text);text-align:left}
+.cx-sealed-row.cx-sealed-scout-card:hover,.cx-sealed-row.cx-sealed-scout-card.selected{border-color:var(--cx-accent,#4c7dff);box-shadow:0 0 0 1px color-mix(in srgb,var(--cx-accent,#4c7dff) 30%,transparent)}
+.cx-sealed-scout-thumb{width:82px;aspect-ratio:63/88;border-radius:7px;overflow:hidden;background:var(--cx-soft)}
+.cx-sealed-scout-thumb .cx-sealed-product-image{width:100%;height:100%;margin:0;border-radius:0;background:var(--cx-soft);display:flex;align-items:center;justify-content:center}
+.cx-sealed-scout-thumb .cx-sealed-product-image img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+.cx-sealed-scout-card-body>strong{display:block;font-size:14px;line-height:1.25;margin:7px 0 3px}
+.cx-sealed-scout-card-body>small{display:block;color:var(--cx-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-sealed-scout-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 9px;margin-top:7px;font-size:11px;color:var(--cx-muted)}
+.cx-sealed-scout-metrics b{color:var(--cx-text)}
+.cx-sealed-scout-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;pointer-events:none}
+.cx-sealed-scout-badges .cx-sealed-badge{font-size:9px;padding:3px 6px}
+@media(max-width:980px){.cx-sealed-list{grid-template-columns:1fr}}
+@media(max-width:640px){.cx-sealed-row.cx-sealed-scout-card{grid-template-columns:68px minmax(0,1fr);padding:9px;gap:10px;min-height:106px}.cx-sealed-scout-thumb{width:68px}.cx-sealed-scout-card-body>strong{font-size:13px}.cx-sealed-scout-metrics{font-size:10px}}
