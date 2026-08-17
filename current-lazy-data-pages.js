@@ -1,10 +1,27 @@
-// Collectish lazy data pages — do not start hidden data queries during app boot.
+// Collectish lazy data pages — do not start hidden feature bundles during app boot.
 (() => {
   const loaded=new Set();
   const scripts={
-    sealed:['current-sealed-ev.js?v=0957'],
-    seller:['current-seller-parity.js?v=0957'],
-    syp:['current-syp-parity.js?v=0957']
+    sealed:[
+      'current-sealed-ev.js?v=0957',
+      'current-sealed-detail-focus.js?v=0957',
+      'current-sealed-source-checks.js?v=0957',
+      'current-sealed-images.js?v=0957',
+      'current-sealed-scout-card-parity.js?v=0957',
+      'current-sealed-metric-drilldown.js?v=0957',
+      'current-sealed-score-tooltips.js?v=0957'
+    ],
+    seller:[
+      'current-seller-parity.js?v=0957',
+      'current-seller-overview-order-meta.js?v=0957',
+      'current-seller-order-filters.js?v=0957',
+      'current-seller-drilldowns.js?v=0957',
+      'current-seller-detail-polish.js?v=0957'
+    ],
+    syp:[
+      'current-syp-parity.js?v=0957',
+      'current-syp-links.js?v=0957'
+    ]
   };
   function load(page){
     const list=scripts[page];
