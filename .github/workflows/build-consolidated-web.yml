@@ -42,6 +42,16 @@ jobs:
           grep -q 'jwt issued at future' modern-core.js
           grep -q 'serverExp' modern-core.js
           grep -q 'collectish:auth-invalid' modern-core.js
+          grep -q 'current-rest-read-retry.js?v=0957' index.html
+          grep -q 'current-lazy-data-pages.js?v=0957' index.html
+          grep -q 'statement timeout' current-rest-read-retry.js
+          grep -q "method!=='GET'" current-rest-read-retry.js
+          grep -q "sealed:\[" current-lazy-data-pages.js
+          grep -q "seller:\[" current-lazy-data-pages.js
+          grep -q "syp:\[" current-lazy-data-pages.js
+          ! grep -q '<script src="current-sealed-ev.js' index.html
+          ! grep -q '<script src="current-seller-parity.js' index.html
+          ! grep -q '<script src="current-syp-parity.js' index.html
           grep -q 'current-ask-collectish-v3-investigate-safe.js?v=0955' index.html
           grep -q 'current-ask-collectish-v3-actions-safe.js?v=0952' index.html
           grep -q 'current-ask-collectish-v3-admin-safe.js?v=0952' index.html
