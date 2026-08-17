@@ -43,10 +43,16 @@ jobs:
           grep -q 'serverExp' modern-core.js
           grep -q 'collectish:auth-invalid' modern-core.js
           grep -q 'current-rest-read-retry.js?v=0958' index.html
-          grep -q 'current-scout-v5-cache-read.js?v=0962' index.html
+          grep -q 'current-scout-v5-cache-read.js?v=0964' index.html
           grep -q 'scout_opportunities_v5_cache' current-scout-v5-cache-read.js
           grep -q 'scout_cache_fallback' current-scout-v5-cache-read.js
+          grep -q 'scout_read_coalesced' current-scout-v5-cache-read.js
+          grep -q 'scout_read_reused' current-scout-v5-cache-read.js
           grep -q 'collectishRuntimeHealth' current-scout-v5-cache-read.js
+          grep -q 'current-scout-bootstrap-safe.js?v=0963' index.html
+          grep -q 'collectish:ready' current-scout-bootstrap-safe.js
+          grep -q 'current-scout-v5-promoted.js?v=0963' current-scout-bootstrap-safe.js
+          ! grep -q '<script src="current-scout-v5-promoted.js' index.html
           grep -q 'current-lazy-data-pages.js?v=0958' index.html
           grep -q 'current-runtime-health.js?v=0962' index.html
           grep -q 'Scout ranking cache' current-runtime-health.js
