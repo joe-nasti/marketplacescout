@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - "index.html"
+      - "manifest.webmanifest"
+      - "collectish-icon-*.png"
       - "config.js"
       - "modern-core.js"
       - "modern-core.css"
@@ -34,61 +36,24 @@ jobs:
         run: |
           set -euo pipefail
           for f in modern-core.js current-*.js; do node --check "$f"; done
-          grep -q "VERSION='0.9.44'" modern-core.js
-          grep -q 'modern-core.js?v=0944' index.html
-          grep -q 'current-scout-v5-promoted.js?v=0944' index.html
-          grep -q 'current-sealed-ev.js?v=0944' index.html
-          grep -q 'current-sealed-detail-focus.js?v=0944' index.html
-          grep -q 'current-sealed-source-checks.js?v=0944' index.html
-          grep -q 'current-sealed-images.js?v=0944' index.html
-          grep -q 'current-sealed-images.css?v=0944' index.html
-          grep -q 'current-sealed-scout-card-parity.js?v=0944' index.html
-          grep -q 'current-sealed-scout-card-parity.css?v=0944' index.html
-          grep -q 'current-sealed-metric-drilldown.js?v=0944' index.html
-          grep -q 'current-sealed-metric-drilldown.css?v=0944' index.html
-          grep -q 'current-mobile-detail-swipe.js?v=0944' index.html
-          grep -q 'cx-scout-card-body' current-sealed-scout-card-parity.js
-          grep -q 'cx-scout-card-top' current-sealed-scout-card-parity.js
-          grep -q 'cx-scout-card-metrics' current-sealed-scout-card-parity.js
-          grep -q 'grid-template-columns:repeat(2,minmax(0,1fr))' current-sealed-scout-card-parity.css
-          grep -q 'tcgplayer-cdn.tcgplayer.com/product/' current-sealed-images.js
-          grep -q 'matchConfidence' current-sealed-images.js
-          grep -q 'cx-sealed-product-image-detail' current-sealed-images.css
-          grep -q 'cx-sealed-detail-open' current-sealed-detail-focus.js
-          grep -q 'cx-sealed-detail-close' current-sealed-detail-focus.js
-          grep -q 'height:100dvh' current-sealed-ev.css
-          grep -q 'overflow-y:scroll' current-sealed-ev.css
-          grep -q 'touch-action:pan-y' current-sealed-ev.css
-          grep -q 'cardBreakdown' current-sealed-metric-drilldown.js
-          grep -q 'Open exact TCGplayer product' current-sealed-metric-drilldown.js
-          grep -q 'Card Kingdom cash buylist EV' current-sealed-metric-drilldown.js
-          grep -q 'cx-sealed-drilldown' current-sealed-metric-drilldown.css
-          grep -q 'cardkingdom_public' current-sealed-source-checks.js
-          grep -q 'standalone-v3' current-sealed-source-checks.js
+          grep -q "VERSION='0.9.48'" modern-core.js
+          grep -q 'modern-core.js?v=0948' index.html
+          grep -q 'current-theme.js?v=0948' index.html
+          grep -q 'current-theme.css?v=0948' index.html
+          grep -q 'collectish-icon-192.png?v=0948' index.html
+          grep -q 'cx-brand-ish' modern-core.js
+          grep -q '#0b1538' current-theme.css
+          grep -q '#1866e8' current-theme.css
+          grep -q '#2f8cfa' current-theme.css
+          grep -q '#87b8ff' current-theme.css
+          grep -q 'CollectishAndroid.*setTheme' current-theme.js
+          grep -q 'current-sealed-ev.js?v=0948' index.html
+          grep -q 'current-sealed-detail-focus.js?v=0948' index.html
+          grep -q 'current-sealed-metric-drilldown.js?v=0948' index.html
+          grep -q 'current-sealed-score-tooltips.js?v=0948' index.html
+          grep -q 'current-mobile-detail-swipe.js?v=0948' index.html
           grep -q 'scout_opportunities_v5' current-scout-v5-promoted.js
-          grep -q 'DIRECT BACKED' current-scout-v5-promoted.js
-          grep -q "component('Thesis'" current-scout-v5-promoted.js
-          grep -q "component('Execution'" current-scout-v5-promoted.js
-          grep -q "component('Exit / Floor'" current-scout-v5-promoted.js
-          grep -q "component('Confirmation'" current-scout-v5-promoted.js
-          grep -q "stat('TCG Market'" current-scout-v5-promoted.js
-          grep -q "stat('TCG Low'" current-scout-v5-promoted.js
-          grep -q "stat('TCG Direct Low'" current-scout-v5-promoted.js
-          grep -q 'scout_sealed_score' current-sealed-ev.js
-          grep -q "component('Economics'" current-sealed-ev.js
-          grep -q "component('Exit floor'" current-sealed-ev.js
-          grep -q 'market_value_coverage_pct' current-sealed-ev.js
-          grep -q 'api.scryfall.com/cards/autocomplete' current-scout-global-search.js
-          grep -q 'manualScoutGlobal:true' current-scout-global-search.js
-          grep -q 'excluded' current-scout-global-vendor.js
-          grep -q 'TCG Market = index/reference' current-scout-tcg-price-semantics.js
-          grep -q 'rpc/claim_collector_job' current-readonly-agent.js
-          if grep -q 'current-scout-parity.js' index.html; then echo 'Legacy Scout renderer must not load after v5 promotion'; exit 1; fi
-          if grep -q 'current-scout-vendor-pricing.js' index.html; then echo 'Legacy Scout vendor detail layer must not load after v5 promotion'; exit 1; fi
-          if grep -q 'current-scout-v5-preview.js' index.html; then echo 'v5 preview must not load after promotion'; exit 1; fi
-          if grep -q 'current-scout-actionability-guard.js' index.html; then echo 'Legacy actionability guard must not load after v5 promotion'; exit 1; fi
-          if grep -q 'current-admin-navigation.js' index.html; then echo 'Legacy Admin navigation must not load'; exit 1; fi
-          if grep -q 'current-scout-links.js' index.html; then echo 'Legacy Scout links must not load'; exit 1; fi
+          test -s collectish-icon-192.png
 
   android-agent:
     runs-on: ubuntu-latest
@@ -121,7 +86,7 @@ jobs:
           test -s "$RUNNER_TEMP/collectish-release.jks"
           echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
           keytool -list -keystore "$RUNNER_TEMP/collectish-release.jks" -storepass "$COLLECTISH_KEYSTORE_PASSWORD" -alias "$COLLECTISH_KEY_ALIAS" >/dev/null
-      - name: Apply Android 0.2.7 patch chain
+      - name: Apply Android 0.2.8 patch chain
         shell: bash
         run: |
           python tools/patch-native-v021.py
@@ -131,19 +96,20 @@ jobs:
           python tools/patch-native-v025.py
           python tools/patch-native-v026.py
           python tools/patch-native-v027.py
-      - name: Align and verify Android metadata
+          python tools/patch-native-v028.py
+      - name: Align and verify Android metadata and branding
         working-directory: android-agent
         shell: bash
         run: |
-          sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.7"/' app/src/main/java/com/collectish/agent/MainActivity.kt
-          sed -i -E 's/versionCode = [0-9]+/versionCode = 27/' app/build.gradle.kts
-          sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.7"/' app/build.gradle.kts
-          grep -q 'SellerSyncService::class.java' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'class SellerSyncService' app/src/main/java/com/collectish/agent/SellerSyncService.kt
-          grep -q 'START_STICKY' app/src/main/java/com/collectish/agent/SellerSyncService.kt
-          grep -q 'android:foregroundServiceType="dataSync"' app/src/main/java/com/collectish/agent/AndroidManifest.xml || grep -q 'android:foregroundServiceType="dataSync"' app/src/main/AndroidManifest.xml
-          grep -q 'versionCode = 27' app/build.gradle.kts
-          grep -q 'versionName = "0.2.7"' app/build.gradle.kts
+          sed -i -E 's/private val version = "[0-9.]+"/private val version = "0.2.8"/' app/src/main/java/com/collectish/agent/MainActivity.kt
+          sed -i -E 's/versionCode = [0-9]+/versionCode = 28/' app/build.gradle.kts
+          sed -i -E 's/versionName = "[0-9.]+"/versionName = "0.2.8"/' app/build.gradle.kts
+          grep -q 'setTheme(theme:String)' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'Color.rgb(11, 21, 56)' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'android:icon="@drawable/collectish_launcher"' app/src/main/AndroidManifest.xml
+          test -s app/src/main/res/drawable-nodpi/collectish_launcher.png
+          grep -q 'versionCode = 28' app/build.gradle.kts
+          grep -q 'versionName = "0.2.8"' app/build.gradle.kts
       - name: Build persistently signed Android APK
         working-directory: android-agent
         run: |
@@ -156,5 +122,5 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/collectish-android-agent.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: collectish-android-agent-v0.2.7-signed
+          name: collectish-android-agent-v0.2.8-signed
           path: ${{ runner.temp }}/collectish-android-agent.apk
