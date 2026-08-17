@@ -1,0 +1,40 @@
+name: Validate Collectish theme
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "current-theme.js"
+      - "current-theme.css"
+      - "modern-core.js"
+      - "index.html"
+      - ".github/workflows/validate-theme.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  theme-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate theme support
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check current-theme.js
+          node --check modern-core.js
+          grep -q "VERSION='0.9.46'" modern-core.js
+          grep -q 'current-theme.css?v=0946' index.html
+          grep -q 'current-theme.js?v=0946' index.html
+          grep -q "collectishTheme" current-theme.js
+          grep -q "prefers-color-scheme: dark" current-theme.js
+          grep -q "data.cxTheme" current-theme.js
+          grep -q 'data-cx-theme="dark"' current-theme.css
+          grep -q 'cx-scout-detail.cx-mobile-detail-open' current-theme.css
+          grep -q 'cx-sealed-detail.cx-sealed-detail-open' current-theme.css
+          grep -q 'cx-sealed-score-tip' current-theme.css
+          grep -q 'cx-theme-toggle' current-theme.css
