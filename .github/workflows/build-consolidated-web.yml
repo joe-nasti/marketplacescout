@@ -43,11 +43,13 @@ jobs:
           grep -q 'serverExp' modern-core.js
           grep -q 'collectish:auth-invalid' modern-core.js
           grep -q 'current-rest-read-retry.js?v=0958' index.html
-          grep -q 'current-scout-v5-cache-read.js?v=0961' index.html
+          grep -q 'current-scout-v5-cache-read.js?v=0962' index.html
           grep -q 'scout_opportunities_v5_cache' current-scout-v5-cache-read.js
           grep -q 'scout_cache_fallback' current-scout-v5-cache-read.js
+          grep -q 'collectishRuntimeHealth' current-scout-v5-cache-read.js
           grep -q 'current-lazy-data-pages.js?v=0958' index.html
-          grep -q 'current-runtime-health.js?v=0958' index.html
+          grep -q 'current-runtime-health.js?v=0962' index.html
+          grep -q 'Scout ranking cache' current-runtime-health.js
           grep -q 'statement_timeout_retries' current-rest-read-retry.js
           grep -q "method!='GET'\|method!=='GET'" current-rest-read-retry.js
           grep -q 'collectish:runtime-health' current-rest-read-retry.js
