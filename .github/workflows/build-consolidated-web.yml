@@ -120,6 +120,22 @@ jobs:
           test -s app/src/main/res/drawable-nodpi/collectish_launcher.png
           grep -q 'versionCode = 28' app/build.gradle.kts
           grep -q 'versionName = "0.2.8"' app/build.gradle.kts
+      - name: Normalize launcher PNG for Android resources
+        shell: bash
+        run: |
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          p=Path('android-agent/app/src/main/res/drawable-nodpi/collectish_launcher.png')
+          with Image.open(p) as im:
+              rgba=im.convert('RGBA')
+              rgba.save(p, format='PNG', optimize=False, compress_level=6)
+          with Image.open(p) as check:
+              assert check.mode == 'RGBA'
+              assert check.width > 0 and check.height > 0
+              print('launcher normalized', check.size, check.mode)
+          PY
       - name: Build persistently signed Android APK
         working-directory: android-agent
         run: |
