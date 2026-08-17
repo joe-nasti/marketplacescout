@@ -10,15 +10,28 @@ const nowIso=now.toISOString();
 async function marketplaceHealthGate(){
   const windowHours=3;
   const since=new Date(Date.now()-windowHours*3600000).toISOString();
-  const recent=await sb(`collector_jobs?select=status,error_message,created_at&source=eq.marketplace&action=eq.scan_set&created_at=gte.${encodeURIComponent(since)}&status=in.(completed,failed)&order=created_at.desc&limit=250`);
-  const terminal=recent||[];
+  const recent=await sb(`collector_jobs?select=status,error_message,created_at,completed_at,progress_json,payload_json&source=eq.marketplace&action=eq.scan_set&completed_at=gte.${encodeURIComponent(since)}&status=in.(completed,failed)&order=completed_at.desc&limit=250`);
+  const all=recent||[];
+  const recoveryCanary=all.find(x=>x.status==='completed'&&x.progress_json?.circuitBreakerCanary===true&&x.payload_json?.profile?.tcgSetSlug);
+  const boundary=recoveryCanary?.completed_at?new Date(recoveryCanary.completed_at).getTime():null;
+  const terminal=boundary?all.filter(x=>new Date(x.completed_at||0).getTime()>=boundary):all;
   const failed=terminal.filter(x=>x.status==='failed');
   const completed=terminal.filter(x=>x.status==='completed');
   const http500=failed.filter(x=>/HTTP 500 .*tcgplayer\.com/i.test(String(x.error_message||''))).length;
   const setMismatch=failed.filter(x=>/Set filter mismatch/i.test(String(x.error_message||''))).length;
   const failureRate=terminal.length?failed.length/terminal.length:0;
   const open=(setMismatch>=2)||(http500>=5)||(terminal.length>=6&&failureRate>=0.40);
-  return {open,windowHours,terminal:terminal.length,failed:failed.length,completed:completed.length,http500,setMismatch,failureRate:Number(failureRate.toFixed(3)),checkedAt:nowIso};
+  return {open,windowHours,terminal:terminal.length,failed:failed.length,completed:completed.length,http500,setMismatch,failureRate:Number(failureRate.toFixed(3)),recoveryCanaryAt:recoveryCanary?.completed_at||null,checkedAt:nowIso};
+}
+
+async function releasePausedBacklog(limit=2){
+  const paused=await sb(`collector_jobs?select=job_id,progress_json&source=eq.marketplace&action=eq.scan_set&status=eq.queued&progress_json->>pausedBy=eq.marketplace_circuit_breaker&available_at=gt.${encodeURIComponent(nowIso)}&order=created_at.asc&limit=${limit}`);
+  let released=0;
+  for(const j of paused||[]){
+    await sb(`collector_jobs?job_id=eq.${encodeURIComponent(j.job_id)}&status=eq.queued`,{method:'PATCH',body:{available_at:nowIso,progress_json:{...(j.progress_json||{}),stage:'queued',detail:'Released after successful circuit-breaker canary',releasedAt:nowIso}},prefer:'return=minimal'});
+    released++;
+  }
+  return released;
 }
 
 const health=await marketplaceHealthGate();
@@ -26,6 +39,7 @@ if(health.open){
   console.error(JSON.stringify({admission:'paused',reason:'marketplace_circuit_breaker',health},null,2));
   process.exit(0);
 }
+const releasedPaused=await releasePausedBacklog(2);
 
 // Profiles own stable phase slots inside their cadence window. Never turn a group of
 // overdue profiles into a backlog: queue at most one configured scan per scheduler pass.
@@ -85,4 +99,4 @@ for(const p of profiles||[]){
   queued++;
   break;
 }
-console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,health,mode:'staggered-one-runnable-at-a-time',setIdentity:'biweekly-tcg-id-cache'},null,2));
+console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,releasedPaused,health,mode:'staggered-one-runnable-at-a-time',setIdentity:'biweekly-tcg-id-cache'},null,2));
