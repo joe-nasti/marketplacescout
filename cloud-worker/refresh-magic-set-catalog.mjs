@@ -24,15 +24,15 @@ async function mapLimit(items,limit,fn){
   await Promise.all(Array.from({length:Math.min(limit,items.length)},worker));return out;
 }
 
-// Catalog refresh is bi-weekly. The authoritative TCG set-id -> urlName translation
-// is refreshed only here and cached in magic_set_catalog.tcgplayer_slug.
+// Bi-weekly catalog refresh. The numeric TCG set-id -> canonical urlName mapping
+// is refreshed only here and cached in tcgplayer_set_identity_cache.
 const force=String(process.env.COLLECTISH_FORCE_SET_CATALOG||'').toLowerCase()==='true';
 if(!force){
-  const latest=await sb('magic_set_catalog?select=updated_at&order=updated_at.desc&limit=1');
+  const latest=await sb('tcgplayer_set_identity_cache?select=updated_at&order=updated_at.desc&limit=1');
   const last=latest?.[0]?.updated_at?new Date(latest[0].updated_at).getTime():0;
   const ageMs=last?Date.now()-last:Infinity;
   if(ageMs<14*24*60*60*1000){
-    console.log(JSON.stringify({skipped:true,reason:'catalog_fresh',lastUpdatedAt:latest?.[0]?.updated_at||null,nextEligibleAt:last?new Date(last+14*24*60*60*1000).toISOString():null},null,2));
+    console.log(JSON.stringify({skipped:true,reason:'tcg_set_catalog_fresh',lastUpdatedAt:latest?.[0]?.updated_at||null,nextEligibleAt:last?new Date(last+14*24*60*60*1000).toISOString():null},null,2));
     process.exit(0);
   }
 }
@@ -41,24 +41,20 @@ const scry=await fetch('https://api.scryfall.com/sets',{headers:{Accept:'applica
 if(!scry.ok)throw new Error(`Scryfall sets ${scry.status}`);
 const body=await scry.json();
 const physical=(body.data||[]).filter(s=>!s.digital&&s.tcgplayer_id);
-const ids=[...new Set(physical.map(s=>Number(s.tcgplayer_id)).filter(Number.isFinite))];
+const profileIds=await sb('marketplace_scan_profiles?select=tcgplayer_group_id&tcgplayer_group_id=not.is.null');
+const ids=[...new Set([
+  ...physical.map(s=>Number(s.tcgplayer_id)),
+  ...(profileIds||[]).map(x=>Number(x.tcgplayer_group_id))
+].filter(Number.isFinite))];
 const tcgRows=await mapLimit(ids,8,async id=>{try{return await fetchTcgSet(id)}catch(e){console.warn(e.message||e);return null}});
-const tcgById=new Map(tcgRows.filter(Boolean).map(x=>[x.id,x]));
+const good=tcgRows.filter(Boolean),tcgById=new Map(good.map(x=>[x.id,x]));
 const nowIso=new Date().toISOString();
+const identityRows=good.map(x=>({tcgplayer_group_id:x.id,set_name:x.name||x.urlName,set_code:x.abbreviation||null,url_name:x.urlName,updated_at:nowIso,source:'tcgplayer_catalog'}));
+for(let i=0;i<identityRows.length;i+=200)await sb('tcgplayer_set_identity_cache?on_conflict=tcgplayer_group_id',{method:'POST',body:identityRows.slice(i,i+200),prefer:'resolution=merge-duplicates,return=minimal'});
+
 const rows=physical.map(s=>{
   const gid=Number(s.tcgplayer_id),tcg=tcgById.get(gid);
-  return {
-    scryfall_id:s.id,
-    code:String(s.code||'').toUpperCase(),
-    name:s.name,
-    set_type:s.set_type||null,
-    released_at:s.released_at||null,
-    digital:false,
-    tcgplayer_group_id:gid,
-    tcgplayer_slug:tcg?.urlName||null,
-    catalog_source:'scryfall+tcgplayer',
-    updated_at:nowIso
-  };
+  return {scryfall_id:s.id,code:String(s.code||'').toUpperCase(),name:s.name,set_type:s.set_type||null,released_at:s.released_at||null,digital:false,tcgplayer_group_id:gid,tcgplayer_slug:tcg?.urlName||null,catalog_source:'scryfall+tcgplayer-cache',updated_at:nowIso};
 });
 for(let i=0;i<rows.length;i+=200)await sb('magic_set_catalog?on_conflict=scryfall_id',{method:'POST',body:rows.slice(i,i+200),prefer:'resolution=merge-duplicates,return=minimal'});
-console.log(JSON.stringify({catalogRows:rows.length,uniqueTcgSetIds:ids.length,canonicalTcgSlugs:tcgById.size,missingCanonicalSlug:rows.filter(x=>!x.tcgplayer_slug).length,refreshPolicy:'biweekly'},null,2));
+console.log(JSON.stringify({catalogRows:rows.length,requestedTcgSetIds:ids.length,cachedTcgSetIds:identityRows.length,missingTcgIdentity:ids.length-identityRows.length,refreshPolicy:'biweekly'},null,2));
