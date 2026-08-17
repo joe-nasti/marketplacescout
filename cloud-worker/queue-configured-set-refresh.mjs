@@ -3,14 +3,6 @@ const SERVICE_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 if(!SUPABASE_URL||!SERVICE_KEY)throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
 const H={apikey:SERVICE_KEY,Authorization:`Bearer ${SERVICE_KEY}`,'Content-Type':'application/json'};
 async function sb(path,{method='GET',body,prefer}={}){const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers:{...H,...(prefer?{Prefer:prefer}:{})},body:body===undefined?undefined:JSON.stringify(body)});const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch{d=t}if(!r.ok)throw new Error(d?.message||`Supabase ${r.status}: ${String(t).slice(0,240)}`);return d}
-async function tcgSetSlug(groupId){
-  if(!groupId)return null;
-  const r=await fetch(`https://mpapi.tcgplayer.com/v2/Catalog/SetName/${encodeURIComponent(groupId)}`,{headers:{Accept:'application/json','User-Agent':'Collectish/0.1'}});
-  const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch{d=null}
-  if(!r.ok)throw new Error(`TCG set lookup ${groupId} failed ${r.status}: ${String(t).slice(0,180)}`);
-  const rec=d?.results?.[0];
-  return rec?.urlName?String(rec.urlName):null;
-}
 
 const now=new Date();
 const nowIso=now.toISOString();
@@ -18,7 +10,7 @@ const nowIso=now.toISOString();
 // Profiles own stable phase slots inside their cadence window. Never turn a group of
 // overdue profiles into a backlog: queue at most one configured scan per scheduler pass.
 const profiles=await sb(`marketplace_scan_profiles?select=*&enabled=eq.true&or=(next_due_at.is.null,next_due_at.lte.${encodeURIComponent(nowIso)})&order=next_due_at.asc.nullsfirst,set_slug.asc&limit=25`);
-let queued=0,skipped=0,initialized=0,unresolved=0,resolvedSlugs=0;
+let queued=0,skipped=0,initialized=0,unresolved=0;
 
 function advanceSlot(p){
   const cadenceMs=Math.max(1,Number(p.cadence_hours||24))*3600000;
@@ -38,8 +30,6 @@ function runnable(j){
 }
 
 for(const p of profiles||[]){
-  // A newly added/rebalanced profile can have no next_due_at yet. Give it its stored
-  // phase slot first rather than immediately joining the queue with every other new set.
   if(!p.next_due_at){
     const first=new Date(Date.now()+Math.max(0,Number(p.schedule_offset_minutes||0))*60000).toISOString();
     await sb(`marketplace_scan_profiles?user_id=eq.${encodeURIComponent(p.user_id)}&set_slug=eq.${encodeURIComponent(p.set_slug)}`,{method:'PATCH',body:{next_due_at:first,updated_at:nowIso},prefer:'return=minimal'});
@@ -47,33 +37,24 @@ for(const p of profiles||[]){
     if(new Date(first)>now)continue;
   }
 
-  // TCGplayer search expects the canonical set URL value, not a Scryfall/display name.
-  // Resolve it from the authoritative numeric TCG set/group id and cache it on profile.
-  let tcgSlug=String(p.tcgplayer_set_slug||'').trim();
-  if(!tcgSlug&&p.tcgplayer_group_id){
-    try{
-      tcgSlug=await tcgSetSlug(p.tcgplayer_group_id)||'';
-      if(tcgSlug){
-        await sb(`marketplace_scan_profiles?user_id=eq.${encodeURIComponent(p.user_id)}&set_slug=eq.${encodeURIComponent(p.set_slug)}`,{method:'PATCH',body:{tcgplayer_set_slug:tcgSlug,updated_at:nowIso},prefer:'return=minimal'});
-        resolvedSlugs++;
-      }
-    }catch(e){console.warn(`TCG set slug resolution failed for ${p.set_name}: ${e.message||e}`)}
+  // Scan-time identity is a pure cache lookup. The numeric TCG set id -> canonical
+  // urlName mapping is refreshed only by the bi-weekly TCG set catalog job.
+  let tcgSlug='';
+  if(p.tcgplayer_group_id){
+    const idRows=await sb(`tcgplayer_set_identity_cache?select=url_name&tcgplayer_group_id=eq.${encodeURIComponent(p.tcgplayer_group_id)}&limit=1`);
+    tcgSlug=String(idRows?.[0]?.url_name||'').trim();
   }
   if(!tcgSlug){
-    // Do not fire an unscoped/broad TCG search. Defer this unresolved alias one cadence.
     const next=advanceSlot(p);
     await sb(`marketplace_scan_profiles?user_id=eq.${encodeURIComponent(p.user_id)}&set_slug=eq.${encodeURIComponent(p.set_slug)}`,{method:'PATCH',body:{next_due_at:next,updated_at:nowIso},prefer:'return=minimal'});
     unresolved++;
+    console.warn(`Configured scan deferred: no cached TCG set identity for ${p.set_name} (${p.tcgplayer_group_id||'no group id'})`);
     continue;
   }
 
-  // A future-dated transient retry must not reserve the entire configured scheduler.
-  // Only a runnable queued job, or an actually claimed/running job, blocks admission.
   const sameSet=await sb(`collector_jobs?select=job_id,status,available_at&user_id=eq.${encodeURIComponent(p.user_id)}&source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&payload_json->profile->>setSlug=eq.${encodeURIComponent(p.set_slug)}&limit=20`);
   if((sameSet||[]).some(runnable)){skipped++;continue}
 
-  // Keep at most one runnable configured scan admitted at a time, while allowing other
-  // due profiles to proceed during the cool-down window of an upstream-failure retry.
   const scheduledActive=await sb(`collector_jobs?select=job_id,status,available_at&user_id=eq.${encodeURIComponent(p.user_id)}&source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&payload_json->>configuredSchedule=eq.true&limit=50`);
   if((scheduledActive||[]).some(runnable)){skipped++;break}
 
@@ -84,4 +65,4 @@ for(const p of profiles||[]){
   queued++;
   break;
 }
-console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,resolvedSlugs,mode:'staggered-one-runnable-at-a-time',setIdentity:'tcg-group-id-to-canonical-urlName'},null,2));
+console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,mode:'staggered-one-runnable-at-a-time',setIdentity:'biweekly-tcg-id-cache'},null,2));
