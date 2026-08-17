@@ -49,7 +49,7 @@ jobs:
           grep -q 'current-ask-collectish-v3-admin-safe.js?v=0952' index.html
           ! grep -q '<script src="current-ask-collectish-v3.js' index.html
           ! grep -q '<script src="current-ask-collectish-v3-diagnostics.js' index.html
-          grep -q 'No MutationObserver' current-ask-collectish-v3-investigate-safe.js
+          grep -q 'no MutationObserver' current-ask-collectish-v3-investigate-safe.js
           grep -q 'No startup RPCs, no MutationObserver' current-ask-collectish-v3-actions-safe.js
           grep -q 'No startup RPCs or observers' current-ask-collectish-v3-admin-safe.js
           grep -q "action:'investigate'" current-ask-collectish-v3-investigate-safe.js
