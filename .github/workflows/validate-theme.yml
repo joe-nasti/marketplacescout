@@ -35,7 +35,7 @@ jobs:
           grep -q 'cx-brand-ish' modern-core.js
           grep -q "collectishTheme" current-theme.js
           grep -q "prefers-color-scheme: dark" current-theme.js
-          grep -q "data.cxTheme" current-theme.js
+          grep -q "dataset.cxTheme" current-theme.js
           grep -q 'data-cx-theme="light"' current-theme.css
           grep -q 'data-cx-theme="dark"' current-theme.css
           grep -q '#0b1538' current-theme.css
