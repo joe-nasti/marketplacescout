@@ -34,16 +34,19 @@ jobs:
         run: |
           set -euo pipefail
           for f in modern-core.js current-*.js; do node --check "$f"; done
-          grep -q "VERSION='0.9.42'" modern-core.js
-          grep -q 'modern-core.js?v=0942' index.html
-          grep -q 'current-scout-v5-promoted.js?v=0942' index.html
-          grep -q 'current-sealed-ev.js?v=0942' index.html
-          grep -q 'current-sealed-detail-focus.js?v=0942' index.html
-          grep -q 'current-sealed-source-checks.js?v=0942' index.html
-          grep -q 'current-sealed-images.js?v=0942' index.html
-          grep -q 'current-sealed-images.css?v=0942' index.html
-          grep -q 'current-sealed-scout-card-parity.js?v=0942' index.html
-          grep -q 'current-sealed-scout-card-parity.css?v=0942' index.html
+          grep -q "VERSION='0.9.44'" modern-core.js
+          grep -q 'modern-core.js?v=0944' index.html
+          grep -q 'current-scout-v5-promoted.js?v=0944' index.html
+          grep -q 'current-sealed-ev.js?v=0944' index.html
+          grep -q 'current-sealed-detail-focus.js?v=0944' index.html
+          grep -q 'current-sealed-source-checks.js?v=0944' index.html
+          grep -q 'current-sealed-images.js?v=0944' index.html
+          grep -q 'current-sealed-images.css?v=0944' index.html
+          grep -q 'current-sealed-scout-card-parity.js?v=0944' index.html
+          grep -q 'current-sealed-scout-card-parity.css?v=0944' index.html
+          grep -q 'current-sealed-metric-drilldown.js?v=0944' index.html
+          grep -q 'current-sealed-metric-drilldown.css?v=0944' index.html
+          grep -q 'current-mobile-detail-swipe.js?v=0944' index.html
           grep -q 'cx-scout-card-body' current-sealed-scout-card-parity.js
           grep -q 'cx-scout-card-top' current-sealed-scout-card-parity.js
           grep -q 'cx-scout-card-metrics' current-sealed-scout-card-parity.js
@@ -56,6 +59,10 @@ jobs:
           grep -q 'height:100dvh' current-sealed-ev.css
           grep -q 'overflow-y:scroll' current-sealed-ev.css
           grep -q 'touch-action:pan-y' current-sealed-ev.css
+          grep -q 'cardBreakdown' current-sealed-metric-drilldown.js
+          grep -q 'Open exact TCGplayer product' current-sealed-metric-drilldown.js
+          grep -q 'Card Kingdom cash buylist EV' current-sealed-metric-drilldown.js
+          grep -q 'cx-sealed-drilldown' current-sealed-metric-drilldown.css
           grep -q 'cardkingdom_public' current-sealed-source-checks.js
           grep -q 'standalone-v3' current-sealed-source-checks.js
           grep -q 'scout_opportunities_v5' current-scout-v5-promoted.js
