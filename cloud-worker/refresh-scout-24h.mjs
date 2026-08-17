@@ -18,4 +18,5 @@ for(;;){
   if(batches>100)throw new Error('Scout v5 batch cursor did not terminate');
 }
 const v5Deleted=Number(await rpc('finish_scout_v5_shadow_refresh'));
-console.log(JSON.stringify({refreshed,v5Shadow,v5Batches:batches,v5Deleted,at:new Date().toISOString()}));
+const promotedCache=Number(await rpc('refresh_scout_opportunities_v5_cache'));
+console.log(JSON.stringify({refreshed,v5Shadow,v5Batches:batches,v5Deleted,promotedCache,at:new Date().toISOString()}));
