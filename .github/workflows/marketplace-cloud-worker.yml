@@ -14,6 +14,7 @@ on:
       - ".github/workflows/marketplace-cloud-worker.yml"
       - "cloud-worker/**"
       - "tools/patch-marketplace-set-filter.py"
+      - "tools/patch-ask-collectish-investigate.py"
 
 permissions:
   contents: read
@@ -79,17 +80,21 @@ jobs:
               raise SystemExit('Expected Marketplace persistence batch code was not found')
           p.write_text(s.replace(old, new))
           PY
+      - name: Enable Ask Collectish Investigate jobs
+        run: python tools/patch-ask-collectish-investigate.py
       - name: Enable atomic job claim
         run: node cloud-worker/enable-atomic-claim.mjs
       - name: Validate patched worker
         run: |
-          python -m py_compile tools/patch-marketplace-set-filter.py
+          python -m py_compile tools/patch-marketplace-set-filter.py tools/patch-ask-collectish-investigate.py
           node --check cloud-worker/queue-configured-set-refresh.mjs
           node --check cloud-worker/marketplace-worker.mjs
           node --check cloud-worker/enrich-scout-scryfall.mjs
           node --check cloud-worker/rescore-new-scout-v4.mjs
           grep -q 'Set filter mismatch' cloud-worker/marketplace-worker.mjs
           grep -q 'setName:profile.setName' cloud-worker/marketplace-worker.mjs
+          grep -q 'runScoutSalesEnrich' cloud-worker/marketplace-worker.mjs
+          grep -q 'source=eq.ask_collectish' cloud-worker/marketplace-worker.mjs
           grep -q 'recalculate_scout_base_v4_batch' cloud-worker/rescore-new-scout-v4.mjs
       - name: Capture Scout row watermark
         run: node cloud-worker/rescore-new-scout-v4.mjs capture
