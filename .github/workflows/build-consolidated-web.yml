@@ -43,21 +43,23 @@ jobs:
           grep -q 'collectish-icon-192.png?v=0950' index.html
           grep -q 'current-ask-collectish.js?v=0950' index.html
           grep -q 'current-ask-collectish-v2.css?v=0950' index.html
-          grep -q 'current-ask-collectish-v3.js?v=0951' index.html
           grep -q 'current-ask-collectish-v3.css?v=0951' index.html
-          grep -q 'current-ask-collectish-v3-diagnostics.js?v=0951' index.html
-          grep -q 'ask_collectish_v3_diagnostics_summary' current-ask-collectish-v3-diagnostics.js
+          grep -q 'current-ask-collectish-v3-investigate-safe.js?v=0952' index.html
+          grep -q 'current-ask-collectish-v3-actions-safe.js?v=0952' index.html
+          grep -q 'current-ask-collectish-v3-admin-safe.js?v=0952' index.html
+          ! grep -q '<script src="current-ask-collectish-v3.js' index.html
+          ! grep -q '<script src="current-ask-collectish-v3-diagnostics.js' index.html
+          grep -q 'No MutationObserver' current-ask-collectish-v3-investigate-safe.js
+          grep -q 'No startup RPCs, no MutationObserver' current-ask-collectish-v3-actions-safe.js
+          grep -q 'No startup RPCs or observers' current-ask-collectish-v3-admin-safe.js
+          grep -q "action:'investigate'" current-ask-collectish-v3-investigate-safe.js
+          grep -q 'ask_collectish_pending_confirmations' current-ask-collectish-v3-actions-safe.js
+          grep -q "action:'confirm_action'" current-ask-collectish-v3-actions-safe.js
+          grep -q 'ask_collectish_get_purchase_list' current-ask-collectish-v3-actions-safe.js
+          grep -q 'ask_collectish_v3_diagnostics_summary' current-ask-collectish-v3-admin-safe.js
           grep -q 'current-inventory-v2.js?v=0950' index.html
           grep -q "pages=\['scout','sealed','seller','syp','inventory','admin'\]" modern-core.js
           grep -q 'functions/v1/ask-collectish' current-ask-collectish.js
-          grep -q "PATH='/functions/v1/ask-collectish'" current-ask-collectish-v3.js
-          ! grep -q 'ask-collectish-v3' current-ask-collectish-v3.js
-          grep -q 'explicitInvestigate' current-ask-collectish-v3.js
-          grep -q 'ask_collectish_pending_confirmations' current-ask-collectish-v3.js
-          grep -q "action:'confirm_action'" current-ask-collectish-v3.js
-          grep -q 'ask_collectish_get_purchase_list' current-ask-collectish-v3.js
-          grep -q 'ask_collectish_get_model_config' current-ask-collectish-v3.js
-          grep -q 'Ask Collectish V3 · operations diagnostics' current-ask-collectish-v3.js
           grep -q 'applyUiActions' current-ask-collectish.js
           grep -q 'ask_collectish_search_syp' current-ask-collectish.js
           grep -q 'ask_collectish_search_orders' current-ask-collectish.js
