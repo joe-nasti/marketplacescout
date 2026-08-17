@@ -3,6 +3,7 @@
   const VERSION='0.9.52';
   const c=window.COLLECTISH_CONFIG;
   const K='collectishSession';
+  let refreshInFlight=null;
   const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   const H=t=>({apikey:c.publishableKey,Authorization:`Bearer ${t||c.publishableKey}`,'Content-Type':'application/json'});
   const session=()=>{try{return JSON.parse(localStorage.getItem(K)||'null')}catch{return null}};
@@ -13,7 +14,7 @@
   const jwtProblem=(status,d,text='')=>{const m=String(d?.message||d?.msg||d?.error_description||d?.error||text||'').toLowerCase();return status===401||status===403||m.includes('jwt issued at future')||m.includes('jwt expired')||m.includes('invalid jwt')||m.includes('token is expired')};
   window.COLLECTISH_WEB_VERSION=VERSION;
 
-  async function refreshSession(s=session()){
+  async function doRefresh(s=session()){
     if(!s?.refresh){save(null);return null}
     try{
       const r=await fetch(`${c.supabaseUrl}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:H(),body:JSON.stringify({refresh_token:s.refresh})});
@@ -22,6 +23,11 @@
       const n={token:d.access_token,refresh:d.refresh_token||s.refresh,exp:serverExp(d.access_token,d.expires_in),user:d.user||s.user};
       save(n);return n;
     }catch{save(null);return null}
+  }
+  async function refreshSession(s=session()){
+    if(refreshInFlight)return refreshInFlight;
+    refreshInFlight=doRefresh(s).finally(()=>{refreshInFlight=null});
+    return refreshInFlight;
   }
   async function valid(){let s=session();if(!s)return null;if(Date.now()<Number(s.exp||0)-60000)return s;return refreshSession(s)}
   window.rest=async function(path,o={}){
