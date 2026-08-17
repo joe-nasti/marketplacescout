@@ -22,8 +22,10 @@
     const w=document.createElement('div');w.className=`cx-ask-msg cx-ask-${role}`;
     const b=document.createElement('div');b.className='cx-ask-msg-body';b.textContent=text;w.append(b);
     if(meta){const s=document.createElement('small');s.textContent=meta;w.append(s)}
-    h.append(w);h.scrollTop=h.scrollHeight;
+    h.append(w);
+    if(role==='assistant')window.CollectishRenderMarkdown?.(b);
     document.dispatchEvent(new CustomEvent('collectish:ask-message-rendered',{detail:{role,element:b}}));
+    h.scrollTop=h.scrollHeight;
     return w;
   }
   async function api(body){
@@ -53,7 +55,6 @@
     }catch(e){wait?.remove();add('system',e?.message||String(e));if(state)state.textContent='Investigate failed'}
     finally{busy=false}
   }
-  // Capture-phase override only for the existing V2 Investigate button.
   document.addEventListener('click',e=>{
     const b=e.target?.closest?.('#cxAskInvestigate');if(!b)return;
     e.preventDefault();e.stopImmediatePropagation();investigate();
