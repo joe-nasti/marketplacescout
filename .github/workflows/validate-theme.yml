@@ -8,6 +8,7 @@ on:
       - "current-theme.css"
       - "modern-core.js"
       - "index.html"
+      - "manifest.webmanifest"
       - ".github/workflows/validate-theme.yml"
 
 permissions:
@@ -21,19 +22,26 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Validate theme support
+      - name: Validate branded theme support
         shell: bash
         run: |
           set -euo pipefail
           node --check current-theme.js
           node --check modern-core.js
-          grep -q "VERSION='0.9.46'" modern-core.js
-          grep -q 'current-theme.css?v=0946' index.html
-          grep -q 'current-theme.js?v=0946' index.html
+          grep -q "VERSION='0.9.48'" modern-core.js
+          grep -q 'current-theme.css?v=0948' index.html
+          grep -q 'current-theme.js?v=0948' index.html
+          grep -q 'collectish-icon-192.png?v=0948' index.html
+          grep -q 'cx-brand-ish' modern-core.js
           grep -q "collectishTheme" current-theme.js
           grep -q "prefers-color-scheme: dark" current-theme.js
           grep -q "data.cxTheme" current-theme.js
+          grep -q 'data-cx-theme="light"' current-theme.css
           grep -q 'data-cx-theme="dark"' current-theme.css
+          grep -q '#0b1538' current-theme.css
+          grep -q '#1866e8' current-theme.css
+          grep -q '#2f8cfa' current-theme.css
+          grep -q '#87b8ff' current-theme.css
           grep -q 'cx-scout-detail.cx-mobile-detail-open' current-theme.css
           grep -q 'cx-sealed-detail.cx-sealed-detail-open' current-theme.css
           grep -q 'cx-sealed-score-tip' current-theme.css
