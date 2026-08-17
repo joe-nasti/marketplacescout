@@ -34,14 +34,20 @@ jobs:
         run: |
           set -euo pipefail
           for f in modern-core.js current-*.js; do node --check "$f"; done
-          grep -q "VERSION='0.9.41'" modern-core.js
-          grep -q 'modern-core.js?v=0941' index.html
-          grep -q 'current-scout-v5-promoted.js?v=0941' index.html
-          grep -q 'current-sealed-ev.js?v=0941' index.html
-          grep -q 'current-sealed-detail-focus.js?v=0941' index.html
-          grep -q 'current-sealed-source-checks.js?v=0941' index.html
-          grep -q 'current-sealed-images.js?v=0941' index.html
-          grep -q 'current-sealed-images.css?v=0941' index.html
+          grep -q "VERSION='0.9.42'" modern-core.js
+          grep -q 'modern-core.js?v=0942' index.html
+          grep -q 'current-scout-v5-promoted.js?v=0942' index.html
+          grep -q 'current-sealed-ev.js?v=0942' index.html
+          grep -q 'current-sealed-detail-focus.js?v=0942' index.html
+          grep -q 'current-sealed-source-checks.js?v=0942' index.html
+          grep -q 'current-sealed-images.js?v=0942' index.html
+          grep -q 'current-sealed-images.css?v=0942' index.html
+          grep -q 'current-sealed-scout-card-parity.js?v=0942' index.html
+          grep -q 'current-sealed-scout-card-parity.css?v=0942' index.html
+          grep -q 'cx-scout-card-body' current-sealed-scout-card-parity.js
+          grep -q 'cx-scout-card-top' current-sealed-scout-card-parity.js
+          grep -q 'cx-scout-card-metrics' current-sealed-scout-card-parity.js
+          grep -q 'grid-template-columns:repeat(2,minmax(0,1fr))' current-sealed-scout-card-parity.css
           grep -q 'tcgplayer-cdn.tcgplayer.com/product/' current-sealed-images.js
           grep -q 'matchConfidence' current-sealed-images.js
           grep -q 'cx-sealed-product-image-detail' current-sealed-images.css
