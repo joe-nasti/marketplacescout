@@ -50,8 +50,7 @@ jobs:
       - run: python -m py_compile cloud-worker/mtgjson-parquet-sync.py cloud-worker/mtgjson-set-sealed-sync.py cloud-worker/mtgjson-deck-sku-sync.py cloud-worker/mtgjson-deck-metadata-sync.py cloud-worker/mtgjson-deck-content-sync.py
 
   sync:
-    # Normally push is validation-only. `mtgjson-set-sealed-sync.py` is being introduced
-    # with a one-time identity backfill, so this commit intentionally runs identity on push.
+    if: github.event_name != 'push'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 75
@@ -76,8 +75,6 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "MTGJSON_MODE=${{ inputs.mode }}" >> "$GITHUB_ENV"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            echo "MTGJSON_MODE=identity" >> "$GITHUB_ENV"
           elif [ "${{ github.event.schedule }}" = "0 12 * * 0" ]; then
             echo "MTGJSON_MODE=identity" >> "$GITHUB_ENV"
           else
@@ -107,10 +104,15 @@ jobs:
         if: env.MTGJSON_MODE == 'prices' || env.MTGJSON_MODE == 'all'
         run: node cloud-worker/mtgjson-sync.mjs prices
       - name: Refresh public TCG sealed Commander prices
+        continue-on-error: true
         run: node cloud-worker/refresh-sealed-commander-prices.mjs
       - name: Build current precon EV target cache
+        if: always()
         run: node cloud-worker/refresh-precon-ev.mjs
       - name: Refresh economically meaningful precon Direct SKUs
+        if: always()
+        continue-on-error: true
         run: node cloud-worker/refresh-precon-direct.mjs
       - name: Recalculate recent Commander precon EV with fresh Direct data
+        if: always()
         run: node cloud-worker/refresh-precon-ev.mjs
