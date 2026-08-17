@@ -1,0 +1,11 @@
+// Collectish Admin Sealed source freshness correction — source keys are *_public in storage.
+(() => {
+  let loading=false;
+  const age=t=>{if(!t)return'Never';const ms=Date.now()-new Date(t).getTime(),h=ms/36e5;if(h<1)return`${Math.max(1,Math.round(ms/6e4))}m ago`;if(h<48)return`${Math.round(h)}h ago`;return`${Math.round(h/24)}d ago`};
+  function row(label){return [...document.querySelectorAll('#cxAdminSealedSources .cx-admin-source-row')].find(r=>r.querySelector('strong')?.textContent===label)}
+  function paint(label,last,freshHours){const r=row(label);if(!r)return;const status=r.querySelector('.cx-admin-status'),b=r.querySelector('.cx-admin-source-meta b'),small=r.querySelector('.cx-admin-source-meta small');const good=Boolean(last)&&Date.now()-new Date(last).getTime()<freshHours*36e5;if(status){status.textContent=good?'GOOD':'WARN';status.className=`cx-admin-status ${good?'good':'warn'}`}if(b)b.textContent=age(last);if(small)small.textContent=last?new Date(last).toLocaleString():'—'}
+  async function load(){if(loading)return;const admin=document.getElementById('cxAdmin'),sealed=document.getElementById('cxAdminConsole')?.dataset.activeSection==='sealed';if(!admin?.classList.contains('active')||!sealed)return;loading=true;try{const rows=await rest('sealed_product_price_current?select=source,captured_at&order=captured_at.desc&limit=100');const latest=s=>{const xs=(rows||[]).filter(x=>x.source===s).map(x=>x.captured_at).filter(Boolean).sort();return xs.at(-1)||null};paint('TCG sealed acquisition',latest('tcgplayer_public'),36);paint('Card Kingdom sealed reference',latest('cardkingdom_public'),72)}catch(e){console.warn('Sealed source freshness unavailable',e)}finally{loading=false}}
+  document.addEventListener('collectish:admin-section-change',e=>{if(e.detail?.section==='sealed')setTimeout(load,120)});
+  document.addEventListener('click',e=>{if(e.target.closest?.('[data-cx-page="admin"]'))setTimeout(load,320)},true);
+  window.CollectishAdminSealedHealth={refresh:load};
+})();
