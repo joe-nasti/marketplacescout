@@ -18,7 +18,6 @@ jobs:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       PRECON_RELEASE_FROM: "2025-01-01"
-      CK_ONLY_DECK: "Scions & Spellcraft (FINAL FANTASY XIV)"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
