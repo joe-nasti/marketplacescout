@@ -34,13 +34,16 @@ jobs:
         run: |
           set -euo pipefail
           for f in modern-core.js current-*.js; do node --check "$f"; done
-          grep -q "VERSION='0.9.38'" modern-core.js
-          grep -q 'modern-core.js?v=0938' index.html
-          grep -q 'current-scout-v5-promoted.js?v=0938' index.html
-          grep -q 'current-sealed-ev.js?v=0938' index.html
-          grep -q 'current-sealed-detail-focus.js?v=0938' index.html
+          grep -q "VERSION='0.9.39'" modern-core.js
+          grep -q 'modern-core.js?v=0939' index.html
+          grep -q 'current-scout-v5-promoted.js?v=0939' index.html
+          grep -q 'current-sealed-ev.js?v=0939' index.html
+          grep -q 'current-sealed-detail-focus.js?v=0939' index.html
+          grep -q 'current-sealed-source-checks.js?v=0939' index.html
           grep -q 'cx-sealed-detail-open' current-sealed-detail-focus.js
           grep -q 'cx-sealed-detail-close' current-sealed-detail-focus.js
+          grep -q 'cardkingdom_public' current-sealed-source-checks.js
+          grep -q 'standalone-v3' current-sealed-source-checks.js
           grep -q 'scout_opportunities_v5' current-scout-v5-promoted.js
           grep -q 'DIRECT BACKED' current-scout-v5-promoted.js
           grep -q "component('Thesis'" current-scout-v5-promoted.js
@@ -117,7 +120,7 @@ jobs:
           grep -q 'SellerSyncService::class.java' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'class SellerSyncService' app/src/main/java/com/collectish/agent/SellerSyncService.kt
           grep -q 'START_STICKY' app/src/main/java/com/collectish/agent/SellerSyncService.kt
-          grep -q 'android:foregroundServiceType="dataSync"' app/src/main/AndroidManifest.xml
+          grep -q 'android:foregroundServiceType="dataSync"' app/src/main/java/com/collectish/agent/AndroidManifest.xml || grep -q 'android:foregroundServiceType="dataSync"' app/src/main/AndroidManifest.xml
           grep -q 'versionCode = 27' app/build.gradle.kts
           grep -q 'versionName = "0.2.7"' app/build.gradle.kts
       - name: Build persistently signed Android APK
