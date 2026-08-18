@@ -12,7 +12,8 @@
     }
     document.addEventListener('touchstart',e=>{
       const d=detail();if(!d||!d.contains(e.target)||e.touches.length!==1)return;
-      if(e.target.closest('a,button,input,select,textarea'))return;
+      // Horizontal/interactive regions own their gestures. Never turn a table drag into next/previous product navigation.
+      if(e.target.closest('a,button,input,select,textarea,.cx-sealed-econ-wrap,.cx-sealed-econ,[data-no-detail-swipe]'))return;
       sx=e.touches[0].clientX;sy=e.touches[0].clientY;tracking=true;
     },{passive:true});
     document.addEventListener('touchend',e=>{
