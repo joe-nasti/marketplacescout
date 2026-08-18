@@ -11,7 +11,7 @@
   const brand=()=>'<span class="cx-brand-collect">collect</span><span class="cx-brand-ish">ish</span>';
   const decodeJwt=t=>{try{const p=String(t||'').split('.')[1];if(!p)return null;const s=p.replace(/-/g,'+').replace(/_/g,'/');return JSON.parse(atob(s.padEnd(Math.ceil(s.length/4)*4,'=')))}catch{return null}};
   const serverExp=(token,fallbackSeconds=3600)=>{const p=decodeJwt(token);return p?.exp?Number(p.exp)*1000:Date.now()+Number(fallbackSeconds||3600)*1000};
-  const jwtProblem=(status,d,text='')=>{const m=String(d?.message||d?.msg||d?.error_description||d?.error||text||'').toLowerCase();return status===401||status===403||m.includes('jwt issued at future')||m.includes('jwt expired')||m.includes('invalid jwt')||m.includes('token is expired')};
+  const jwtProblem=(status,d,text='')=>{const m=String(d?.message||d?.msg||d?.error_description||d?.error||text||'').toLowerCase();return status===401||m.includes('jwt issued at future')||m.includes('jwt expired')||m.includes('invalid jwt')||m.includes('token is expired')};
   window.COLLECTISH_WEB_VERSION=VERSION;
 
   async function doRefresh(s=session()){
