@@ -1,0 +1,41 @@
+name: Scout volatility enrichment
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 */6 * * *"
+  push:
+    paths:
+      - "cloud-worker/refresh-scout-volatility.mjs"
+      - ".github/workflows/scout-volatility-enrichment.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-scout-volatility
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SCOUT_VOLATILITY_LIMIT: "300"
+      SCOUT_VOLATILITY_MIN_SCORE: "55"
+      SCOUT_VOLATILITY_STALE_HOURS: "24"
+      SCOUT_VOLATILITY_CONCURRENCY: "3"
+      SCOUT_VOLATILITY_BREAKER_ERRORS: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Require service role key
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Validate worker
+        run: node --check cloud-worker/refresh-scout-volatility.mjs
+      - name: Refresh candidate SKU volatility
+        run: node cloud-worker/refresh-scout-volatility.mjs
