@@ -1,0 +1,15 @@
+/* Allow Android/WebView pinch zoom inside the mobile Scout Sealed detail sheet.
+   Keep the underlying body scroll-locked without disabling multi-touch. */
+@media(max-width:700px){
+  body.cx-sealed-detail-lock{
+    overflow:hidden!important;
+    touch-action:manipulation!important;
+  }
+  .cx-sealed-detail.cx-sealed-detail-open{
+    touch-action:pan-y pinch-zoom!important;
+  }
+  .cx-sealed-econ-wrap,
+  .cx-sealed-econ{
+    touch-action:pan-y pinch-zoom!important;
+  }
+}
