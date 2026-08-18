@@ -1,0 +1,32 @@
+name: Refresh Scout rankings
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "20 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-scout-rankings-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Require service role key
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Validate worker
+        run: node --check cloud-worker/refresh-scout-rankings.mjs
+      - name: Refresh Scout aggregation, v5 score, and cache
+        run: node cloud-worker/refresh-scout-rankings.mjs
