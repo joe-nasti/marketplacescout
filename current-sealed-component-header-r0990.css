@@ -1,0 +1,9 @@
+/* Correct mobile Scout Sealed component header after structural rewrite. */
+@media(max-width:700px){
+  .cx-sealed-econ thead tr:first-child{display:table-row!important}
+  .cx-sealed-econ thead th{display:table-cell!important;position:static!important;background:color-mix(in srgb,var(--cx-card) 90%,var(--cx-bg))!important;color:var(--cx-muted)!important;font-size:6.6px!important;font-weight:900!important;line-height:1!important;text-align:center!important;padding:6px 0!important;white-space:nowrap!important;overflow:hidden!important;border-right:1px solid color-mix(in srgb,var(--cx-line) 62%,transparent)!important;border-bottom:1px solid var(--cx-line)!important}
+  .cx-sealed-econ thead th:first-child{width:28%!important;text-align:left!important;padding-left:4px!important}
+  .cx-sealed-econ thead th:nth-child(n+2){width:9%!important}
+  .cx-sealed-econ thead th:nth-child(2),.cx-sealed-econ thead th:nth-child(3){display:table-cell!important}
+  .cx-sealed-econ thead th::after{content:none!important;display:none!important}
+}
