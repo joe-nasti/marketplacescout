@@ -25,6 +25,7 @@ on:
       - "cloud-worker/mtgjson-deck-content-sync.py"
       - "cloud-worker/refresh-sealed-commander-prices.mjs"
       - "cloud-worker/refresh-enabled-sealed.mjs"
+      - "cloud-worker/archive-sealed-price-current.mjs"
       - "cloud-worker/refresh-precon-direct.mjs"
       - "cloud-worker/refresh-precon-ev.mjs"
       - ".github/workflows/mtgjson-sync.yml"
@@ -47,7 +48,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: node --check cloud-worker/mtgjson-sync.mjs cloud-worker/refresh-sealed-commander-prices.mjs cloud-worker/refresh-enabled-sealed.mjs cloud-worker/refresh-precon-direct.mjs cloud-worker/refresh-precon-ev.mjs
+      - run: node --check cloud-worker/mtgjson-sync.mjs cloud-worker/refresh-sealed-commander-prices.mjs cloud-worker/refresh-enabled-sealed.mjs cloud-worker/archive-sealed-price-current.mjs cloud-worker/refresh-precon-direct.mjs cloud-worker/refresh-precon-ev.mjs
       - run: python -m py_compile cloud-worker/mtgjson-parquet-sync.py cloud-worker/mtgjson-set-sealed-sync.py cloud-worker/mtgjson-deck-sku-sync.py cloud-worker/mtgjson-deck-metadata-sync.py cloud-worker/mtgjson-deck-content-sync.py
 
   sync:
@@ -113,6 +114,9 @@ jobs:
       - name: Refresh enabled sealed sets (exact identity only)
         continue-on-error: true
         run: node cloud-worker/refresh-enabled-sealed.mjs
+      - name: Archive sealed price observations
+        if: always()
+        run: node cloud-worker/archive-sealed-price-current.mjs
       - name: Build current precon EV target cache
         if: always()
         run: node cloud-worker/refresh-precon-ev.mjs
