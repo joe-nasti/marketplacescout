@@ -74,7 +74,7 @@ class MainActivity : Activity() {
 
         agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/")
         seller.loadUrl("https://sellerportal.tcgplayer.com/")
-        if (accessToken.isNullOrBlank()) showLogin() else showPage("scout")
+        if (accessToken.isNullOrBlank()) showLogin() else showPage(currentPage)
     }
 
     private fun bg() = Color.rgb(245, 248, 252)
@@ -142,6 +142,7 @@ class MainActivity : Activity() {
         accessToken = p.getString("accessToken", null)
         refreshToken = p.getString("refreshToken", null)
         accountEmail = p.getString("email", null)
+        currentPage = p.getString("lastPage", "scout")?.takeIf { it in setOf("scout", "seller", "syp", "admin") } ?: "scout"
     }
 
     private fun saveSession(s: NativeSupabase.Session) {
@@ -191,11 +192,14 @@ class MainActivity : Activity() {
 
     private fun showPage(page: String) {
         if (accessToken.isNullOrBlank()) { showLogin(); return }
+        val targetPage = page.takeIf { it in setOf("scout", "seller", "syp", "admin") } ?: "scout"
         seller.visibility = View.GONE
         nativeShell.visibility = View.VISIBLE
         nav.visibility = View.VISIBLE
-        currentPage = page; updateNav()
-        when (page) {
+        currentPage = targetPage
+        getSharedPreferences("collectish-native", MODE_PRIVATE).edit().putString("lastPage", targetPage).apply()
+        updateNav()
+        when (targetPage) {
             "scout" -> loadScout()
             "seller" -> loadSeller()
             "syp" -> loadSyp()
