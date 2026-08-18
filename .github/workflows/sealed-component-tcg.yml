@@ -23,7 +23,7 @@ jobs:
     env:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      SEALED_COMPONENT_TCG_LIMIT: '120'
+      SEALED_COMPONENT_TCG_LIMIT: '360'
       SEALED_COMPONENT_TCG_STALE_HOURS: '24'
       SEALED_COMPONENT_TCG_CONCURRENCY: '3'
     steps:
