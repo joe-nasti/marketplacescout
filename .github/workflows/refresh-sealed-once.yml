@@ -1,0 +1,39 @@
+name: One-shot sealed recovery refresh
+
+on:
+  push:
+    paths:
+      - ".github/workflows/refresh-sealed-once.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-sealed-recovery-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MTGJSON_BASE_URL: https://mtgjson.com/api/v5
+      SEALED_PRICE_STALE_HOURS: "1"
+      SEALED_PRICE_CONCURRENCY: "3"
+      SEALED_PRICE_BREAKER_ERRORS: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Require service role key
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Re-enrich all native MTGJSON sealed set files
+        run: python cloud-worker/mtgjson-set-sealed-sync.py
+      - name: Refresh exact pricing and EV for every enabled sealed set
+        run: node cloud-worker/refresh-enabled-sealed.mjs
