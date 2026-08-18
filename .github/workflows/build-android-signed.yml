@@ -1,0 +1,118 @@
+name: Build signed Collectish Android
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "android-agent/**"
+      - "tools/patch-native-v0*.py"
+      - ".github/workflows/build-android-signed.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collectish-android-signed
+  cancel-in-progress: false
+
+env:
+  ANDROID_VERSION_NAME: "0.2.9"
+  ANDROID_VERSION_CODE: "29"
+  RELEASE_TAG: "android-v0.2.9"
+  RELEASE_APK: "collectish-android-v0.2.9.apk"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      COLLECTISH_ANDROID_KEYSTORE_B64: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_B64 }}
+      COLLECTISH_KEYSTORE_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEYSTORE_PASSWORD }}
+      COLLECTISH_KEY_ALIAS: ${{ secrets.COLLECTISH_ANDROID_KEY_ALIAS }}
+      COLLECTISH_KEY_PASSWORD: ${{ secrets.COLLECTISH_ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Require persistent signing identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$COLLECTISH_ANDROID_KEYSTORE_B64"
+          test -n "$COLLECTISH_KEYSTORE_PASSWORD"
+          test -n "$COLLECTISH_KEY_ALIAS"
+          test -n "$COLLECTISH_KEY_PASSWORD"
+
+      - name: Restore and verify existing Collectish signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$COLLECTISH_ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/collectish-release.jks"
+          test -s "$RUNNER_TEMP/collectish-release.jks"
+          echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
+          keytool -list -keystore "$RUNNER_TEMP/collectish-release.jks" -storepass "$COLLECTISH_KEYSTORE_PASSWORD" -alias "$COLLECTISH_KEY_ALIAS" >/dev/null
+
+      - name: Apply native 0.2.8 patch chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/patch-native-v021.py
+          python tools/patch-native-v022.py
+          python tools/patch-native-v023.py
+          python tools/patch-native-v024.py
+          python tools/patch-native-v025.py
+          python tools/patch-native-v026.py
+          python tools/patch-native-v027.py
+          python tools/patch-native-v028.py
+
+      - name: Stamp 0.2.9 upgrade metadata
+        working-directory: android-agent
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i -E 's/private val version = "[0-9.]+"/private val version = "'"$ANDROID_VERSION_NAME"'"/' app/src/main/java/com/collectish/agent/MainActivity.kt
+          sed -i -E 's/versionCode = [0-9]+/versionCode = '"$ANDROID_VERSION_CODE"'/' app/build.gradle.kts
+          sed -i -E 's/versionName = "[0-9.]+"/versionName = "'"$ANDROID_VERSION_NAME"'"/' app/build.gradle.kts
+          grep -q 'currentPage = p.getString("lastPage", "scout")' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'putString("lastPage", targetPage)' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'versionCode = 29' app/build.gradle.kts
+          grep -q 'versionName = "0.2.9"' app/build.gradle.kts
+
+      - name: Build persistently signed release APK
+        working-directory: android-agent
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:assembleRelease
+          test -s app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/$RELEASE_APK"
+
+      - name: Verify APK signature and package
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/$RELEASE_APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -q "package: name='com.collectish.agent' versionCode='29' versionName='0.2.9'"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: collectish-android-v0.2.9-signed
+          path: ${{ runner.temp }}/${{ env.RELEASE_APK }}
+
+      - name: Publish stable GitHub Release APK
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Preserves the persistent Collectish signing identity and restores last-page resume behavior."
+          fi
