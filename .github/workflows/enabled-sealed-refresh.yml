@@ -1,0 +1,38 @@
+name: Refresh enabled sealed sets
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 */4 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-enabled-sealed-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SEALED_PRICE_STALE_HOURS: "24"
+      SEALED_PRICE_CONCURRENCY: "3"
+      SEALED_PRICE_BREAKER_ERRORS: "5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Require service role key
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Validate sealed workers
+        run: node --check cloud-worker/refresh-enabled-sealed.mjs cloud-worker/archive-sealed-price-current.mjs
+      - name: Refresh exact sealed pricing and EV for enabled sets
+        run: node cloud-worker/refresh-enabled-sealed.mjs
+      - name: Archive sealed price observations
+        if: always()
+        run: node cloud-worker/archive-sealed-price-current.mjs
