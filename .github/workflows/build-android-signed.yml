@@ -16,10 +16,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ANDROID_VERSION_NAME: "0.2.9"
-  ANDROID_VERSION_CODE: "29"
-  RELEASE_TAG: "android-v0.2.9"
-  RELEASE_APK: "collectish-android-v0.2.9.apk"
+  ANDROID_VERSION_NAME: "0.2.10"
+  ANDROID_VERSION_CODE: "30"
+  RELEASE_TAG: "android-v0.2.10"
+  RELEASE_APK: "collectish-android-v0.2.10.apk"
 
 jobs:
   build:
@@ -58,7 +58,7 @@ jobs:
           echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
           keytool -list -keystore "$RUNNER_TEMP/collectish-release.jks" -storepass "$COLLECTISH_KEYSTORE_PASSWORD" -alias "$COLLECTISH_KEY_ALIAS" >/dev/null
 
-      - name: Apply native 0.2.8 patch chain
+      - name: Apply native patch chain
         shell: bash
         run: |
           set -euo pipefail
@@ -70,8 +70,9 @@ jobs:
           python tools/patch-native-v026.py
           python tools/patch-native-v027.py
           python tools/patch-native-v028.py
+          python tools/patch-native-v030.py
 
-      - name: Stamp 0.2.9 upgrade metadata
+      - name: Stamp 0.2.10 upgrade metadata
         working-directory: android-agent
         shell: bash
         run: |
@@ -81,8 +82,9 @@ jobs:
           sed -i -E 's/versionName = "[0-9.]+"/versionName = "'"$ANDROID_VERSION_NAME"'"/' app/build.gradle.kts
           grep -q 'currentPage = p.getString("lastPage", "scout")' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'putString("lastPage", targetPage)' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'versionCode = 29' app/build.gradle.kts
-          grep -q 'versionName = "0.2.9"' app/build.gradle.kts
+          grep -q 'settings.builtInZoomControls = true' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'versionCode = 30' app/build.gradle.kts
+          grep -q 'versionName = "0.2.10"' app/build.gradle.kts
 
       - name: Build persistently signed release APK
         working-directory: android-agent
@@ -98,11 +100,11 @@ jobs:
         run: |
           set -euo pipefail
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/$RELEASE_APK"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -q "package: name='com.collectish.agent' versionCode='29' versionName='0.2.9'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -q "package: name='com.collectish.agent' versionCode='30' versionName='0.2.10'"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: collectish-android-v0.2.9-signed
+          name: collectish-android-v0.2.10-signed
           path: ${{ runner.temp }}/${{ env.RELEASE_APK }}
 
       - name: Publish stable GitHub Release APK
@@ -114,5 +116,5 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --clobber
           else
-            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Preserves the persistent Collectish signing identity and restores last-page resume behavior."
+            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Preserves the persistent signing identity, restores last-page resume behavior, and enables pinch zoom in hosted WebViews."
           fi
