@@ -1,0 +1,37 @@
+name: Refresh sealed component TCG pricing
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'cloud-worker/refresh-sealed-component-tcg.mjs'
+      - '.github/workflows/sealed-component-tcg.yml'
+  schedule:
+    - cron: '57 */4 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-sealed-component-tcg
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SEALED_COMPONENT_TCG_LIMIT: '120'
+      SEALED_COMPONENT_TCG_STALE_HOURS: '24'
+      SEALED_COMPONENT_TCG_CONCURRENCY: '3'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate worker
+        run: node --check cloud-worker/refresh-sealed-component-tcg.mjs
+      - name: Refresh exact component pricing
+        run: node cloud-worker/refresh-sealed-component-tcg.mjs
