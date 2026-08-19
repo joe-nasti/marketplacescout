@@ -113,30 +113,71 @@ jobs:
           if [ "$RESULT" != success ]; then state=failure; desc='Live Pages build did not converge'; fi
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/vite-pages-version' -f description="$desc" -f target_url="$PAGE_URL"
 
-      - name: Execute browser smoke
-        id: browser
+      - name: Check Chrome availability
+        id: chrome_binary
         continue-on-error: true
         shell: bash
-        env: { PAGE_URL: '${{ steps.deployment.outputs.page_url }}' }
         run: |
-          set -euo pipefail
           chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
           test -n "$chrome"
-          "$chrome" --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 --dump-dom "${PAGE_URL%/}/?smoke=${GITHUB_RUN_ID}&cb=$(date +%s%N)" >/tmp/dom.html 2>/tmp/chrome.log
-          test -s /tmp/dom.html
-          grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/dom.html
-          ! grep -q 'Could not start Collectish' /tmp/dom.html
+          echo "chrome=$chrome" >> "$GITHUB_OUTPUT"
 
-      - name: Publish browser/live statuses
+      - name: Publish Chrome-binary status
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-          BROWSER_RESULT: ${{ steps.browser.outcome }}
+          RESULT: ${{ steps.chrome_binary.outcome }}
         run: |
-          state=success; desc='Modular Vite frontend rendered in Chrome'
-          if [ "$BROWSER_RESULT" != success ]; then state=failure; desc='Modular frontend browser smoke failed'; fi
-          for context in collectish/vite-chrome-run collectish/vite-shell-dom collectish/vite-browser-smoke collectish/vite-live-smoke; do
+          state=success; desc='Headless Chrome available'
+          if [ "$RESULT" != success ]; then state=failure; desc='Chrome binary unavailable'; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/vite-chrome-binary' -f description="$desc"
+
+      - name: Execute Chrome
+        id: chrome_run
+        if: steps.chrome_binary.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          CHROME: ${{ steps.chrome_binary.outputs.chrome }}
+        run: |
+          set -euo pipefail
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 --dump-dom "${PAGE_URL%/}/?smoke=${GITHUB_RUN_ID}&cb=$(date +%s%N)" >/tmp/dom.html 2>/tmp/chrome.log
+          test -s /tmp/dom.html
+
+      - name: Publish Chrome-run status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          RESULT: ${{ steps.chrome_run.outcome }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          state=success; desc='Headless Chrome loaded live modular page'
+          if [ "$RESULT" != success ]; then state=failure; desc='Headless Chrome process failed'; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/vite-chrome-run' -f description="$desc" -f target_url="$PAGE_URL"
+
+      - name: Validate shell DOM
+        id: shell_dom
+        if: steps.chrome_run.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/dom.html
+          ! grep -q 'Could not start Collectish' /tmp/dom.html
+
+      - name: Publish shell/browser statuses
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          RESULT: ${{ steps.shell_dom.outcome }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          state=success; desc='Modular Collectish shell rendered in Chrome'
+          if [ "$RESULT" != success ]; then state=failure; desc='Modular Collectish shell DOM validation failed'; fi
+          for context in collectish/vite-shell-dom collectish/vite-browser-smoke collectish/vite-live-smoke; do
             gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context="$context" -f description="$desc" -f target_url="$PAGE_URL"
           done
