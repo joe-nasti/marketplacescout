@@ -9,7 +9,7 @@ export async function startScout(){
   loading=(async()=>{
     try{
       const module=await import('./index.js');
-      module.installScoutRenderer();
+      await module.installScoutRenderer();
       started=true;
     }catch(error){
       started=false;
