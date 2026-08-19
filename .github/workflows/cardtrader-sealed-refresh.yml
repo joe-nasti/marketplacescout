@@ -9,13 +9,6 @@ on:
         default: "false"
   schedule:
     - cron: "17 */6 * * *"
-  push:
-    branches:
-      - agent/cardtrader-sealed-integration
-    paths:
-      - ".github/workflows/cardtrader-sealed-refresh.yml"
-      - "cloud-worker/cardtrader-sealed-refresh.mjs"
-      - "cloud-worker/cardtrader-sealed-schema.sql"
 
 permissions:
   contents: read
@@ -32,7 +25,8 @@ jobs:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       CARDTRADER_JWT_TOKEN: ${{ secrets.CARDTRADER_JWT_TOKEN }}
-      CARDTRADER_CATALOG_STALE_HOURS: ${{ github.event.inputs.force_catalog == 'true' && '0' || '24' }}
+      CARDTRADER_FORCE_CATALOG: ${{ github.event.inputs.force_catalog || 'false' }}
+      CARDTRADER_CATALOG_STALE_HOURS: "24"
       CARDTRADER_REQUEST_INTERVAL_MS: "1050"
     steps:
       - uses: actions/checkout@v4
