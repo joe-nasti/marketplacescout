@@ -7,12 +7,10 @@ on:
     paths:
       - 'package.json'
       - 'vite.config.js'
-      - 'vite-index.html'
+      - 'index.html'
       - 'src/**'
       - 'tools/finalize-vite-build.mjs'
-      - 'modern-core.js'
       - 'modern-core.css'
-      - 'config.js'
       - 'current-*.js'
       - 'current-*.css'
       - 'manifest.webmanifest'
@@ -43,14 +41,19 @@ jobs:
           set -euo pipefail
           test ! -e src/legacy-runtime.js
           test ! -e src/run-classic.js
+          test ! -e vite-index.html
           ! grep -R --line-number --fixed-strings '?raw' src
           ! grep -R --line-number 'runClassicSequence\|legacy-runtime' src
+          grep -q '<script type="module" src="/src/main.js"></script>' index.html
+          ! grep -Eq '<script[^>]+current-.*\.js' index.html
+          ! grep -Eq '<link[^>]+current-.*\.css' index.html
           node --check src/main.js
           node --check src/lazy-pages.js
           node --check src/features/install-remaining.js
           node --check src/features/sealed.js
           node --check src/features/seller.js
           node --check src/features/syp.js
+          node --check src/features/scout/index.js
       - name: Install pinned Vite toolchain
         run: npm install --no-audit --no-fund
       - name: Build production bundle
