@@ -1,10 +1,8 @@
-import { runClassicSequence } from '../run-classic.js';
-import parity from '../../current-syp-parity.js?raw';
-import links from '../../current-syp-links.js?raw';
+let installed=false;
 
-export function install(){
-  runClassicSequence([
-    ['current-syp-parity.js', parity],
-    ['current-syp-links.js', links]
-  ]);
+export async function install(){
+  if(installed)return;
+  installed=true;
+  await import('../../current-syp-parity.js');
+  await import('../../current-syp-links.js');
 }
