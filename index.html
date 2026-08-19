@@ -15,7 +15,10 @@
   <script>
     (function(){
       window.__collectishBootErrors=[];
-      function remember(msg){window.__collectishBootErrors.push(String(msg||'unknown error')).slice(-8)}
+      function remember(msg){
+        window.__collectishBootErrors.push(String(msg||'unknown error'));
+        if(window.__collectishBootErrors.length>8)window.__collectishBootErrors=window.__collectishBootErrors.slice(-8);
+      }
       window.addEventListener('error',function(e){remember(e.message||e.error||('resource failed: '+(e.target&&e.target.src||e.target&&e.target.href||'unknown')))},true);
       window.addEventListener('unhandledrejection',function(e){remember(e.reason&&e.reason.message||e.reason||'unhandled rejection')});
       window.setTimeout(function(){
@@ -25,7 +28,7 @@
         var nativeVersion=''; try{nativeVersion=window.CollectishAndroid&&CollectishAndroid.getVersion?CollectishAndroid.getVersion():''}catch(_){}
         var details=document.createElement('small');
         details.id='collectishBootDiagnostic';
-        details.textContent=(window.__collectishBootErrors.length?window.__collectishBootErrors.join(' | '):'No JavaScript error surfaced')+(nativeVersion?' · Android '+nativeVersion:'')+' · '+navigator.userAgent;
+        details.textContent=(window.__collectishBootErrors.length?window.__collectishBootErrors.join(' | '):'No JavaScript error surfaced')+(nativeVersion?' · Android '+nativeVersion:'')+' · '+location.pathname+location.search+' · '+navigator.userAgent;
         d.appendChild(details);
       },7000);
     })();
@@ -34,6 +37,6 @@
 <body>
   <main id="collectishBootFallback"><div><strong>collectish</strong><span>Loading Collectish…</span></div></main>
   <noscript>Collectish requires JavaScript.</noscript>
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>
