@@ -9,6 +9,7 @@ import './core/lazy-pages.js';
 import store from './state/store.js';
 import { startShell } from './core/shell.js';
 import { installRestBridge } from './core/rest.js';
+import { installExternalFetchBridge } from './core/data.js';
 import { installScoutCacheBridge } from './modules/scout/cache-read.js';
 import { installModules } from './modules/index.js';
 
@@ -16,6 +17,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 
 function start(){
   store.update('runtime',{phase:'starting'});
+  installExternalFetchBridge();
   installRestBridge();
   installScoutCacheBridge();
   startShell({beforeReady:async()=>{
