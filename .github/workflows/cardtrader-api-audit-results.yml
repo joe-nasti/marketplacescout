@@ -24,22 +24,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Require CardTrader token
-        run: test -n "$CARDTRADER_JWT_TOKEN"
-      - name: Run read-only CardTrader audit
-        run: node tools/cardtrader-api-audit.mjs
-      - name: Commit generated audit reports to audit branch
+      - name: Run and capture read-only CardTrader audit
         shell: bash
         run: |
           mkdir -p audit-results
-          cp cardtrader-audit.json audit-results/cardtrader-audit.json
-          cp cardtrader-audit.md audit-results/cardtrader-audit.md
+          if [ -z "$CARDTRADER_JWT_TOKEN" ]; then
+            echo "Missing CARDTRADER_JWT_TOKEN" > audit-results/cardtrader-audit-status.txt
+            status=2
+          else
+            set +e
+            node tools/cardtrader-api-audit.mjs > audit-results/cardtrader-audit-run.log 2>&1
+            status=$?
+            set -e
+            echo "exit_code=$status" > audit-results/cardtrader-audit-status.txt
+            if [ -f cardtrader-audit.json ]; then cp cardtrader-audit.json audit-results/cardtrader-audit.json; fi
+            if [ -f cardtrader-audit.md ]; then cp cardtrader-audit.md audit-results/cardtrader-audit.md; fi
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add audit-results/cardtrader-audit.json audit-results/cardtrader-audit.md
-          if git diff --cached --quiet; then
-            echo "Audit output unchanged"
-          else
+          git add audit-results
+          if ! git diff --cached --quiet; then
             git commit -m "capture CardTrader API audit results"
             git push origin HEAD:agent/cardtrader-api-audit
           fi
+          exit $status
