@@ -21,6 +21,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  statuses: write
 
 concurrency:
   group: collectish-vite-pages
@@ -116,6 +117,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
       - name: Verify live Pages build and execute frontend
+        id: smoke
         shell: bash
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
@@ -136,3 +138,27 @@ jobs:
           "$chrome" --headless --no-sandbox --disable-gpu --virtual-time-budget=7000 --dump-dom "$base/?smoke=${GITHUB_RUN_ID}" >/tmp/collectish-dom.html 2>/tmp/chrome.log
           grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/collectish-dom.html
           ! grep -q 'Could not start Collectish' /tmp/collectish-dom.html
+      - name: Publish live-smoke success status
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
+            -f state=success \
+            -f context='collectish/vite-live-smoke' \
+            -f description='Vite Pages deploy and browser smoke passed' \
+            -f target_url="$PAGE_URL"
+      - name: Publish live-smoke failure status
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
+            -f state=failure \
+            -f context='collectish/vite-live-smoke' \
+            -f description='Vite Pages deploy or browser smoke failed'
