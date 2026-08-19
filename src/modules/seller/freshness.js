@@ -5,7 +5,7 @@ import { readSession } from '../../core/session.js';
 const KNOWN_KEY='collectishSellerKnownOrder';
 const AUTO_UI_CHECK_MS=24*60*60*1000;
 const MANUAL_WATCH_MS=15_000;
-const MANUAL_WATCH_LIMIT=28; // up to ~7 minutes while the orchestrator advances the completed probe.
+const MANUAL_WATCH_LIMIT=28; // Up to ~7 minutes while Collectish advances the completed Seller Portal probe.
 let timer=null;
 let polling=false;
 let manualWatch=null;
