@@ -21,12 +21,13 @@ function sellerState(android){
 function findStat(host,label){
   return [...host.querySelectorAll('.cx-inventory-stat')].find(el=>el.querySelector('span')?.textContent?.trim()===label)||null;
 }
+function setTextIfChanged(el,value){if(el&&el.textContent!==value)el.textContent=value}
 function setStat(el,label,value,sub){
   if(!el)return;
   const title=el.querySelector('span'),strong=el.querySelector('strong');let small=el.querySelector('small');
-  if(title)title.textContent=label;if(strong)strong.textContent=value;
+  setTextIfChanged(title,label);setTextIfChanged(strong,value);
   if(!small){small=document.createElement('small');el.appendChild(small)}
-  small.textContent=sub||'';
+  setTextIfChanged(small,sub||'');
 }
 function ensureExtraStat(host,id){
   let el=host.querySelector(`[data-inventory-auth-stat="${id}"]`);if(el)return el;
@@ -42,11 +43,12 @@ export function refreshInventorySessionStatus(){
   const s=sellerState(android),t=classifyStore(bridge);
   setStat(seller,'Seller session',s.label,s.sub);setStat(store,'Store session',t.label,t.sub);
 }
-let timer=null,observer=null;
+let timer=null;
 export function installInventorySessionStatus(){
-  clearInterval(timer);observer?.disconnect();
+  clearInterval(timer);
+  // Do not observe the entire DOM here. The previous MutationObserver watched the
+  // same nodes this diagnostic updates, creating a self-triggering microtask loop
+  // that could starve the Inventory renderer and leave only the progress panel.
   timer=setInterval(refreshInventorySessionStatus,1000);
-  observer=new MutationObserver(()=>refreshInventorySessionStatus());
-  observer.observe(document.documentElement,{childList:true,subtree:true});
-  refreshInventorySessionStatus();
+  setTimeout(refreshInventorySessionStatus,0);
 }
