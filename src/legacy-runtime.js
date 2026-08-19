@@ -1,6 +1,5 @@
 import { runClassicSequence } from './run-classic.js';
 
-import theme from '../current-theme.js?raw';
 import readonlyAgent from '../current-readonly-agent.js?raw';
 import scoutBootstrap from '../current-scout-bootstrap-safe.js?raw';
 import volatility from '../current-scout-volatility-overlay-r0983.js?raw';
@@ -31,12 +30,6 @@ import askConcise from '../current-ask-concise-view.js?raw';
 import askV3Investigate from '../current-ask-collectish-v3-investigate-safe.js?raw';
 import askV3Actions from '../current-ask-collectish-v3-actions-safe.js?raw';
 import askV3Admin from '../current-ask-collectish-v3-admin-safe.js?raw';
-
-export function installLegacyShell(){
-  runClassicSequence([
-    ['current-theme.js',theme]
-  ]);
-}
 
 export function installLegacyFeatures(){
   runClassicSequence([
