@@ -17,10 +17,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ANDROID_VERSION_NAME: "0.2.14"
-  ANDROID_VERSION_CODE: "34"
-  RELEASE_TAG: "android-v0.2.14"
-  RELEASE_APK: "collectish-android-v0.2.14.apk"
+  ANDROID_VERSION_NAME: "0.2.15"
+  ANDROID_VERSION_CODE: "35"
+  RELEASE_TAG: "android-v0.2.15"
+  RELEASE_APK: "collectish-android-v0.2.15.apk"
 
 jobs:
   build:
@@ -77,8 +77,9 @@ jobs:
           python tools/patch-native-v033.py
           python tools/patch-native-v034.py
           python tools/patch-native-v035.py
+          python tools/patch-native-v036.py
 
-      - name: Stamp and validate 0.2.14 inventory auth diagnostics
+      - name: Stamp and validate 0.2.15 Inventory UX fixes
         working-directory: android-agent
         shell: bash
         run: |
@@ -86,16 +87,15 @@ jobs:
           sed -i -E 's/private val version = "[0-9.]+"/private val version = "'"$ANDROID_VERSION_NAME"'"/' app/src/main/java/com/collectish/agent/MainActivity.kt
           sed -i -E 's/versionCode = [0-9]+/versionCode = '"$ANDROID_VERSION_CODE"'/' app/build.gradle.kts
           sed -i -E 's/versionName = "[0-9.]+"/versionName = "'"$ANDROID_VERSION_NAME"'"/' app/build.gradle.kts
-          grep -q 'versionCode = 34' app/build.gradle.kts
-          grep -q 'versionName = "0.2.14"' app/build.gradle.kts
+          grep -q 'versionCode = 35' app/build.gradle.kts
+          grep -q 'versionName = "0.2.15"' app/build.gradle.kts
           grep -q '/admin/product/searchcatalog' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q '/admin/product/updateinstockquantities' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q 'fetch_html' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
-          grep -q 'TCGplayer Store session is not authenticated' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
           grep -q 'loginByUrl' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
           grep -q 'loginByBody' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
-          grep -q 'requestedUrl' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
-          grep -q 'finalHost' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
+          grep -q 'text = "← Collectish"' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'sellerReturn.visibility=View.VISIBLE' app/src/main/java/com/collectish/agent/MainActivity.kt
           ! grep -q 'sessionState() != "authenticated"' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
 
       - name: Build persistently signed release APK
@@ -112,11 +112,11 @@ jobs:
         run: |
           set -euo pipefail
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/$RELEASE_APK"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -q "package: name='com.collectish.agent' versionCode='34' versionName='0.2.14'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -q "package: name='com.collectish.agent' versionCode='35' versionName='0.2.15'"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: collectish-android-v0.2.14-signed
+          name: collectish-android-v0.2.15-signed
           path: ${{ runner.temp }}/${{ env.RELEASE_APK }}
 
       - name: Publish stable GitHub Release APK
@@ -128,17 +128,17 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --clobber
           else
-            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Adds detailed Store authentication diagnostics while retaining Store-origin auth validation and the shared TCGplayer login WebView."
+            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Adds a persistent one-tap Collectish return control over the shared TCGplayer WebView while retaining Store authentication diagnostics and Inventory sync support."
           fi
 
       - name: Publish signed Android success status
         if: success()
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.14 built with Store auth diagnostics'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.15 built with Inventory UX fixes'
 
       - name: Publish signed Android failure status
         if: failure()
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/android-signed' -f description='Signed Android 0.2.14 auth diagnostic build failed'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/android-signed' -f description='Signed Android 0.2.15 Inventory UX build failed'
