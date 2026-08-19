@@ -1,0 +1,42 @@
+name: Consolidate Collectish styles once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/consolidate-styles.mjs'
+      - '.github/workflows/consolidate-styles-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  consolidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - name: Consolidate CSS source tree
+        run: node tools/consolidate-styles.mjs
+      - name: Verify consolidated style system
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f src/styles/tokens.css
+          for f in base scout sealed seller ask admin; do test -f "src/styles/${f}.css"; done
+          test ! -d src/styles/modules
+          test ! -d src/styles/base
+          test ! -e src/styles/theme.css
+          test "$(grep -c '^@import' src/styles/index.css)" -eq 7
+          grep -q '\[data-theme="dark"\]' src/styles/tokens.css
+          ! grep -R -n 'data-cx-theme' src/styles src/core/theme.js
+      - name: Commit generated consolidation
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A src/styles
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'refactor: consolidate CSS into tokenized domain styles'
+          git push
