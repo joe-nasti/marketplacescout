@@ -3,7 +3,11 @@ package com.collectish.agent
 import android.net.Uri
 
 /**
- * Safety policy for remotely-described read-only Seller Portal probes.
+ * Safety policy for remotely-described read-only Seller Portal / Store probes.
+ *
+ * Inventory support is intentionally narrow: only the authenticated Store
+ * catalog/quantity/manage reads recovered from the HAR are allowed here.
+ * Inventory writes are NOT part of this policy.
  */
 object ReadOnlyProbePolicy {
     val allowedHosts = setOf(
@@ -14,12 +18,17 @@ object ReadOnlyProbePolicy {
         "seller-settings-api.tcgplayer.com"
     )
 
-    val allowedModes = setOf("navigate_capture", "fetch_json", "fetch_text")
+    val allowedModes = setOf("navigate_capture", "fetch_json", "fetch_text", "fetch_html")
     val allowedMethods = setOf("GET", "POST")
 
-    private val readOnlyPostPaths = setOf(
+    private val orderReadOnlyPostPaths = setOf(
         "/orders/search",
         "/orders/export"
+    )
+
+    private val storeInventoryReadOnlyPostPaths = setOf(
+        "/admin/product/searchcatalog",
+        "/admin/product/updateinstockquantities"
     )
 
     private val allowedLegacyPrefixes = listOf(
@@ -58,12 +67,19 @@ object ReadOnlyProbePolicy {
                 "sp-api.tcgplayer.com" -> path.equals("/Account/auth-detail", true) || path.startsWith("/account/")
                 "seller-settings-api.tcgplayer.com" -> path.startsWith("/v1/settings")
                 "sellerportal.tcgplayer.com" -> path == "/orders" || path.startsWith("/orders/")
-                "store.tcgplayer.com" -> allowedSypGetPaths.contains(path) || allowedLegacyPrefixes.any { path.startsWith(it) }
+                "store.tcgplayer.com" ->
+                    allowedSypGetPaths.contains(path) ||
+                    allowedLegacyPrefixes.any { path.startsWith(it) } ||
+                    path.startsWith("/admin/product/manage/")
                 else -> false
             }
         }
 
-        return host == "order-management-api.tcgplayer.com" && path in readOnlyPostPaths
+        return when (host) {
+            "order-management-api.tcgplayer.com" -> path in orderReadOnlyPostPaths
+            "store.tcgplayer.com" -> path in storeInventoryReadOnlyPostPaths
+            else -> false
+        }
     }
 
     fun boundedWaitMs(value: Long): Long = value.coerceIn(250L, 10_000L)
