@@ -3,8 +3,6 @@
   const VERSION=window.COLLECTISH_WEB_VERSION||'0.9.52';
   const loadedRevision=document.querySelector('meta[name="collectish-revision"]')?.content||'—';
   const loadedBuild=document.querySelector('meta[name="collectish-build"]')?.content||'—';
-  let latest=null;
-
   const fmtDate=v=>{if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString()};
   const short=v=>v&&v!=='—'?String(v).slice(0,8):'—';
 
@@ -12,28 +10,28 @@
     try{
       const r=await fetch(`web-version.json?cb=${Date.now()}`,{cache:'no-store',headers:{'Cache-Control':'no-cache'}});
       if(!r.ok)return null;
-      latest=await r.json();
-      return latest;
+      return await r.json();
     }catch{return null}
   }
 
   function updateBadge(){
     const text=`web ${VERSION} · ${loadedRevision}`;
     document.querySelectorAll('.cx-top-version,.cx-version').forEach(el=>{
-      el.textContent=text;
+      if(el.textContent!==text)el.textContent=text;
       el.classList.add('cx-build-badge');
       el.setAttribute('role','button');
       el.setAttribute('tabindex','0');
       el.setAttribute('aria-label','Show web build details');
     });
     document.querySelectorAll('.cx-side-meta').forEach(el=>{
-      const lines=String(el.innerHTML||'').split('<br>');
-      if(lines.length)el.innerHTML=`${text}<br>${lines.slice(1).join('<br>')}`;
+      const first=el.firstChild;
+      if(first?.nodeType===Node.TEXT_NODE&&first.nodeValue!==text)first.nodeValue=text;
     });
   }
 
   function close(){document.getElementById('cxBuildInfo')?.remove()}
   async function open(){
+    close();
     const d=await fetchLatest();
     const current=Boolean(d&&String(d.build||'')===String(loadedBuild||''));
     const wrap=document.createElement('div');wrap.id='cxBuildInfo';wrap.className='cx-build-info';
@@ -47,6 +45,7 @@
   document.addEventListener('click',e=>{if(e.target.closest?.('.cx-top-version,.cx-version'))open()},true);
   document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest?.('.cx-top-version,.cx-version')){e.preventDefault();open()}});
   document.addEventListener('collectish:ready',()=>setTimeout(updateBadge,0));
-  new MutationObserver(updateBadge).observe(document.documentElement,{childList:true,subtree:true});
+  const observer=new MutationObserver(()=>requestAnimationFrame(updateBadge));
+  observer.observe(document.documentElement,{childList:true,subtree:true});
   updateBadge();
 })();
