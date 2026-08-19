@@ -15,10 +15,10 @@ function syncNative(theme){
 
 export function applyTheme(mode=savedThemeMode()){
   const theme=resolvedTheme(mode);
-  const bg=theme==='dark'?'#0b1538':'#f5f8ff';
-  document.documentElement.dataset.cxTheme=theme;
-  document.documentElement.dataset.cxThemeMode=mode;
+  document.documentElement.dataset.theme=theme;
+  document.documentElement.dataset.themeMode=mode;
   document.documentElement.style.colorScheme=theme;
+  const bg=getComputedStyle(document.documentElement).getPropertyValue('--color-bg-primary').trim()||(theme==='dark'?'#0b1538':'#f5f8ff');
   document.documentElement.style.backgroundColor=bg;
   if(document.body)document.body.style.backgroundColor=bg;
   const meta=document.querySelector('meta[name="theme-color"]');
