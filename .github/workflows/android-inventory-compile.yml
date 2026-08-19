@@ -47,6 +47,7 @@ jobs:
           python tools/patch-native-v031.py
           python tools/patch-native-v032.py
           python tools/patch-native-v033.py
+          python tools/patch-native-v034.py
 
       - name: Verify Inventory bridge and resume preservation survived patches
         working-directory: android-agent
@@ -57,6 +58,8 @@ jobs:
           grep -q '/admin/product/updateinstockquantities' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q 'path.startsWith("/admin/product/manage/")' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q 'fetch_html' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
+          grep -q 'TCGplayer Store session is not authenticated' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
+          ! grep -q 'sessionState() != "authenticated"' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
           grep -q 'settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'runHostedBootDiagnostic(view)' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'agentWeb.saveState(outState)' app/src/main/java/com/collectish/agent/MainActivity.kt
@@ -76,7 +79,7 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
             -f state=success \
             -f context='collectish/android-inventory-compile' \
-            -f description='Android Store Inventory bridge + resume preservation compiled' \
+            -f description='Android Store Inventory bridge + auth validation compiled' \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Publish Inventory compile failure
@@ -88,5 +91,5 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
             -f state=failure \
             -f context='collectish/android-inventory-compile' \
-            -f description='Android Inventory/resume preservation validation failed' \
+            -f description='Android Inventory/auth validation failed' \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
