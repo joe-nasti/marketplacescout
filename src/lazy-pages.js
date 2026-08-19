@@ -3,21 +3,9 @@ const loaded=new Set();
 const loading=new Map();
 
 const pageLoaders={
-  sealed: async()=>{
-    await import('../current-sealed-generalized-r0991.js');
-    await import('../current-sealed-detail-focus.js');
-  },
-  seller: async()=>{
-    await import('../current-seller-parity.js');
-    await import('../current-seller-overview-order-meta.js');
-    await import('../current-seller-order-filters.js');
-    await import('../current-seller-drilldowns.js');
-    await import('../current-seller-detail-polish.js');
-  },
-  syp: async()=>{
-    await import('../current-syp-parity.js');
-    await import('../current-syp-links.js');
-  }
+  sealed: async()=>{const m=await import('./features/sealed.js');m.install()},
+  seller: async()=>{const m=await import('./features/seller.js');m.install()},
+  syp: async()=>{const m=await import('./features/syp.js');m.install()}
 };
 
 const title=p=>p==='syp'?'SYP':p[0].toUpperCase()+p.slice(1);
