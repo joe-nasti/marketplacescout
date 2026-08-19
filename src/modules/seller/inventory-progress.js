@@ -7,6 +7,7 @@ let persisted=null;
 let renderTimer=null;
 let pollTimer=null;
 let unsubscribe=null;
+let detailsOpen=false;
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num=n=>Number(n||0).toLocaleString();
@@ -35,6 +36,8 @@ function ensurePanel(){
 function render(){
   if(!active)return;
   const panel=ensurePanel();if(!panel)return;
+  const currentDetails=panel.querySelector('details');
+  if(currentDetails)detailsOpen=currentDetails.open;
   const local=store.get().inventory||{};
   const running=local.status==='syncing'||persisted?.status==='running';
   const phase=local.phase||persisted?.phase||(running?'starting':'idle');
@@ -52,13 +55,14 @@ function render(){
     if(phase.startsWith('catalog')){title=`Catalog scan${total?` — page ${Math.min(pages+1,total)} of ${total}`:''}`;detail=`${num(seen)} products scanned · ${num(stocked)} with stock`;}
     else if(phase==='exact rows'){title='Exact pricing enrichment';detail=`Catalog complete · enriching priority condition / foil rows`;}
     else{title='Starting inventory sync';detail='Waiting for the first authenticated Store response.';}
-  } else if(local.status==='error'||persisted?.status==='failed'){title='Inventory sync failed';detail=err||'The last sync did not complete.';}
-  else if(persisted?.status==='complete'){title='Last inventory sync complete';detail=`${num(persisted.products_seen)} products scanned · ${num(persisted.products_with_stock)} with stock · ${num(exact)} exact rows`;}
+  } else if(persisted?.status==='complete'){title='Last inventory sync complete';detail=`${num(persisted.products_seen)} products scanned · ${num(persisted.products_with_stock)} with stock · ${num(exact)} exact rows`;}
+  else if(local.status==='error'||persisted?.status==='failed'){title='Inventory sync failed';detail=err||'The last sync did not complete.';}
 
   panel.innerHTML=`<div class="cx-inventory-progress-head"><div><strong>${esc(title)}</strong><span>${esc(detail)}</span></div><b>${running?`${pct}%`:persisted?.status==='complete'?'Done':'—'}</b></div>
     <div class="cx-inventory-progress-bar"><i style="width:${pct}%"></i></div>
     <div class="cx-inventory-progress-meta"><span>Elapsed <b>${esc(fmtElapsed(started))}</b></span><span>Store request <b>${esc(bridgeState())}</b></span><span>DB checkpoint <b>${esc(dbCheckpoint)}</b></span></div>
-    <details><summary>Sync details</summary><div class="cx-inventory-progress-details"><span>Phase <b>${esc(phase)}</b></span><span>Pages saved <b>${num(pages)}${total?` / ${num(total)}`:''}</b></span><span>Products seen <b>${num(seen)}</b></span><span>With stock <b>${num(stocked)}</b></span><span>Exact rows <b>${num(exact)}</b></span>${err?`<span class="error">Last error <b>${esc(err)}</b></span>`:''}</div></details>`;
+    <details${detailsOpen?' open':''}><summary>Sync details</summary><div class="cx-inventory-progress-details"><span>Phase <b>${esc(phase)}</b></span><span>Pages saved <b>${num(pages)}${total?` / ${num(total)}`:''}</b></span><span>Products seen <b>${num(seen)}</b></span><span>With stock <b>${num(stocked)}</b></span><span>Exact rows <b>${num(exact)}</b></span>${err?`<span class="error">Last error <b>${esc(err)}</b></span>`:''}</div></details>`;
+  panel.querySelector('details')?.addEventListener('toggle',e=>{detailsOpen=e.currentTarget.open});
 }
 
 function start(){
