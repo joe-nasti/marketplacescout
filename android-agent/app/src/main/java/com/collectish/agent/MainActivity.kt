@@ -13,7 +13,6 @@ import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
@@ -64,7 +63,6 @@ class MainActivity : Activity() {
         rootHost.addView(nativeShell, FrameLayout.LayoutParams(-1, -1))
 
         agentWeb = makeWebView().apply { alpha = 0.01f }
-        agentWeb.settings.cacheMode = WebSettings.LOAD_NO_CACHE
         agentWeb.addJavascriptInterface(Bridge(), "CollectishAndroid")
         seller = makeWebView()
         agentWeb.addJavascriptInterface(ReadOnlyProbeBridge(this, seller) { sellerSessionState }, "CollectishReadOnly")
@@ -74,8 +72,7 @@ class MainActivity : Activity() {
         seller.visibility = View.GONE
         setContentView(rootHost)
 
-        val shellBootUrl = "https://joe-nasti.github.io/marketplacescout/?androidBoot=${System.currentTimeMillis()}"
-        agentWeb.loadUrl(shellBootUrl)
+        agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/")
         seller.loadUrl("https://sellerportal.tcgplayer.com/")
         if (accessToken.isNullOrBlank()) showLogin() else showPage(currentPage)
     }
@@ -281,14 +278,14 @@ class MainActivity : Activity() {
                 for(i in 0 until minOf(rows.length(),30)){ val r=rows.getJSONObject(i); b.addView(card().apply{
                     addView(text(r.optString("product_name","Unknown product"),15f,ink()).apply{setTypeface(typeface,1)})
                     addView(text("${r.optString("set_name")} • ${r.optString("condition")}",12f,muted()))
-                    addView(text("${if(r.optBoolean("is_eligible")) "Eligible" else "Not eligible"}   •   Max ${r.optInt("max_qty")}   •   ${money(r.optDouble("market_price"))}",13f,if(r.optBoolean("is_eligible"))Color.rgb(2,122,72) else muted()))
+                    addView(text("${if(r.optBoolean("is_eligible")) "Eligible" else "Not eligible"}   •   Max ${r.optInt("max_qty")}   •   ${money(r.optDouble("market_price"))}",13f,if(r.optBoolean("is_eligible"))Color.rgb(2,122,72) else muted()).apply{setPadding(0,dp(6),0,0)})
                 },LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(9)}) }
             }
         }
     }
 
-    private fun renderAdmin(){
-        val b=pageBase("Admin","Cloud operations and build identity.")
+    private fun renderAdmin() {
+        val b=pageBase("Admin","Syncs, authentication, and backend operations.")
         b.addView(card().apply {
             addView(text("Collectish 0.2.0",18f,ink()).apply{setTypeface(typeface,1)})
             addView(text(accountEmail ?: "Signed in",13f,muted()).apply{setPadding(0,dp(5),0,dp(10))})
@@ -300,22 +297,29 @@ class MainActivity : Activity() {
         b.addView(text("The Collectish UI is native. The hidden agent WebView is retained only for existing cloud orchestration while that bridge is migrated natively.",12f,muted()).apply{setPadding(0,dp(12),0,0)})
     }
 
-    private fun kpiGrid(items:List<Pair<String,String>>):LinearLayout=LinearLayout(this).apply{
-        orientation=LinearLayout.VERTICAL
-        items.chunked(2).forEach{pair->addView(LinearLayout(this@MainActivity).apply{
-            orientation=LinearLayout.HORIZONTAL
-            pair.forEach{(k,v)->addView(card().apply{addView(text(k,11f,muted()));addView(text(v,20f,ink()).apply{setTypeface(typeface,1)})},LinearLayout.LayoutParams(0,-2,1f).apply{marginEnd=dp(6)})}
-        },LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(8)})}
+    private fun withToken(work: (String) -> Unit) {
+        thread {
+            try {
+                var token=accessToken ?: throw IllegalStateException("Signed out")
+                try { work(token) } catch(first: Exception) {
+                    val refresh=refreshToken ?: throw first
+                    val s=api.refresh(refresh);saveSession(s);token=s.accessToken;work(token)
+                }
+            } catch(e: Exception) {
+                runOnUiThread {
+                    if((e.message ?: "").contains("expired",true) || (e.message ?: "").contains("401")) { clearSession();showLogin("Your session expired. Sign in again.") }
+                    else { val b=pageBase(currentPage.replaceFirstChar{it.uppercase()},"Could not load this section.");b.addView(empty(e.message ?: "Data request failed")) }
+                }
+            }
+        }
     }
 
-    private fun card()=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(14),dp(13),dp(14),dp(13));setBackgroundColor(Color.WHITE);elevation=dp(1).toFloat()}
     private fun title(s:String,size:Float)=text(s,size,ink()).apply{setTypeface(typeface,1)}
     private fun text(s:String,size:Float,color:Int)=TextView(this).apply{text=s;textSize=size;setTextColor(color)}
-    private fun empty(s:String)=text(s,14f,muted()).apply{gravity=Gravity.CENTER;setPadding(dp(8),dp(36),dp(8),dp(36))}
+    private fun empty(s:String)=text(s,14f,muted()).apply{gravity=Gravity.CENTER;setPadding(dp(10),dp(34),dp(10),dp(34))}
+    private fun card()=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(14),dp(13),dp(14),dp(13));setBackgroundColor(Color.WHITE);elevation=dp(1).toFloat()}
     private fun money(v:Double)=NumberFormat.getCurrencyInstance(Locale.US).format(v)
-
-    private fun withToken(block:(String)->Unit){thread{try{val token=ensureToken();block(token)}catch(e:Exception){runOnUiThread{val b=pageBase(currentPage.replaceFirstChar{it.uppercase()},"Could not load data.");b.addView(empty(e.message?:"Request failed"))}}}}
-    private fun ensureToken():String{var t=accessToken;if(t.isNullOrBlank())throw IllegalStateException("Sign in required");try{api.get(t,"marketplace_scan_rows?select=sku_id&limit=1");return t}catch(_:Exception){};val r=refreshToken?:throw IllegalStateException("Session expired");val s=api.refresh(r);saveSession(s);return s.accessToken}
+    private fun kpiGrid(items:List<Pair<String,String>>)=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;items.chunked(2).forEach{rowItems->addView(LinearLayout(this@MainActivity).apply{orientation=LinearLayout.HORIZONTAL;rowItems.forEach{(k,v)->addView(card().apply{addView(text(k.uppercase(),10f,muted()));addView(text(v,19f,ink()).apply{setTypeface(typeface,1);setPadding(0,dp(4),0,0)})},LinearLayout.LayoutParams(0,-2,1f).apply{marginEnd=dp(6);bottomMargin=dp(7)})}},LinearLayout.LayoutParams(-1,-2))}}
 
     private fun showSeller(){ nativeShell.visibility=View.GONE;seller.visibility=View.VISIBLE }
 
@@ -326,15 +330,12 @@ class MainActivity : Activity() {
         seller.evaluateJavascript(probe){raw->val t=decodeJsString(raw.orEmpty());sellerPortalSnapshot=t.ifBlank{"{}"};val login=url.contains("login")||url.contains("signin")||t.contains("\"passwordField\":true");val auth=t.contains("\"logoutText\":true")||(t.contains("\"sellerNav\":true")&&!t.contains("\"loginText\":true"));sellerSessionState=when{login->"signed_out";auth&&url.contains("tcgplayer.com")->"authenticated";cookies.isNotBlank()&&url.contains("tcgplayer.com")->"authenticated";else->"unknown"};after?.invoke()}
     }
 
-    private fun startSellerOrdersProbeNative(){sellerOrdersProbeState="navigating";sellerOrdersSnapshot="{}";seller.loadUrl("https://sellerportal.tcgplayer.com/orders")}
-    private fun captureSellerOrdersProbe(){
-        val js="""(function(){try{const rows=[...document.querySelectorAll('table tbody tr')].slice(0,100).map(r=>[...r.querySelectorAll('td')].map(c=>(c.innerText||'').trim()));return JSON.stringify({url:location.href,title:document.title,rows,checkedAt:new Date().toISOString()})}catch(e){return JSON.stringify({error:String(e),checkedAt:new Date().toISOString()})}})();"""
-        seller.evaluateJavascript(js){raw->sellerOrdersSnapshot=decodeJsString(raw.orEmpty()).ifBlank{"{}"};sellerOrdersProbeState="ready"}
-    }
+    private fun startSellerOrdersProbeNative(){if(sellerSessionState!="authenticated"){sellerOrdersProbeState="error";sellerOrdersSnapshot="{\"error\":\"Seller Portal session is not authenticated\"}";return};sellerOrdersProbeState="navigating";seller.loadUrl("https://store.tcgplayer.com/admin/orders/orderlist");mainHandler.postDelayed({if(sellerOrdersProbeState=="navigating"){sellerOrdersProbeState="collecting";captureSellerOrdersProbe()}},5000)}
+    private fun captureSellerOrdersProbe(){val probe="""(function(){try{const clean=s=>(s||'').replace(/\s+/g,' ').trim();const tables=[...document.querySelectorAll('table')].slice(0,8).map(t=>({headers:[...t.querySelectorAll('thead th')].map(x=>clean(x.innerText||x.textContent)),rows:[...t.querySelectorAll('tbody tr')].slice(0,120).map(tr=>[...tr.querySelectorAll('td')].map(td=>clean(td.innerText||td.textContent)))}));return JSON.stringify({title:document.title||'',url:location.href,tables,bodyText:clean(document.body?.innerText||'').slice(0,30000),checkedAt:new Date().toISOString()})}catch(e){return JSON.stringify({error:String(e)})}})();""";seller.evaluateJavascript(probe){raw->val t=decodeJsString(raw.orEmpty());sellerOrdersSnapshot=t.ifBlank{"{\"error\":\"Empty orders probe\"}"};sellerOrdersProbeState=if(t.contains("\"error\":"))"error" else"ready"}}
 
     inner class Bridge {
-        @JavascriptInterface fun setCollectishSession(a:String,r:String,e:String){accessToken=a;refreshToken=r;accountEmail=e;getSharedPreferences("collectish-native",MODE_PRIVATE).edit().putString("accessToken",a).putString("refreshToken",r).putString("email",e).apply()}
-        @JavascriptInterface fun clearCollectishSession(){clearSession()}
+        @JavascriptInterface fun getVersion()=version
+        @JavascriptInterface fun getCollectorId():String{val p=getSharedPreferences("collectish-agent",MODE_PRIVATE);return p.getString("collectorId",null)?:UUID.randomUUID().toString().also{p.edit().putString("collectorId",it).apply()}}
         @JavascriptInterface fun getSessionState()=sellerSessionState
         @JavascriptInterface fun getSellerPortalSnapshot()=sellerPortalSnapshot
         @JavascriptInterface fun getSellerOrdersProbeState()=sellerOrdersProbeState
