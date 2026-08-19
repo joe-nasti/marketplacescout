@@ -10,6 +10,7 @@ const startupModules=[
   ()=>import('./seller/inventory-progress.js'),
   ()=>import('./seller/inventory-sync-controller.js'),
   ()=>import('./seller/inventory-reconciler.js'),
+  ()=>import('./seller/inventory-reconcile-status.js'),
   ()=>import('./seller/freshness.js'),
   ()=>import('./admin/scans.js'),
   ()=>import('./admin/fixed-nav.js'),
