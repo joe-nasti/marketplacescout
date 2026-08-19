@@ -18,7 +18,7 @@ on:
       - '.github/workflows/deploy-vite-pages.yml'
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -111,7 +111,6 @@ jobs:
       - name: Deploy validated Vite artifact
         id: deployment
         uses: actions/deploy-pages@v4
-      - uses: actions/checkout@v4
       - name: Verify live Pages build and execute frontend
         shell: bash
         env:
@@ -133,59 +132,3 @@ jobs:
           "$chrome" --headless --no-sandbox --disable-gpu --virtual-time-budget=7000 --dump-dom "$base/?smoke=${GITHUB_RUN_ID}" >/tmp/collectish-dom.html 2>/tmp/chrome.log
           grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/collectish-dom.html
           ! grep -q 'Could not start Collectish' /tmp/collectish-dom.html
-      - name: Record one-time migration proof
-        shell: bash
-        env:
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-          EXPECTED_SHA: ${{ github.sha }}
-          EXPECTED_REV: r110${{ github.run_number }}
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import json, os, datetime
-          Path('vite-migration-live-proof.json').write_text(json.dumps({
-            'status':'live-smoke-passed',
-            'build':os.environ['EXPECTED_SHA'],
-            'revision':os.environ['EXPECTED_REV'],
-            'page_url':os.environ['PAGE_URL'],
-            'verified_at':datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z')
-          },separators=(',',':'))+'\n')
-          PY
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add vite-migration-live-proof.json
-          git diff --cached --quiet && exit 0
-          git commit -m "chore: record Vite migration live proof [skip ci]"
-          git push
-
-  report:
-    if: always()
-    runs-on: ubuntu-latest
-    needs: [build, deploy]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Record migration workflow result
-        shell: bash
-        env:
-          BUILD_RESULT: ${{ needs.build.result }}
-          DEPLOY_RESULT: ${{ needs.deploy.result }}
-          RUN_SHA: ${{ github.sha }}
-          RUN_REV: r110${{ github.run_number }}
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import json, os, datetime
-          Path('vite-migration-ci-status.json').write_text(json.dumps({
-            'build_result':os.environ['BUILD_RESULT'],
-            'deploy_result':os.environ['DEPLOY_RESULT'],
-            'sha':os.environ['RUN_SHA'],
-            'revision':os.environ['RUN_REV'],
-            'reported_at':datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z')
-          },separators=(',',':'))+'\n')
-          PY
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add vite-migration-ci-status.json
-          git diff --cached --quiet && exit 0
-          git commit -m "chore: report Vite migration CI result [skip ci]"
-          git push
