@@ -1,4 +1,4 @@
-// Ask Collectish safe Markdown renderer — event-driven only, no startup observer.
+// Ask Collectish safe Markdown renderer — persistent message-container binding.
 (() => {
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function inline(s){
@@ -8,6 +8,7 @@
     x=x.replace(/__([^_]+)__/g,'<strong>$1</strong>');
     x=x.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,'$1<em>$2</em>');
     x=x.replace(/(^|[^_])_([^_\n]+)_(?!_)/g,'$1<em>$2</em>');
+    x=x.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     return x;
   }
   function markdown(src){
@@ -19,7 +20,8 @@
       if(/^\s*$/.test(line)){close();continue}
       if(/^\s*---+\s*$/.test(line)){close();out.push('<hr>');continue}
       let m;
-      if((m=/^\s*#{1,3}\s+(.+)$/.exec(line))){close();const n=Math.min(3,(line.match(/^\s*(#+)/)?.[1]?.length||2));out.push(`<h${n}>${inline(m[1])}</h${n}>`);continue}
+      if((m=/^\s*#{1,4}\s+(.+)$/.exec(line))){close();const n=Math.min(4,(line.match(/^\s*(#+)/)?.[1]?.length||2));out.push(`<h${n}>${inline(m[1])}</h${n}>`);continue}
+      if((m=/^\s*>\s+(.+)$/.exec(line))){close();out.push(`<blockquote>${inline(m[1])}</blockquote>`);continue}
       if((m=/^\s*[-*]\s+(.+)$/.exec(line))){if(list!=='ul'){close();list='ul';out.push('<ul>')}out.push(`<li>${inline(m[1])}</li>`);continue}
       if((m=/^\s*\d+[.)]\s+(.+)$/.exec(line))){if(list!=='ol'){close();list='ol';out.push('<ol>')}out.push(`<li>${inline(m[1])}</li>`);continue}
       close();out.push(`<p>${inline(line)}</p>`);
@@ -29,7 +31,7 @@
   function renderElement(el){
     if(!el||el.dataset?.md==='1')return el;
     const text=el.textContent||'';
-    if(!/[\n*_#`-]/.test(text))return el;
+    // Assistant answers should always use the Markdown renderer; plain prose simply becomes <p>.
     el.innerHTML=markdown(text);
     el.dataset.md='1';
     return el;
@@ -37,13 +39,35 @@
   function render(){
     document.querySelectorAll('#cxAskMessages .cx-ask-assistant .cx-ask-msg-body:not([data-md])').forEach(renderElement);
   }
-  function schedule(){[0,80,250,700,1500,3000,6000].forEach(ms=>setTimeout(render,ms))}
+  let bound=null,observer=null;
+  function bind(){
+    const box=document.getElementById('cxAskMessages');
+    if(!box||box===bound)return Boolean(box);
+    observer?.disconnect();bound=box;
+    observer=new MutationObserver(muts=>{
+      for(const m of muts){
+        for(const n of m.addedNodes){
+          if(!(n instanceof Element))continue;
+          if(n.matches?.('.cx-ask-assistant'))renderElement(n.querySelector('.cx-ask-msg-body'));
+          n.querySelectorAll?.('.cx-ask-assistant .cx-ask-msg-body:not([data-md])').forEach(renderElement);
+        }
+      }
+      render();
+    });
+    observer.observe(box,{childList:true,subtree:true});
+    render();return true;
+  }
+  function schedule(){[0,50,150,400,900,1800].forEach(ms=>setTimeout(()=>{bind();render()},ms))}
   window.CollectishRenderMarkdown=renderElement;
   window.CollectishRenderAllMarkdown=render;
   document.addEventListener('collectish:ask-message-rendered',e=>{
     if(e.detail?.role==='assistant')renderElement(e.detail.element);
   });
   document.addEventListener('submit',e=>{if(e.target?.id==='cxAskForm')schedule()},true);
-  document.addEventListener('click',e=>{if(e.target.closest?.('#cxAskInvestigate,.cx-ask-starter,.cx-v3-starter'))schedule()},true);
+  document.addEventListener('click',e=>{
+    if(e.target.closest?.('#cxAskInvestigate,.cx-ask-starter,.cx-v3-starter,.cx-ask-launch'))schedule();
+  },true);
   document.addEventListener('collectish:ask-v3-response',schedule);
+  document.addEventListener('collectish:ready',schedule);
+  if(document.readyState!=='loading')schedule();
 })();
