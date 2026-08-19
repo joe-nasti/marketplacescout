@@ -37,6 +37,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Enforce native ESM source graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e src/legacy-runtime.js
+          test ! -e src/run-classic.js
+          ! grep -R --line-number --fixed-strings '?raw' src
+          ! grep -R --line-number 'runClassicSequence\|legacy-runtime' src
+          node --check src/main.js
+          node --check src/lazy-pages.js
+          node --check src/features/install-remaining.js
+          node --check src/features/sealed.js
+          node --check src/features/seller.js
+          node --check src/features/syp.js
       - name: Install pinned Vite toolchain
         run: npm install --no-audit --no-fund
       - name: Build production bundle
