@@ -1,5 +1,6 @@
-import { readFile, writeFile, rm, mkdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+// One-time migration: consolidate the active CSS cascade into semantic token/domain files.
+import { readFile, writeFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
 
 const root=process.cwd();
 const styles=join(root,'src/styles');
@@ -17,48 +18,23 @@ const groups={
 const tokens=`/* Collectish semantic design tokens. Component CSS consumes these tokens (legacy --cx-* aliases are temporary compatibility names). */
 :root,[data-theme="light"]{
   color-scheme:light;
-  --color-bg-primary:#f5f8ff;
-  --color-bg-surface:#ffffff;
-  --color-bg-elevated:#ffffff;
-  --color-bg-input:#ffffff;
-  --color-text-primary:#0b1538;
-  --color-text-secondary:#64718b;
-  --color-border:#d9e3f1;
-  --color-accent:#1866e8;
-  --color-accent-bright:#2f8cfa;
-  --color-accent-soft:#eaf2ff;
-  --color-success:#128a4b;
-  --color-danger:#d92d20;
-  --color-warning:#d97706;
-  --color-overlay:rgba(11,21,56,.42);
-  --shadow-card:0 8px 28px rgba(11,21,56,.07);
-  --shadow-float:0 12px 36px rgba(11,21,56,.14);
-  --radius-sm:8px;
-  --radius-md:12px;
-  --radius-lg:16px;
-  --radius-xl:22px;
+  --color-bg-primary:#f5f8ff;--color-bg-surface:#ffffff;--color-bg-elevated:#ffffff;--color-bg-input:#ffffff;
+  --color-text-primary:#0b1538;--color-text-secondary:#64718b;--color-border:#d9e3f1;
+  --color-accent:#1866e8;--color-accent-bright:#2f8cfa;--color-accent-soft:#eaf2ff;
+  --color-success:#128a4b;--color-danger:#d92d20;--color-warning:#d97706;--color-overlay:rgba(11,21,56,.42);
+  --shadow-card:0 8px 28px rgba(11,21,56,.07);--shadow-float:0 12px 36px rgba(11,21,56,.14);
+  --radius-sm:8px;--radius-md:12px;--radius-lg:16px;--radius-xl:22px;
   --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;
   --font-scale-xs:.75rem;--font-scale-sm:.8125rem;--font-scale-md:.9375rem;--font-scale-lg:1.125rem;--font-scale-xl:1.5rem;--font-scale-2xl:1.75rem;
   --cx-bg:var(--color-bg-primary);--cx-card:var(--color-bg-surface);--cx-text:var(--color-text-primary);--cx-muted:var(--color-text-secondary);--cx-line:var(--color-border);--cx-blue:var(--color-accent);--cx-blue-soft:var(--color-accent-soft);--cx-accent:var(--color-accent);--cx-green:var(--color-success);--cx-red:var(--color-danger);--cx-amber:var(--color-warning);--cx-shadow:var(--shadow-card);
 }
 [data-theme="dark"]{
   color-scheme:dark;
-  --color-bg-primary:#0b1538;
-  --color-bg-surface:#101f42;
-  --color-bg-elevated:#14264d;
-  --color-bg-input:#0d1a38;
-  --color-text-primary:#ffffff;
-  --color-text-secondary:#a9bed4;
-  --color-border:#29416f;
-  --color-accent:#2f8cfa;
-  --color-accent-bright:#87b8ff;
-  --color-accent-soft:#102e66;
-  --color-success:#5bd79a;
-  --color-danger:#ff837a;
-  --color-warning:#ffc566;
-  --color-overlay:rgba(0,0,0,.55);
-  --shadow-card:0 12px 36px rgba(0,0,0,.34);
-  --shadow-float:0 16px 44px rgba(0,0,0,.46);
+  --color-bg-primary:#0b1538;--color-bg-surface:#101f42;--color-bg-elevated:#14264d;--color-bg-input:#0d1a38;
+  --color-text-primary:#ffffff;--color-text-secondary:#a9bed4;--color-border:#29416f;
+  --color-accent:#2f8cfa;--color-accent-bright:#87b8ff;--color-accent-soft:#102e66;
+  --color-success:#5bd79a;--color-danger:#ff837a;--color-warning:#ffc566;--color-overlay:rgba(0,0,0,.55);
+  --shadow-card:0 12px 36px rgba(0,0,0,.34);--shadow-float:0 16px 44px rgba(0,0,0,.46);
 }
 `;
 
@@ -100,7 +76,6 @@ await writeFile(join(styles,'index.css'),[
   "@import './admin.css';",
   ''
 ].join('\n'));
-
 await rm(join(styles,'base'),{recursive:true,force:true});
 await rm(join(styles,'modules'),{recursive:true,force:true});
 await rm(join(styles,'theme.css'),{force:true});
