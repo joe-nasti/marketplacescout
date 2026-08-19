@@ -36,8 +36,7 @@
     search.oninput=()=>{clearTimeout(debounce);debounce=setTimeout(run,250)};
   }
 
-  const mo=new MutationObserver(()=>install());
-  mo.observe(document.documentElement,{childList:true,subtree:true});
-  document.addEventListener('click',e=>{if(e.target.closest?.('[data-seller-tab="orders"]'))setTimeout(install,50)},true);
-  setTimeout(install,200);
+  document.addEventListener('collectish:seller-tab-rendered',e=>{if(e.detail?.tab==='orders')install()});
+  install();
+  window.CollectishSellerFilters={install,run};
 })();
