@@ -1,6 +1,5 @@
 import { runClassicSequence } from './run-classic.js';
 
-import readonlyAgent from '../current-readonly-agent.js?raw';
 import volatility from '../current-scout-volatility-overlay-r0983.js?raw';
 import scoutLinks from '../current-scout-detail-tile-links-r0986.js?raw';
 import sealedBest from '../current-sealed-component-best-r0992.js?raw';
@@ -32,7 +31,6 @@ import askV3Admin from '../current-ask-collectish-v3-admin-safe.js?raw';
 
 export function installLegacyFeatures(){
   runClassicSequence([
-    ['current-readonly-agent.js',readonlyAgent],
     ['current-scout-volatility-overlay-r0983.js',volatility],
     ['current-scout-detail-tile-links-r0986.js',scoutLinks],
     ['current-sealed-component-best-r0992.js',sealedBest],
