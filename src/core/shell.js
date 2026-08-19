@@ -6,10 +6,17 @@ import lifecycle from './lifecycle.js';
 export const WEB_VERSION='0.9.52';
 window.COLLECTISH_WEB_VERSION=WEB_VERSION;
 
-const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[ch]));
 const brand=()=>'<span class="cx-brand-collect">collect</span><span class="cx-brand-ish">ish</span>';
 let started=false;
 let beforeReadyHook=null;
+
+export function startupView(message='Resuming your session…'){
+  lifecycle.unmountApp();
+  store.update('runtime',{screen:'startup'});
+  document.body.innerHTML=`<main class="cx-auth" data-collectish-startup><section class="cx-auth-card"><div class="cx-brand">${brand()}</div><div class="cx-version">web ${WEB_VERSION}</div><h1>Collectish</h1><p>${esc(message)}</p><div class="cx-auth-msg">Loading…</div></section></main>`;
+  document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'startup'}}));
+}
 
 export function loginView(message=''){
   lifecycle.unmountApp();
@@ -28,8 +35,8 @@ async function login(){
   if(!email||!password){if(msg)msg.textContent='Enter email and password.';return}
   if(btn)btn.disabled=true;
   if(msg)msg.textContent='Signing in…';
-  try{await signIn(email,password);await boot()}
-  catch(error){if(btn)btn.disabled=false;if(msg)msg.textContent=error.message||'Sign in failed'}
+  try{await signIn(email,password);startupView('Opening Collectish…');await boot()}
+  catch(error){if(btn)btn.disabled=false;loginView(error.message||'Sign in failed')}
 }
 
 export function adminView(){
@@ -78,8 +85,13 @@ export function startShell({beforeReady}={}){
   started=true;
   document.addEventListener('click',pageClickHandler,true);
   document.addEventListener('collectish:auth-invalid',()=>loginView('Your session was rejected by the server. Please sign in again.'));
-  boot();
-  window.CollectishShell={boot,switchPage,adminView,loginView,version:WEB_VERSION,session:readSession};
+  if(readSession())startupView();else loginView();
+  void boot().catch(error=>{
+    console.error('Collectish boot failed',error);
+    store.update('runtime',{screen:'error',bootError:String(error?.message||error)});
+    loginView('Collectish could not resume your session. Please sign in again.');
+  });
+  window.CollectishShell={boot,switchPage,adminView,loginView,startupView,version:WEB_VERSION,session:readSession};
 }
 
 export { collectishConfig };
