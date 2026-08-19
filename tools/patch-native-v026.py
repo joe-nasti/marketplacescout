@@ -6,19 +6,49 @@ s=p.read_text()
 
 s=s.replace('private val version = "0.2.5"','private val version = "0.2.6"')
 
-anchor='''    @Volatile private var sellerOrdersSnapshot = "{}"\n    private val version = "0.2.6"'''
-replacement='''    @Volatile private var sellerOrdersSnapshot = "{}"\n    private var lastHostedRefreshAt = 0L\n    private val hostedAgentKick = object : Runnable {\n        override fun run() {\n            if (::agentWeb.isInitialized) {\n                agentWeb.evaluateJavascript(\"window.dispatchEvent(new Event('pageshow'));\", null)\n            }\n            if (::seller.isInitialized) verifySellerSession()\n            mainHandler.postDelayed(this, 15_000L)\n        }\n    }\n    private val version = "0.2.6"'''
+anchor='''    @Volatile private var sellerOrdersSnapshot = "{}"
+    private val version = "0.2.6"'''
+replacement='''    @Volatile private var sellerOrdersSnapshot = "{}"
+    private var lastHostedRefreshAt = 0L
+    private val hostedAgentKick = object : Runnable {
+        override fun run() {
+            if (::agentWeb.isInitialized) {
+                agentWeb.evaluateJavascript("window.dispatchEvent(new Event('pageshow'));", null)
+            }
+            if (::seller.isInitialized) verifySellerSession()
+            mainHandler.postDelayed(this, 15_000L)
+        }
+    }
+    private val version = "0.2.6"'''
 if anchor not in s:
     raise SystemExit('v026 field anchor not found')
 s=s.replace(anchor,replacement,1)
 
-old='''        agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/")\n        seller.loadUrl("https://sellerportal.tcgplayer.com/")'''
-new='''        agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/")\n        lastHostedRefreshAt = System.currentTimeMillis()\n        seller.loadUrl("https://sellerportal.tcgplayer.com/")\n        mainHandler.postDelayed(hostedAgentKick, 5_000L)'''
+old='''        agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/")
+        seller.loadUrl("https://sellerportal.tcgplayer.com/")'''
+new='''        agentWeb.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+        agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/?androidBoot=${System.currentTimeMillis()}")
+        lastHostedRefreshAt = System.currentTimeMillis()
+        seller.loadUrl("https://sellerportal.tcgplayer.com/")
+        mainHandler.postDelayed(hostedAgentKick, 5_000L)'''
 if old not in s:
     raise SystemExit('v026 load anchor not found')
 s=s.replace(old,new,1)
 
-resume_kick='''\n        mainHandler.postDelayed({\n            if (::agentWeb.isInitialized) {\n                val now = System.currentTimeMillis()\n                if (now - lastHostedRefreshAt >= 5L * 60L * 1000L) {\n                    lastHostedRefreshAt = now\n                    agentWeb.reload()\n                } else {\n                    agentWeb.evaluateJavascript(\"window.dispatchEvent(new Event('pageshow'));\", null)\n                }\n            }\n            if (::seller.isInitialized) verifySellerSession()\n        }, 350L)\n        '''
+resume_kick='''
+        mainHandler.postDelayed({
+            if (::agentWeb.isInitialized) {
+                val now = System.currentTimeMillis()
+                if (now - lastHostedRefreshAt >= 5L * 60L * 1000L) {
+                    lastHostedRefreshAt = now
+                    agentWeb.reload()
+                } else {
+                    agentWeb.evaluateJavascript("window.dispatchEvent(new Event('pageshow'));", null)
+                }
+            }
+            if (::seller.isInitialized) verifySellerSession()
+        }, 350L)
+        '''
 
 # Native source already contains onResume, but historical patches changed its exact whitespace/body.
 # Match the declaration structurally and inject immediately after its opening brace.
@@ -35,7 +65,12 @@ else:
     marker='''    private fun bg() = Color.rgb(245, 248, 252)'''
     if marker not in s:
         raise SystemExit('v026 onDestroy marker not found')
-    destroy='''    override fun onDestroy() {\n        mainHandler.removeCallbacks(hostedAgentKick)\n        super.onDestroy()\n    }\n\n'''
+    destroy='''    override fun onDestroy() {
+        mainHandler.removeCallbacks(hostedAgentKick)
+        super.onDestroy()
+    }
+
+'''
     s=s.replace(marker,destroy+marker,1)
 
 # Guard against accidentally creating duplicate lifecycle methods.
