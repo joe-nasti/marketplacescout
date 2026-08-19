@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - cloud-worker/cardtrader-sealed-refresh.mjs
+      - cloud-worker/cardtrader-sealed-map-refresh.mjs
       - cloud-worker/cardtrader-sealed-schema.sql
       - src/modules/sealed/cardtrader.js
       - src/modules/sealed/index.js
@@ -38,10 +39,18 @@ jobs:
         run: |
           mkdir -p audit-results
           set +e
-          node --check cloud-worker/cardtrader-sealed-refresh.mjs > audit-results/cardtrader-integration-run.txt 2>&1
+          node --check cloud-worker/cardtrader-sealed-map-refresh.mjs > audit-results/cardtrader-integration-run.txt 2>&1
           status=$?
           if [ "$status" -eq 0 ]; then
+            node --check cloud-worker/cardtrader-sealed-refresh.mjs >> audit-results/cardtrader-integration-run.txt 2>&1
+            status=$?
+          fi
+          if [ "$status" -eq 0 ]; then
             node --check src/modules/sealed/cardtrader.js >> audit-results/cardtrader-integration-run.txt 2>&1
+            status=$?
+          fi
+          if [ "$status" -eq 0 ]; then
+            node cloud-worker/cardtrader-sealed-map-refresh.mjs >> audit-results/cardtrader-integration-run.txt 2>&1
             status=$?
           fi
           if [ "$status" -eq 0 ]; then
