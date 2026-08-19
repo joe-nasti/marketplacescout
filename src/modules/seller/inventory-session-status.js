@@ -6,18 +6,18 @@ function classifyStore(bridge){
   const probe=parseProbe(safeCall(()=>bridge.getReadOnlyProbeResult?.(),'{}'));
   const url=String(probe?.url||'').toLowerCase();
   const error=String(probe?.error||'').toLowerCase();
-  if(probe?.ok===true&&url.includes('store.tcgplayer.com'))return {label:'Verified',sub:'authenticated Store request succeeded'};
-  if(error.includes('login')||error.includes('not authenticated')||error.includes('signed out'))return {label:'Signed out',sub:'Store login required'};
-  if(state==='running'||state==='starting')return {label:'Checking…',sub:'verifying Store session'};
-  return {label:'Not yet verified',sub:'checked on next Store request'};
+  if(probe?.ok===true&&url.includes('store.tcgplayer.com'))return {label:'Verified',sub:'authenticated Inventory Store request succeeded'};
+  if(error.includes('login')||error.includes('not authenticated')||error.includes('signed out'))return {label:'Signed out',sub:'Inventory Store login required'};
+  if(state==='running'||state==='starting')return {label:'Checking…',sub:'verifying Inventory Store session'};
+  return {label:'Not yet verified',sub:'checked on next Inventory Store request'};
 }
 function sellerState(android,storeState){
   if(!android)return {label:'Unavailable',sub:'Android bridge missing'};
   const raw=String(safeCall(()=>android.getSessionState?.(),'unknown'));
-  if(raw==='authenticated')return {label:'Authenticated',sub:'shared TCGplayer WebView session'};
-  if(raw==='signed_out'&&storeState?.label==='Verified')return {label:'Portal signed out',sub:'Inventory Store session is authenticated'};
+  if(raw==='authenticated')return {label:'Authenticated',sub:'Seller Portal WebView session'};
+  if(raw==='signed_out'&&storeState?.label==='Verified')return {label:'Portal signed out',sub:'Inventory Store is still authenticated'};
   if(raw==='signed_out')return {label:'Signed out',sub:'Seller Portal login required'};
-  return {label:'Unknown',sub:'session has not been confirmed'};
+  return {label:'Unknown',sub:'Seller Portal session has not been confirmed'};
 }
 function findStat(host,label){
   return [...host.querySelectorAll('.cx-inventory-stat')].find(el=>el.querySelector('span')?.textContent?.trim()===label)||null;
@@ -53,7 +53,7 @@ export function refreshInventorySessionStatus(){
   setStat(existing,'Android bridge',bridge?'Ready':'Unavailable',bridge?'read-only Store bridge available':'update app for sync');
   const seller=ensureExtraStat(host,'seller'),store=ensureExtraStat(host,'store');
   const t=classifyStore(bridge),s=sellerState(android,t);
-  setStat(seller,'Seller session',s.label,s.sub);setStat(store,'Store session',t.label,t.sub);
+  setStat(seller,'Seller Portal',s.label,s.sub);setStat(store,'Inventory Store',t.label,t.sub);
   const needsLogin=t.label==='Signed out'||(t.label==='Not yet verified'&&s.label==='Signed out');
   ensureLoginAction(host,Boolean(android?.showSellerPortal)&&needsLogin);
 }
