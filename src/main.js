@@ -38,6 +38,7 @@ import '../current-build-badge-r1012.css';
 import './runtime/config.js';
 import './runtime/build-info.js';
 import './features/ask/markdown.js';
+import './features/sealed/ui-guardian.js';
 import './lazy-pages.js';
 import { installRestBridge } from './runtime/rest.js';
 import { installLegacyShell, installLegacyFeatures } from './legacy-runtime.js';
