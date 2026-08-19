@@ -30,12 +30,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      COLLECTISH_WEB_REVISION: r${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Install Vite toolchain
+      - name: Install pinned Vite toolchain
         run: npm install --no-audit --no-fund
       - name: Build production bundle
         run: npm run build
@@ -47,10 +49,13 @@ jobs:
           test -s dist/.vite/manifest.json
           test -s dist/manifest.webmanifest
           test -s dist/collectish-icon-192.png
+          test -s dist/build-version.json
+          test -s dist/web-version.json
           grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.js' dist/index.html
           ! grep -Eq '<script[^>]+current-.*\.js' dist/index.html
           ! grep -Eq '<link[^>]+current-.*\.css' dist/index.html
           node -e "const fs=require('fs');const m=JSON.parse(fs.readFileSync('dist/.vite/manifest.json','utf8'));if(!Object.keys(m).length)process.exit(1)"
+          node -e "const fs=require('fs');const v=JSON.parse(fs.readFileSync('dist/web-version.json','utf8'));if(v.build!==process.env.GITHUB_SHA)process.exit(1);if(v.label!==process.env.COLLECTISH_WEB_REVISION)process.exit(1)"
       - uses: actions/upload-artifact@v4
         with:
           name: collectish-vite-dist
