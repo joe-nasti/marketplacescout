@@ -7,30 +7,33 @@
   const label=()=>`web ${version()} · ${loadedRevision()}`;
 
   function decorate(){
+    const text=label();
     document.querySelectorAll('.cx-top-version,.cx-version').forEach(el=>{
-      el.textContent=label();
-      el.dataset.cxBuildBadge='1';
-      el.setAttribute('role','button');
-      el.setAttribute('tabindex','0');
-      el.setAttribute('aria-label','Show Collectish build details');
-      el.title='Show build details';
+      if(el.textContent!==text)el.textContent=text;
+      if(el.dataset.cxBuildBadge!=='1')el.dataset.cxBuildBadge='1';
+      if(el.getAttribute('role')!=='button')el.setAttribute('role','button');
+      if(el.getAttribute('tabindex')!=='0')el.setAttribute('tabindex','0');
+      if(el.getAttribute('aria-label')!=='Show Collectish build details')el.setAttribute('aria-label','Show Collectish build details');
+      if(el.title!=='Show build details')el.title='Show build details';
     });
     document.querySelectorAll('.cx-side-meta').forEach(el=>{
-      const lines=(el.textContent||'').split(/\n|Smarter data\./);
-      el.innerHTML=`${label()}<br>Smarter data. Better decisions.`;
-      el.dataset.cxBuildBadge='1';
-      el.setAttribute('role','button');
-      el.setAttribute('tabindex','0');
-      el.title='Show build details';
+      const html=`${text}<br>Smarter data. Better decisions.`;
+      if(el.innerHTML!==html)el.innerHTML=html;
+      if(el.dataset.cxBuildBadge!=='1')el.dataset.cxBuildBadge='1';
+      if(el.getAttribute('role')!=='button')el.setAttribute('role','button');
+      if(el.getAttribute('tabindex')!=='0')el.setAttribute('tabindex','0');
+      if(el.title!=='Show build details')el.title='Show build details';
     });
     document.querySelectorAll('#cxAdmin .cx-detail-stat').forEach(row=>{
       const k=(row.querySelector('span')?.textContent||'').trim();
-      if(k==='Web UI')row.querySelector('strong').textContent=`${version()} · ${loadedRevision()}`;
+      const strong=row.querySelector('strong');
+      const next=`${version()} · ${loadedRevision()}`;
+      if(k==='Web UI'&&strong&&strong.textContent!==next)strong.textContent=next;
     });
   }
 
   function modalHtml(info={}){
-    const liveBuild=String(info.build||'unknown'),liveRev=info.revision?`r${info.revision}`:'r?';
+    const liveBuild=String(info.build||'unknown'),liveRev=info.label|| (info.revision?`r${info.revision}`:'r?');
     const current=liveBuild===loadedBuild();
     const deployed=info.deployed_at?new Date(info.deployed_at).toLocaleString():'—';
     return `<div class="cx-build-dialog-card" role="dialog" aria-modal="true" aria-label="Collectish build details">
@@ -71,6 +74,6 @@
   document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target?.dataset?.cxBuildBadge==='1'){e.preventDefault();open()}},true);
   document.addEventListener('collectish:ready',()=>{decorate();setTimeout(decorate,250);setTimeout(decorate,1000)});
   const obs=new MutationObserver(()=>queueMicrotask(decorate));
-  obs.observe(document.body,{childList:true});
+  obs.observe(document.body,{childList:true,subtree:false});
   decorate();
 })();
