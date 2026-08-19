@@ -28,11 +28,10 @@
         }
       }
     }catch(e){console.warn('Seller overview metadata enrichment failed',e)}
-    finally{busy=false;if(queued){queued=false;setTimeout(enrich,0)}}
+    finally{busy=false;if(queued){queued=false;queueMicrotask(enrich)}}
   }
 
-  const mo=new MutationObserver(()=>setTimeout(enrich,0));
-  mo.observe(document.documentElement,{childList:true,subtree:true});
-  document.addEventListener('click',e=>{if(e.target.closest?.('[data-seller-tab="overview"],[data-cx-page="seller"]'))setTimeout(enrich,80)},true);
-  setTimeout(enrich,250);
+  document.addEventListener('collectish:seller-tab-rendered',e=>{if(e.detail?.tab==='overview')queueMicrotask(enrich)});
+  enrich();
+  window.CollectishSellerOrderMeta={enrich};
 })();
