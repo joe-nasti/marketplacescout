@@ -5,7 +5,6 @@ const startupModules=[
   ()=>import('./scout/noise-filter.js'),
   ()=>import('./scout/search.js'),
   ()=>import('./scout/vendor.js'),
-  ()=>import('./scout/pricing.js'),
   ()=>import('./scout/detail-swipe.js'),
   ()=>import('./seller/inventory.js'),
   ()=>import('./admin/scans.js'),
