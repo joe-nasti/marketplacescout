@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - 'build-version.json'
+      - 'web-version.json'
       - '.github/workflows/stamp-web-build.yml'
       - 'cloud-worker/**'
       - 'supabase/**'
@@ -25,26 +26,42 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Stamp build into index and marker
+      - name: Stamp build and global web revision
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           import json, os, re, datetime
           sha=os.environ['GITHUB_SHA']
+          now=datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z')
+
+          rev_path=Path('web-version.json')
+          try:
+              current=json.loads(rev_path.read_text())
+              revision=int(current.get('revision',1011))+1
+          except Exception:
+              revision=1012
+
           p=Path('index.html')
           s=p.read_text()
-          meta=f'<meta name="collectish-build" content="{sha}">'
-          pat=r'<meta name="collectish-build" content="[^"]*">'
-          if re.search(pat,s):
-              s=re.sub(pat,meta,s)
+          build_meta=f'<meta name="collectish-build" content="{sha}">'
+          rev_meta=f'<meta name="collectish-revision" content="r{revision}">'
+          build_pat=r'<meta name="collectish-build" content="[^"]*">'
+          rev_pat=r'<meta name="collectish-revision" content="[^"]*">'
+          if re.search(build_pat,s): s=re.sub(build_pat,build_meta,s)
           else:
               needle='<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
-              s=s.replace(needle,needle+'\n  '+meta)
+              s=s.replace(needle,needle+'\n  '+build_meta)
+          if re.search(rev_pat,s): s=re.sub(rev_pat,rev_meta,s)
+          else:
+              s=s.replace(build_meta,build_meta+'\n  '+rev_meta)
           p.write_text(s)
+
           Path('build-version.json').write_text(json.dumps({
-              'build':sha,
-              'deployed_at':datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00','Z')
+              'build':sha,'revision':revision,'deployed_at':now
+          },separators=(',',':'))+'\n')
+          rev_path.write_text(json.dumps({
+              'version':'0.9.52','revision':revision,'label':f'r{revision}','build':sha,'deployed_at':now
           },separators=(',',':'))+'\n')
           PY
       - name: Commit build stamp
@@ -52,7 +69,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html build-version.json
+          git add index.html build-version.json web-version.json
           git diff --cached --quiet && exit 0
-          git commit -m "chore: stamp web build [skip ci]"
+          git commit -m "chore: stamp web r$(python -c 'import json; print(json.load(open("web-version.json"))["revision"])') [skip ci]"
           git push
