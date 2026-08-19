@@ -1,0 +1,22 @@
+name: Validate Collectish style system
+on:
+  push:
+    branches: [main]
+    paths: ['src/styles/**','src/core/theme.js','tools/check-style-system.mjs','package.json','.github/workflows/style-system-check.yml']
+  pull_request:
+    paths: ['src/styles/**','src/core/theme.js','tools/check-style-system.mjs','package.json','.github/workflows/style-system-check.yml']
+permissions:
+  contents: read
+  statuses: write
+jobs:
+  styles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - name: Validate tokens and theme contract
+        run: node tools/check-style-system.mjs
+      - name: Publish status
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/style-system' -f description='Tokenized CSS/theme contract passed'
