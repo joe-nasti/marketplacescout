@@ -7,7 +7,10 @@ if(!SUPABASE_URL||!SERVICE_KEY)throw new Error('SUPABASE_URL and SUPABASE_SERVIC
 const H={apikey:SERVICE_KEY,Authorization:`Bearer ${SERVICE_KEY}`,'Content-Type':'application/json'};
 async function sb(path,{method='GET',body,prefer}={}){const h={...H,...(prefer?{Prefer:prefer}:{})};const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers:h,body:body===undefined?undefined:JSON.stringify(body)});const text=await r.text();let data=null;try{data=text?JSON.parse(text):null}catch{data=text}if(!r.ok)throw new Error(data?.message||data?.hint||`Supabase HTTP ${r.status}: ${String(text).slice(0,220)}`);return data}
 const enc=v=>encodeURIComponent(String(v??''));
-const cutoff=new Date(Date.now()-60*60*1000).toISOString();
+// Automatic Seller Portal checks are intentionally daily. The orchestrator may
+// run more frequently, but it must not create another authenticated sync seed
+// until the last auth/search sync is at least 24 hours old.
+const cutoff=new Date(Date.now()-24*60*60*1000).toISOString();
 
 async function main(){
   const users=await sb('seller_orders?select=user_id&order=collected_at.desc&limit=500');
@@ -25,10 +28,10 @@ async function main(){
       user_id:userId,source:'agent',action:'seller_portal_readonly_probe',status:'queued',priority:3,
       required_capability:'tcgplayer_authenticated_session',preferred_executor:'android_agent',
       payload_json:{sellerHistoryKind:'auth_detail',probe:{mode:'fetch_json',method:'GET',url:'https://sp-api.tcgplayer.com/Account/auth-detail'}},
-      progress_json:{stage:'queued',percent:0,detail:'Seller History auth-detail seed queued for incremental sync',updatedAt:now},
+      progress_json:{stage:'queued',percent:0,detail:'Daily Seller History auth-detail seed queued for incremental sync',updatedAt:now},
       max_attempts:3
     }],prefer:'return=minimal'});queued++;
   }
-  console.log(`Seller History seed: ${queued} auth-detail probe(s) queued, ${skipped} user(s) already active/recent.`);
+  console.log(`Seller History daily seed: ${queued} auth-detail probe(s) queued, ${skipped} user(s) already active/recent.`);
 }
 await main();
