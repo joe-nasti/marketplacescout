@@ -73,7 +73,7 @@ jobs:
           python tools/patch-native-v028.py
           python tools/patch-native-v030.py
 
-      - name: Stamp 0.2.10 upgrade metadata
+      - name: Stamp and validate 0.2.10 inventory bridge
         working-directory: android-agent
         shell: bash
         run: |
@@ -91,6 +91,11 @@ jobs:
           grep -q 'path.startsWith("/admin/product/manage/")' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q 'fetch_html' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
 
+      - name: Publish Android source checkpoint
+        shell: bash
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-source' -f description='Native patch chain preserved Store inventory bridge'
+
       - name: Build persistently signed release APK
         working-directory: android-agent
         shell: bash
@@ -100,12 +105,22 @@ jobs:
           test -s app/build/outputs/apk/release/app-release.apk
           cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/$RELEASE_APK"
 
+      - name: Publish Android Gradle checkpoint
+        shell: bash
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-gradle' -f description='Android inventory bridge compiled successfully'
+
       - name: Verify APK signature and package
         shell: bash
         run: |
           set -euo pipefail
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/$RELEASE_APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -q "package: name='com.collectish.agent' versionCode='30' versionName='0.2.10'"
+
+      - name: Publish Android signature checkpoint
+        shell: bash
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signature' -f description='Signed Android package verified'
 
       - uses: actions/upload-artifact@v4
         with:
@@ -127,23 +142,11 @@ jobs:
       - name: Publish signed Android success status
         if: success()
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-        run: |
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
-            -f state=success \
-            -f context='collectish/android-signed' \
-            -f description='Signed Android 0.2.10 built and verified with Store inventory bridge'
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.10 built and verified with Store inventory bridge'
 
       - name: Publish signed Android failure status
         if: failure()
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-        run: |
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
-            -f state=failure \
-            -f context='collectish/android-signed' \
-            -f description='Signed Android build or inventory bridge validation failed'
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/android-signed' -f description='Signed Android build or inventory bridge validation failed'
