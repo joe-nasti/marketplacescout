@@ -26,8 +26,7 @@ s=s.replace(anchor,replacement,1)
 
 old='''        agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/")
         seller.loadUrl("https://sellerportal.tcgplayer.com/")'''
-new='''        agentWeb.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
-        agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/?androidBoot=${System.currentTimeMillis()}")
+new='''        agentWeb.loadUrl("https://joe-nasti.github.io/marketplacescout/")
         lastHostedRefreshAt = System.currentTimeMillis()
         seller.loadUrl("https://sellerportal.tcgplayer.com/")
         mainHandler.postDelayed(hostedAgentKick, 5_000L)'''
