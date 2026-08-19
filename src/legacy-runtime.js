@@ -15,7 +15,6 @@ import sealedActions from '../current-sealed-summary-actions-r1000.js?raw';
 import sealedTcg from '../current-sealed-summary-tcg-r1001.js?raw';
 import sealedFreshness from '../current-sealed-detail-freshness-r1002.js?raw';
 import sealedLanguage from '../current-sealed-language-confidence-r1003.js?raw';
-import sealedGuardian from '../current-sealed-ui-guardian-r1008.js?raw';
 import scoutImages from '../current-scout-list-images.js?raw';
 import scoutNoise from '../current-scout-noise-filter.js?raw';
 import scoutSearch from '../current-scout-global-search.js?raw';
@@ -59,7 +58,6 @@ export function installLegacyFeatures(){
     ['current-sealed-summary-tcg-r1001.js',sealedTcg],
     ['current-sealed-detail-freshness-r1002.js',sealedFreshness],
     ['current-sealed-language-confidence-r1003.js',sealedLanguage],
-    ['current-sealed-ui-guardian-r1008.js',sealedGuardian],
     ['current-scout-list-images.js',scoutImages],
     ['current-scout-noise-filter.js',scoutNoise],
     ['current-scout-global-search.js',scoutSearch],
