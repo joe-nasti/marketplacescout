@@ -1,7 +1,6 @@
 import { runClassicSequence } from './run-classic.js';
 
 import theme from '../current-theme.js?raw';
-import core from '../modern-core.js?raw';
 import runtimeHealth from '../current-runtime-health.js?raw';
 import readonlyAgent from '../current-readonly-agent.js?raw';
 import scoutBootstrap from '../current-scout-bootstrap-safe.js?raw';
@@ -36,8 +35,7 @@ import askV3Admin from '../current-ask-collectish-v3-admin-safe.js?raw';
 
 export function installLegacyShell(){
   runClassicSequence([
-    ['current-theme.js',theme],
-    ['modern-core.js',core]
+    ['current-theme.js',theme]
   ]);
 }
 
