@@ -1,0 +1,26 @@
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+const root=process.cwd();
+const styles=join(root,'src/styles');
+const expected=['admin.css','ask.css','base.css','index.css','scout.css','sealed.css','seller.css','tokens.css'];
+const files=(await readdir(styles)).sort();
+if(JSON.stringify(files)!==JSON.stringify(expected)){
+  throw new Error(`Style tree drifted. Expected ${expected.join(', ')}, found ${files.join(', ')}`);
+}
+const index=await readFile(join(styles,'index.css'),'utf8');
+const imports=index.match(/^@import\s+[^;]+;/gm)||[];
+if(imports.length!==7)throw new Error(`Expected 7 style imports, found ${imports.length}`);
+const tokens=await readFile(join(styles,'tokens.css'),'utf8');
+for(const required of ['--color-bg-primary','--color-bg-surface','--color-text-primary','--color-accent','--font-scale-md','[data-theme="dark"]']){
+  if(!tokens.includes(required))throw new Error(`Missing design token/theme contract: ${required}`);
+}
+const themeJs=await readFile(join(root,'src/core/theme.js'),'utf8');
+if(!themeJs.includes('document.documentElement.dataset.theme=theme'))throw new Error('Theme runtime must set documentElement.dataset.theme');
+for(const file of expected.filter(x=>x.endsWith('.css'))){
+  const css=await readFile(join(styles,file),'utf8');
+  if(css.includes('data-cx-theme'))throw new Error(`Legacy data-cx-theme selector in ${file}`);
+  if(css.includes('prefers-color-scheme'))throw new Error(`Theme branching via prefers-color-scheme is forbidden in ${file}`);
+}
+if(themeJs.includes('dataset.cxTheme'))throw new Error('Legacy cxTheme dataset is forbidden');
+console.log('Collectish token/theme style system OK');
