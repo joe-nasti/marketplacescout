@@ -1,0 +1,77 @@
+name: Deploy Vite web to Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'vite.config.js'
+      - 'vite-index.html'
+      - 'src/**'
+      - 'tools/finalize-vite-build.mjs'
+      - 'modern-core.js'
+      - 'modern-core.css'
+      - 'config.js'
+      - 'current-*.js'
+      - 'current-*.css'
+      - 'manifest.webmanifest'
+      - 'collectish-icon-*.png'
+      - '.github/workflows/deploy-vite-pages.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: collectish-vite-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      COLLECTISH_WEB_REVISION: r${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install pinned Vite toolchain
+        run: npm install --no-audit --no-fund
+      - name: Build production bundle
+        run: npm run build
+      - name: Validate production artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -s dist/.vite/manifest.json
+          test -s dist/manifest.webmanifest
+          test -s dist/collectish-icon-192.png
+          test -s dist/build-version.json
+          test -s dist/web-version.json
+          grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.js' dist/index.html
+          grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.css' dist/index.html
+          ! grep -Eq '<script[^>]+current-.*\.js' dist/index.html
+          ! grep -Eq '<link[^>]+current-.*\.css' dist/index.html
+          ! grep -Eq '<script[^>]+modern-core\.js' dist/index.html
+          node -e "const fs=require('fs');const m=JSON.parse(fs.readFileSync('dist/.vite/manifest.json','utf8'));if(!Object.keys(m).length)process.exit(1)"
+          node -e "const fs=require('fs');const v=JSON.parse(fs.readFileSync('dist/web-version.json','utf8'));if(v.build!==process.env.GITHUB_SHA)process.exit(1);if(v.label!==process.env.COLLECTISH_WEB_REVISION)process.exit(1)"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy validated Vite artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
