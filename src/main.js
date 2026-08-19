@@ -1,5 +1,4 @@
-import './styles/index.css';
-
+// Browser-native + Vite-compatible entrypoint. CSS is linked from index.html so raw ESM fallback works too.
 // Bootstrap ownership contract: guarded app.js owns ./core/shell.js, ./state/store.js, and ./modules/index.js.
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
