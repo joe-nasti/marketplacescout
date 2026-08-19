@@ -1,12 +1,6 @@
 const startupModules=[
   ()=>import('./scout/volatility.js'),
   ()=>import('./scout/detail-links.js'),
-  ()=>import('./sealed/component-best.js'),
-  ()=>import('./sealed/source-anchors.js'),
-  ()=>import('./sealed/summary-actions.js'),
-  ()=>import('./sealed/summary-tcg.js'),
-  ()=>import('./sealed/detail-freshness.js'),
-  ()=>import('./sealed/language-confidence.js'),
   ()=>import('./scout/images.js'),
   ()=>import('./scout/noise-filter.js'),
   ()=>import('./scout/search.js'),
