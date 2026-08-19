@@ -1,5 +1,5 @@
-// Transitional feature loader: every remaining legacy feature is now loaded as a real
-// ES module in deterministic order. No ?raw source execution or classic-script runner.
+// Transitional feature loader: every remaining legacy feature is loaded as a real
+// ES module in deterministic order through statically analyzable imports.
 const featureLoaders = [
   ()=>import('../../current-scout-volatility-overlay-r0983.js'),
   ()=>import('../../current-scout-detail-tile-links-r0986.js'),
