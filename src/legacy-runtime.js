@@ -1,7 +1,6 @@
 import { runClassicSequence } from './run-classic.js';
 
 import theme from '../current-theme.js?raw';
-import runtimeHealth from '../current-runtime-health.js?raw';
 import readonlyAgent from '../current-readonly-agent.js?raw';
 import scoutBootstrap from '../current-scout-bootstrap-safe.js?raw';
 import volatility from '../current-scout-volatility-overlay-r0983.js?raw';
@@ -41,7 +40,6 @@ export function installLegacyShell(){
 
 export function installLegacyFeatures(){
   runClassicSequence([
-    ['current-runtime-health.js',runtimeHealth],
     ['current-readonly-agent.js',readonlyAgent],
     ['current-scout-bootstrap-safe.js',scoutBootstrap],
     ['current-scout-volatility-overlay-r0983.js',volatility],
