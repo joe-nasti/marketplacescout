@@ -34,6 +34,19 @@ function ensureExtraStat(host,id){
   const grid=host.querySelector('.cx-inventory-kpis');if(!grid)return null;
   el=document.createElement('div');el.className='cx-inventory-stat';el.dataset.inventoryAuthStat=id;el.innerHTML='<span></span><strong></strong><small></small>';grid.appendChild(el);return el;
 }
+function ensureLoginAction(host,show){
+  let row=host.querySelector('#cxInventoryLoginAction');
+  if(!show){row?.remove();return}
+  if(row)return;
+  const grid=host.querySelector('.cx-inventory-kpis');if(!grid)return;
+  row=document.createElement('div');row.id='cxInventoryLoginAction';row.className='cx-card';
+  row.style.marginTop='12px';row.style.padding='12px';
+  row.innerHTML='<strong style="display:block;margin-bottom:4px">TCGplayer login required</strong><span style="display:block;margin-bottom:10px">Open the shared TCGplayer WebView, sign in, then return to Inventory.</span><button type="button" class="cx-refresh" id="cxInventoryOpenTcgLogin">Open TCGplayer login</button>';
+  grid.after(row);
+  row.querySelector('#cxInventoryOpenTcgLogin')?.addEventListener('click',()=>{
+    try{window.CollectishAndroid?.showSellerPortal?.()}catch{}
+  });
+}
 export function refreshInventorySessionStatus(){
   const host=document.getElementById('cxInventory');if(!host)return;
   const android=window.CollectishAndroid||null,bridge=window.CollectishReadOnly||null;
@@ -42,13 +55,11 @@ export function refreshInventorySessionStatus(){
   const seller=ensureExtraStat(host,'seller'),store=ensureExtraStat(host,'store');
   const s=sellerState(android),t=classifyStore(bridge);
   setStat(seller,'Seller session',s.label,s.sub);setStat(store,'Store session',t.label,t.sub);
+  ensureLoginAction(host,Boolean(android?.showSellerPortal)&&(s.label==='Signed out'||t.label==='Signed out'));
 }
 let timer=null;
 export function installInventorySessionStatus(){
   clearInterval(timer);
-  // Do not observe the entire DOM here. The previous MutationObserver watched the
-  // same nodes this diagnostic updates, creating a self-triggering microtask loop
-  // that could starve the Inventory renderer and leave only the progress panel.
   timer=setInterval(refreshInventorySessionStatus,1000);
   setTimeout(refreshInventorySessionStatus,0);
 }
