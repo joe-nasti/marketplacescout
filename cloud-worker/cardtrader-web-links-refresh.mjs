@@ -1,3 +1,4 @@
+// Canonical CardTrader public URLs are derived from Blueprint name/version plus expansion metadata.
 const SB_URL=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const SB_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 const CT_TOKEN=process.env.CARDTRADER_JWT_TOKEN||'';
