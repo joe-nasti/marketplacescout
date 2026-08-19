@@ -1,0 +1,142 @@
+const ATTEMPT_KEY='collectishBuildReloadAttempt';
+let checking=false;
+let latestInfo=null;
+
+const loadedBuild=()=>document.querySelector('meta[name="collectish-build"]')?.content||'unknown';
+const loadedRevision=()=>document.querySelector('meta[name="collectish-revision"]')?.content||'r?';
+const version=()=>window.COLLECTISH_WEB_VERSION||'0.9.52';
+const short=s=>String(s||'').slice(0,8)||'unknown';
+const label=()=>`web ${version()} · ${loadedRevision()}`;
+
+async function fetchLatest(){
+  try{
+    const r=await fetch(`web-version.json?cb=${Date.now()}`,{cache:'no-store',headers:{'Cache-Control':'no-cache'}});
+    if(!r.ok)return null;
+    latestInfo=await r.json();
+    return latestInfo;
+  }catch{return null}
+}
+
+export async function checkForUpdate({reload=true}={}){
+  if(checking||document.hidden)return null;
+  checking=true;
+  try{
+    const info=await fetchLatest();
+    const live=String(info?.build||'').trim();
+    if(!live||live===loadedBuild())return info;
+    if(!reload)return info;
+    if(sessionStorage.getItem(ATTEMPT_KEY)===live)return info;
+    sessionStorage.setItem(ATTEMPT_KEY,live);
+    const next=new URL(location.href);
+    next.searchParams.set('cv',live);
+    next.searchParams.set('_cb',Date.now().toString());
+    location.replace(next.toString());
+    return info;
+  }finally{checking=false}
+}
+
+function decorateBadge(el){
+  if(!el)return;
+  const text=label();
+  if(el.classList.contains('cx-side-meta')){
+    if(el.dataset.cxBuildLabel!==text){
+      el.innerHTML=`${text}<br>Smarter data. Better decisions.`;
+      el.dataset.cxBuildLabel=text;
+    }
+  }else if(el.textContent!==text){
+    el.textContent=text;
+  }
+  el.dataset.cxBuildBadge='1';
+  el.setAttribute('role','button');
+  el.setAttribute('tabindex','0');
+  el.setAttribute('aria-label','Show Collectish build details');
+  el.title='Show build details';
+}
+
+export function decorateBuildBadges(){
+  document.querySelectorAll('.cx-top-version,.cx-version,.cx-side-meta').forEach(decorateBadge);
+  document.querySelectorAll('#cxAdmin .cx-detail-stat').forEach(row=>{
+    const key=(row.querySelector('span')?.textContent||'').trim();
+    const strong=row.querySelector('strong');
+    const text=`${version()} · ${loadedRevision()}`;
+    if(key==='Web UI'&&strong&&strong.textContent!==text)strong.textContent=text;
+  });
+}
+
+function modalHtml(info={}){
+  const liveBuild=String(info.build||'unknown');
+  const liveRev=info.label||info.revision&&`r${info.revision}`||'r?';
+  const current=liveBuild===loadedBuild();
+  const deployed=info.deployed_at?new Date(info.deployed_at).toLocaleString():'—';
+  return `<div class="cx-build-dialog-card" role="dialog" aria-modal="true" aria-label="Collectish build details">
+    <div class="cx-build-dialog-head"><strong>Collectish web build</strong><button type="button" data-build-close>×</button></div>
+    <div class="cx-build-status ${current?'good':'warn'}">${current?'CURRENT':'UPDATE AVAILABLE'}</div>
+    <div class="cx-build-grid">
+      <span>Web version</span><b>${version()}</b>
+      <span>Loaded revision</span><b>${loadedRevision()}</b>
+      <span>Latest revision</span><b>${liveRev}</b>
+      <span>Loaded build</span><code>${short(loadedBuild())}</code>
+      <span>Latest build</span><code>${short(liveBuild)}</code>
+      <span>Latest deployed</span><b>${deployed}</b>
+    </div>
+    ${current?'':'<button type="button" class="cx-build-reload" data-build-reload>Reload latest build</button>'}
+  </div>`;
+}
+
+export async function openBuildDialog(){
+  document.getElementById('cxBuildDialog')?.remove();
+  const info=await fetchLatest()||latestInfo||{};
+  const wrap=document.createElement('div');
+  wrap.id='cxBuildDialog';
+  wrap.className='cx-build-dialog';
+  wrap.innerHTML=modalHtml(info);
+  document.body.appendChild(wrap);
+  const close=()=>wrap.remove();
+  wrap.querySelector('[data-build-close]')?.addEventListener('click',close);
+  wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
+  wrap.querySelector('[data-build-reload]')?.addEventListener('click',()=>{
+    const build=String(info.build||Date.now());
+    sessionStorage.setItem(ATTEMPT_KEY,build);
+    const u=new URL(location.href);
+    u.searchParams.set('cv',build);
+    u.searchParams.set('_cb',Date.now().toString());
+    location.replace(u.toString());
+  });
+}
+
+function installBadgeEvents(){
+  document.addEventListener('click',e=>{if(e.target.closest?.('[data-cx-build-badge="1"]'))openBuildDialog()},true);
+  document.addEventListener('keydown',e=>{
+    if((e.key==='Enter'||e.key===' ')&&e.target?.dataset?.cxBuildBadge==='1'){
+      e.preventDefault();openBuildDialog();
+    }
+  },true);
+  document.addEventListener('collectish:ready',()=>{
+    decorateBuildBadges();
+    setTimeout(decorateBuildBadges,250);
+  });
+  document.addEventListener('collectish:admin-section-change',()=>setTimeout(decorateBuildBadges,0));
+
+  // Cold signed-out view has no collectish:ready event. Observe only until a badge exists.
+  const observer=new MutationObserver(()=>{
+    if(document.querySelector('.cx-top-version,.cx-version,.cx-side-meta')){
+      decorateBuildBadges();
+      observer.disconnect();
+    }
+  });
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+  setTimeout(()=>observer.disconnect(),5000);
+}
+
+function installUpdateChecks(){
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>checkForUpdate(),300)});
+  window.addEventListener('pageshow',()=>setTimeout(()=>checkForUpdate(),500));
+  setTimeout(()=>checkForUpdate(),2500);
+  setInterval(()=>checkForUpdate(),5*60*1000);
+}
+
+installBadgeEvents();
+installUpdateChecks();
+decorateBuildBadges();
+
+window.CollectishBuildInfo={check:checkForUpdate,open:openBuildDialog,decorate:decorateBuildBadges};
