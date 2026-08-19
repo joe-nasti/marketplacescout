@@ -1,0 +1,3731 @@
+{
+  "generated_at": "2026-08-19T15:14:57.424Z",
+  "auth": {
+    "ok": true,
+    "app_id": 3479,
+    "app_name": "joenasti App 20211208153518",
+    "user_id": 42074
+  },
+  "response_shapes": {
+    "info": {
+      "type": "object",
+      "keys": [
+        "shared_secret",
+        "name",
+        "id",
+        "user_id"
+      ]
+    },
+    "games": {
+      "type": "object",
+      "keys": [
+        "array"
+      ]
+    },
+    "categories": {
+      "type": "array",
+      "length": 27
+    },
+    "expansions": {
+      "type": "array",
+      "length": 3811
+    },
+    "blueprints": {
+      "type": "array",
+      "length": 1
+    },
+    "marketplace": {
+      "type": "object",
+      "keys": [
+        "39903"
+      ]
+    }
+  },
+  "magic_game": {
+    "id": 1,
+    "name": "Magic: the Gathering"
+  },
+  "catalog": {
+    "magic_categories": 27,
+    "sealed_categories": [
+      {
+        "id": 4,
+        "name": "Magic Booster Boxes"
+      },
+      {
+        "id": 5,
+        "name": "Magic Boosters"
+      },
+      {
+        "id": 6,
+        "name": "Magic Complete Sets"
+      },
+      {
+        "id": 7,
+        "name": "Magic Starter Decks"
+      },
+      {
+        "id": 10,
+        "name": "Magic Extra - Box Sets & Displays"
+      },
+      {
+        "id": 13,
+        "name": "Magic Boxed Set"
+      },
+      {
+        "id": 17,
+        "name": "Magic Preconstructed Decks"
+      },
+      {
+        "id": 23,
+        "name": "Magic Bundles and Fat Packs"
+      },
+      {
+        "id": 24,
+        "name": "Magic Tournament Prerelease Packs"
+      },
+      {
+        "id": 271,
+        "name": "Magic Tins"
+      }
+    ],
+    "magic_expansions": 788,
+    "expansions_sampled": 88,
+    "sampled_expansions_with_sealed": 43,
+    "unique_sealed_blueprints": 296,
+    "tcgplayer_id_count": 48,
+    "tcgplayer_id_pct": 16.2,
+    "cardmarket_id_count": 265,
+    "cardmarket_id_pct": 89.5,
+    "both_external_ids_count": 44,
+    "neither_external_id_count": 27,
+    "neither_external_id_pct": 9.1
+  },
+  "marketplace": {
+    "blueprints_sampled": 40,
+    "successful_calls": 40,
+    "products_with_offers": 22,
+    "products_with_offers_pct": 55,
+    "products_with_zero": 22,
+    "products_with_zero_pct": 55,
+    "median_offer_count": 3,
+    "median_offer_qty": 8,
+    "median_zero_offer_count": 3,
+    "median_zero_qty": 8,
+    "samples": [
+      {
+        "blueprint_id": 39903,
+        "name": "WCD 1999: Matt Linde's Deck",
+        "expansion": "WCD 1999: Matt Linde",
+        "tcg_player_id": 158287,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 48743,
+        "name": "Ultimate Masters Booster Box",
+        "expansion": "Ultimate Masters",
+        "tcg_player_id": 179444,
+        "offers": 3,
+        "offer_qty": 6,
+        "low_cents": 41935,
+        "median_offer_cents": 52407,
+        "zero_offers": 2,
+        "zero_qty": 5,
+        "zero_low_cents": 41935,
+        "zero_median_offer_cents": 41935,
+        "zero_share_pct": 66.7
+      },
+      {
+        "blueprint_id": 145663,
+        "name": "Zendikar Rising Theme Booster Box",
+        "expansion": "Zendikar Rising",
+        "tcg_player_id": 220420,
+        "offers": 2,
+        "offer_qty": 4,
+        "low_cents": 10542,
+        "median_offer_cents": 10542,
+        "zero_offers": 2,
+        "zero_qty": 4,
+        "zero_low_cents": 10542,
+        "zero_median_offer_cents": 10542,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 155908,
+        "name": "Adventures in the Forgotten Realms Fat Pack Bundle",
+        "expansion": "D&D: Adventures in the Forgotten Realms",
+        "tcg_player_id": 238732,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 270466,
+        "name": "Murders at Karlov Manor Play Booster",
+        "expansion": "Murders at Karlov Manor",
+        "tcg_player_id": 529962,
+        "offers": 33,
+        "offer_qty": 801,
+        "low_cents": 459,
+        "median_offer_cents": 737,
+        "zero_offers": 32,
+        "zero_qty": 793,
+        "zero_low_cents": 459,
+        "zero_median_offer_cents": 711,
+        "zero_share_pct": 97
+      },
+      {
+        "blueprint_id": 400880,
+        "name": "Star Trek Collector Booster Box",
+        "expansion": "Star Trek",
+        "tcg_player_id": 706142,
+        "offers": 12,
+        "offer_qty": 57,
+        "low_cents": 57542,
+        "median_offer_cents": 58293,
+        "zero_offers": 12,
+        "zero_qty": 57,
+        "zero_low_cents": 57542,
+        "zero_median_offer_cents": 58293,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 405217,
+        "name": "Reality Fracture | Fat Pack Bundle Case",
+        "expansion": "Reality Fracture",
+        "tcg_player_id": 692986,
+        "offers": 3,
+        "offer_qty": 6,
+        "low_cents": 45596,
+        "median_offer_cents": 45598,
+        "zero_offers": 3,
+        "zero_qty": 6,
+        "zero_low_cents": 45596,
+        "zero_median_offer_cents": 45598,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 43475,
+        "name": "The Dark Booster",
+        "expansion": "The Dark",
+        "tcg_player_id": null,
+        "offers": 7,
+        "offer_qty": 37,
+        "low_cents": 11196,
+        "median_offer_cents": 13080,
+        "zero_offers": 7,
+        "zero_qty": 37,
+        "zero_low_cents": 11196,
+        "zero_median_offer_cents": 13080,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 43484,
+        "name": "Legends Italian Uncommon Set",
+        "expansion": "Legends Italian",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 45777,
+        "name": "Apocalypse: Swoop Theme Deck",
+        "expansion": "Apocalypse",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 46552,
+        "name": "Fifth Dawn Booster",
+        "expansion": "Fifth Dawn",
+        "tcg_player_id": null,
+        "offers": 10,
+        "offer_qty": 89,
+        "low_cents": 2644,
+        "median_offer_cents": 2703,
+        "zero_offers": 10,
+        "zero_qty": 89,
+        "zero_low_cents": 2644,
+        "zero_median_offer_cents": 2703,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 46571,
+        "name": "Fifth Dawn Uncommon Set",
+        "expansion": "Fifth Dawn",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 47103,
+        "name": "Dissension: Simic Mutology Theme Deck",
+        "expansion": "Dissension",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 47560,
+        "name": "Premium Deck Series: Fire & Lightning",
+        "expansion": "Premium Deck Series: Fire and Lightning",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 47975,
+        "name": "Modern Master Complete Set",
+        "expansion": "Modern Masters",
+        "tcg_player_id": null,
+        "offers": 1,
+        "offer_qty": 1,
+        "low_cents": 52276,
+        "median_offer_cents": 52276,
+        "zero_offers": 1,
+        "zero_qty": 1,
+        "zero_low_cents": 52276,
+        "zero_median_offer_cents": 52276,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 48396,
+        "name": "Shadows over Innistrad Basic Land Set",
+        "expansion": "Shadows Over Innistrad",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 48404,
+        "name": "Shadows over Innistrad: \"Ghostly Tide\" Intro Pack",
+        "expansion": "Shadows Over Innistrad",
+        "tcg_player_id": null,
+        "offers": 1,
+        "offer_qty": 2,
+        "low_cents": 2323,
+        "median_offer_cents": 2323,
+        "zero_offers": 1,
+        "zero_qty": 2,
+        "zero_low_cents": 2323,
+        "zero_median_offer_cents": 2323,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 48411,
+        "name": "Shadows over Innistrad Intro Pack Set",
+        "expansion": "Shadows Over Innistrad",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 48606,
+        "name": "From the Vault: Transform Complete Set",
+        "expansion": "From the Vault: Transform",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 48746,
+        "name": "Ultimate Masters Rare Set",
+        "expansion": "Ultimate Masters",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 54737,
+        "name": "Challenger Deck 2018: Second Sun Control",
+        "expansion": "Challenger Decks",
+        "tcg_player_id": null,
+        "offers": 6,
+        "offer_qty": 14,
+        "low_cents": 2639,
+        "median_offer_cents": 2649,
+        "zero_offers": 6,
+        "zero_qty": 14,
+        "zero_low_cents": 2639,
+        "zero_median_offer_cents": 2649,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 54754,
+        "name": "Challenger Deck 2018 Set",
+        "expansion": "Challenger Decks",
+        "tcg_player_id": null,
+        "offers": 1,
+        "offer_qty": 1,
+        "low_cents": 13163,
+        "median_offer_cents": 13163,
+        "zero_offers": 1,
+        "zero_qty": 1,
+        "zero_low_cents": 13163,
+        "zero_median_offer_cents": 13163,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 108011,
+        "name": "Core 2021 Booster",
+        "expansion": "Core Set 2021",
+        "tcg_player_id": null,
+        "offers": 8,
+        "offer_qty": 147,
+        "low_cents": 405,
+        "median_offer_cents": 640,
+        "zero_offers": 7,
+        "zero_qty": 143,
+        "zero_low_cents": 405,
+        "zero_median_offer_cents": 662,
+        "zero_share_pct": 87.5
+      },
+      {
+        "blueprint_id": 145655,
+        "name": "Zendikar Rising Theme Booster",
+        "expansion": "Zendikar Rising",
+        "tcg_player_id": null,
+        "offers": 5,
+        "offer_qty": 8,
+        "low_cents": 800,
+        "median_offer_cents": 800,
+        "zero_offers": 5,
+        "zero_qty": 8,
+        "zero_low_cents": 800,
+        "zero_median_offer_cents": 800,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 146520,
+        "name": "Zendikar Rising: Uncommon Set",
+        "expansion": "Zendikar Rising",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 146606,
+        "name": "Core 2021: Uncommon Set",
+        "expansion": "Core Set 2021",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 151467,
+        "name": "Kaldheim Collector Booster",
+        "expansion": "Kaldheim",
+        "tcg_player_id": null,
+        "offers": 2,
+        "offer_qty": 11,
+        "low_cents": 3582,
+        "median_offer_cents": 3582,
+        "zero_offers": 2,
+        "zero_qty": 11,
+        "zero_low_cents": 3582,
+        "zero_median_offer_cents": 3582,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 151509,
+        "name": "Kaldheim \"Viking\" Theme Booster",
+        "expansion": "Kaldheim",
+        "tcg_player_id": null,
+        "offers": 1,
+        "offer_qty": 1,
+        "low_cents": 1658,
+        "median_offer_cents": 1658,
+        "zero_offers": 1,
+        "zero_qty": 1,
+        "zero_low_cents": 1658,
+        "zero_median_offer_cents": 1658,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 151900,
+        "name": "Kaldheim: Prerelease Pack",
+        "expansion": "Kaldheim",
+        "tcg_player_id": null,
+        "offers": 2,
+        "offer_qty": 5,
+        "low_cents": 3845,
+        "median_offer_cents": 3845,
+        "zero_offers": 2,
+        "zero_qty": 5,
+        "zero_low_cents": 3845,
+        "zero_median_offer_cents": 3845,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 155905,
+        "name": "Adventures in the Forgotten Realms Set Booster",
+        "expansion": "D&D: Adventures in the Forgotten Realms",
+        "tcg_player_id": null,
+        "offers": 4,
+        "offer_qty": 72,
+        "low_cents": 1320,
+        "median_offer_cents": 1555,
+        "zero_offers": 4,
+        "zero_qty": 72,
+        "zero_low_cents": 1320,
+        "zero_median_offer_cents": 1555,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 160978,
+        "name": "Adventures in the Forgotten Realms Theme Booster",
+        "expansion": "D&D: Adventures in the Forgotten Realms",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 161168,
+        "name": "Adventures in the Forgotten Realms: Mythic Set",
+        "expansion": "D&D: Adventures in the Forgotten Realms",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 167925,
+        "name": "Gift Pack",
+        "expansion": "Magic the Gathering Products",
+        "tcg_player_id": null,
+        "offers": 1,
+        "offer_qty": 4,
+        "low_cents": 2650,
+        "median_offer_cents": 2650,
+        "zero_offers": 1,
+        "zero_qty": 4,
+        "zero_low_cents": 2650,
+        "zero_median_offer_cents": 2650,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 206980,
+        "name": "Challenger Decks 2022: Rakdos Vampires",
+        "expansion": "Challenger Decks",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 226826,
+        "name": "Pioneer Challenger Decks 2022: Izzet Phoenix",
+        "expansion": "Challenger Decks",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 311326,
+        "name": "The Lord of the Rings: \"Elven Council\" Deluxe Commander Kit",
+        "expansion": "Commander: The Lord of the Rings Promos",
+        "tcg_player_id": null,
+        "offers": 0,
+        "offer_qty": 0,
+        "low_cents": null,
+        "median_offer_cents": null,
+        "zero_offers": 0,
+        "zero_qty": 0,
+        "zero_low_cents": null,
+        "zero_median_offer_cents": null,
+        "zero_share_pct": 0
+      },
+      {
+        "blueprint_id": 389394,
+        "name": "Reality Fracture Fat Pack Bundle",
+        "expansion": "Reality Fracture",
+        "tcg_player_id": null,
+        "offers": 12,
+        "offer_qty": 90,
+        "low_cents": 6174,
+        "median_offer_cents": 6220,
+        "zero_offers": 12,
+        "zero_qty": 90,
+        "zero_low_cents": 6174,
+        "zero_median_offer_cents": 6220,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 400888,
+        "name": "Star Trek | \"Federation Fleet\" Commander Deck",
+        "expansion": "Commander: Star Trek",
+        "tcg_player_id": null,
+        "offers": 5,
+        "offer_qty": 31,
+        "low_cents": 9762,
+        "median_offer_cents": 9799,
+        "zero_offers": 5,
+        "zero_qty": 31,
+        "zero_low_cents": 9762,
+        "zero_median_offer_cents": 9799,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 402410,
+        "name": "Secret Lair Commander Deck: Hatsune Miku",
+        "expansion": "Secret Lair Commander Deck: Hatsune Miku",
+        "tcg_player_id": null,
+        "offers": 4,
+        "offer_qty": 4,
+        "low_cents": 44557,
+        "median_offer_cents": 45475,
+        "zero_offers": 4,
+        "zero_qty": 4,
+        "zero_low_cents": 44557,
+        "zero_median_offer_cents": 45475,
+        "zero_share_pct": 100
+      },
+      {
+        "blueprint_id": 406821,
+        "name": "Star Trek Scene Box Set",
+        "expansion": "Star Trek",
+        "tcg_player_id": null,
+        "offers": 3,
+        "offer_qty": 9,
+        "low_cents": 13075,
+        "median_offer_cents": 13077,
+        "zero_offers": 3,
+        "zero_qty": 9,
+        "zero_low_cents": 13075,
+        "zero_median_offer_cents": 13077,
+        "zero_share_pct": 100
+      }
+    ]
+  },
+  "api_quality": {
+    "calls": 132,
+    "http_status_counts": {
+      "200": 132
+    },
+    "latency_ms": {
+      "p50": 167,
+      "p95": 316,
+      "max": 798
+    },
+    "marketplace_throttle_ms": 1050
+  },
+  "expansion_stats": [
+    {
+      "id": 4797,
+      "name": "Secret Lair Commander Deck: Hatsune Miku",
+      "code": "sld-miku",
+      "total_blueprints": 81,
+      "sealed_blueprints": 1
+    },
+    {
+      "id": 4796,
+      "name": "Mystery Booster: Commander Edition",
+      "code": "mbc",
+      "total_blueprints": 82,
+      "sealed_blueprints": 2
+    },
+    {
+      "id": 4780,
+      "name": "Ravnica Allegiance Prerelease",
+      "code": "prerna",
+      "total_blueprints": 60,
+      "sealed_blueprints": 1
+    },
+    {
+      "id": 4675,
+      "name": "Marvel Super Heroes Jumpstart & Beginner Box",
+      "code": "mshb",
+      "total_blueprints": 357,
+      "sealed_blueprints": 1
+    },
+    {
+      "id": 4661,
+      "name": "Commander: Star Trek",
+      "code": "trc",
+      "total_blueprints": 8,
+      "sealed_blueprints": 8
+    },
+    {
+      "id": 4659,
+      "name": "Star Trek",
+      "code": "trk",
+      "total_blueprints": 123,
+      "sealed_blueprints": 12
+    },
+    {
+      "id": 4640,
+      "name": "Secret Lair Commander Deck: Goblin Storm",
+      "code": "sld-gst",
+      "total_blueprints": 32,
+      "sealed_blueprints": 1
+    },
+    {
+      "id": 4636,
+      "name": "Commander: Reality Fracture",
+      "code": "frc",
+      "total_blueprints": 2,
+      "sealed_blueprints": 1
+    },
+    {
+      "id": 4634,
+      "name": "Reality Fracture",
+      "code": "fra",
+      "total_blueprints": 30,
+      "sealed_blueprints": 10
+    },
+    {
+      "id": 4633,
+      "name": "The Hobbit Eternal",
+      "code": "hoc",
+      "total_blueprints": 163,
+      "sealed_blueprints": 5
+    },
+    {
+      "id": 15,
+      "name": "Signature Spellbook: Jace",
+      "code": "ss1",
+      "total_blueprints": 11,
+      "sealed_blueprints": 3
+    },
+    {
+      "id": 31,
+      "name": "From the Vault: Transform",
+      "code": "v17",
+      "total_blueprints": 18,
+      "sealed_blueprints": 2
+    },
+    {
+      "id": 43,
+      "name": "San Diego Comic-Con 2017",
+      "code": "ps17",
+      "total_blueprints": 8,
+      "sealed_blueprints": 2
+    },
+    {
+      "id": 59,
+      "name": "Planechase Anthology",
+      "code": "pca",
+      "total_blueprints": 267,
+      "sealed_blueprints": 6
+    },
+    {
+      "id": 71,
+      "name": "Shadows Over Innistrad",
+      "code": "soi",
+      "total_blueprints": 373,
+      "sealed_blueprints": 20
+    },
+    {
+      "id": 86,
+      "name": "From the Vault: Angels",
+      "code": "v15",
+      "total_blueprints": 19,
+      "sealed_blueprints": 2
+    },
+    {
+      "id": 99,
+      "name": "Ugin's Fate",
+      "code": "ugin",
+      "total_blueprints": 28,
+      "sealed_blueprints": 2
+    },
+    {
+      "id": 143,
+      "name": "Modern Masters",
+      "code": "mma",
+      "total_blueprints": 254,
+      "sealed_blueprints": 8
+    },
+    {
+      "id": 196,
+      "name": "Premium Deck Series: Fire and Lightning",
+      "code": "pd2",
+      "total_blueprints": 38,
+      "sealed_blueprints": 2
+    },
+    {
+      "id": 227,
+      "name": "Duel Decks: Divine vs. Demonic",
+      "code": "ddc",
+      "total_blueprints": 67,
+      "sealed_blueprints": 1
+    },
+    {
+      "id": 272,
+      "name": "Dissension",
+      "code": "dis",
+      "total_blueprints": 202,
+      "sealed_blueprints": 11
+    },
+    {
+      "id": 297,
+      "name": "Fifth Dawn",
+      "code": "5dn",
+      "total_blueprints": 185,
+      "sealed_blueprints": 12
+    },
+    {
+      "id": 326,
+      "name": "Apocalypse",
+      "code": "apc",
+      "total_blueprints": 164,
+      "sealed_blueprints": 12
+    },
+    {
+      "id": 349,
+      "name": "Guru",
+      "code": "pgru",
+      "total_blueprints": 12,
+      "sealed_blueprints": 1
+    },
+    {
+      "id": 365,
+      "name": "Judge Gift Cards",
+      "code": "jgp",
+      "total_blueprints": 178,
+      "sealed_blueprints": 1
+    },
+    {
+      "id": 392,
+      "name": "The Dark",
+      "code": "drk",
+      "total_blueprints": 125,
+      "sealed_blueprints": 6
+    },
+    {
+      "id": 405,
+      "name": "Legends Italian",
+      "code": "leg2",
+      "total_blueprints": 316,
+      "sealed_blueprints": 6
+    },
+    {
+      "id": 432,
+      "name": "WCD 1999: Matt Linde",
+      "code": "wc99ml",
+      "total_blueprints": 25,
+      "sealed_blueprints": 1
+    },
+    {
+      "id": 445,
+      "name": "WCD 2002: Sim Han How",
+      "code": "wc02sh",
+      "total_blueprints": 36,
+      "sealed_blueprints": 1
+    },
+    {
+      "id": 457,
+      "name": "Pro Tour 1996: Mark Justice",
+      "code": "pt96mj",
+      "total_blueprints": 38,
+      "sealed_blueprints": 1
+    },
+    {
+      "id": 482,
+      "name": "Ultimate Masters",
+      "code": "uma",
+      "total_blueprints": 304,
+      "sealed_blueprints": 8
+    },
+    {
+      "id": 945,
+      "name": "Challenger Decks",
+      "code": "chde",
+      "total_blueprints": 51,
+      "sealed_blueprints": 38
+    },
+    {
+      "id": 981,
+      "name": "Core Set 2020 Promos",
+      "code": "pm20",
+      "total_blueprints": 267,
+      "sealed_blueprints": 2
+    },
+    {
+      "id": 1657,
+      "name": "Core Set 2021",
+      "code": "m21",
+      "total_blueprints": 338,
+      "sealed_blueprints": 15
+    },
+    {
+      "id": 2083,
+      "name": "Zendikar Rising",
+      "code": "znr",
+      "total_blueprints": 361,
+      "sealed_blueprints": 24
+    },
+    {
+      "id": 2115,
+      "name": "Kaldheim",
+      "code": "khm",
+      "total_blueprints": 372,
+      "sealed_blueprints": 21
+    },
+    {
+      "id": 2142,
+      "name": "Strixhaven: School of Mages Promos",
+      "code": "pstx",
+      "total_blueprints": 84,
+      "sealed_blueprints": 2
+    },
+    {
+      "id": 2167,
+      "name": "D&D: Adventures in the Forgotten Realms",
+      "code": "afr",
+      "total_blueprints": 354,
+      "sealed_blueprints": 23
+    },
+    {
+      "id": 2514,
+      "name": "Innistrad: Midnight Hunt Promos",
+      "code": "pmid",
+      "total_blueprints": 82,
+      "sealed_blueprints": 2
+    },
+    {
+      "id": 2569,
+      "name": "Magic the Gathering Products",
+      "code": "mtgp",
+      "total_blueprints": 125,
+      "sealed_blueprints": 6
+    },
+    {
+      "id": 3563,
+      "name": "Murders at Karlov Manor",
+      "code": "mkm",
+      "total_blueprints": 370,
+      "sealed_blueprints": 8
+    },
+    {
+      "id": 3941,
+      "name": "Commander: The Lord of the Rings Promos",
+      "code": "ltcp",
+      "total_blueprints": 8,
+      "sealed_blueprints": 4
+    },
+    {
+      "id": 4353,
+      "name": "Commander: Teenage Mutant Ninja Turtles",
+      "code": "tmc",
+      "total_blueprints": 148,
+      "sealed_blueprints": 1
+    }
+  ],
+  "blueprint_sample": [
+    {
+      "id": 402410,
+      "name": "Secret Lair Commander Deck: Hatsune Miku",
+      "category_id": 13,
+      "expansion_id": 4797,
+      "expansion_name": "Secret Lair Commander Deck: Hatsune Miku",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 404499,
+      "name": "Mystery Booster: Commander Edition Booster Box",
+      "category_id": 4,
+      "expansion_id": 4796,
+      "expansion_name": "Mystery Booster: Commander Edition",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 404500,
+      "name": "Mystery Booster: Commander Edition Booster",
+      "category_id": 5,
+      "expansion_id": 4796,
+      "expansion_name": "Mystery Booster: Commander Edition",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 49720,
+      "name": "Ravnica Allegiance Standard Showdown Booster",
+      "category_id": 5,
+      "expansion_id": 4780,
+      "expansion_name": "Ravnica Allegiance Prerelease",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        367823
+      ]
+    },
+    {
+      "id": 370625,
+      "name": "Marvel Super Heroes Beginner Box",
+      "category_id": 13,
+      "expansion_id": 4675,
+      "expansion_name": "Marvel Super Heroes Jumpstart & Beginner Box",
+      "tcg_player_id": 675613,
+      "card_market_ids": [
+        869508
+      ]
+    },
+    {
+      "id": 400888,
+      "name": "Star Trek | \"Federation Fleet\" Commander Deck",
+      "category_id": 17,
+      "expansion_id": 4661,
+      "expansion_name": "Commander: Star Trek",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 400889,
+      "name": "Star Trek | \"Landing Party\" Commander Deck",
+      "category_id": 17,
+      "expansion_id": 4661,
+      "expansion_name": "Commander: Star Trek",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 400890,
+      "name": "Star Trek | \"Klingon Fury\" Commander Deck",
+      "category_id": 17,
+      "expansion_id": 4661,
+      "expansion_name": "Commander: Star Trek",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 400891,
+      "name": "Star Trek | \"We Are the Borg\" Commander Deck",
+      "category_id": 17,
+      "expansion_id": 4661,
+      "expansion_name": "Commander: Star Trek",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 400892,
+      "name": "Star Trek | \"Federation Fleet\" Collector's Edition Commander Deck",
+      "category_id": 17,
+      "expansion_id": 4661,
+      "expansion_name": "Commander: Star Trek",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 400893,
+      "name": "Star Trek | \"Landing Party\" Collector's Edition Commander Deck",
+      "category_id": 17,
+      "expansion_id": 4661,
+      "expansion_name": "Commander: Star Trek",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 400894,
+      "name": "Star Trek | \"Klingon Fury\" Collector's Edition Commander Deck",
+      "category_id": 17,
+      "expansion_id": 4661,
+      "expansion_name": "Commander: Star Trek",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 400895,
+      "name": "Star Trek | \"We Are the Borg\" Collector's Edition Commander Deck",
+      "category_id": 17,
+      "expansion_id": 4661,
+      "expansion_name": "Commander: Star Trek",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 400879,
+      "name": "Star Trek Play Booster Box",
+      "category_id": 4,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": 706138,
+      "card_market_ids": [
+        897524
+      ]
+    },
+    {
+      "id": 400880,
+      "name": "Star Trek Collector Booster Box",
+      "category_id": 4,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": 706142,
+      "card_market_ids": [
+        897523
+      ]
+    },
+    {
+      "id": 400881,
+      "name": "Star Trek Fat Pack Bundle",
+      "category_id": 23,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": 706150,
+      "card_market_ids": [
+        897528
+      ]
+    },
+    {
+      "id": 400882,
+      "name": "Star Trek Beginner Box",
+      "category_id": 13,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": 706147,
+      "card_market_ids": [
+        897525
+      ]
+    },
+    {
+      "id": 400883,
+      "name": "Star Trek Draft Night",
+      "category_id": 23,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": 706162,
+      "card_market_ids": [
+        897536
+      ]
+    },
+    {
+      "id": 400884,
+      "name": "Star Trek Beam Me Up",
+      "category_id": 23,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": 706154,
+      "card_market_ids": [
+        897533
+      ]
+    },
+    {
+      "id": 400885,
+      "name": "Star Trek Prerelease Pack",
+      "category_id": 24,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": 706227,
+      "card_market_ids": [
+        897520
+      ]
+    },
+    {
+      "id": 400886,
+      "name": "Star Trek | \"Enterprise-Q\" Scene Box",
+      "category_id": 4,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": 706157,
+      "card_market_ids": [
+        897534
+      ]
+    },
+    {
+      "id": 400887,
+      "name": "Star Trek | \"Divergent Timeline\" Scene Box",
+      "category_id": 4,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": 706158,
+      "card_market_ids": [
+        897535
+      ]
+    },
+    {
+      "id": 405218,
+      "name": "Star Trek | Fat Pack Bundle Case",
+      "category_id": 23,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": 706152,
+      "card_market_ids": []
+    },
+    {
+      "id": 405219,
+      "name": "Star Trek | Beam Me Up Bundle Case",
+      "category_id": 23,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": 706155,
+      "card_market_ids": []
+    },
+    {
+      "id": 406821,
+      "name": "Star Trek Scene Box Set",
+      "category_id": 4,
+      "expansion_id": 4659,
+      "expansion_name": "Star Trek",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        903175
+      ]
+    },
+    {
+      "id": 390097,
+      "name": "Secret Lair Commander Deck: Goblin Storm",
+      "category_id": 13,
+      "expansion_id": 4640,
+      "expansion_name": "Secret Lair Commander Deck: Goblin Storm",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        887064
+      ]
+    },
+    {
+      "id": 389403,
+      "name": "Reality Fracture Commander Deck",
+      "category_id": 17,
+      "expansion_id": 4636,
+      "expansion_name": "Commander: Reality Fracture",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 389390,
+      "name": "Reality Fracture Play Booster Box",
+      "category_id": 4,
+      "expansion_id": 4634,
+      "expansion_name": "Reality Fracture",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        885562
+      ]
+    },
+    {
+      "id": 389391,
+      "name": "Reality Fracture Collector Booster Box",
+      "category_id": 4,
+      "expansion_id": 4634,
+      "expansion_name": "Reality Fracture",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        885563
+      ]
+    },
+    {
+      "id": 389392,
+      "name": "Reality Fracture Play Booster",
+      "category_id": 5,
+      "expansion_id": 4634,
+      "expansion_name": "Reality Fracture",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        885560
+      ]
+    },
+    {
+      "id": 389393,
+      "name": "Reality Fracture Collector Booster",
+      "category_id": 5,
+      "expansion_id": 4634,
+      "expansion_name": "Reality Fracture",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        885561
+      ]
+    },
+    {
+      "id": 389394,
+      "name": "Reality Fracture Fat Pack Bundle",
+      "category_id": 23,
+      "expansion_id": 4634,
+      "expansion_name": "Reality Fracture",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        885564
+      ]
+    },
+    {
+      "id": 389395,
+      "name": "Reality Fracture Secret Lair Bundle",
+      "category_id": 23,
+      "expansion_id": 4634,
+      "expansion_name": "Reality Fracture",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        885566
+      ]
+    },
+    {
+      "id": 389396,
+      "name": "Reality Fracture: Prerelease Pack",
+      "category_id": 24,
+      "expansion_id": 4634,
+      "expansion_name": "Reality Fracture",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        885567
+      ]
+    },
+    {
+      "id": 389397,
+      "name": "Reality Fracture Draft Night",
+      "category_id": 23,
+      "expansion_id": 4634,
+      "expansion_name": "Reality Fracture",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        885565
+      ]
+    },
+    {
+      "id": 389411,
+      "name": "Reality Fracture Sleeved Play Booster",
+      "category_id": 5,
+      "expansion_id": 4634,
+      "expansion_name": "Reality Fracture",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 405217,
+      "name": "Reality Fracture | Fat Pack Bundle Case",
+      "category_id": 23,
+      "expansion_id": 4634,
+      "expansion_name": "Reality Fracture",
+      "tcg_player_id": 692986,
+      "card_market_ids": []
+    },
+    {
+      "id": 405092,
+      "name": "The Hobbit Welcome Deck",
+      "category_id": 7,
+      "expansion_id": 4633,
+      "expansion_name": "The Hobbit Eternal",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 405093,
+      "name": "The Hobbit Welcome Deck",
+      "category_id": 7,
+      "expansion_id": 4633,
+      "expansion_name": "The Hobbit Eternal",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 405094,
+      "name": "The Hobbit Welcome Deck",
+      "category_id": 7,
+      "expansion_id": 4633,
+      "expansion_name": "The Hobbit Eternal",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 405095,
+      "name": "The Hobbit Welcome Deck",
+      "category_id": 7,
+      "expansion_id": 4633,
+      "expansion_name": "The Hobbit Eternal",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 405096,
+      "name": "The Hobbit Welcome Deck",
+      "category_id": 7,
+      "expansion_id": 4633,
+      "expansion_name": "The Hobbit Eternal",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 48690,
+      "name": "Signature Spellbook: Jace: Full Set",
+      "category_id": 13,
+      "expansion_id": 15,
+      "expansion_name": "Signature Spellbook: Jace",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        318788
+      ]
+    },
+    {
+      "id": 48691,
+      "name": "Signature Spellbook: Jace: Full Set",
+      "category_id": 5,
+      "expansion_id": 15,
+      "expansion_name": "Signature Spellbook: Jace",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        367090
+      ]
+    },
+    {
+      "id": 48692,
+      "name": "Signature Spellbook: Jace Complete Set",
+      "category_id": 6,
+      "expansion_id": 15,
+      "expansion_name": "Signature Spellbook: Jace",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 48605,
+      "name": "From the Vault: Transform",
+      "category_id": 13,
+      "expansion_id": 31,
+      "expansion_name": "From the Vault: Transform",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        298748
+      ]
+    },
+    {
+      "id": 48606,
+      "name": "From the Vault: Transform Complete Set",
+      "category_id": 6,
+      "expansion_id": 31,
+      "expansion_name": "From the Vault: Transform",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 40391,
+      "name": "San Diego Comic-Con 2017 Promos: Full Set",
+      "category_id": 13,
+      "expansion_id": 43,
+      "expansion_name": "San Diego Comic-Con 2017",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        299585
+      ]
+    },
+    {
+      "id": 51242,
+      "name": "San Diego Comic-Con 2017: Complete Set",
+      "category_id": 6,
+      "expansion_id": 43,
+      "expansion_name": "San Diego Comic-Con 2017",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        299587
+      ]
+    },
+    {
+      "id": 48480,
+      "name": "Planechase Anthology",
+      "category_id": 13,
+      "expansion_id": 59,
+      "expansion_name": "Planechase Anthology",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        290610
+      ]
+    },
+    {
+      "id": 48481,
+      "name": "Planechase Anthology: Plane & Phenomena Set",
+      "category_id": 6,
+      "expansion_id": 59,
+      "expansion_name": "Planechase Anthology",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        294507
+      ]
+    },
+    {
+      "id": 48482,
+      "name": "Planechase Anthology: Night of the Ninja Deck",
+      "category_id": 17,
+      "expansion_id": 59,
+      "expansion_name": "Planechase Anthology",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        294030
+      ]
+    },
+    {
+      "id": 48483,
+      "name": "Planechase Anthology: Chaos Reigns Deck",
+      "category_id": 17,
+      "expansion_id": 59,
+      "expansion_name": "Planechase Anthology",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        294029
+      ]
+    },
+    {
+      "id": 48484,
+      "name": "Planechase Anthology: Primordial Hunger Deck",
+      "category_id": 17,
+      "expansion_id": 59,
+      "expansion_name": "Planechase Anthology",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        294028
+      ]
+    },
+    {
+      "id": 48485,
+      "name": "Planechase Anthology: Savage Auras Deck",
+      "category_id": 17,
+      "expansion_id": 59,
+      "expansion_name": "Planechase Anthology",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        294031
+      ]
+    },
+    {
+      "id": 48392,
+      "name": "Shadows over Innistrad Booster",
+      "category_id": 5,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288301
+      ]
+    },
+    {
+      "id": 48393,
+      "name": "Shadows over Innistrad Booster Box",
+      "category_id": 4,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": 112706,
+      "card_market_ids": [
+        288302
+      ]
+    },
+    {
+      "id": 48394,
+      "name": "Shadows over Innistrad Token Set",
+      "category_id": 6,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        289298
+      ]
+    },
+    {
+      "id": 48395,
+      "name": "Shadows over Innistrad Common Set",
+      "category_id": 6,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        289087
+      ]
+    },
+    {
+      "id": 48396,
+      "name": "Shadows over Innistrad Basic Land Set",
+      "category_id": 6,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        289297
+      ]
+    },
+    {
+      "id": 48397,
+      "name": "Shadows over Innistrad Uncommon Set",
+      "category_id": 6,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        289088
+      ]
+    },
+    {
+      "id": 48398,
+      "name": "Shadows over Innistrad Rare Set",
+      "category_id": 6,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        289089
+      ]
+    },
+    {
+      "id": 48399,
+      "name": "Shadows over Innistrad Mythic Set",
+      "category_id": 6,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        289090
+      ]
+    },
+    {
+      "id": 48400,
+      "name": "Shadows over Innistrad Complete Set",
+      "category_id": 6,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288669
+      ]
+    },
+    {
+      "id": 48401,
+      "name": "Shadows over Innistrad Fat Pack",
+      "category_id": 23,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288303
+      ]
+    },
+    {
+      "id": 48402,
+      "name": "Shadows over Innistrad: \"Vampiric Thirst\" Intro Pack",
+      "category_id": 17,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288897
+      ]
+    },
+    {
+      "id": 48403,
+      "name": "Shadows over Innistrad: \"Angelic Fury\" Intro Pack",
+      "category_id": 17,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288894
+      ]
+    },
+    {
+      "id": 48404,
+      "name": "Shadows over Innistrad: \"Ghostly Tide\" Intro Pack",
+      "category_id": 17,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288893
+      ]
+    },
+    {
+      "id": 48405,
+      "name": "Shadows over Innistrad: \"Horrific Visions\" Intro Pack",
+      "category_id": 17,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288895
+      ]
+    },
+    {
+      "id": 48406,
+      "name": "Shadows over Innistrad: \"Unearthed Secrets\" Intro Pack",
+      "category_id": 17,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288896
+      ]
+    },
+    {
+      "id": 48407,
+      "name": "Shadows over Innistrad: Prerelease Pack",
+      "category_id": 24,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288638
+      ]
+    },
+    {
+      "id": 48408,
+      "name": "Shadows over Innistrad: Holiday Gift Box",
+      "category_id": 13,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        289033
+      ]
+    },
+    {
+      "id": 48409,
+      "name": "Deck Builder's Toolkit (Shadows over Innistrad)",
+      "category_id": 13,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288636
+      ]
+    },
+    {
+      "id": 48410,
+      "name": "Shadows over Innistrad Intro Pack Box",
+      "category_id": 10,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288899
+      ]
+    },
+    {
+      "id": 48411,
+      "name": "Shadows over Innistrad Intro Pack Set",
+      "category_id": 17,
+      "expansion_id": 71,
+      "expansion_name": "Shadows Over Innistrad",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        288898
+      ]
+    },
+    {
+      "id": 48323,
+      "name": "From the Vault: Angels",
+      "category_id": 13,
+      "expansion_id": 86,
+      "expansion_name": "From the Vault: Angels",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        283944
+      ]
+    },
+    {
+      "id": 48324,
+      "name": "From the Vault: Angels Complete Set",
+      "category_id": 6,
+      "expansion_id": 86,
+      "expansion_name": "From the Vault: Angels",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        286705
+      ]
+    },
+    {
+      "id": 48243,
+      "name": "Ugin's Fate Booster",
+      "category_id": 5,
+      "expansion_id": 99,
+      "expansion_name": "Ugin's Fate",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        271971
+      ]
+    },
+    {
+      "id": 48244,
+      "name": "Ugin's Fate Promos: Complete Set",
+      "category_id": 6,
+      "expansion_id": 99,
+      "expansion_name": "Ugin's Fate",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        283086
+      ]
+    },
+    {
+      "id": 47967,
+      "name": "Modern Masters Booster",
+      "category_id": 5,
+      "expansion_id": 143,
+      "expansion_name": "Modern Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        261908
+      ]
+    },
+    {
+      "id": 47968,
+      "name": "Modern Masters Booster Box",
+      "category_id": 4,
+      "expansion_id": 143,
+      "expansion_name": "Modern Masters",
+      "tcg_player_id": 68104,
+      "card_market_ids": [
+        261909
+      ]
+    },
+    {
+      "id": 47970,
+      "name": "Modern Master Token Set",
+      "category_id": 6,
+      "expansion_id": 143,
+      "expansion_name": "Modern Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        262172
+      ]
+    },
+    {
+      "id": 47971,
+      "name": "Modern Master Common Set",
+      "category_id": 6,
+      "expansion_id": 143,
+      "expansion_name": "Modern Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        261973
+      ]
+    },
+    {
+      "id": 47972,
+      "name": "Modern Master Uncommon Set",
+      "category_id": 6,
+      "expansion_id": 143,
+      "expansion_name": "Modern Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        261974
+      ]
+    },
+    {
+      "id": 47973,
+      "name": "Modern Master Rare Set",
+      "category_id": 6,
+      "expansion_id": 143,
+      "expansion_name": "Modern Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        261975
+      ]
+    },
+    {
+      "id": 47974,
+      "name": "Modern Master Mythic Set",
+      "category_id": 6,
+      "expansion_id": 143,
+      "expansion_name": "Modern Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        261976
+      ]
+    },
+    {
+      "id": 47975,
+      "name": "Modern Master Complete Set",
+      "category_id": 6,
+      "expansion_id": 143,
+      "expansion_name": "Modern Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        261972
+      ]
+    },
+    {
+      "id": 47559,
+      "name": "Premium Deck Series: Fire & Lightning",
+      "category_id": 17,
+      "expansion_id": 196,
+      "expansion_name": "Premium Deck Series: Fire and Lightning",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        244039
+      ]
+    },
+    {
+      "id": 47560,
+      "name": "Premium Deck Series: Fire & Lightning",
+      "category_id": 6,
+      "expansion_id": 196,
+      "expansion_name": "Premium Deck Series: Fire and Lightning",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 47379,
+      "name": "Duel Decks: Divine vs. Demonic",
+      "category_id": 17,
+      "expansion_id": 227,
+      "expansion_name": "Duel Decks: Divine vs. Demonic",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240371
+      ]
+    },
+    {
+      "id": 47098,
+      "name": "Dissension Booster",
+      "category_id": 5,
+      "expansion_id": 272,
+      "expansion_name": "Dissension",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        210052
+      ]
+    },
+    {
+      "id": 47099,
+      "name": "Dissension Booster Box",
+      "category_id": 4,
+      "expansion_id": 272,
+      "expansion_name": "Dissension",
+      "tcg_player_id": 27273,
+      "card_market_ids": [
+        210118
+      ]
+    },
+    {
+      "id": 47100,
+      "name": "Dissension Fat Pack",
+      "category_id": 23,
+      "expansion_id": 272,
+      "expansion_name": "Dissension",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        210170
+      ]
+    },
+    {
+      "id": 47101,
+      "name": "Dissension: Azorius Ascendant Theme Deck",
+      "category_id": 17,
+      "expansion_id": 272,
+      "expansion_name": "Dissension",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        253669
+      ]
+    },
+    {
+      "id": 47102,
+      "name": "Dissension: Rakdos Bloodsport Theme Deck",
+      "category_id": 17,
+      "expansion_id": 272,
+      "expansion_name": "Dissension",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        253670
+      ]
+    },
+    {
+      "id": 47103,
+      "name": "Dissension: Simic Mutology Theme Deck",
+      "category_id": 17,
+      "expansion_id": 272,
+      "expansion_name": "Dissension",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        253671
+      ]
+    },
+    {
+      "id": 47104,
+      "name": "Dissension Theme Deck Box",
+      "category_id": 10,
+      "expansion_id": 272,
+      "expansion_name": "Dissension",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        210222
+      ]
+    },
+    {
+      "id": 47110,
+      "name": "Dissension Common Set",
+      "category_id": 6,
+      "expansion_id": 272,
+      "expansion_name": "Dissension",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240231
+      ]
+    },
+    {
+      "id": 47111,
+      "name": "Dissension Uncommon Set",
+      "category_id": 6,
+      "expansion_id": 272,
+      "expansion_name": "Dissension",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240230
+      ]
+    },
+    {
+      "id": 47112,
+      "name": "Dissension Rare Set",
+      "category_id": 6,
+      "expansion_id": 272,
+      "expansion_name": "Dissension",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240229
+      ]
+    },
+    {
+      "id": 47113,
+      "name": "Dissension Complete Set",
+      "category_id": 6,
+      "expansion_id": 272,
+      "expansion_name": "Dissension",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240232
+      ]
+    },
+    {
+      "id": 46552,
+      "name": "Fifth Dawn Booster",
+      "category_id": 5,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        210046
+      ]
+    },
+    {
+      "id": 46553,
+      "name": "Fifth Dawn Booster Box",
+      "category_id": 4,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": 27277,
+      "card_market_ids": [
+        210112
+      ]
+    },
+    {
+      "id": 46554,
+      "name": "Fifth Dawn Fat Pack",
+      "category_id": 23,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        210177
+      ]
+    },
+    {
+      "id": 46555,
+      "name": "Fifth Dawn: Nuts and Bolts Theme Deck",
+      "category_id": 17,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        253696
+      ]
+    },
+    {
+      "id": 46556,
+      "name": "Fifth Dawn: Stampede Theme Deck",
+      "category_id": 17,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        253698
+      ]
+    },
+    {
+      "id": 46558,
+      "name": "Fifth Dawn: Sunburst Theme Deck",
+      "category_id": 17,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        253699
+      ]
+    },
+    {
+      "id": 46560,
+      "name": "Fifth Dawn: Special Forces Theme Deck",
+      "category_id": 17,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        253697
+      ]
+    },
+    {
+      "id": 46563,
+      "name": "Fifth Dawn Theme Deck Box",
+      "category_id": 10,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        210223
+      ]
+    },
+    {
+      "id": 46570,
+      "name": "Fifth Dawn Common Set",
+      "category_id": 6,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240205
+      ]
+    },
+    {
+      "id": 46571,
+      "name": "Fifth Dawn Uncommon Set",
+      "category_id": 6,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240204
+      ]
+    },
+    {
+      "id": 46573,
+      "name": "Fifth Dawn Rare Set",
+      "category_id": 6,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240203
+      ]
+    },
+    {
+      "id": 46574,
+      "name": "Fifth Dawn Complete set",
+      "category_id": 6,
+      "expansion_id": 297,
+      "expansion_name": "Fifth Dawn",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240206
+      ]
+    },
+    {
+      "id": 45772,
+      "name": "Apocalypse Booster",
+      "category_id": 5,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        210035
+      ]
+    },
+    {
+      "id": 45773,
+      "name": "Apocalypse Booster Box",
+      "category_id": 4,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": 27264,
+      "card_market_ids": [
+        210101
+      ]
+    },
+    {
+      "id": 45774,
+      "name": "Apocalypse Fat Pack",
+      "category_id": 23,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        210186
+      ]
+    },
+    {
+      "id": 45775,
+      "name": "Apocalypse: Burial Theme Deck",
+      "category_id": 17,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        253732
+      ]
+    },
+    {
+      "id": 45776,
+      "name": "Apocalypse: Pandemonium Theme Deck",
+      "category_id": 17,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        253733
+      ]
+    },
+    {
+      "id": 45777,
+      "name": "Apocalypse: Swoop Theme Deck",
+      "category_id": 17,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        253734
+      ]
+    },
+    {
+      "id": 45778,
+      "name": "Apocalypse: Whirlpool Theme Deck",
+      "category_id": 17,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        253735
+      ]
+    },
+    {
+      "id": 45779,
+      "name": "Apocalypse Theme Deck Box",
+      "category_id": 10,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        210226
+      ]
+    },
+    {
+      "id": 45782,
+      "name": "Apocalypse Common Set",
+      "category_id": 6,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240156
+      ]
+    },
+    {
+      "id": 45783,
+      "name": "Apocalypse Uncommon Set",
+      "category_id": 6,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240155
+      ]
+    },
+    {
+      "id": 45784,
+      "name": "Apocalypse Rare Set",
+      "category_id": 6,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240154
+      ]
+    },
+    {
+      "id": 45785,
+      "name": "Apocalypse Complete Set",
+      "category_id": 6,
+      "expansion_id": 326,
+      "expansion_name": "Apocalypse",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240157
+      ]
+    },
+    {
+      "id": 41000,
+      "name": "Guru Lands Complete Set",
+      "category_id": 6,
+      "expansion_id": 349,
+      "expansion_name": "Guru",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240329
+      ]
+    },
+    {
+      "id": 45504,
+      "name": "Judge Rewards Promos: Basic Land Set",
+      "category_id": 6,
+      "expansion_id": 365,
+      "expansion_name": "Judge Gift Cards",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        268656
+      ]
+    },
+    {
+      "id": 43475,
+      "name": "The Dark Booster",
+      "category_id": 5,
+      "expansion_id": 392,
+      "expansion_name": "The Dark",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        210008
+      ]
+    },
+    {
+      "id": 43476,
+      "name": "The Dark Booster Box",
+      "category_id": 4,
+      "expansion_id": 392,
+      "expansion_name": "The Dark",
+      "tcg_player_id": 27309,
+      "card_market_ids": [
+        210074
+      ]
+    },
+    {
+      "id": 43477,
+      "name": "The Dark Common Set",
+      "category_id": 6,
+      "expansion_id": 392,
+      "expansion_name": "The Dark",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240034
+      ]
+    },
+    {
+      "id": 43478,
+      "name": "The Dark Uncommon Set",
+      "category_id": 6,
+      "expansion_id": 392,
+      "expansion_name": "The Dark",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240033
+      ]
+    },
+    {
+      "id": 43479,
+      "name": "The Dark Rare Set",
+      "category_id": 6,
+      "expansion_id": 392,
+      "expansion_name": "The Dark",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240032
+      ]
+    },
+    {
+      "id": 43480,
+      "name": "The Dark Complete Set",
+      "category_id": 6,
+      "expansion_id": 392,
+      "expansion_name": "The Dark",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        240035
+      ]
+    },
+    {
+      "id": 43481,
+      "name": "Legends Italian Booster",
+      "category_id": 5,
+      "expansion_id": 405,
+      "expansion_name": "Legends Italian",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        300139
+      ]
+    },
+    {
+      "id": 43482,
+      "name": "Legends Italian Booster Box",
+      "category_id": 4,
+      "expansion_id": 405,
+      "expansion_name": "Legends Italian",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        300138
+      ]
+    },
+    {
+      "id": 43483,
+      "name": "Legends Italian Common Set",
+      "category_id": 6,
+      "expansion_id": 405,
+      "expansion_name": "Legends Italian",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        300140
+      ]
+    },
+    {
+      "id": 43484,
+      "name": "Legends Italian Uncommon Set",
+      "category_id": 6,
+      "expansion_id": 405,
+      "expansion_name": "Legends Italian",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        300141
+      ]
+    },
+    {
+      "id": 43485,
+      "name": "Legends Italian Rare Set",
+      "category_id": 6,
+      "expansion_id": 405,
+      "expansion_name": "Legends Italian",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        300142
+      ]
+    },
+    {
+      "id": 43486,
+      "name": "Legends Italian Complet Set",
+      "category_id": 6,
+      "expansion_id": 405,
+      "expansion_name": "Legends Italian",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        300143
+      ]
+    },
+    {
+      "id": 39903,
+      "name": "WCD 1999: Matt Linde's Deck",
+      "category_id": 17,
+      "expansion_id": 432,
+      "expansion_name": "WCD 1999: Matt Linde",
+      "tcg_player_id": 158287,
+      "card_market_ids": [
+        250161
+      ]
+    },
+    {
+      "id": 39916,
+      "name": "WCD 2002: Sim Han How's Deck",
+      "category_id": 17,
+      "expansion_id": 445,
+      "expansion_name": "WCD 2002: Sim Han How",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        250172
+      ]
+    },
+    {
+      "id": 40735,
+      "name": "WCD 1996: Mark Justice's Deck",
+      "category_id": 17,
+      "expansion_id": 457,
+      "expansion_name": "Pro Tour 1996: Mark Justice",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        250149
+      ]
+    },
+    {
+      "id": 48742,
+      "name": "Ultimate Masters Booster",
+      "category_id": 5,
+      "expansion_id": 482,
+      "expansion_name": "Ultimate Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        366239
+      ]
+    },
+    {
+      "id": 48743,
+      "name": "Ultimate Masters Booster Box",
+      "category_id": 4,
+      "expansion_id": 482,
+      "expansion_name": "Ultimate Masters",
+      "tcg_player_id": 179444,
+      "card_market_ids": [
+        366240
+      ]
+    },
+    {
+      "id": 48744,
+      "name": "Ultimate Masters Common Set",
+      "category_id": 6,
+      "expansion_id": 482,
+      "expansion_name": "Ultimate Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        366233
+      ]
+    },
+    {
+      "id": 48745,
+      "name": "Ultimate Masters Uncommon Set",
+      "category_id": 6,
+      "expansion_id": 482,
+      "expansion_name": "Ultimate Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        366234
+      ]
+    },
+    {
+      "id": 48746,
+      "name": "Ultimate Masters Rare Set",
+      "category_id": 6,
+      "expansion_id": 482,
+      "expansion_name": "Ultimate Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        366235
+      ]
+    },
+    {
+      "id": 48747,
+      "name": "Ultimate Masters Mythic Set",
+      "category_id": 6,
+      "expansion_id": 482,
+      "expansion_name": "Ultimate Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        366236
+      ]
+    },
+    {
+      "id": 48748,
+      "name": "Ultimate Masters Token Set",
+      "category_id": 6,
+      "expansion_id": 482,
+      "expansion_name": "Ultimate Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        367299
+      ]
+    },
+    {
+      "id": 48749,
+      "name": "Ultimate Masters Complete Set",
+      "category_id": 6,
+      "expansion_id": 482,
+      "expansion_name": "Ultimate Masters",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        366237
+      ]
+    },
+    {
+      "id": 54728,
+      "name": "Challenger Deck 2018: Hazoret Aggro",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        318968
+      ]
+    },
+    {
+      "id": 54734,
+      "name": "Challenger Deck 2018: Vehicle Rush",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        318969
+      ]
+    },
+    {
+      "id": 54737,
+      "name": "Challenger Deck 2018: Second Sun Control",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        318970
+      ]
+    },
+    {
+      "id": 54738,
+      "name": "Challenger Deck 2018: Counter Surge",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        318971
+      ]
+    },
+    {
+      "id": 54740,
+      "name": "Challenger Deck 2019: United Assault",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        371225
+      ]
+    },
+    {
+      "id": 54742,
+      "name": "Challenger Deck 2019: Lightning Aggro",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        371226
+      ]
+    },
+    {
+      "id": 54744,
+      "name": "Challenger Deck 2019: Deadly Discover",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        371227
+      ]
+    },
+    {
+      "id": 54746,
+      "name": "Challenger Deck 2019: Arcane Tempo",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        371228
+      ]
+    },
+    {
+      "id": 54752,
+      "name": "Challenger Deck 2019 Set",
+      "category_id": 10,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        371229
+      ]
+    },
+    {
+      "id": 54754,
+      "name": "Challenger Deck 2018 Set",
+      "category_id": 10,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        319709
+      ]
+    },
+    {
+      "id": 107669,
+      "name": "Challenger Decks 2020: Allied Fires",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        440333
+      ]
+    },
+    {
+      "id": 107670,
+      "name": "Challenger Decks 2020: Final Adventure",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        440338
+      ]
+    },
+    {
+      "id": 107671,
+      "name": "Challenger Decks 2020: Cavalcade Charge",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        440343
+      ]
+    },
+    {
+      "id": 107672,
+      "name": "Challenger Decks 2020: Flash of Ferocity",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        440348
+      ]
+    },
+    {
+      "id": 107839,
+      "name": "Challenger Decks 2020 Set",
+      "category_id": 10,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        440353
+      ]
+    },
+    {
+      "id": 152951,
+      "name": "Challenger Deck 2021 Display Case",
+      "category_id": 10,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 152952,
+      "name": "Challenger Decks 2021: Azorius Control",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        540221
+      ]
+    },
+    {
+      "id": 152953,
+      "name": "Challenger Decks 2021: Dimir Rogues",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        540226
+      ]
+    },
+    {
+      "id": 152954,
+      "name": "Challenger Decks 2021: Mono Red Aggro",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        540231
+      ]
+    },
+    {
+      "id": 152955,
+      "name": "Challenger Decks 2021: Mono Green Stompy",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        540236
+      ]
+    },
+    {
+      "id": 153215,
+      "name": "Challenger Decks 2021 Set",
+      "category_id": 10,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        540241
+      ]
+    },
+    {
+      "id": 166697,
+      "name": "Pioneer Challenger Decks 2021 Display",
+      "category_id": 10,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 166698,
+      "name": "Pioneer Challenger Decks 2021: Lotus Field Combo",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        576512
+      ]
+    },
+    {
+      "id": 166699,
+      "name": "Pioneer Challenger Decks 2021: Orzhov Auras",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        576514
+      ]
+    },
+    {
+      "id": 166700,
+      "name": "Pioneer Challenger Decks 2021: Mono Red Burn",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        576513
+      ]
+    },
+    {
+      "id": 166701,
+      "name": "Pioneer Challenger Decks 2021: Azorius Spirits",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        576511
+      ]
+    },
+    {
+      "id": 166702,
+      "name": "Pioneer Challenger Decks 2021 Set",
+      "category_id": 10,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        576515
+      ]
+    },
+    {
+      "id": 206980,
+      "name": "Challenger Decks 2022: Rakdos Vampires",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        611307
+      ]
+    },
+    {
+      "id": 206981,
+      "name": "Challenger Decks 2022: Gruul Stompy",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        611306
+      ]
+    },
+    {
+      "id": 206982,
+      "name": "Challenger Decks 2022: Dimir Control",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        611305
+      ]
+    },
+    {
+      "id": 206983,
+      "name": "Challenger Decks 2022: Mono White Aggro",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        611304
+      ]
+    },
+    {
+      "id": 206984,
+      "name": "Challenger Decks 2022 Set",
+      "category_id": 10,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        611308
+      ]
+    },
+    {
+      "id": 218606,
+      "name": "Pioneer Challenger Decks 2022 Display Case",
+      "category_id": 10,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        666762
+      ]
+    },
+    {
+      "id": 226824,
+      "name": "Pioneer Challenger Decks 2022 Set",
+      "category_id": 10,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        666761
+      ]
+    },
+    {
+      "id": 226825,
+      "name": "Pioneer Challenger Decks 2022: Pioneer Dimir Control",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        666757
+      ]
+    },
+    {
+      "id": 226826,
+      "name": "Pioneer Challenger Decks 2022: Izzet Phoenix",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        666759
+      ]
+    },
+    {
+      "id": 226827,
+      "name": "Pioneer Challenger Decks 2022: Pioneer Gruul Stompy",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        666760
+      ]
+    },
+    {
+      "id": 226828,
+      "name": "Pioneer Challenger Decks 2022: Orzhov Humans",
+      "category_id": 17,
+      "expansion_id": 945,
+      "expansion_name": "Challenger Decks",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        666758
+      ]
+    },
+    {
+      "id": 58954,
+      "name": "Core 2020: Premium Promo Pack",
+      "category_id": 5,
+      "expansion_id": 981,
+      "expansion_name": "Core Set 2020 Promos",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        380295
+      ]
+    },
+    {
+      "id": 58959,
+      "name": "Core 2020: Promo Pack",
+      "category_id": 5,
+      "expansion_id": 981,
+      "expansion_name": "Core Set 2020 Promos",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        380292
+      ]
+    },
+    {
+      "id": 108011,
+      "name": "Core 2021 Booster",
+      "category_id": 5,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        441388
+      ]
+    },
+    {
+      "id": 108012,
+      "name": "Core 2021 Booster Box",
+      "category_id": 4,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": 214811,
+      "card_market_ids": [
+        441383
+      ]
+    },
+    {
+      "id": 133904,
+      "name": "Core 2021 Collector Booster Box",
+      "category_id": 4,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": 214818,
+      "card_market_ids": [
+        466034
+      ]
+    },
+    {
+      "id": 133905,
+      "name": "Core 2021 Fat Pack Bundle",
+      "category_id": 23,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": 214814,
+      "card_market_ids": [
+        466039
+      ]
+    },
+    {
+      "id": 133970,
+      "name": "Core 2021 Collector Booster",
+      "category_id": 5,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        466029
+      ]
+    },
+    {
+      "id": 144680,
+      "name": "Core 2021: Prerelease Pack",
+      "category_id": 24,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        476879
+      ]
+    },
+    {
+      "id": 145667,
+      "name": "Core 2021 Welcome Booster",
+      "category_id": 5,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        486944
+      ]
+    },
+    {
+      "id": 145668,
+      "name": "Core 2021: Arena Starter Kit",
+      "category_id": 17,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        486939
+      ]
+    },
+    {
+      "id": 146605,
+      "name": "Core 2021: Common Set",
+      "category_id": 6,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        466044
+      ]
+    },
+    {
+      "id": 146606,
+      "name": "Core 2021: Uncommon Set",
+      "category_id": 6,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        466049
+      ]
+    },
+    {
+      "id": 146607,
+      "name": "Core 2021: Rare Set",
+      "category_id": 6,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        466054
+      ]
+    },
+    {
+      "id": 146608,
+      "name": "Core 2021: Mythic Set",
+      "category_id": 6,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        466059
+      ]
+    },
+    {
+      "id": 146609,
+      "name": "Core 2021: Complete Set",
+      "category_id": 6,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        466064
+      ]
+    },
+    {
+      "id": 146610,
+      "name": "Core Set 2021 Token Set",
+      "category_id": 6,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        479429
+      ]
+    },
+    {
+      "id": 146611,
+      "name": "Core Set 2021: Basic Land Set",
+      "category_id": 6,
+      "expansion_id": 1657,
+      "expansion_name": "Core Set 2021",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        471204
+      ]
+    },
+    {
+      "id": 62573,
+      "name": "Zendikar Rising Holiday Gift Bundle",
+      "category_id": 23,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": 221918,
+      "card_market_ids": [
+        495234
+      ]
+    },
+    {
+      "id": 145651,
+      "name": "Zendikar Rising Draft Booster",
+      "category_id": 5,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        487029
+      ]
+    },
+    {
+      "id": 145652,
+      "name": "Zendikar Rising Set Booster",
+      "category_id": 5,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        487024
+      ]
+    },
+    {
+      "id": 145653,
+      "name": "Zendikar Rising Collector Booster",
+      "category_id": 5,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        487019
+      ]
+    },
+    {
+      "id": 145654,
+      "name": "Zendikar Rising Theme Booster",
+      "category_id": 5,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        487014
+      ]
+    },
+    {
+      "id": 145655,
+      "name": "Zendikar Rising Theme Booster",
+      "category_id": 5,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        487009
+      ]
+    },
+    {
+      "id": 145656,
+      "name": "Zendikar Rising Theme Booster",
+      "category_id": 5,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        487004
+      ]
+    },
+    {
+      "id": 145657,
+      "name": "Zendikar Rising Theme Booster",
+      "category_id": 5,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        486999
+      ]
+    },
+    {
+      "id": 145658,
+      "name": "Zendikar Rising Theme Booster",
+      "category_id": 5,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        486994
+      ]
+    },
+    {
+      "id": 145659,
+      "name": "Zendikar Rising Draft Booster Box",
+      "category_id": 4,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": 220414,
+      "card_market_ids": [
+        486989
+      ]
+    },
+    {
+      "id": 145660,
+      "name": "Zendikar Rising Set Booster Box",
+      "category_id": 4,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": 220523,
+      "card_market_ids": [
+        486984
+      ]
+    },
+    {
+      "id": 145661,
+      "name": "Zendikar Rising Collector Booster Box",
+      "category_id": 4,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": 220423,
+      "card_market_ids": [
+        486979
+      ]
+    },
+    {
+      "id": 145663,
+      "name": "Zendikar Rising Theme Booster Box",
+      "category_id": 4,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": 220420,
+      "card_market_ids": [
+        486974
+      ]
+    },
+    {
+      "id": 145664,
+      "name": "Zendikar Rising Fat Pack Bundle",
+      "category_id": 23,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": 220426,
+      "card_market_ids": [
+        486969
+      ]
+    },
+    {
+      "id": 145665,
+      "name": "Zendikar Rising: Prerelease Pack",
+      "category_id": 24,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        486964
+      ]
+    },
+    {
+      "id": 146519,
+      "name": "Zendikar Rising: Common Set",
+      "category_id": 6,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        494529
+      ]
+    },
+    {
+      "id": 146520,
+      "name": "Zendikar Rising: Uncommon Set",
+      "category_id": 6,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        494534
+      ]
+    },
+    {
+      "id": 146521,
+      "name": "Zendikar Rising: Rare Set",
+      "category_id": 6,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        494539
+      ]
+    },
+    {
+      "id": 146523,
+      "name": "Zendikar Rising: Mythic Set",
+      "category_id": 6,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        494544
+      ]
+    },
+    {
+      "id": 146524,
+      "name": "Zendikar Rising: Basic Land Set",
+      "category_id": 6,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        494889
+      ]
+    },
+    {
+      "id": 146525,
+      "name": "Zendikar Rising: Complete Set",
+      "category_id": 6,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        494524
+      ]
+    },
+    {
+      "id": 146526,
+      "name": "Zendikar Rising Theme Booster",
+      "category_id": 5,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        495229
+      ]
+    },
+    {
+      "id": 146529,
+      "name": "Zendikar Rising: Token Set",
+      "category_id": 6,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": []
+    },
+    {
+      "id": 148760,
+      "name": "Zendikar Rising: Welcome Booster",
+      "category_id": 5,
+      "expansion_id": 2083,
+      "expansion_name": "Zendikar Rising",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        502810
+      ]
+    },
+    {
+      "id": 151278,
+      "name": "Kaldheim Set Booster Box",
+      "category_id": 4,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": 228251,
+      "card_market_ids": [
+        527320
+      ]
+    },
+    {
+      "id": 151279,
+      "name": "Kaldheim Collector Booster Box",
+      "category_id": 4,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": 228249,
+      "card_market_ids": [
+        527325
+      ]
+    },
+    {
+      "id": 151280,
+      "name": "Kaldheim Draft Booster Box",
+      "category_id": 4,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": 228245,
+      "card_market_ids": [
+        527330
+      ]
+    },
+    {
+      "id": 151281,
+      "name": "Kaldheim Fat Pack Bundle",
+      "category_id": 23,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": 228248,
+      "card_market_ids": [
+        527280
+      ]
+    },
+    {
+      "id": 151467,
+      "name": "Kaldheim Collector Booster",
+      "category_id": 5,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527340
+      ]
+    },
+    {
+      "id": 151468,
+      "name": "Kaldheim Draft Booster",
+      "category_id": 5,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527345
+      ]
+    },
+    {
+      "id": 151502,
+      "name": "Kaldheim Set Booster",
+      "category_id": 5,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527335
+      ]
+    },
+    {
+      "id": 151503,
+      "name": "Kaldheim Theme Booster Box",
+      "category_id": 4,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": 229245,
+      "card_market_ids": [
+        527285
+      ]
+    },
+    {
+      "id": 151504,
+      "name": "Kaldheim Theme \"Black\" Booster",
+      "category_id": 5,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527290
+      ]
+    },
+    {
+      "id": 151505,
+      "name": "Kaldheim Theme \"Blue\" Booster",
+      "category_id": 5,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527295
+      ]
+    },
+    {
+      "id": 151506,
+      "name": "Kaldheim Theme \"Green\" Booster",
+      "category_id": 5,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527300
+      ]
+    },
+    {
+      "id": 151507,
+      "name": "Kaldheim Theme \"Red\" Booster",
+      "category_id": 5,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527305
+      ]
+    },
+    {
+      "id": 151508,
+      "name": "Kaldheim Theme \"White\" Booster",
+      "category_id": 5,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527310
+      ]
+    },
+    {
+      "id": 151509,
+      "name": "Kaldheim \"Viking\" Theme Booster",
+      "category_id": 5,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527315
+      ]
+    },
+    {
+      "id": 151540,
+      "name": "Kaldheim: Basic Land Set",
+      "category_id": 6,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        536567
+      ]
+    },
+    {
+      "id": 151541,
+      "name": "Kaldheim: Complete Set",
+      "category_id": 6,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527255
+      ]
+    },
+    {
+      "id": 151542,
+      "name": "Kaldheim: Common Set",
+      "category_id": 6,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527260
+      ]
+    },
+    {
+      "id": 151543,
+      "name": "Kaldheim: Unommon Set",
+      "category_id": 6,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527265
+      ]
+    },
+    {
+      "id": 151544,
+      "name": "Kaldheim: Rare Set",
+      "category_id": 6,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527270
+      ]
+    },
+    {
+      "id": 151545,
+      "name": "Kaldheim: Mythic Set",
+      "category_id": 6,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        527275
+      ]
+    },
+    {
+      "id": 151900,
+      "name": "Kaldheim: Prerelease Pack",
+      "category_id": 24,
+      "expansion_id": 2115,
+      "expansion_name": "Kaldheim",
+      "tcg_player_id": null,
+      "card_market_ids": [
+        529287
+      ]
+    }
+  ]
+}
