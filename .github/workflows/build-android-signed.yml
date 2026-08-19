@@ -17,10 +17,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ANDROID_VERSION_NAME: "0.2.12"
-  ANDROID_VERSION_CODE: "32"
-  RELEASE_TAG: "android-v0.2.12"
-  RELEASE_APK: "collectish-android-v0.2.12.apk"
+  ANDROID_VERSION_NAME: "0.2.13"
+  ANDROID_VERSION_CODE: "33"
+  RELEASE_TAG: "android-v0.2.13"
+  RELEASE_APK: "collectish-android-v0.2.13.apk"
 
 jobs:
   build:
@@ -75,8 +75,9 @@ jobs:
           python tools/patch-native-v031.py
           python tools/patch-native-v032.py
           python tools/patch-native-v033.py
+          python tools/patch-native-v034.py
 
-      - name: Stamp and validate 0.2.12 resume + inventory bridge
+      - name: Stamp and validate 0.2.13 resume + inventory bridge
         working-directory: android-agent
         shell: bash
         run: |
@@ -90,17 +91,19 @@ jobs:
           grep -q 'agentWeb.saveState(outState)' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'agentWeb.restoreState(savedInstanceState)' app/src/main/java/com/collectish/agent/MainActivity.kt
           ! grep -q "dispatchEvent(new Event('pageshow'))" app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'versionCode = 32' app/build.gradle.kts
-          grep -q 'versionName = "0.2.12"' app/build.gradle.kts
+          grep -q 'versionCode = 33' app/build.gradle.kts
+          grep -q 'versionName = "0.2.13"' app/build.gradle.kts
           grep -q '/admin/product/searchcatalog' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q '/admin/product/updateinstockquantities' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q 'path.startsWith("/admin/product/manage/")' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q 'fetch_html' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
+          grep -q 'TCGplayer Store session is not authenticated' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
+          ! grep -q 'sessionState() != "authenticated"' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
 
       - name: Publish Android source checkpoint
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-source' -f description='Native resume preservation and Store inventory bridge validated'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-source' -f description='Native Store-origin auth validation and inventory bridge validated'
 
       - name: Build persistently signed release APK
         working-directory: android-agent
@@ -114,14 +117,14 @@ jobs:
       - name: Publish Android Gradle checkpoint
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-gradle' -f description='Android 0.2.12 compiled successfully'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-gradle' -f description='Android 0.2.13 compiled successfully'
 
       - name: Verify APK signature and package
         shell: bash
         run: |
           set -euo pipefail
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/$RELEASE_APK"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -q "package: name='com.collectish.agent' versionCode='32' versionName='0.2.12'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -q "package: name='com.collectish.agent' versionCode='33' versionName='0.2.13'"
 
       - name: Publish Android signature checkpoint
         shell: bash
@@ -130,7 +133,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: collectish-android-v0.2.12-signed
+          name: collectish-android-v0.2.13-signed
           path: ${{ runner.temp }}/${{ env.RELEASE_APK }}
 
       - name: Publish stable GitHub Release APK
@@ -142,17 +145,17 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --clobber
           else
-            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Preserves hosted WebView state across app switching, screen-off, and Activity recreation; removes synthetic resume reload/pageshow behavior; retains Store inventory reads and boot diagnostics."
+            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Fixes Inventory sync false negatives by validating authentication against the actual store.tcgplayer.com origin instead of rejecting from the coarse Seller Portal session label; preserves hosted WebView state and existing Store inventory reads."
           fi
 
       - name: Publish signed Android success status
         if: success()
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.12 built with resume preservation'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.13 built with Store auth fix'
 
       - name: Publish signed Android failure status
         if: failure()
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/android-signed' -f description='Signed Android build or resume/inventory validation failed'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/android-signed' -f description='Signed Android build or Store auth/inventory validation failed'
