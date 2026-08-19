@@ -1,0 +1,9 @@
+file:///home/runner/work/marketplacescout/marketplacescout/tools/cardtrader-api-audit.mjs:19
+const magic=games.find(g=>g.id===1||/magic/i.test(g.display_name||g.name||''));
+                  ^
+
+TypeError: games.find is not a function
+    at file:///home/runner/work/marketplacescout/marketplacescout/tools/cardtrader-api-audit.mjs:19:19
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+Node.js v24.19.0
