@@ -168,6 +168,23 @@ jobs:
           grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/dom.html
           ! grep -q 'Could not start Collectish' /tmp/dom.html
 
+      - name: Publish startup diagnostic
+        if: always() && steps.chrome_run.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          if grep -q 'Could not start Collectish' /tmp/dom.html; then
+            msg="$(sed -n 's/.*id="cxStartupError">\([^<]*\)<.*/\1/p' /tmp/dom.html | head -1)"
+            token="$(printf '%s' "${msg:-unknown}" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9._:-' | cut -c1-60)"
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context="collectish/diag-startup-${token:-unknown}" -f description='Startup error screen rendered'
+          elif grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/dom.html; then
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/diag-shell-marker' -f description='Expected shell marker present'
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/diag-shell-missing' -f description='No startup error or shell marker found'
+          fi
+
       - name: Publish shell/browser statuses
         if: always()
         env:
