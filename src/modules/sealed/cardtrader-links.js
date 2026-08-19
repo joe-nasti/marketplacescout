@@ -1,0 +1,7 @@
+import { rest } from '../../core/rest.js';
+
+const slug=s=>String(s||'').normalize('NFKD').replace(/[’']/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'').toLowerCase();
+const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+let seq=0;
+async function addLink(event){const id=event?.detail?.id;if(!id)return;const current=++seq;const rows=await rest(`sealed_product_price_current?select=product_id,product_name&source=eq.cardtrader&sealed_uuid=eq.${encodeURIComponent(id)}&limit=1`).catch(()=>[]);if(current!==seq)return;const row=(rows||[])[0],blueprint=row?.product_id;if(!blueprint)return;const host=document.querySelector('#cxSealedDetail [data-cardtrader-acquire]');if(!host)return;host.querySelector('[data-cardtrader-live-link]')?.remove();const url=`https://www.cardtrader.com/en/cards/${encodeURIComponent(blueprint)}-${slug(row.product_name||'magic-product')}`;const a=document.createElement('a');a.dataset.cardtraderLiveLink='';a.className='cx-source-anchor';a.href=url;a.target='_blank';a.rel='noopener';a.textContent='Open live CardTrader offers ↗';const title=host.querySelector('.cx-section-title');if(title){title.append(' · ');title.appendChild(a)}else host.prepend(a)}
+document.addEventListener('collectish:sealed-detail-rendered',event=>setTimeout(()=>addLink(event).catch(()=>{}),0));
