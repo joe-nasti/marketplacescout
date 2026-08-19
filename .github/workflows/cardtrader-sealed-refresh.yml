@@ -22,6 +22,9 @@ jobs:
       CARDTRADER_JWT_TOKEN: ${{ secrets.CARDTRADER_JWT_TOKEN }}
       CARDTRADER_CATALOG_STALE_HOURS: "24"
       CARDTRADER_REQUEST_INTERVAL_MS: "1050"
+      CARDTRADER_SHIPPING_RESERVE_PER_UNIT_USD: "10"
+      CARDTRADER_FUNDING_FEE_PCT: "0"
+      CARDTRADER_FUNDING_FIXED_USD: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,13 +33,15 @@ jobs:
       - name: Require server secrets
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY" && test -n "$CARDTRADER_JWT_TOKEN"
       - name: Validate CardTrader workers
-        run: node --check cloud-worker/cardtrader-sealed-map-refresh.mjs && node --check cloud-worker/cardtrader-sealed-refresh.mjs
+        run: node --check cloud-worker/cardtrader-sealed-map-refresh.mjs && node --check cloud-worker/cardtrader-sealed-refresh.mjs && node --check cloud-worker/cardtrader-landed-refresh.mjs
       - name: Refresh existing exact CardTrader mappings
         run: node cloud-worker/cardtrader-sealed-map-refresh.mjs
       - name: Refresh CardTrader / CardTrader Zero sealed market
         run: node cloud-worker/cardtrader-sealed-refresh.mjs
       - name: Reconcile mappings after any catalog refresh
         run: node cloud-worker/cardtrader-sealed-map-refresh.mjs
+      - name: Model CT0 US landed cost
+        run: node cloud-worker/cardtrader-landed-refresh.mjs
       - name: Archive sealed price observations
         if: always()
         run: node cloud-worker/archive-sealed-price-current.mjs
