@@ -33,7 +33,7 @@ jobs:
       - name: Require server secrets
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY" && test -n "$CARDTRADER_JWT_TOKEN"
       - name: Validate CardTrader workers
-        run: node --check cloud-worker/cardtrader-sealed-map-refresh.mjs && node --check cloud-worker/cardtrader-sealed-refresh.mjs && node --check cloud-worker/cardtrader-landed-refresh.mjs
+        run: node --check cloud-worker/cardtrader-sealed-map-refresh.mjs && node --check cloud-worker/cardtrader-sealed-refresh.mjs && node --check cloud-worker/cardtrader-landed-refresh.mjs && node --check cloud-worker/cardtrader-trend-refresh.mjs
       - name: Refresh existing exact CardTrader mappings
         run: node cloud-worker/cardtrader-sealed-map-refresh.mjs
       - name: Refresh CardTrader / CardTrader Zero sealed market
@@ -42,6 +42,8 @@ jobs:
         run: node cloud-worker/cardtrader-sealed-map-refresh.mjs
       - name: Model CT0 US landed cost
         run: node cloud-worker/cardtrader-landed-refresh.mjs
+      - name: Model CT0 supply and landed-cost trends
+        run: node cloud-worker/cardtrader-trend-refresh.mjs
       - name: Archive sealed price observations
         if: always()
         run: node cloud-worker/archive-sealed-price-current.mjs
