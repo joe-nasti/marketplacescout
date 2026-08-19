@@ -45,8 +45,9 @@ jobs:
           python tools/patch-native-v028.py
           python tools/patch-native-v030.py
           python tools/patch-native-v031.py
+          python tools/patch-native-v032.py
 
-      - name: Verify Inventory bridge and fresh hosted shell survived patches
+      - name: Verify Inventory bridge and native hosted diagnostics survived patches
         working-directory: android-agent
         shell: bash
         run: |
@@ -57,6 +58,8 @@ jobs:
           grep -q 'fetch_html' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
           grep -q 'settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'androidBoot=${System.currentTimeMillis()}' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'runHostedBootDiagnostic(view)' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'hostedBootDiagnostics.add(line.take(500))' app/src/main/java/com/collectish/agent/MainActivity.kt
 
       - name: Compile Android debug APK
         working-directory: android-agent
@@ -71,7 +74,7 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
             -f state=success \
             -f context='collectish/android-inventory-compile' \
-            -f description='Android Store Inventory bridge and fresh shell boot compiled' \
+            -f description='Android Store Inventory bridge and native boot diagnostics compiled' \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Publish Inventory compile failure
@@ -83,5 +86,5 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
             -f state=failure \
             -f context='collectish/android-inventory-compile' \
-            -f description='Android Inventory bridge/cache-safe shell validation failed' \
+            -f description='Android Inventory/native boot diagnostic validation failed' \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
