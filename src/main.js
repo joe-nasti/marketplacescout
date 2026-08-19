@@ -1,0 +1,77 @@
+// Collectish Vite entrypoint.
+// Phase 1: existing feature files remain compatibility side-effect modules.
+// Vite now owns execution order, CSS aggregation, chunking, and content hashing.
+
+import '../modern-core.css';
+import '../current-ux.css';
+import '../current-scout-parity.css';
+import '../current-sealed-ev.css';
+import '../current-sealed-images.css';
+import '../current-sealed-scout-card-parity.css';
+import '../current-sealed-metric-drilldown.css';
+import '../current-sealed-score-tooltips.css';
+import '../current-seller-parity.css';
+import '../current-syp-parity.css';
+import '../current-ask-collectish.css';
+import '../current-ask-collectish-v2.css';
+import '../current-ask-collectish-v3.css';
+import '../current-ask-markdown-safe.css';
+import '../current-ask-investigate-presentation.css';
+import '../current-ask-concise-view.css';
+import '../current-admin-console.css';
+import '../current-theme.css';
+import '../current-mobile-dark-polish-r0981.css';
+import '../current-admin-dark-summary-r0982.css';
+import '../current-sealed-component-economics-r0985.css';
+import '../current-sealed-component-table-r0991.css';
+import '../current-sealed-component-best-r0992.css';
+import '../current-sealed-detail-zoom-r0993.css';
+import '../current-sealed-detail-source-anchors-r0995.css';
+import '../current-sealed-summary-actions-r1000.css';
+import '../current-sealed-summary-tcg-r1001.css';
+import '../current-sealed-detail-freshness-r1002.css';
+import '../current-sealed-language-confidence-r1003.css';
+import '../current-sealed-language-filter-r1004.css';
+import '../current-scout-detail-tile-links-r0986.css';
+
+// Explicit runtime dependency order.
+import '../config.js';
+import '../current-theme.js';
+import '../modern-core.js';
+import '../current-rest-read-retry.js';
+import '../current-scout-v5-cache-read.js';
+import './lazy-pages.js';
+import '../current-runtime-health.js';
+import '../current-readonly-agent.js';
+import '../current-scout-bootstrap-safe.js';
+import '../current-scout-health-monitor-r1009.js';
+import '../current-scout-volatility-overlay-r0983.js';
+import '../current-scout-detail-tile-links-r0986.js';
+import '../current-sealed-component-best-r0992.js';
+import '../current-sealed-detail-source-anchors-r0997.js';
+import '../current-sealed-summary-actions-r1000.js';
+import '../current-sealed-summary-tcg-r1001.js';
+import '../current-sealed-detail-freshness-r1002.js';
+import '../current-sealed-language-confidence-r1003.js';
+import '../current-sealed-ui-guardian-r1008.js';
+import '../current-scout-list-images.js';
+import '../current-scout-noise-filter.js';
+import '../current-scout-global-search.js';
+import '../current-scout-global-vendor.js';
+import '../current-scout-tcg-price-semantics.js';
+import '../current-mobile-detail-swipe.js';
+import '../current-inventory-v2.js';
+import '../current-admin-scans.js';
+import '../current-admin-fixed-nav.js';
+import '../current-admin-marketplace-health.js';
+import '../current-admin-console.js';
+import '../current-admin-sealed-catalog-r0973.js';
+import '../current-admin-sealed-health.js';
+import '../current-admin-top.js';
+import '../current-ask-collectish.js';
+import '../current-ask-markdown-safe.js';
+import '../current-ask-investigate-presentation.js';
+import '../current-ask-concise-view.js';
+import '../current-ask-collectish-v3-investigate-safe.js';
+import '../current-ask-collectish-v3-actions-safe.js';
+import '../current-ask-collectish-v3-admin-safe.js';
