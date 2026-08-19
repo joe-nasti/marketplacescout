@@ -32,6 +32,7 @@ jobs:
             echo "Missing CARDTRADER_JWT_TOKEN" > audit-results/cardtrader-audit-status.txt
             status=2
           else
+            sed -i "s/'data','items','results'/'array','data','items','results'/" tools/cardtrader-api-audit.mjs
             set +e
             node tools/cardtrader-api-audit.mjs > audit-results/cardtrader-audit-run.txt 2>&1
             status=$?
@@ -48,5 +49,3 @@ jobs:
             git push origin HEAD:agent/cardtrader-api-audit
           fi
           exit $status
-
-# Rerun after adapting to CardTrader's live wrapped response envelopes.
