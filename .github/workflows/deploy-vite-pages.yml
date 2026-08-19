@@ -46,11 +46,13 @@ jobs:
           test -f src/core/lifecycle.js
           test -f src/state/store.js
           test -f src/state/resources.js
+          test -f src/app.js
           test ! -e src/modules/sealed/ui-guardian.js
           grep -q "./styles/index.css" src/main.js
-          grep -q "./core/shell.js" src/main.js
-          grep -q "./state/store.js" src/main.js
-          grep -q "./modules/index.js" src/main.js
+          grep -q "./app.js" src/main.js
+          grep -q "./core/shell.js" src/app.js
+          grep -q "./state/store.js" src/app.js
+          grep -q "./modules/index.js" src/app.js
 
       - name: Audit centralized lifecycle
         id: lifecycle
