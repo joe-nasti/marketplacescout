@@ -1,8 +1,8 @@
-name: Build Vite web bundle
+name: Validate Vite web bundle
 
 on:
   workflow_dispatch:
-  push:
+  pull_request:
     branches: [main]
     paths:
       - 'package.json'
@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: collectish-vite-web-build
+  group: collectish-vite-web-validate-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
