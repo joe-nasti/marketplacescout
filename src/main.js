@@ -37,6 +37,7 @@ import '../current-build-badge-r1012.css';
 
 import './runtime/config.js';
 import './runtime/build-info.js';
+import './runtime/health.js';
 import './features/ask/markdown.js';
 import './features/sealed/ui-guardian.js';
 import './features/scout/health.js';
