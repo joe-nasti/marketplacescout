@@ -2,8 +2,6 @@ import './styles/index.css';
 import './core/build-info.js';
 import './core/health.js';
 import './core/theme.js';
-import './modules/ask/markdown.js';
-import './modules/sealed/ui-guardian.js';
 import './modules/scout/health.js';
 import './modules/scout/bootstrap.js';
 import './modules/seller/readonly-agent.js';
