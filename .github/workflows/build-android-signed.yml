@@ -17,10 +17,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ANDROID_VERSION_NAME: "0.2.11"
-  ANDROID_VERSION_CODE: "31"
-  RELEASE_TAG: "android-v0.2.11"
-  RELEASE_APK: "collectish-android-v0.2.11.apk"
+  ANDROID_VERSION_NAME: "0.2.12"
+  ANDROID_VERSION_CODE: "32"
+  RELEASE_TAG: "android-v0.2.12"
+  RELEASE_APK: "collectish-android-v0.2.12.apk"
 
 jobs:
   build:
@@ -74,8 +74,9 @@ jobs:
           python tools/patch-native-v030.py
           python tools/patch-native-v031.py
           python tools/patch-native-v032.py
+          python tools/patch-native-v033.py
 
-      - name: Stamp and validate 0.2.11 inventory bridge
+      - name: Stamp and validate 0.2.12 resume + inventory bridge
         working-directory: android-agent
         shell: bash
         run: |
@@ -83,15 +84,14 @@ jobs:
           sed -i -E 's/private val version = "[0-9.]+"/private val version = "'"$ANDROID_VERSION_NAME"'"/' app/src/main/java/com/collectish/agent/MainActivity.kt
           sed -i -E 's/versionCode = [0-9]+/versionCode = '"$ANDROID_VERSION_CODE"'/' app/build.gradle.kts
           sed -i -E 's/versionName = "[0-9.]+"/versionName = "'"$ANDROID_VERSION_NAME"'"/' app/build.gradle.kts
-          grep -q 'currentPage = p.getString("lastPage", "scout")' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'putString("lastPage", targetPage)' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'settings.builtInZoomControls = true' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'androidBoot=${System.currentTimeMillis()}' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'runHostedBootDiagnostic(view)' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'hostedBootDiagnostics.add(line.take(500))' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'versionCode = 31' app/build.gradle.kts
-          grep -q 'versionName = "0.2.11"' app/build.gradle.kts
+          grep -q 'agentWeb.saveState(outState)' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'agentWeb.restoreState(savedInstanceState)' app/src/main/java/com/collectish/agent/MainActivity.kt
+          ! grep -q "dispatchEvent(new Event('pageshow'))" app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'versionCode = 32' app/build.gradle.kts
+          grep -q 'versionName = "0.2.12"' app/build.gradle.kts
           grep -q '/admin/product/searchcatalog' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q '/admin/product/updateinstockquantities' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q 'path.startsWith("/admin/product/manage/")' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
@@ -100,7 +100,7 @@ jobs:
       - name: Publish Android source checkpoint
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-source' -f description='Native patch chain preserved Store inventory bridge and native boot diagnostics'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-source' -f description='Native resume preservation and Store inventory bridge validated'
 
       - name: Build persistently signed release APK
         working-directory: android-agent
@@ -114,14 +114,14 @@ jobs:
       - name: Publish Android Gradle checkpoint
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-gradle' -f description='Android diagnostic Inventory build compiled successfully'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-gradle' -f description='Android 0.2.12 compiled successfully'
 
       - name: Verify APK signature and package
         shell: bash
         run: |
           set -euo pipefail
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/$RELEASE_APK"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -q "package: name='com.collectish.agent' versionCode='31' versionName='0.2.11'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -q "package: name='com.collectish.agent' versionCode='32' versionName='0.2.12'"
 
       - name: Publish Android signature checkpoint
         shell: bash
@@ -130,7 +130,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: collectish-android-v0.2.11-signed
+          name: collectish-android-v0.2.12-signed
           path: ${{ runner.temp }}/${{ env.RELEASE_APK }}
 
       - name: Publish stable GitHub Release APK
@@ -142,17 +142,17 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --clobber
           else
-            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Adds native hosted-WebView diagnostics, guarded frontend module boot, Store inventory reads, and cache-safe hosted shell loading."
+            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Preserves hosted WebView state across app switching, screen-off, and Activity recreation; removes synthetic resume reload/pageshow behavior; retains Store inventory reads and boot diagnostics."
           fi
 
       - name: Publish signed Android success status
         if: success()
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.11 built with native hosted-shell diagnostics'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.12 built with resume preservation'
 
       - name: Publish signed Android failure status
         if: failure()
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/android-signed' -f description='Signed Android build or inventory bridge validation failed'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/android-signed' -f description='Signed Android build or resume/inventory validation failed'
