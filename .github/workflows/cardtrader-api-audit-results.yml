@@ -48,3 +48,5 @@ jobs:
             git push origin HEAD:agent/cardtrader-api-audit
           fi
           exit $status
+
+# Rerun after adapting to CardTrader's live wrapped response envelopes.
