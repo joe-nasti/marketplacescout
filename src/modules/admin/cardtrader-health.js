@@ -11,7 +11,7 @@
       rest('cardtrader_sealed_map?select=sealed_uuid,cardtrader_blueprint_id,match_method,identity_conflict,conflict_detail&limit=5000'),
       rest('sealed_product_price_current?select=sealed_uuid,captured_at,raw_json&source=eq.cardtrader&limit=1000')
     ]);
-    const sm=new Map((sync||[]).map(x=>[x.feed,x]));const mapped=(maps||[]).filter(x=>!x.identity_conflict).length,conflicts=(maps||[]).filter(x=>x.identity_conflict).length;
+    const sm=new Map((sync||[]).map(x=>[x.feed,x]));const mapped=(maps||[]).filter(x=>!x.identity_conflict).length,mapState=sm.get('cardtrader_sealed_map'),conflicts=Number(mapState?.detail?.conflicts??(maps||[]).filter(x=>x.identity_conflict).length??0);
     const ct=(prices||[]),zero=ct.filter(x=>Number(x.raw_json?.ct_zero?.quantity||0)>0).length,opps=ct.filter(x=>x.raw_json?.ct_zero_opportunity?.eligible===true).length,strong=ct.filter(x=>x.raw_json?.ct_zero_opportunity?.tier==='strong').length,tight=ct.filter(x=>['tightening','strong_tightening'].includes(x.raw_json?.ct_zero_trend?.signal)).length;
     const last=ct.map(x=>x.captured_at).filter(Boolean).sort().at(-1)||null;const priceState=last&&Date.now()-new Date(last).getTime()<12*36e5?'good':'warn';
     box.querySelector('[data-ct-health-cards]').innerHTML=[metric('Exact mappings',String(mapped),`${conflicts} quarantined conflicts`,conflicts?'warn':'good'),metric('Current CT rows',String(ct.length),last?`synced ${age(last)}`:'no observations',priceState),metric('CT0 stocked',String(zero),`${opps} opportunities · ${strong} strong`,'good'),metric('Tightening',String(tight),tight?'supply pressure detected':'history building / stable',tight?'warn':'neutral')].join('');
