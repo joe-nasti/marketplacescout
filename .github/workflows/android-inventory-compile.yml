@@ -48,8 +48,10 @@ jobs:
           python tools/patch-native-v032.py
           python tools/patch-native-v033.py
           python tools/patch-native-v034.py
+          python tools/patch-native-v035.py
+          python tools/patch-native-v036.py
 
-      - name: Verify Inventory bridge and resume preservation survived patches
+      - name: Verify Inventory bridge and WebView return survived patches
         working-directory: android-agent
         shell: bash
         run: |
@@ -59,7 +61,11 @@ jobs:
           grep -q 'path.startsWith("/admin/product/manage/")' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q 'fetch_html' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
           grep -q 'TCGplayer Store session is not authenticated' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
+          grep -q 'loginByUrl' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
+          grep -q 'loginByBody' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
           ! grep -q 'sessionState() != "authenticated"' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
+          grep -q 'text = "← Collectish"' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'sellerReturn.visibility=View.VISIBLE' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'runHostedBootDiagnostic(view)' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'agentWeb.saveState(outState)' app/src/main/java/com/collectish/agent/MainActivity.kt
@@ -79,7 +85,7 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
             -f state=success \
             -f context='collectish/android-inventory-compile' \
-            -f description='Android Store Inventory bridge + auth validation compiled' \
+            -f description='Android Inventory bridge + WebView return compiled' \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Publish Inventory compile failure
@@ -91,5 +97,5 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
             -f state=failure \
             -f context='collectish/android-inventory-compile' \
-            -f description='Android Inventory/auth validation failed' \
+            -f description='Android Inventory/WebView return validation failed' \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
