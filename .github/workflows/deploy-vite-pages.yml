@@ -40,19 +40,13 @@ jobs:
           set -euo pipefail
           test -z "$(find . -maxdepth 1 -type f \( -name '*.js' -o -name '*.css' \) ! -name 'vite.config.js' -print)"
           test -z "$(find . -maxdepth 1 -type f \( -name 'current-*' -o -name 'v0*.js' -o -name 'v0*.css' \) -print)"
-          test -d src/core
-          test -d src/state
-          test -d src/modules/scout
-          test -d src/modules/sealed
-          test -d src/modules/seller
-          test -d src/modules/admin
-          test -d src/styles
+          for d in src/core src/state src/modules/scout src/modules/sealed src/modules/seller src/modules/admin src/styles; do test -d "$d"; done
           grep -q "./styles/index.css" src/main.js
           grep -q "./core/shell.js" src/main.js
           grep -q "./state/store.js" src/main.js
           grep -q "./modules/index.js" src/main.js
           find src -name '*.js' -print0 | xargs -0 -n1 node --check
-      - name: Publish source-gate status
+      - name: Publish source status
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
         run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-source-gate' -f description='Modular frontend source gate passed'
       - name: Install pinned Vite
@@ -89,7 +83,10 @@ jobs:
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
       - name: Verify live build
+        id: live_version
+        continue-on-error: true
         shell: bash
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
@@ -98,22 +95,48 @@ jobs:
           set -euo pipefail
           base="${PAGE_URL%/}"
           for i in {1..60}; do
-            if curl -fsSL "$base/web-version.json?cb=$(date +%s%N)" -o /tmp/web-version.json && node -e "const v=require('/tmp/web-version.json');process.exit(v.build===process.env.EXPECTED_SHA?0:1)"; then break; fi
+            if curl -fsSL "$base/web-version.json?cb=$(date +%s%N)" -o /tmp/web-version.json && node -e "const v=require('/tmp/web-version.json');process.exit(v.build===process.env.EXPECTED_SHA?0:1)"; then exit 0; fi
             sleep 5
           done
-          node -e "const v=require('/tmp/web-version.json');if(v.build!==process.env.EXPECTED_SHA)process.exit(1)"
-      - name: Browser smoke
+          cat /tmp/web-version.json || true
+          exit 1
+
+      - name: Publish live-version status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          RESULT: ${{ steps.live_version.outcome }}
+        run: |
+          state=success; desc='Live Pages version matches modular Vite build'
+          if [ "$RESULT" != success ]; then state=failure; desc='Live Pages build did not converge'; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/vite-pages-version' -f description="$desc" -f target_url="$PAGE_URL"
+
+      - name: Execute browser smoke
+        id: browser
+        continue-on-error: true
         shell: bash
         env: { PAGE_URL: '${{ steps.deployment.outputs.page_url }}' }
         run: |
           set -euo pipefail
-          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
-          "$chrome" --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 --dump-dom "${PAGE_URL%/}/?smoke=${GITHUB_RUN_ID}" >/tmp/dom.html 2>/tmp/chrome.log
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$chrome"
+          "$chrome" --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 --dump-dom "${PAGE_URL%/}/?smoke=${GITHUB_RUN_ID}&cb=$(date +%s%N)" >/tmp/dom.html 2>/tmp/chrome.log
+          test -s /tmp/dom.html
           grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/dom.html
           ! grep -q 'Could not start Collectish' /tmp/dom.html
-      - name: Publish live smoke statuses
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}', PAGE_URL: '${{ steps.deployment.outputs.page_url }}' }
+
+      - name: Publish browser/live statuses
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          BROWSER_RESULT: ${{ steps.browser.outcome }}
         run: |
-          for context in collectish/vite-pages-version collectish/vite-chrome-run collectish/vite-shell-dom collectish/vite-browser-smoke collectish/vite-live-smoke; do
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context="$context" -f description='Collectish modular Vite deployment verified' -f target_url="$PAGE_URL"
+          state=success; desc='Modular Vite frontend rendered in Chrome'
+          if [ "$BROWSER_RESULT" != success ]; then state=failure; desc='Modular frontend browser smoke failed'; fi
+          for context in collectish/vite-chrome-run collectish/vite-shell-dom collectish/vite-browser-smoke collectish/vite-live-smoke; do
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context="$context" -f description="$desc" -f target_url="$PAGE_URL"
           done
