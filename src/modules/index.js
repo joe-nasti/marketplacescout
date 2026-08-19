@@ -14,6 +14,7 @@ const startupModules=[
   ()=>import('./admin/console.js'),
   ()=>import('./admin/sealed-catalog.js'),
   ()=>import('./admin/sealed-health.js'),
+  ()=>import('./admin/cardtrader-health.js'),
   ()=>import('./admin/top.js'),
   ()=>import('./ask/main.js'),
   ()=>import('./ask/investigate-presentation.js'),
