@@ -16,9 +16,8 @@ class ReadOnlyProbeBridge(
     @Volatile private var result: String = "{}"
     @Volatile private var activeToken: String = ""
 
-    private val sypStoreOrigin = "https://store.tcgplayer.com/"
-    private val sypExportPrefix = "https://store.tcgplayer.com/admin/direct/ExportSYPList?"
-    private val sypOriginPrimeUrl = "https://store.tcgplayer.com/admin/direct/GetLastUpdated?categoryId=1"
+    private val storeOrigin = "https://store.tcgplayer.com/"
+    private val storeOriginPrimeUrl = "https://store.tcgplayer.com/admin/direct/GetLastUpdated?categoryId=1"
 
     inner class SellerCallback {
         @JavascriptInterface
@@ -31,9 +30,6 @@ class ReadOnlyProbeBridge(
     }
 
     init {
-        // Callback-only surface on the authenticated Seller WebView. Remote jobs
-        // cannot start requests from here; they can only return a result for the
-        // current random native token.
         seller.addJavascriptInterface(SellerCallback(), "CollectishReadOnlyNative")
     }
 
@@ -59,32 +55,28 @@ class ReadOnlyProbeBridge(
                 activeToken = UUID.randomUUID().toString(); state = "running"; result = "{}"
                 when (mode) {
                     "navigate_capture" -> runNavigationCapture(url, waitMs)
-                    "fetch_json", "fetch_text" -> runFetchWithOriginGuard(url, method, body, mode, activeToken)
+                    "fetch_json", "fetch_text", "fetch_html" -> runFetchWithOriginGuard(url, method, body, mode, activeToken)
                     else -> fail("Unsupported probe mode")
                 }
             } catch (e: Exception) { fail(e.message ?: e.javaClass.simpleName) }
         }
     }
 
-    /**
-     * ExportSYPList was recovered from the prior SYP monitor as a read-only Store
-     * endpoint. Unlike the Seller APIs, Store does not reliably allow this large
-     * CSV response to be fetched cross-origin from sellerportal.tcgplayer.com.
-     * Prime the same authenticated WebView onto the fixed allowlisted Store origin
-     * first, then run the existing bounded fetch. No cookies/headers are copied or
-     * injected by native code and no arbitrary URL is introduced.
+    /** Store endpoints recovered from the authenticated Store UI are same-origin
+     * requests. Prime the authenticated WebView onto Store before executing any
+     * allowlisted Store fetch so cookies/origin behavior matches the captured UI.
      */
     private fun runFetchWithOriginGuard(url: String, method: String, body: String, mode: String, token: String) {
-        val needsStoreOrigin = method == "GET" && url.startsWith(sypExportPrefix) && !seller.url.orEmpty().startsWith(sypStoreOrigin)
+        val needsStoreOrigin = url.startsWith(storeOrigin) && !seller.url.orEmpty().startsWith(storeOrigin)
         if (!needsStoreOrigin) {
             runFetch(url, method, body, mode, token)
             return
         }
-        seller.loadUrl(sypOriginPrimeUrl)
+        seller.loadUrl(storeOriginPrimeUrl)
         seller.postDelayed({
             if (token != activeToken || state != "running") return@postDelayed
-            if (!seller.url.orEmpty().startsWith(sypStoreOrigin)) {
-                fail("SYP Store origin was not ready for the allowlisted export")
+            if (!seller.url.orEmpty().startsWith(storeOrigin)) {
+                fail("Authenticated Store origin was not ready for the allowlisted request")
                 return@postDelayed
             }
             runFetch(url, method, body, mode, token)
@@ -102,10 +94,12 @@ class ReadOnlyProbeBridge(
                 const maxAttempts=4;
                 for(let attempt=1;attempt<=maxAttempts;attempt++){
                   try{
-                    const opts={method,credentials:'include',cache:'no-store',headers:{'Accept':'application/json, text/plain, */*'}};
+                    const acceptsHtml=mode==='fetch_html';
+                    const opts={method,credentials:'include',cache:'no-store',headers:{'Accept':acceptsHtml?'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8':'application/json, text/plain, */*'}};
                     if(method==='POST'){opts.headers['Content-Type']='application/json';opts.body=rawBody;}
                     const started=Date.now(); const response=await fetch(url,opts); const text=(await response.text()).slice(0,${ReadOnlyProbePolicy.maxResponseChars});
-                    const loginHtml=/<!doctype html|<html/i.test(text.slice(0,500));
+                    const html=/<!doctype html|<html/i.test(text.slice(0,700));
+                    const loginHtml=html&&(/sign[ -]?in|login|account\/login/i.test(text.slice(0,12000))||/login/i.test(response.url||''));
                     if(response.ok&&!loginHtml){let parsed=null;if(mode==='fetch_json'){try{parsed=JSON.parse(text)}catch(e){}}send({ok:true,status:response.status,statusText:response.statusText,url:response.url||url,method,contentType:response.headers.get('content-type')||'',elapsedMs:Date.now()-started,attempt,body:parsed===null?text:parsed,checkedAt:new Date().toISOString()});return;}
                     if(loginHtml){send({error:'TCGplayer login appears to be required',status:response.status,url:response.url||url,method,checkedAt:new Date().toISOString()});return;}
                     const transient=response.status===408||response.status===425||response.status===429||response.status>=500;
