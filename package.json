@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "check:styles": "node tools/check-style-system.mjs",
-    "build": "npm run check:styles && vite build && node tools/finalize-vite-build.mjs",
+    "build": "node tools/patch-web-inventory-pagination.mjs && npm run check:styles && vite build && node tools/finalize-vite-build.mjs",
     "preview": "vite preview --host 0.0.0.0"
   },
   "devDependencies": {
