@@ -7,6 +7,7 @@ window.COLLECTISH_WEB_VERSION=WEB_VERSION;
 const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 const brand=()=>'<span class="cx-brand-collect">collect</span><span class="cx-brand-ish">ish</span>';
 let started=false;
+let beforeReadyHook=null;
 
 export function loginView(message=''){
   document.body.innerHTML=`<main class="cx-auth"><section class="cx-auth-card"><div class="cx-brand">${brand()}</div><div class="cx-version">web ${WEB_VERSION}</div><h1>Sign in</h1><p>Scout opportunities, sealed EV, Seller analytics, SYP changes, inventory, and operations.</p><input id="modernEmail" type="email" autocomplete="email" placeholder="Email"><input id="modernPassword" type="password" autocomplete="current-password" placeholder="Password"><button id="modernSignIn" class="cx-primary">Sign in</button><div id="modernMsg" class="cx-auth-msg">${esc(message)}</div></section></main>`;
@@ -66,13 +67,18 @@ function pageClickHandler(event){
 
 export async function boot(){
   const session=await validSession();
-  if(!session){loginView();return null}
+  if(!session){
+    loginView();
+    return null;
+  }
   renderShell();
+  if(beforeReadyHook)await beforeReadyHook();
   document.dispatchEvent(new CustomEvent('collectish:ready',{detail:{version:WEB_VERSION,user:session.user}}));
   return session;
 }
 
-export function startShell(){
+export function startShell({beforeReady}={}){
+  if(typeof beforeReady==='function')beforeReadyHook=beforeReady;
   if(started)return;
   started=true;
   document.addEventListener('click',pageClickHandler,true);
