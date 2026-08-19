@@ -8,6 +8,7 @@ const startupModules=[
   ()=>import('./scout/detail-swipe.js'),
   ()=>import('./seller/inventory.js'),
   ()=>import('./seller/inventory-progress.js'),
+  ()=>import('./seller/inventory-sync-controller.js'),
   ()=>import('./seller/freshness.js'),
   ()=>import('./admin/scans.js'),
   ()=>import('./admin/fixed-nav.js'),
