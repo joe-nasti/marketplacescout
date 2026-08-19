@@ -1,3 +1,4 @@
+// CT0 shadow score is observational only; it never writes official Scout score/grade fields.
 const SB_URL=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const SB_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 if(!SB_URL||!SB_KEY)throw new Error('Missing Supabase credentials');
