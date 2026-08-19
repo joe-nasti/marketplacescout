@@ -73,6 +73,7 @@ jobs:
           python tools/patch-native-v028.py
           python tools/patch-native-v030.py
           python tools/patch-native-v031.py
+          python tools/patch-native-v032.py
 
       - name: Stamp and validate 0.2.11 inventory bridge
         working-directory: android-agent
@@ -87,6 +88,8 @@ jobs:
           grep -q 'settings.builtInZoomControls = true' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'androidBoot=${System.currentTimeMillis()}' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'runHostedBootDiagnostic(view)' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'hostedBootDiagnostics.add(line.take(500))' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'versionCode = 31' app/build.gradle.kts
           grep -q 'versionName = "0.2.11"' app/build.gradle.kts
           grep -q '/admin/product/searchcatalog' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
@@ -97,7 +100,7 @@ jobs:
       - name: Publish Android source checkpoint
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-source' -f description='Native patch chain preserved Store inventory bridge and fresh hosted shell boot'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-source' -f description='Native patch chain preserved Store inventory bridge and native boot diagnostics'
 
       - name: Build persistently signed release APK
         working-directory: android-agent
@@ -111,7 +114,7 @@ jobs:
       - name: Publish Android Gradle checkpoint
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-gradle' -f description='Android inventory bridge compiled successfully'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-gradle' -f description='Android diagnostic Inventory build compiled successfully'
 
       - name: Verify APK signature and package
         shell: bash
@@ -139,14 +142,14 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --clobber
           else
-            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Adds explicit Android startup diagnostics, guarded frontend module boot, Store inventory reads, and cache-safe hosted shell loading."
+            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Adds native hosted-WebView diagnostics, guarded frontend module boot, Store inventory reads, and cache-safe hosted shell loading."
           fi
 
       - name: Publish signed Android success status
         if: success()
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.11 built with diagnostic guarded boot'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.11 built with native hosted-shell diagnostics'
 
       - name: Publish signed Android failure status
         if: failure()
