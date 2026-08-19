@@ -34,7 +34,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '24' }
-      - name: Enforce modular source tree and lifecycle
+
+      - name: Enforce modular source tree
         shell: bash
         run: |
           set -euo pipefail
@@ -49,18 +50,42 @@ jobs:
           grep -q "./core/shell.js" src/main.js
           grep -q "./state/store.js" src/main.js
           grep -q "./modules/index.js" src/main.js
-          if grep -R --include='*.js' -n 'MutationObserver' src; then
-            echo 'MutationObserver is not allowed in the centralized UI lifecycle.' >&2
-            exit 1
-          fi
-          if grep -R --include='*.js' -nE "createElement\(['\"]script['\"]\)|createElement\(\`script\`\)" src; then
-            echo 'Dynamic script injection is not allowed.' >&2
+
+      - name: Audit centralized lifecycle
+        id: lifecycle
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > /tmp/lifecycle-offenders.txt
+          grep -RIl --include='*.js' 'MutationObserver' src >> /tmp/lifecycle-offenders.txt || true
+          grep -RIl --include='*.js' -E "createElement\(['\"]script['\"]\)|createElement\(\`script\`\)" src >> /tmp/lifecycle-offenders.txt || true
+          sort -u /tmp/lifecycle-offenders.txt -o /tmp/lifecycle-offenders.txt
+          if [ -s /tmp/lifecycle-offenders.txt ]; then
+            cat /tmp/lifecycle-offenders.txt
+            first="$(head -1 /tmp/lifecycle-offenders.txt)"
+            echo "first=$first" >> "$GITHUB_OUTPUT"
             exit 1
           fi
           find src -name '*.js' -print0 | xargs -0 -n1 node --check
-      - name: Publish source status
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-source-gate' -f description='Centralized lifecycle/state source gate passed'
+
+      - name: Publish source/lifecycle status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          RESULT: ${{ steps.lifecycle.outcome }}
+          FIRST: ${{ steps.lifecycle.outputs.first }}
+        shell: bash
+        run: |
+          if [ "$RESULT" = success ]; then
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-source-gate' -f description='Centralized lifecycle/state source gate passed'
+          else
+            token="$(printf '%s' "${FIRST:-unknown}" | sed 's#src/modules/##;s#src/core/##;s#[/.]#-#g' | cut -c1-70)"
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context="collectish/lifecycle-offender-${token:-unknown}" -f description="Observer/script lifecycle violation: ${FIRST:-unknown}"
+            exit 1
+          fi
+
       - name: Install pinned Vite
         run: npm install --no-audit --no-fund
       - name: Build production bundle
@@ -110,7 +135,6 @@ jobs:
             if curl -fsSL "$base/web-version.json?cb=$(date +%s%N)" -o /tmp/web-version.json && node -e "const v=require('/tmp/web-version.json');process.exit(v.build===process.env.EXPECTED_SHA?0:1)"; then exit 0; fi
             sleep 5
           done
-          cat /tmp/web-version.json || true
           exit 1
 
       - name: Publish live-version status
@@ -121,7 +145,7 @@ jobs:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
           RESULT: ${{ steps.live_version.outcome }}
         run: |
-          state=success; desc='Live Pages version matches modular Vite build'
+          state=success; desc='Live Pages version matches lifecycle build'
           if [ "$RESULT" != success ]; then state=failure; desc='Live Pages build did not converge'; fi
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/vite-pages-version' -f description="$desc" -f target_url="$PAGE_URL"
 
@@ -133,17 +157,6 @@ jobs:
           chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
           test -n "$chrome"
           echo "chrome=$chrome" >> "$GITHUB_OUTPUT"
-
-      - name: Publish Chrome-binary status
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-          RESULT: ${{ steps.chrome_binary.outcome }}
-        run: |
-          state=success; desc='Headless Chrome available'
-          if [ "$RESULT" != success ]; then state=failure; desc='Chrome binary unavailable'; fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/vite-chrome-binary' -f description="$desc"
 
       - name: Execute Chrome
         id: chrome_run
@@ -158,18 +171,6 @@ jobs:
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 --dump-dom "${PAGE_URL%/}/?smoke=${GITHUB_RUN_ID}&cb=$(date +%s%N)" >/tmp/dom.html 2>/tmp/chrome.log
           test -s /tmp/dom.html
 
-      - name: Publish Chrome-run status
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-          RESULT: ${{ steps.chrome_run.outcome }}
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-        run: |
-          state=success; desc='Headless Chrome loaded live modular page'
-          if [ "$RESULT" != success ]; then state=failure; desc='Headless Chrome process failed'; fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/vite-chrome-run' -f description="$desc" -f target_url="$PAGE_URL"
-
       - name: Validate shell DOM
         id: shell_dom
         if: steps.chrome_run.outcome == 'success'
@@ -180,33 +181,20 @@ jobs:
           grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/dom.html
           ! grep -q 'Could not start Collectish' /tmp/dom.html
 
-      - name: Publish startup diagnostic
-        if: always() && steps.chrome_run.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-        shell: bash
-        run: |
-          if grep -q 'Could not start Collectish' /tmp/dom.html; then
-            msg="$(sed -n 's/.*id="cxStartupError">\([^<]*\)<.*/\1/p' /tmp/dom.html | head -1)"
-            token="$(printf '%s' "${msg:-unknown}" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9._:-' | cut -c1-60)"
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context="collectish/diag-startup-${token:-unknown}" -f description='Startup error screen rendered'
-          elif grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/dom.html; then
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/diag-shell-marker' -f description='Expected shell marker present'
-          else
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/diag-shell-missing' -f description='No startup error or shell marker found'
-          fi
-
-      - name: Publish shell/browser statuses
+      - name: Publish browser statuses
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
-          RESULT: ${{ steps.shell_dom.outcome }}
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          CHROME_RESULT: ${{ steps.chrome_run.outcome }}
+          DOM_RESULT: ${{ steps.shell_dom.outcome }}
         run: |
-          state=success; desc='Modular Collectish shell rendered in Chrome'
-          if [ "$RESULT" != success ]; then state=failure; desc='Modular Collectish shell DOM validation failed'; fi
+          chrome_state=success; chrome_desc='Headless Chrome loaded lifecycle build'
+          [ "$CHROME_RESULT" = success ] || { chrome_state=failure; chrome_desc='Headless Chrome process failed'; }
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$chrome_state" -f context='collectish/vite-chrome-run' -f description="$chrome_desc" -f target_url="$PAGE_URL"
+          dom_state=success; dom_desc='Lifecycle/state Collectish shell rendered in Chrome'
+          [ "$DOM_RESULT" = success ] || { dom_state=failure; dom_desc='Lifecycle/state shell DOM validation failed'; }
           for context in collectish/vite-shell-dom collectish/vite-browser-smoke collectish/vite-live-smoke; do
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context="$context" -f description="$desc" -f target_url="$PAGE_URL"
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$dom_state" -f context="$context" -f description="$dom_desc" -f target_url="$PAGE_URL"
           done
