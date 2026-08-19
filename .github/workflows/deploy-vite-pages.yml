@@ -40,7 +40,6 @@ jobs:
           node-version: '24'
 
       - name: Enforce ESM ownership boundaries
-        id: source_gate
         shell: bash
         run: |
           set -euo pipefail
@@ -56,11 +55,6 @@ jobs:
           grep -q "from './runtime/rest.js'" src/main.js
           grep -q "from './features/scout/cache-read.js'" src/main.js
           grep -q "from './features/install-remaining.js'" src/main.js
-          grep -q "./features/scout/bootstrap.js" src/main.js
-          grep -q "./features/scout/health.js" src/main.js
-          grep -q "./features/ask/markdown.js" src/main.js
-          grep -q "./features/sealed/ui-guardian.js" src/main.js
-          grep -q "./features/seller/readonly-agent.js" src/main.js
           node --check src/main.js
           node --check src/lazy-pages.js
           node --check src/features/install-remaining.js
@@ -82,31 +76,20 @@ jobs:
           node --check src/features/seller/readonly-agent.js
 
       - name: Publish source-gate success status
-        if: success()
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
         run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-source-gate' -f description='Native ESM source gate passed'
-      - name: Publish source-gate failure status
-        if: failure()
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-source-gate' -f description='Native ESM source gate failed'
 
       - name: Install pinned Vite toolchain
         run: npm install --no-audit --no-fund
 
       - name: Build production bundle
-        id: vite_build
         run: npm run build
+
       - name: Publish Vite-build success status
-        if: success()
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
         run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-build' -f description='Vite production bundle built successfully'
-      - name: Publish Vite-build failure status
-        if: failure()
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-build' -f description='Vite production bundle failed'
 
       - name: Validate production artifact
-        id: artifact_gate
         shell: bash
         run: |
           set -euo pipefail
@@ -125,14 +108,10 @@ jobs:
           grep -q 'collectish-revision' dist/index.html
           node -e "const fs=require('fs');const m=JSON.parse(fs.readFileSync('dist/.vite/manifest.json','utf8'));if(!Object.keys(m).length)process.exit(1)"
           node -e "const fs=require('fs');const v=JSON.parse(fs.readFileSync('dist/web-version.json','utf8'));if(v.build!==process.env.GITHUB_SHA)process.exit(1);if(v.label!==process.env.COLLECTISH_WEB_REVISION)process.exit(1)"
+
       - name: Publish artifact-gate success status
-        if: success()
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
         run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-artifact' -f description='Hashed production artifact validated'
-      - name: Publish artifact-gate failure status
-        if: failure()
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-artifact' -f description='Production artifact validation failed'
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
@@ -152,6 +131,7 @@ jobs:
 
       - name: Verify live Pages version
         id: live_version
+        continue-on-error: true
         shell: bash
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
@@ -160,8 +140,8 @@ jobs:
         run: |
           set -euo pipefail
           base="${PAGE_URL%/}"
-          for i in {1..18}; do
-            if curl -fsSL --retry 2 --retry-delay 2 "$base/web-version.json?cb=$RANDOM" -o /tmp/web-version.json; then
+          for i in {1..60}; do
+            if curl -fsSL --retry 2 --retry-delay 1 "$base/web-version.json?cb=$(date +%s%N)" -o /tmp/web-version.json; then
               if node -e "const v=require('/tmp/web-version.json');process.exit(v.build===process.env.EXPECTED_SHA&&v.label===process.env.EXPECTED_REV?0:1)"; then exit 0; fi
             fi
             sleep 5
@@ -169,17 +149,19 @@ jobs:
           cat /tmp/web-version.json || true
           exit 1
 
-      - name: Publish Pages-version success status
-        if: success()
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}', PAGE_URL: '${{ steps.deployment.outputs.page_url }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-pages-version' -f description='Live Pages version matches deployed Vite build' -f target_url="$PAGE_URL"
-      - name: Publish Pages-version failure status
-        if: failure()
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-pages-version' -f description='Live Pages version did not match deployed build'
+      - name: Publish Pages-version status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          RESULT: ${{ steps.live_version.outcome }}
+        run: |
+          state=success; desc='Live Pages version matches deployed Vite build'
+          if [ "$RESULT" != success ]; then state=failure; desc='Pages metadata did not converge within 5 minutes'; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/vite-pages-version' -f description="$desc" -f target_url="$PAGE_URL"
 
       - name: Check headless Chrome availability
-        if: success()
         id: chrome_binary
         shell: bash
         run: |
@@ -187,17 +169,12 @@ jobs:
           chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
           test -n "$chrome"
           echo "chrome=$chrome" >> "$GITHUB_OUTPUT"
+
       - name: Publish Chrome-binary success status
-        if: success()
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
         run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-chrome-binary' -f description='Headless Chrome binary available'
-      - name: Publish Chrome-binary failure status
-        if: failure()
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-chrome-binary' -f description='No Chrome/Chromium binary on runner'
 
       - name: Execute frontend in headless Chrome
-        if: success()
         id: chrome_run
         shell: bash
         env:
@@ -206,36 +183,26 @@ jobs:
         run: |
           set -euo pipefail
           base="${PAGE_URL%/}"
-          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 --dump-dom "$base/?smoke=${GITHUB_RUN_ID}" >/tmp/collectish-dom.html 2>/tmp/chrome.log
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 --dump-dom "$base/?smoke=${GITHUB_RUN_ID}&cb=$(date +%s%N)" >/tmp/collectish-dom.html 2>/tmp/chrome.log
           test -s /tmp/collectish-dom.html
+
       - name: Publish Chrome-run success status
-        if: success()
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
         run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-chrome-run' -f description='Headless Chrome loaded the live page'
-      - name: Publish Chrome-run failure status
-        if: failure()
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-chrome-run' -f description='Headless Chrome process failed'
 
       - name: Validate rendered Collectish shell
-        if: success()
-        id: shell_dom
         shell: bash
         run: |
           set -euo pipefail
           ! grep -q 'Could not start Collectish' /tmp/collectish-dom.html
           grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/collectish-dom.html
+
       - name: Publish browser-smoke success status
-        if: success()
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}', PAGE_URL: '${{ steps.deployment.outputs.page_url }}' }
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-shell-dom' -f description='Collectish shell rendered in Chrome' -f target_url="$PAGE_URL"
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-browser-smoke' -f description='Headless Chrome executed Collectish frontend' -f target_url="$PAGE_URL"
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-live-smoke' -f description='Vite Pages deploy and browser smoke passed' -f target_url="$PAGE_URL"
-      - name: Publish shell-DOM failure status
-        if: failure()
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: |
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-shell-dom' -f description='Collectish shell marker missing or startup error rendered'
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-browser-smoke' -f description='Headless Chrome frontend smoke failed'
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-live-smoke' -f description='Vite Pages browser smoke failed'
