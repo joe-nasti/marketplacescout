@@ -15,10 +15,11 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SCOUT_RANKINGS_STALE_MINUTES: "105"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,7 +27,12 @@ jobs:
           node-version: "24"
       - name: Require service role key
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
-      - name: Validate worker
-        run: node --check cloud-worker/refresh-scout-rankings.mjs
+      - name: Validate workers
+        run: node --check cloud-worker/refresh-scout-rankings.mjs cloud-worker/watch-scout-rankings.mjs
       - name: Refresh Scout aggregation, v5 score, and cache
+        id: refresh
+        continue-on-error: true
         run: node cloud-worker/refresh-scout-rankings.mjs
+      - name: Verify freshness and recover once if needed
+        if: always()
+        run: node cloud-worker/watch-scout-rankings.mjs
