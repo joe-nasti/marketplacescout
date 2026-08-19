@@ -33,9 +33,11 @@ jobs:
       - name: Require server secrets
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY" && test -n "$CARDTRADER_JWT_TOKEN"
       - name: Validate CardTrader workers
-        run: node --check cloud-worker/cardtrader-sealed-map-refresh.mjs && node --check cloud-worker/cardtrader-sealed-refresh.mjs && node --check cloud-worker/cardtrader-landed-refresh.mjs && node --check cloud-worker/cardtrader-trend-refresh.mjs && node --check cloud-worker/cardtrader-opportunity-refresh.mjs && node --check cloud-worker/cardtrader-shadow-score-refresh.mjs
+        run: node --check cloud-worker/cardtrader-sealed-map-refresh.mjs && node --check cloud-worker/cardtrader-sealed-refresh.mjs && node --check cloud-worker/cardtrader-web-links-refresh.mjs && node --check cloud-worker/cardtrader-landed-refresh.mjs && node --check cloud-worker/cardtrader-trend-refresh.mjs && node --check cloud-worker/cardtrader-opportunity-refresh.mjs && node --check cloud-worker/cardtrader-shadow-score-refresh.mjs
       - name: Refresh existing exact CardTrader mappings
         run: node cloud-worker/cardtrader-sealed-map-refresh.mjs
+      - name: Refresh CardTrader public product links
+        run: node cloud-worker/cardtrader-web-links-refresh.mjs
       - name: Refresh CardTrader / CardTrader Zero sealed market
         run: node cloud-worker/cardtrader-sealed-refresh.mjs
       - name: Reconcile mappings after any catalog refresh
