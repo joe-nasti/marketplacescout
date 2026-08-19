@@ -1,0 +1,45 @@
+name: Capture CardTrader API audit results
+
+on:
+  push:
+    branches:
+      - agent/cardtrader-api-audit
+    paths:
+      - .github/workflows/cardtrader-api-audit-results.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CARDTRADER_JWT_TOKEN: ${{ secrets.CARDTRADER_JWT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/cardtrader-api-audit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Require CardTrader token
+        run: test -n "$CARDTRADER_JWT_TOKEN"
+      - name: Run read-only CardTrader audit
+        run: node tools/cardtrader-api-audit.mjs
+      - name: Commit generated audit reports to audit branch
+        shell: bash
+        run: |
+          mkdir -p audit-results
+          cp cardtrader-audit.json audit-results/cardtrader-audit.json
+          cp cardtrader-audit.md audit-results/cardtrader-audit.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add audit-results/cardtrader-audit.json audit-results/cardtrader-audit.md
+          if git diff --cached --quiet; then
+            echo "Audit output unchanged"
+          else
+            git commit -m "capture CardTrader API audit results"
+            git push origin HEAD:agent/cardtrader-api-audit
+          fi
