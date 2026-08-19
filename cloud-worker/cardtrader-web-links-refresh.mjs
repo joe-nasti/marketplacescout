@@ -13,7 +13,7 @@ function slug(s){return String(s||'').normalize('NFKD').replace(/[’']/g,'').re
 function chunks(a,n){const out=[];for(let i=0;i<a.length;i+=n)out.push(a.slice(i,i+n));return out}
 const started=new Date().toISOString();
 const expansions=list(await ct('/expansions')).filter(x=>Number(x.game_id)===1),expById=new Map(expansions.map(x=>[Number(x.id),x]));
-const blueprints=await all('cardtrader_blueprints?select=blueprint_id,expansion_id,name,version,raw_json');
+const blueprints=await all('cardtrader_blueprints?select=blueprint_id,game_id,category_id,expansion_id,name,version,cardmarket_ids,tcgplayer_product_id,image_url,raw_json,synced_at');
 const rows=blueprints.map(b=>{const exp=expById.get(Number(b.expansion_id)),expansionName=exp?.name||null;const pieces=[b.name,b.version,expansionName].filter(Boolean);const webUrl=pieces.length?`https://www.cardtrader.com/en/cards/${slug(pieces.join(' '))}`:null;return{...b,raw_json:{...(b.raw_json||{}),expansion_name:expansionName,expansion_code:exp?.code||null,web_url:webUrl}}});
 for(const batch of chunks(rows,200))await sb('cardtrader_blueprints?on_conflict=blueprint_id',{method:'POST',body:batch,prefer:'resolution=merge-duplicates,return=minimal'});
 await sb('mtgjson_sync_state?on_conflict=feed',{method:'POST',body:[{feed:'cardtrader_web_links',status:'complete',last_started_at:started,last_completed_at:new Date().toISOString(),row_count:rows.length,detail:{version:'ct-web-link-v1',expansions:expansions.length,blueprints:rows.length,with_url:rows.filter(x=>x.raw_json.web_url).length}}],prefer:'resolution=merge-duplicates,return=minimal'});
