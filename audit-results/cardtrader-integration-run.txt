@@ -1,0 +1,1 @@
+{"started_at":"2026-08-19T15:58:15.844Z","catalog":{"refreshed":false,"expansions":0,"blueprints":0,"mapped":0,"conflicts":0,"warnings":[]},"prices":{"sets":16,"products":1067,"mapped":54,"expansions":9,"observations":48,"withOffers":39,"withZero":39,"nonUsd":6,"warnings":[]},"finished_at":"2026-08-19T15:58:43.321Z","mapping_rate_pct":5.1}
