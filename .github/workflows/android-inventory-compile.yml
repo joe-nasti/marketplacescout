@@ -1,0 +1,84 @@
+name: Validate Android Inventory bridge
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "android-agent/**"
+      - "tools/patch-native-v0*.py"
+      - ".github/workflows/android-inventory-compile.yml"
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: collectish-android-inventory-compile
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Apply native patch chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/patch-native-v021.py
+          python tools/patch-native-v022.py
+          python tools/patch-native-v023.py
+          python tools/patch-native-v024.py
+          python tools/patch-native-v025.py
+          python tools/patch-native-v026.py
+          python tools/patch-native-v027.py
+          python tools/patch-native-v028.py
+          python tools/patch-native-v030.py
+
+      - name: Verify Inventory bridge survived patches
+        working-directory: android-agent
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '/admin/product/searchcatalog' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
+          grep -q '/admin/product/updateinstockquantities' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
+          grep -q 'path.startsWith("/admin/product/manage/")' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
+          grep -q 'fetch_html' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
+
+      - name: Compile Android debug APK
+        working-directory: android-agent
+        run: gradle :app:assembleDebug
+
+      - name: Publish Inventory compile success
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
+            -f state=success \
+            -f context='collectish/android-inventory-compile' \
+            -f description='Android Store Inventory bridge survived patches and compiled' \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Publish Inventory compile failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
+            -f state=failure \
+            -f context='collectish/android-inventory-compile' \
+            -f description='Android Inventory bridge validation/compile failed' \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
