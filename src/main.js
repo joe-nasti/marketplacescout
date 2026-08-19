@@ -34,8 +34,9 @@ import '../current-sealed-language-confidence-r1003.css';
 import '../current-sealed-language-filter-r1004.css';
 import '../current-scout-detail-tile-links-r0986.css';
 
-// Explicit runtime dependency order.
-import '../config.js';
+// Explicit runtime dependency order. New code should use exports/imports;
+// compatibility side-effect imports below are migrated incrementally.
+import './runtime/config.js';
 import '../current-theme.js';
 import '../modern-core.js';
 import '../current-rest-read-retry.js';
