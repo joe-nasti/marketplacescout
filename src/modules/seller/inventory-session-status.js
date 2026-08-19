@@ -6,15 +6,16 @@ function classifyStore(bridge){
   const probe=parseProbe(safeCall(()=>bridge.getReadOnlyProbeResult?.(),'{}'));
   const url=String(probe?.url||'').toLowerCase();
   const error=String(probe?.error||'').toLowerCase();
-  if(error.includes('login')||error.includes('not authenticated')||error.includes('signed out'))return {label:'Signed out',sub:'Store login required'};
   if(probe?.ok===true&&url.includes('store.tcgplayer.com'))return {label:'Verified',sub:'authenticated Store request succeeded'};
+  if(error.includes('login')||error.includes('not authenticated')||error.includes('signed out'))return {label:'Signed out',sub:'Store login required'};
   if(state==='running'||state==='starting')return {label:'Checking…',sub:'verifying Store session'};
   return {label:'Not yet verified',sub:'checked on next Store request'};
 }
-function sellerState(android){
+function sellerState(android,storeState){
   if(!android)return {label:'Unavailable',sub:'Android bridge missing'};
   const raw=String(safeCall(()=>android.getSessionState?.(),'unknown'));
   if(raw==='authenticated')return {label:'Authenticated',sub:'shared TCGplayer WebView session'};
+  if(raw==='signed_out'&&storeState?.label==='Verified')return {label:'Portal signed out',sub:'Inventory Store session is authenticated'};
   if(raw==='signed_out')return {label:'Signed out',sub:'Seller Portal login required'};
   return {label:'Unknown',sub:'session has not been confirmed'};
 }
@@ -43,9 +44,7 @@ function ensureLoginAction(host,show){
   row.style.marginTop='12px';row.style.padding='12px';
   row.innerHTML='<strong style="display:block;margin-bottom:4px">TCGplayer login required</strong><span style="display:block;margin-bottom:10px">Open the shared TCGplayer WebView, sign in, then return to Inventory.</span><button type="button" class="cx-refresh" id="cxInventoryOpenTcgLogin">Open TCGplayer login</button>';
   grid.after(row);
-  row.querySelector('#cxInventoryOpenTcgLogin')?.addEventListener('click',()=>{
-    try{window.CollectishAndroid?.showSellerPortal?.()}catch{}
-  });
+  row.querySelector('#cxInventoryOpenTcgLogin')?.addEventListener('click',()=>{try{window.CollectishAndroid?.showSellerPortal?.()}catch{}});
 }
 export function refreshInventorySessionStatus(){
   const host=document.getElementById('cxInventory');if(!host)return;
@@ -53,9 +52,10 @@ export function refreshInventorySessionStatus(){
   const existing=findStat(host,'Store session')||findStat(host,'Android bridge');
   setStat(existing,'Android bridge',bridge?'Ready':'Unavailable',bridge?'read-only Store bridge available':'update app for sync');
   const seller=ensureExtraStat(host,'seller'),store=ensureExtraStat(host,'store');
-  const s=sellerState(android),t=classifyStore(bridge);
+  const t=classifyStore(bridge),s=sellerState(android,t);
   setStat(seller,'Seller session',s.label,s.sub);setStat(store,'Store session',t.label,t.sub);
-  ensureLoginAction(host,Boolean(android?.showSellerPortal)&&(s.label==='Signed out'||t.label==='Signed out'));
+  const needsLogin=t.label==='Signed out'||(t.label==='Not yet verified'&&s.label==='Signed out');
+  ensureLoginAction(host,Boolean(android?.showSellerPortal)&&needsLogin);
 }
 let timer=null;
 export function installInventorySessionStatus(){
