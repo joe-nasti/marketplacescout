@@ -10,9 +10,7 @@ on:
       - 'vite-index.html'
       - 'src/**'
       - 'tools/finalize-vite-build.mjs'
-      - 'modern-core.js'
       - 'modern-core.css'
-      - 'config.js'
       - 'current-*.js'
       - 'current-*.css'
       - 'manifest.webmanifest'
@@ -39,6 +37,32 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Enforce ESM ownership boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "from './runtime/shell.js'" src/main.js
+          grep -q "from './runtime/rest.js'" src/main.js
+          grep -q "from './features/scout/cache-read.js'" src/main.js
+          grep -q "./features/ask/markdown.js" src/main.js
+          grep -q "./features/sealed/ui-guardian.js" src/main.js
+          grep -q "./features/scout/health.js" src/main.js
+          ! grep -q 'modern-core.js' src/legacy-runtime.js
+          ! grep -q 'current-theme.js' src/legacy-runtime.js
+          ! grep -q 'current-rest-read-retry.js' src/legacy-runtime.js
+          ! grep -q 'current-scout-v5-cache-read.js' src/legacy-runtime.js
+          ! grep -q 'current-scout-health-monitor-r1009.js' src/legacy-runtime.js
+          ! grep -q 'current-ask-markdown-safe.js' src/legacy-runtime.js
+          ! grep -q 'current-sealed-ui-guardian-r1008.js' src/legacy-runtime.js
+          node --check src/runtime/shell.js
+          node --check src/runtime/session.js
+          node --check src/runtime/rest.js
+          node --check src/runtime/build-info.js
+          node --check src/runtime/theme.js
+          node --check src/features/scout/cache-read.js
+          node --check src/features/scout/health.js
+          node --check src/features/sealed/ui-guardian.js
+          node --check src/features/ask/markdown.js
       - name: Install pinned Vite toolchain
         run: npm install --no-audit --no-fund
       - name: Build production bundle
