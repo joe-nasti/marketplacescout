@@ -41,28 +41,31 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test ! -e src/legacy-runtime.js
+          test ! -e src/run-classic.js
+          ! grep -R --line-number --fixed-strings '?raw' src
+          ! grep -R --line-number 'runClassicSequence\|legacy-runtime' src
           grep -q "from './runtime/shell.js'" src/main.js
           grep -q "from './runtime/rest.js'" src/main.js
           grep -q "from './features/scout/cache-read.js'" src/main.js
+          grep -q "from './features/install-remaining.js'" src/main.js
           grep -q "./features/scout/bootstrap.js" src/main.js
           grep -q "./features/scout/health.js" src/main.js
           grep -q "./features/ask/markdown.js" src/main.js
           grep -q "./features/sealed/ui-guardian.js" src/main.js
           grep -q "./features/seller/readonly-agent.js" src/main.js
-          ! grep -q 'modern-core.js' src/legacy-runtime.js
-          ! grep -q 'current-theme.js' src/legacy-runtime.js
-          ! grep -q 'current-rest-read-retry.js' src/legacy-runtime.js
-          ! grep -q 'current-scout-v5-cache-read.js' src/legacy-runtime.js
-          ! grep -q 'current-scout-bootstrap-safe.js' src/legacy-runtime.js
-          ! grep -q 'current-scout-health-monitor-r1009.js' src/legacy-runtime.js
-          ! grep -q 'current-readonly-agent.js' src/legacy-runtime.js
-          ! grep -q 'current-ask-markdown-safe.js' src/legacy-runtime.js
-          ! grep -q 'current-sealed-ui-guardian-r1008.js' src/legacy-runtime.js
+          node --check src/main.js
+          node --check src/lazy-pages.js
+          node --check src/features/install-remaining.js
+          node --check src/features/sealed.js
+          node --check src/features/seller.js
+          node --check src/features/syp.js
           node --check src/runtime/shell.js
           node --check src/runtime/session.js
           node --check src/runtime/rest.js
           node --check src/runtime/build-info.js
           node --check src/runtime/theme.js
+          node --check src/runtime/health.js
           node --check src/features/scout/cache-read.js
           node --check src/features/scout/bootstrap.js
           node --check src/features/scout/index.js
