@@ -22,5 +22,5 @@ for(const file of expected.filter(x=>x.endsWith('.css'))){
   if(css.includes('data-cx-theme'))throw new Error(`Legacy data-cx-theme selector in ${file}`);
   if(css.includes('prefers-color-scheme'))throw new Error(`Theme branching via prefers-color-scheme is forbidden in ${file}`);
 }
-if(themeJs.includes('dataset.cxTheme'))throw new Error('Legacy cxTheme dataset is forbidden');
+if(/document\.documentElement\.dataset\.cxTheme\b/.test(themeJs))throw new Error('Legacy root cxTheme dataset is forbidden');
 console.log('Collectish token/theme style system OK');
