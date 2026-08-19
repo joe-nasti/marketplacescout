@@ -1,6 +1,6 @@
 // Collectish Vite entrypoint.
 // Vite owns hashing, CSS aggregation and chunking. Production runtime is ES-module
-// based; remaining presentation modules are installed through deterministic imports.
+// based; presentation modules are installed after the authenticated shell exists.
 
 import '../modern-core.css';
 import '../current-ux.css';
@@ -50,15 +50,17 @@ import { installRestBridge } from './runtime/rest.js';
 import { installScoutCacheBridge } from './features/scout/cache-read.js';
 import { installRemainingFeatures } from './features/install-remaining.js';
 
-async function start(){
-  // Install all services/features before the shell emits collectish:ready.
+function start(){
+  // Core services are safe before authentication. Page features are installed only
+  // after renderShell(), then collectish:ready is emitted by the shell.
   installRestBridge();
   installScoutCacheBridge();
-  await installRemainingFeatures();
-  startShell();
+  startShell({beforeReady:installRemainingFeatures});
 }
 
-start().catch(error=>{
+try{
+  start();
+}catch(error){
   console.error('Collectish module startup failed',error);
   document.body.innerHTML='<main class="cx-auth"><section class="cx-auth-card"><div class="cx-brand"><span class="cx-brand-collect">collect</span><span class="cx-brand-ish">ish</span></div><h1>Could not start Collectish</h1><p>Frontend module initialization failed. Reload to retry.</p></section></main>';
-});
+}
