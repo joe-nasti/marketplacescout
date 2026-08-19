@@ -3,9 +3,9 @@ const loaded=new Set();
 const loading=new Map();
 
 const pageLoaders={
-  sealed: async()=>{const m=await import('./features/sealed.js');m.install()},
-  seller: async()=>{const m=await import('./features/seller.js');m.install()},
-  syp: async()=>{const m=await import('./features/syp.js');m.install()}
+  sealed: async()=>{const m=await import('./features/sealed.js');await m.install()},
+  seller: async()=>{const m=await import('./features/seller.js');await m.install()},
+  syp: async()=>{const m=await import('./features/syp.js');await m.install()}
 };
 
 const title=p=>p==='syp'?'SYP':p[0].toUpperCase()+p.slice(1);
