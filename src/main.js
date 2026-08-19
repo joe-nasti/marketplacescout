@@ -42,11 +42,14 @@ import './features/ask/markdown.js';
 import './features/sealed/ui-guardian.js';
 import './features/scout/health.js';
 import './lazy-pages.js';
+import { startShell } from './runtime/shell.js';
 import { installRestBridge } from './runtime/rest.js';
 import { installScoutCacheBridge } from './features/scout/cache-read.js';
 import { installLegacyShell, installLegacyFeatures } from './legacy-runtime.js';
 
+// Install all listeners/services before the shell emits collectish:ready.
 installLegacyShell();
 installRestBridge();
 installScoutCacheBridge();
 installLegacyFeatures();
+startShell();
