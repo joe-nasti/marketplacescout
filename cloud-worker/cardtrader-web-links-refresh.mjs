@@ -9,7 +9,7 @@ async function sb(path,{method='GET',body,prefer}={}){const r=await fetch(`${SB_
 async function ct(path){const r=await fetch(`${CT_BASE}${path}`,{headers:{Authorization:`Bearer ${CT_TOKEN}`,Accept:'application/json'}});const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch{d=t}if(!r.ok)throw new Error(`CardTrader ${r.status}: ${String(t).slice(0,220)}`);return d}
 async function all(path,page=1000){const out=[];for(let offset=0;;offset+=page){const join=path.includes('?')?'&':'?';const rows=await sb(`${path}${join}limit=${page}&offset=${offset}`)||[];out.push(...rows);if(rows.length<page)break}return out}
 function list(v){if(Array.isArray(v))return v;if(v&&typeof v==='object'){for(const k of ['array','data','items','results'])if(Array.isArray(v[k]))return v[k]}return[]}
-function slug(s){return String(s||'').normalize('NFKD').replace(/[’']/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'').toLowerCase()}
+function slug(s){return String(s||'').normalize('NFKD').replace(/[’']/g,'-').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'').toLowerCase()}
 function chunks(a,n){const out=[];for(let i=0;i<a.length;i+=n)out.push(a.slice(i,i+n));return out}
 const started=new Date().toISOString();
 const expansions=list(await ct('/expansions')).filter(x=>Number(x.game_id)===1),expById=new Map(expansions.map(x=>[Number(x.id),x]));
