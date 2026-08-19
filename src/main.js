@@ -36,14 +36,13 @@ import '../current-scout-detail-tile-links-r0986.css';
 import '../current-build-badge-r1012.css';
 
 import './runtime/config.js';
+import './runtime/build-info.js';
 import './lazy-pages.js';
 import { installRestBridge } from './runtime/rest.js';
 import { runClassicSequence } from './run-classic.js';
 
-import buildRefresh from '../current-build-refresh-safe-r1011.js?raw';
 import theme from '../current-theme.js?raw';
 import core from '../modern-core.js?raw';
-import buildBadge from '../current-build-badge-r1012.js?raw';
 import cacheRead from '../current-scout-v5-cache-read.js?raw';
 import runtimeHealth from '../current-runtime-health.js?raw';
 import readonlyAgent from '../current-readonly-agent.js?raw';
@@ -83,10 +82,8 @@ import askV3Admin from '../current-ask-collectish-v3-admin-safe.js?raw';
 // Shell/auth still run with classic semantics for compatibility. Immediately after the
 // shell boots, replace its private REST function with the native ESM runtime.
 runClassicSequence([
-  ['current-build-refresh-safe-r1011.js', buildRefresh],
   ['current-theme.js', theme],
-  ['modern-core.js', core],
-  ['current-build-badge-r1012.js', buildBadge]
+  ['modern-core.js', core]
 ]);
 installRestBridge();
 
