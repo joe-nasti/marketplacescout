@@ -5,6 +5,8 @@ import store from '../../state/store.js';
 const POLL_MS=60_000;
 const MAX_ITEMS_PER_PASS=250;
 const MAX_PRODUCTS_PER_PASS=30;
+const SWEEP_INTERVAL_MS=15*60_000;
+const SWEEP_PRODUCTS=5;
 const FULL_AUDIT_MS=24*60*60*1000;
 let timer=null,busy=false;
 
@@ -27,8 +29,8 @@ async function compareExact(productId,before,after,context={}){
     const old=b.get(id)||{},cur=a.get(id)||{};
     const oq=old.quantity==null?null:Number(old.quantity),nq=cur.quantity==null?null:Number(cur.quantity);
     const op=old.price==null?null:Number(old.price),np=cur.price==null?null:Number(cur.price);
-    if(oq!==nq){changes++;await event({event_key:escKey(`qty:${productId}:${id}:${cur.captured_at||isoNow()}:${oq}->${nq}`),detected_at:isoNow(),product_id:String(productId),product_condition_id:id,change_type:'quantity_change',source:context.saleQty?'sale_reconcile':'store_observed',order_number:context.orderNumber||null,order_item_row_id:context.rowId||null,old_quantity:oq,new_quantity:nq,metadata:{expectedSaleQty:context.saleQty||0}})}
-    if(op!==np){changes++;await event({event_key:escKey(`price:${productId}:${id}:${cur.captured_at||isoNow()}:${op}->${np}`),detected_at:isoNow(),product_id:String(productId),product_condition_id:id,change_type:'price_change',source:'store_observed',order_number:context.orderNumber||null,order_item_row_id:context.rowId||null,old_price:op,new_price:np,metadata:{externalCandidate:true}})}
+    if(oq!==nq){changes++;await event({event_key:escKey(`qty:${productId}:${id}:${cur.captured_at||isoNow()}:${oq}->${nq}`),detected_at:isoNow(),product_id:String(productId),product_condition_id:id,change_type:'quantity_change',source:context.saleQty?'sale_reconcile':'store_observed',order_number:context.orderNumber||null,order_item_row_id:context.rowId||null,old_quantity:oq,new_quantity:nq,metadata:{expectedSaleQty:context.saleQty||0,sweep:Boolean(context.sweep)}})}
+    if(op!==np){changes++;await event({event_key:escKey(`price:${productId}:${id}:${cur.captured_at||isoNow()}:${op}->${np}`),detected_at:isoNow(),product_id:String(productId),product_condition_id:id,change_type:'price_change',source:'store_observed',order_number:context.orderNumber||null,order_item_row_id:context.rowId||null,old_price:op,new_price:np,metadata:{externalCandidate:true,sweep:Boolean(context.sweep)}})}
   }
   return changes;
 }
@@ -48,6 +50,13 @@ async function recentSales(s){
   return await rest(`seller_order_items?select=row_id,order_number,order_date,product_id,sku_id,quantity,collected_at,source_updated_at&product_id=not.is.null&collected_at=gt.${encodeURIComponent(since)}&order=collected_at.asc&limit=${MAX_ITEMS_PER_PASS}`);
 }
 
+async function sweepCandidates(exclude){
+  const rows=await rest(`store_inventory_conditions?select=product_id,captured_at&quantity=gt.0&order=captured_at.asc&limit=500`);
+  const seen=new Set(),out=[];
+  for(const r of rows||[]){const pid=String(r.product_id||'');if(!pid||seen.has(pid)||exclude.has(pid))continue;seen.add(pid);out.push(pid);if(out.length>=SWEEP_PRODUCTS)break}
+  return out;
+}
+
 async function runPass(){
   if(busy||document.hidden)return;
   const uid=userId();if(!uid)return;
@@ -63,14 +72,24 @@ async function runPass(){
       await event({event_key:escKey(`sale:${x.row_id||`${x.order_number}:${pid}:${x.sku_id||''}`}`),detected_at:x.collected_at||isoNow(),product_id:pid,change_type:'sale_observed',source:'seller_order',order_number:x.order_number||null,order_item_row_id:x.row_id||null,metadata:{skuId:x.sku_id||null,quantity:Number(x.quantity||0),orderDate:x.order_date||null}});
     }
 
-    let checked=0,changes=0;
+    let checked=0,changes=0,swept=0;
     for(const [pid,ctx] of [...grouped.entries()].slice(0,MAX_PRODUCTS_PER_PASS)){
       try{changes+=await reconcileProduct(pid,ctx);checked++}catch(e){await event({event_key:escKey(`reconcile-error:${pid}:${Date.now()}`),detected_at:isoNow(),product_id:pid,change_type:'reconcile_error',source:'targeted_check',metadata:{error:String(e?.message||e)}})}
     }
 
-    const fullDue=!s?.last_full_audit_at||Date.now()-new Date(s.last_full_audit_at).getTime()>=FULL_AUDIT_MS;
-    await saveState({last_order_item_collected_at:watermark,last_targeted_check_at:checked?isoNow():s?.last_targeted_check_at||null,pending_product_count:Math.max(0,grouped.size-checked),last_error:null,detail:{salesObserved:(sales||[]).length,productsChecked:checked,changesDetected:changes,fullAuditDue:fullDue}});
-    store.update('inventory',{reconcile:{salesObserved:(sales||[]).length,productsChecked:checked,changesDetected:changes,fullAuditDue:fullDue,lastRunAt:isoNow()}});
+    const lastSweep=s?.detail?.lastSweepAt?new Date(s.detail.lastSweepAt).getTime():0;
+    if(Date.now()-lastSweep>=SWEEP_INTERVAL_MS){
+      const candidates=await sweepCandidates(new Set(grouped.keys()));
+      for(const pid of candidates){try{changes+=await reconcileProduct(pid,{sweep:true});swept++}catch{}}
+    }
+
+    const syncRows=await rest('store_inventory_sync_state?select=last_completed_at&limit=1').catch(()=>[]);
+    const lastFull=s?.last_full_audit_at||syncRows?.[0]?.last_completed_at||null;
+    const fullDue=!lastFull||Date.now()-new Date(lastFull).getTime()>=FULL_AUDIT_MS;
+    const detail={...(s?.detail||{}),salesObserved:(sales||[]).length,productsChecked:checked,sweepProductsChecked:swept,changesDetected:changes,fullAuditDue:fullDue};
+    if(swept)detail.lastSweepAt=isoNow();
+    await saveState({last_order_item_collected_at:watermark,last_targeted_check_at:(checked||swept)?isoNow():s?.last_targeted_check_at||null,last_full_audit_at:lastFull,pending_product_count:Math.max(0,grouped.size-checked),last_error:null,detail});
+    store.update('inventory',{reconcile:{salesObserved:(sales||[]).length,productsChecked:checked,sweepProductsChecked:swept,changesDetected:changes,fullAuditDue:fullDue,lastRunAt:isoNow()}});
   }catch(e){await saveState({last_error:String(e?.message||e)}).catch(()=>{});store.update('inventory',{reconcile:{error:String(e?.message||e),lastRunAt:isoNow()}})}finally{busy=false}
 }
 
