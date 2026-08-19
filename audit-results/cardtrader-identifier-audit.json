@@ -1,0 +1,295 @@
+{
+  "generated_at": "2026-08-19T15:43:09.273Z",
+  "auth": {
+    "ok": true,
+    "app_id": 3479,
+    "app_name": "joenasti App 20211208153518",
+    "user_id": 42074
+  },
+  "response_shapes": {
+    "info": {
+      "type": "object",
+      "keys": [
+        "shared_secret",
+        "name",
+        "id",
+        "user_id"
+      ]
+    },
+    "games": {
+      "type": "object",
+      "keys": [
+        "array"
+      ]
+    },
+    "categories": {
+      "type": "array",
+      "length": 27
+    },
+    "expansions": {
+      "type": "array",
+      "length": 3811
+    },
+    "blueprints": {
+      "type": "array",
+      "length": 1
+    }
+  },
+  "magic_game": {
+    "id": 1,
+    "name": "Magic: the Gathering"
+  },
+  "sample": {
+    "expansions_sampled": 116,
+    "unique_sealed_blueprints": 477
+  },
+  "raw_blueprint_fields": [
+    "back_image",
+    "card_market_ids",
+    "category_id",
+    "editable_properties",
+    "expansion_id",
+    "fixed_properties",
+    "game_id",
+    "id",
+    "image",
+    "image_url",
+    "name",
+    "scryfall_id",
+    "tcg_player_id",
+    "version"
+  ],
+  "suspicious_identifier_fields": [
+    "card_market_ids",
+    "scryfall_id",
+    "tcg_player_id"
+  ],
+  "identifier_coverage": {
+    "scryfall": {
+      "fields": [
+        "scryfall_id"
+      ],
+      "count": 0,
+      "pct": 0
+    },
+    "oracle": {
+      "fields": [],
+      "count": 0,
+      "pct": 0
+    },
+    "uuid": {
+      "fields": [],
+      "count": 0,
+      "pct": 0
+    },
+    "mtgjson": {
+      "fields": [],
+      "count": 0,
+      "pct": 0
+    },
+    "multiverse": {
+      "fields": [],
+      "count": 0,
+      "pct": 0
+    },
+    "tcgplayer": {
+      "fields": [
+        "tcg_player_id"
+      ],
+      "count": 81,
+      "pct": 17
+    },
+    "cardmarket": {
+      "fields": [
+        "card_market_ids"
+      ],
+      "count": 450,
+      "pct": 94.3
+    }
+  },
+  "non_null_identifier_samples": {
+    "card_market_ids": [
+      {
+        "id": 49720,
+        "name": "Ravnica Allegiance Standard Showdown Booster",
+        "value": [
+          367823
+        ]
+      },
+      {
+        "id": 370625,
+        "name": "Marvel Super Heroes Beginner Box",
+        "value": [
+          869508
+        ]
+      },
+      {
+        "id": 400879,
+        "name": "Star Trek Play Booster Box",
+        "value": [
+          897524
+        ]
+      },
+      {
+        "id": 400880,
+        "name": "Star Trek Collector Booster Box",
+        "value": [
+          897523
+        ]
+      },
+      {
+        "id": 400881,
+        "name": "Star Trek Fat Pack Bundle",
+        "value": [
+          897528
+        ]
+      }
+    ],
+    "scryfall_id": [],
+    "tcg_player_id": [
+      {
+        "id": 370625,
+        "name": "Marvel Super Heroes Beginner Box",
+        "value": 675613
+      },
+      {
+        "id": 400879,
+        "name": "Star Trek Play Booster Box",
+        "value": 706138
+      },
+      {
+        "id": 400880,
+        "name": "Star Trek Collector Booster Box",
+        "value": 706142
+      },
+      {
+        "id": 400881,
+        "name": "Star Trek Fat Pack Bundle",
+        "value": 706150
+      },
+      {
+        "id": 400882,
+        "name": "Star Trek Beginner Box",
+        "value": 706147
+      }
+    ]
+  },
+  "category_stats": [
+    {
+      "category_id": 4,
+      "category": "Magic Booster Boxes",
+      "count": 38,
+      "scryfall": 0,
+      "oracle": 0,
+      "uuid": 0,
+      "mtgjson": 0,
+      "tcgplayer": 34,
+      "cardmarket": 37
+    },
+    {
+      "category_id": 5,
+      "category": "Magic Boosters",
+      "count": 72,
+      "scryfall": 0,
+      "oracle": 0,
+      "uuid": 0,
+      "mtgjson": 0,
+      "tcgplayer": 5,
+      "cardmarket": 69
+    },
+    {
+      "category_id": 6,
+      "category": "Magic Complete Sets",
+      "count": 125,
+      "scryfall": 0,
+      "oracle": 0,
+      "uuid": 0,
+      "mtgjson": 0,
+      "tcgplayer": 0,
+      "cardmarket": 123
+    },
+    {
+      "category_id": 7,
+      "category": "Magic Starter Decks",
+      "count": 8,
+      "scryfall": 0,
+      "oracle": 0,
+      "uuid": 0,
+      "mtgjson": 0,
+      "tcgplayer": 0,
+      "cardmarket": 3
+    },
+    {
+      "category_id": 10,
+      "category": "Magic Extra - Box Sets & Displays",
+      "count": 25,
+      "scryfall": 0,
+      "oracle": 0,
+      "uuid": 0,
+      "mtgjson": 0,
+      "tcgplayer": 4,
+      "cardmarket": 25
+    },
+    {
+      "category_id": 13,
+      "category": "Magic Boxed Set",
+      "count": 12,
+      "scryfall": 0,
+      "oracle": 0,
+      "uuid": 0,
+      "mtgjson": 0,
+      "tcgplayer": 4,
+      "cardmarket": 11
+    },
+    {
+      "category_id": 17,
+      "category": "Magic Preconstructed Decks",
+      "count": 140,
+      "scryfall": 0,
+      "oracle": 0,
+      "uuid": 0,
+      "mtgjson": 0,
+      "tcgplayer": 18,
+      "cardmarket": 131
+    },
+    {
+      "category_id": 23,
+      "category": "Magic Bundles and Fat Packs",
+      "count": 27,
+      "scryfall": 0,
+      "oracle": 0,
+      "uuid": 0,
+      "mtgjson": 0,
+      "tcgplayer": 14,
+      "cardmarket": 21
+    },
+    {
+      "category_id": 24,
+      "category": "Magic Tournament Prerelease Packs",
+      "count": 30,
+      "scryfall": 0,
+      "oracle": 0,
+      "uuid": 0,
+      "mtgjson": 0,
+      "tcgplayer": 2,
+      "cardmarket": 30
+    },
+    {
+      "category_id": 271,
+      "category": "Magic Tins",
+      "count": 0,
+      "scryfall": 0,
+      "oracle": 0,
+      "uuid": 0,
+      "mtgjson": 0,
+      "tcgplayer": 0,
+      "cardmarket": 0
+    }
+  ],
+  "api_quality": {
+    "calls": 120,
+    "http_status_counts": {
+      "200": 120
+    }
+  }
+}
