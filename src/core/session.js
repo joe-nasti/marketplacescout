@@ -41,9 +41,11 @@ export function isJwtProblem(status,data,text=''){
 
 async function doRefresh(session=readSession()){
   if(!session?.refresh){saveSession(null);return null}
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),12000);
   try{
     const r=await fetch(`${collectishConfig.supabaseUrl}/auth/v1/token?grant_type=refresh_token`,{
-      method:'POST',headers:headers(),body:JSON.stringify({refresh_token:session.refresh})
+      method:'POST',headers:headers(),body:JSON.stringify({refresh_token:session.refresh}),signal:controller.signal
     });
     const text=await r.text();
     let data;try{data=text?JSON.parse(text):{}}catch{data={message:text}}
@@ -57,10 +59,11 @@ async function doRefresh(session=readSession()){
     saveSession(next);
     document.dispatchEvent(new CustomEvent('collectish:session-refreshed',{detail:{user:next.user}}));
     return next;
-  }catch{
+  }catch(error){
+    console.warn('Collectish session refresh failed',error);
     saveSession(null);
     return null;
-  }
+  }finally{clearTimeout(timeout)}
 }
 
 export async function refreshSession(session=readSession()){
@@ -77,15 +80,19 @@ export async function validSession(){
 }
 
 export async function signIn(email,password){
-  const r=await fetch(`${collectishConfig.supabaseUrl}/auth/v1/token?grant_type=password`,{
-    method:'POST',headers:headers(),body:JSON.stringify({email,password})
-  });
-  const text=await r.text();
-  let data;try{data=text?JSON.parse(text):{}}catch{data={message:text}}
-  if(!r.ok||!data?.access_token)throw new Error(data?.message||'Sign in failed');
-  const session={token:data.access_token,refresh:data.refresh_token,exp:serverExpiry(data.access_token,data.expires_in),user:data.user};
-  saveSession(session);
-  return session;
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),15000);
+  try{
+    const r=await fetch(`${collectishConfig.supabaseUrl}/auth/v1/token?grant_type=password`,{
+      method:'POST',headers:headers(),body:JSON.stringify({email,password}),signal:controller.signal
+    });
+    const text=await r.text();
+    let data;try{data=text?JSON.parse(text):{}}catch{data={message:text}}
+    if(!r.ok||!data?.access_token)throw new Error(data?.message||'Sign in failed');
+    const session={token:data.access_token,refresh:data.refresh_token,exp:serverExpiry(data.access_token,data.expires_in),user:data.user};
+    saveSession(session);
+    return session;
+  }finally{clearTimeout(timeout)}
 }
 
 export function signOut(){
