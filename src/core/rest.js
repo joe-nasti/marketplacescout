@@ -30,15 +30,36 @@ async function baseRest(path,options={}){
 }
 
 function isTimeout(error){return String(error?.message||error||'').toLowerCase().includes('statement timeout')}
+function largeLimit(path){const m=String(path).match(/(?:^|[?&])limit=(\d+)/);const n=m?Number(m[1]):0;return Number.isFinite(n)&&n>1000?n:0}
+function pagedPath(path,limit,offset){
+  let s=String(path);
+  s=s.replace(/([?&])limit=\d+/,`$1limit=${limit}`);
+  if(/(?:^|[?&])offset=\d+/.test(s))s=s.replace(/([?&])offset=\d+/,`$1offset=${offset}`);
+  else s+=`${s.includes('?')?'&':'?'}offset=${offset}`;
+  return s;
+}
+async function baseRestLarge(path,options,requestedLimit){
+  const out=[];const pageSize=1000;
+  for(let offset=0;offset<requestedLimit;offset+=pageSize){
+    const take=Math.min(pageSize,requestedLimit-offset);
+    const page=await baseRest(pagedPath(path,take,offset),options);
+    if(!Array.isArray(page))return page;
+    out.push(...page);
+    if(page.length<take)break;
+  }
+  return out;
+}
 
 export async function rest(path,options={}){
   const method=String(options?.method||'GET').toUpperCase();
+  const requestedLimit=method==='GET'?largeLimit(path):0;
   const started=performance.now();
   if(method==='GET')writeResource(path,{status:'loading',error:null,requestedAt:Date.now()});
+  const execute=()=>requestedLimit?baseRestLarge(path,options,requestedLimit):baseRest(path,options);
   try{
-    const out=await baseRest(path,options);
+    const out=await execute();
     const elapsed=Math.round(performance.now()-started);
-    if(method==='GET')writeResource(path,{status:'ready',data:out,error:null,fetchedAt:Date.now(),elapsedMs:elapsed});
+    if(method==='GET')writeResource(path,{status:'ready',data:out,error:null,fetchedAt:Date.now(),elapsedMs:elapsed,paged:requestedLimit>0});
     if(elapsed>4000)bump('slow_reads',{last_slow_read_ms:elapsed,last_slow_read_path:String(path).slice(0,180)});
     return out;
   }catch(error){
@@ -50,9 +71,9 @@ export async function rest(path,options={}){
     await sleep(350+Math.floor(Math.random()*250));
     const retryStarted=performance.now();
     try{
-      const out=await baseRest(path,options);
+      const out=await execute();
       const elapsed=Math.round(performance.now()-retryStarted);
-      writeResource(path,{status:'ready',data:out,error:null,fetchedAt:Date.now(),elapsedMs:elapsed,retried:true});
+      writeResource(path,{status:'ready',data:out,error:null,fetchedAt:Date.now(),elapsedMs:elapsed,retried:true,paged:requestedLimit>0});
       bump('statement_timeout_recoveries',{last_retry_ms:elapsed});
       return out;
     }catch(second){
