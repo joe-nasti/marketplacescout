@@ -1,10 +1,9 @@
-import { copyFile, rename, stat, writeFile, readFile } from 'node:fs/promises';
+import { copyFile, stat, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root=process.cwd();
 const dist=join(root,'dist');
-const sourceHtml=join(dist,'vite-index.html');
 const targetHtml=join(dist,'index.html');
 const build=process.env.GITHUB_SHA||'dev-local';
 const revision=process.env.COLLECTISH_WEB_REVISION||(
@@ -12,8 +11,6 @@ const revision=process.env.COLLECTISH_WEB_REVISION||(
 );
 const revisionNumber=Number(String(revision).replace(/^r/,''))||null;
 const deployedAt=new Date().toISOString();
-
-if(existsSync(sourceHtml))await rename(sourceHtml,targetHtml);
 
 for(const name of ['manifest.webmanifest','collectish-icon-192.png']){
   const src=join(root,name),dst=join(dist,name);
