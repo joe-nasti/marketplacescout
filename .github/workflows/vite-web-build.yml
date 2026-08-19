@@ -1,0 +1,58 @@
+name: Build Vite web bundle
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'vite.config.js'
+      - 'vite-index.html'
+      - 'src/**'
+      - 'tools/finalize-vite-build.mjs'
+      - 'modern-core.js'
+      - 'modern-core.css'
+      - 'config.js'
+      - 'current-*.js'
+      - 'current-*.css'
+      - 'manifest.webmanifest'
+      - 'collectish-icon-*.png'
+      - '.github/workflows/vite-web-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-vite-web-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Vite toolchain
+        run: npm install --no-audit --no-fund
+      - name: Build production bundle
+        run: npm run build
+      - name: Validate hashed distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -s dist/.vite/manifest.json
+          test -s dist/manifest.webmanifest
+          test -s dist/collectish-icon-192.png
+          grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.js' dist/index.html
+          ! grep -Eq '<script[^>]+current-.*\.js' dist/index.html
+          ! grep -Eq '<link[^>]+current-.*\.css' dist/index.html
+          node -e "const fs=require('fs');const m=JSON.parse(fs.readFileSync('dist/.vite/manifest.json','utf8'));if(!Object.keys(m).length)process.exit(1)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: collectish-vite-dist
+          path: dist
+          if-no-files-found: error
