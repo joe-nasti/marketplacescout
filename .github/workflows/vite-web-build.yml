@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      COLLECTISH_WEB_REVISION: r${{ github.run_number }}
+      COLLECTISH_WEB_REVISION: r110${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -54,6 +54,8 @@ jobs:
           grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.js' dist/index.html
           ! grep -Eq '<script[^>]+current-.*\.js' dist/index.html
           ! grep -Eq '<link[^>]+current-.*\.css' dist/index.html
+          grep -q 'collectish-build' dist/index.html
+          grep -q 'collectish-revision' dist/index.html
           node -e "const fs=require('fs');const m=JSON.parse(fs.readFileSync('dist/.vite/manifest.json','utf8'));if(!Object.keys(m).length)process.exit(1)"
           node -e "const fs=require('fs');const v=JSON.parse(fs.readFileSync('dist/web-version.json','utf8'));if(v.build!==process.env.GITHUB_SHA)process.exit(1);if(v.label!==process.env.COLLECTISH_WEB_REVISION)process.exit(1)"
       - uses: actions/upload-artifact@v4
