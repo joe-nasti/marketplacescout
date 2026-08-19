@@ -2,11 +2,9 @@ import { runClassicSequence } from './run-classic.js';
 
 import theme from '../current-theme.js?raw';
 import core from '../modern-core.js?raw';
-import cacheRead from '../current-scout-v5-cache-read.js?raw';
 import runtimeHealth from '../current-runtime-health.js?raw';
 import readonlyAgent from '../current-readonly-agent.js?raw';
 import scoutBootstrap from '../current-scout-bootstrap-safe.js?raw';
-import scoutHealth from '../current-scout-health-monitor-r1009.js?raw';
 import volatility from '../current-scout-volatility-overlay-r0983.js?raw';
 import scoutLinks from '../current-scout-detail-tile-links-r0986.js?raw';
 import sealedBest from '../current-sealed-component-best-r0992.js?raw';
@@ -45,11 +43,9 @@ export function installLegacyShell(){
 
 export function installLegacyFeatures(){
   runClassicSequence([
-    ['current-scout-v5-cache-read.js',cacheRead],
     ['current-runtime-health.js',runtimeHealth],
     ['current-readonly-agent.js',readonlyAgent],
     ['current-scout-bootstrap-safe.js',scoutBootstrap],
-    ['current-scout-health-monitor-r1009.js',scoutHealth],
     ['current-scout-volatility-overlay-r0983.js',volatility],
     ['current-scout-detail-tile-links-r0986.js',scoutLinks],
     ['current-sealed-component-best-r0992.js',sealedBest],
