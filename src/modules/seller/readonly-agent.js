@@ -9,3 +9,4 @@ export async function runReadonlyAgent(){if(busy)return;const android=window.Col
 function kick(){runReadonlyAgent().catch(()=>{})}
 export function installReadonlyAgent(){clearInterval(timer);timer=setInterval(()=>{if(!document.hidden)kick()},15000);setTimeout(kick,1200);window.addEventListener('collectishAgentSessionChanged',()=>setTimeout(kick,100));window.addEventListener('pageshow',kick);window.addEventListener('focus',kick);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')kick()})}
 installReadonlyAgent();
+window.CollectishSellerAgent={run:runReadonlyAgent,kick};
