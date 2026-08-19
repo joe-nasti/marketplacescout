@@ -10,6 +10,7 @@ on:
       - 'vite.config.js'
       - 'src/**'
       - 'tools/finalize-vite-build.mjs'
+      - 'tools/check-style-system.mjs'
       - 'manifest.webmanifest'
       - 'collectish-icon-*.png'
       - '.github/workflows/deploy-vite-pages.yml'
@@ -62,7 +63,6 @@ jobs:
           grep -RIl --include='*.js' -E "createElement\(['\"]script['\"]\)|createElement\(\`script\`\)" src >> /tmp/lifecycle-offenders.txt || true
           sort -u /tmp/lifecycle-offenders.txt -o /tmp/lifecycle-offenders.txt
           if [ -s /tmp/lifecycle-offenders.txt ]; then
-            cat /tmp/lifecycle-offenders.txt
             first="$(head -1 /tmp/lifecycle-offenders.txt)"
             echo "first=$first" >> "$GITHUB_OUTPUT"
             exit 1
@@ -86,10 +86,49 @@ jobs:
             exit 1
           fi
 
+      - name: Validate tokenized style system
+        id: styles
+        continue-on-error: true
+        run: node tools/check-style-system.mjs
+
+      - name: Publish style-system status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          RESULT: ${{ steps.styles.outcome }}
+        shell: bash
+        run: |
+          if [ "$RESULT" = success ]; then
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/style-system' -f description='Tokenized CSS/theme contract passed'
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/style-system' -f description='Tokenized CSS/theme contract failed'
+            exit 1
+          fi
+
       - name: Install pinned Vite
         run: npm install --no-audit --no-fund
+
       - name: Build production bundle
+        id: vite_build
+        continue-on-error: true
         run: npm run build
+
+      - name: Publish Vite-build status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          RESULT: ${{ steps.vite_build.outcome }}
+        shell: bash
+        run: |
+          if [ "$RESULT" = success ]; then
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-build' -f description='Vite production bundle built successfully'
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-build' -f description='Vite production bundle failed to build'
+            exit 1
+          fi
+
       - name: Validate production artifact
         shell: bash
         run: |
@@ -101,11 +140,11 @@ jobs:
           grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.css' dist/index.html
           ! grep -Eq '(current-|v0[0-9]+\.(js|css))' dist/index.html
           node -e "const v=require('./dist/web-version.json');if(v.build!==process.env.GITHUB_SHA)process.exit(1)"
-      - name: Publish build statuses
+
+      - name: Publish artifact status
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: |
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-build' -f description='Vite production bundle built successfully'
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-artifact' -f description='Hashed production artifact validated'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-artifact' -f description='Hashed production artifact validated'
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: dist }
@@ -145,7 +184,7 @@ jobs:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
           RESULT: ${{ steps.live_version.outcome }}
         run: |
-          state=success; desc='Live Pages version matches lifecycle build'
+          state=success; desc='Live Pages version matches tokenized Vite build'
           if [ "$RESULT" != success ]; then state=failure; desc='Live Pages build did not converge'; fi
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/vite-pages-version' -f description="$desc" -f target_url="$PAGE_URL"
 
@@ -190,11 +229,11 @@ jobs:
           CHROME_RESULT: ${{ steps.chrome_run.outcome }}
           DOM_RESULT: ${{ steps.shell_dom.outcome }}
         run: |
-          chrome_state=success; chrome_desc='Headless Chrome loaded lifecycle build'
+          chrome_state=success; chrome_desc='Headless Chrome loaded tokenized theme build'
           [ "$CHROME_RESULT" = success ] || { chrome_state=failure; chrome_desc='Headless Chrome process failed'; }
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$chrome_state" -f context='collectish/vite-chrome-run' -f description="$chrome_desc" -f target_url="$PAGE_URL"
-          dom_state=success; dom_desc='Lifecycle/state Collectish shell rendered in Chrome'
-          [ "$DOM_RESULT" = success ] || { dom_state=failure; dom_desc='Lifecycle/state shell DOM validation failed'; }
+          dom_state=success; dom_desc='Tokenized Collectish shell rendered in Chrome'
+          [ "$DOM_RESULT" = success ] || { dom_state=failure; dom_desc='Tokenized shell DOM validation failed'; }
           for context in collectish/vite-shell-dom collectish/vite-browser-smoke collectish/vite-live-smoke; do
             gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$dom_state" -f context="$context" -f description="$dom_desc" -f target_url="$PAGE_URL"
           done
