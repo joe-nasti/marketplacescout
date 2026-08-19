@@ -1,6 +1,6 @@
 // Collectish Vite entrypoint.
-// Vite owns hashing, CSS aggregation and chunking. Legacy feature code is isolated
-// behind src/legacy-runtime.js and is being converted to native ESM incrementally.
+// Vite owns hashing, CSS aggregation and chunking. Production runtime is ES-module
+// based; remaining presentation modules are installed through deterministic imports.
 
 import '../modern-core.css';
 import '../current-ux.css';
@@ -48,10 +48,17 @@ import './lazy-pages.js';
 import { startShell } from './runtime/shell.js';
 import { installRestBridge } from './runtime/rest.js';
 import { installScoutCacheBridge } from './features/scout/cache-read.js';
-import { installLegacyFeatures } from './legacy-runtime.js';
+import { installRemainingFeatures } from './features/install-remaining.js';
 
-// Install all listeners/services before the shell emits collectish:ready.
-installRestBridge();
-installScoutCacheBridge();
-installLegacyFeatures();
-startShell();
+async function start(){
+  // Install all services/features before the shell emits collectish:ready.
+  installRestBridge();
+  installScoutCacheBridge();
+  await installRemainingFeatures();
+  startShell();
+}
+
+start().catch(error=>{
+  console.error('Collectish module startup failed',error);
+  document.body.innerHTML='<main class="cx-auth"><section class="cx-auth-card"><div class="cx-brand"><span class="cx-brand-collect">collect</span><span class="cx-brand-ish">ish</span></div><h1>Could not start Collectish</h1><p>Frontend module initialization failed. Reload to retry.</p></section></main>';
+});
