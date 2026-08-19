@@ -1,3 +1,5 @@
+import {registerComponent} from '../../core/lifecycle.js';
+
 // Collectish Admin — local-first catalog-backed Marketplace scan configuration.
 (() => {
   const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -159,5 +161,9 @@
   .cx-admin-switch input{width:18px;height:18px}.cx-admin-scan-time{display:flex;gap:12px;color:var(--cx-muted)}.cx-admin-scan-time b{color:var(--cx-text);font-weight:700}.cx-admin-scan-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.cx-scan-msg{color:var(--cx-muted);min-width:72px}.cx-save-error{color:#b42318}
   @media(max-width:980px){.cx-admin-scan-row{grid-template-columns:1fr 1fr}.cx-admin-scan-main,.cx-admin-scan-time,.cx-admin-scan-actions{grid-column:1/-1}.cx-admin-catalog-tools{align-items:stretch;flex-direction:column}.cx-admin-scan-card{padding:12px}}
   `;document.head.appendChild(style);
-  const mo=new MutationObserver(()=>{if(document.getElementById('cxAdmin')?.classList.contains('active')&&!document.getElementById('cxAdminScanConfig'))setTimeout(render,0)});mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});document.addEventListener('click',e=>{if(e.target.closest?.('[data-cx-page="admin"]'))setTimeout(render,50)},true);
+
+  registerComponent('admin-scans',{
+    onPage(page){if(page==='admin')queueMicrotask(()=>render().catch(console.warn))}
+  });
+  window.CollectishAdminScans={render};
 })();
