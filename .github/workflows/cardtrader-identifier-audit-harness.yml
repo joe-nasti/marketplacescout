@@ -1,0 +1,43 @@
+name: Temporary CardTrader identifier audit harness
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/cardtrader-identifier-audit-harness.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CARDTRADER_JWT_TOKEN: ${{ secrets.CARDTRADER_JWT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/cardtrader-api-audit
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Run read-only CardTrader sealed identifier audit
+        shell: bash
+        run: |
+          set -e
+          node tools/cardtrader-api-audit.mjs > cardtrader-identifier-audit-run.txt 2>&1
+          mkdir -p audit-results
+          cp cardtrader-identifier-audit-run.txt audit-results/cardtrader-identifier-audit-run.txt
+          cp cardtrader-identifier-audit.json audit-results/cardtrader-identifier-audit.json
+          cp cardtrader-identifier-audit.md audit-results/cardtrader-identifier-audit.md
+          echo 'exit_code=0' > audit-results/cardtrader-audit-status.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add audit-results
+          if ! git diff --cached --quiet; then
+            git commit -m 'capture CardTrader sealed identifier audit'
+            git push origin HEAD:agent/cardtrader-api-audit
+          fi
