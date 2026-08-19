@@ -1,14 +1,13 @@
-import { runClassicSequence } from '../../run-classic.js';
-import promotedRenderer from '../../../current-scout-v5-promoted.js?raw';
-
 let installed=false;
+let loading=null;
 
-export function installScoutRenderer(){
+export async function installScoutRenderer(){
   if(installed)return;
-  installed=true;
-  runClassicSequence([
-    ['current-scout-v5-promoted.js',promotedRenderer]
-  ]);
+  if(loading)return loading;
+  loading=import('../../../current-scout-v5-promoted.js').then(()=>{
+    installed=true;
+  }).finally(()=>{loading=null});
+  return loading;
 }
 
 export default installScoutRenderer;
