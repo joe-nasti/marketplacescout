@@ -33,7 +33,7 @@ jobs:
             status=2
           else
             set +e
-            node tools/cardtrader-api-audit.mjs > audit-results/cardtrader-audit-run.log 2>&1
+            node tools/cardtrader-api-audit.mjs > audit-results/cardtrader-audit-run.txt 2>&1
             status=$?
             set -e
             echo "exit_code=$status" > audit-results/cardtrader-audit-status.txt
