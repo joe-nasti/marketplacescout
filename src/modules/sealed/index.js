@@ -5,6 +5,7 @@ export async function install(){
   await import('./detail-focus.js');
   await import('./cardtrader.js');
   await import('./cardtrader-opportunities.js');
+  await import('./cardtrader-summary.js');
   const module=await import('./renderer.js');
   await module.install();
 }
