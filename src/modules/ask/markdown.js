@@ -29,54 +29,11 @@ export function markdown(src){
   close();return out.join('');
 }
 
-export function renderMarkdownElement(el){
-  if(!el||el.dataset?.md==='1')return el;
-  el.innerHTML=markdown(el.textContent||'');
+export function renderMarkdownElement(el,text=el?.textContent||''){
+  if(!el)return el;
+  el.innerHTML=markdown(text);
   el.dataset.md='1';
   return el;
 }
 
-export function renderAllMarkdown(){
-  document.querySelectorAll('#cxAskMessages .cx-ask-assistant .cx-ask-msg-body:not([data-md])').forEach(renderMarkdownElement);
-}
-
-let bound=null,observer=null;
-function bindMessageContainer(){
-  const box=document.getElementById('cxAskMessages');
-  if(!box||box===bound)return Boolean(box);
-  observer?.disconnect();
-  bound=box;
-  observer=new MutationObserver(mutations=>{
-    for(const mutation of mutations){
-      for(const node of mutation.addedNodes){
-        if(!(node instanceof Element))continue;
-        if(node.matches?.('.cx-ask-assistant'))renderMarkdownElement(node.querySelector('.cx-ask-msg-body'));
-        node.querySelectorAll?.('.cx-ask-assistant .cx-ask-msg-body:not([data-md])').forEach(renderMarkdownElement);
-      }
-    }
-  });
-  observer.observe(box,{childList:true,subtree:true});
-  renderAllMarkdown();
-  return true;
-}
-
-function scheduleBind(){
-  [0,50,150,400,900,1800].forEach(ms=>setTimeout(()=>{bindMessageContainer();renderAllMarkdown()},ms));
-}
-
-export function installAskMarkdown(){
-  window.CollectishRenderMarkdown=renderMarkdownElement;
-  window.CollectishRenderAllMarkdown=renderAllMarkdown;
-  document.addEventListener('collectish:ask-message-rendered',e=>{
-    if(e.detail?.role==='assistant')renderMarkdownElement(e.detail.element);
-  });
-  document.addEventListener('submit',e=>{if(e.target?.id==='cxAskForm')scheduleBind()},true);
-  document.addEventListener('click',e=>{
-    if(e.target.closest?.('#cxAskInvestigate,.cx-ask-starter,.cx-v3-starter,.cx-ask-launch'))scheduleBind();
-  },true);
-  document.addEventListener('collectish:ask-v3-response',scheduleBind);
-  document.addEventListener('collectish:ready',scheduleBind);
-  if(document.readyState!=='loading')scheduleBind();
-}
-
-installAskMarkdown();
+window.CollectishMarkdown={render:renderMarkdownElement,toHtml:markdown};
