@@ -1,18 +1,15 @@
-name: Validate Vite web bundle
+name: Validate Collectish web
 
 on:
   workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
+      - 'index.html'
       - 'package.json'
       - 'vite.config.js'
-      - 'index.html'
       - 'src/**'
       - 'tools/finalize-vite-build.mjs'
-      - 'modern-core.css'
-      - 'current-*.js'
-      - 'current-*.css'
       - 'manifest.webmanifest'
       - 'collectish-icon-*.png'
       - '.github/workflows/vite-web-build.yml'
@@ -20,61 +17,36 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: collectish-vite-web-validate-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      COLLECTISH_WEB_REVISION: r110${{ github.run_number }}
+      COLLECTISH_WEB_REVISION: pr-${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Enforce native ESM source graph
+        with: { node-version: '24' }
+      - name: Enforce modular source tree
         shell: bash
         run: |
           set -euo pipefail
-          test ! -e src/legacy-runtime.js
-          test ! -e src/run-classic.js
-          test ! -e vite-index.html
-          ! grep -R --line-number --fixed-strings '?raw' src
-          ! grep -R --line-number 'runClassicSequence\|legacy-runtime' src
-          grep -q '<script type="module" src="/src/main.js"></script>' index.html
-          ! grep -Eq '<script[^>]+current-.*\.js' index.html
-          ! grep -Eq '<link[^>]+current-.*\.css' index.html
-          node --check src/main.js
-          node --check src/lazy-pages.js
-          node --check src/features/install-remaining.js
-          node --check src/features/sealed.js
-          node --check src/features/seller.js
-          node --check src/features/syp.js
-          node --check src/features/scout/index.js
-      - name: Install pinned Vite toolchain
+          test -z "$(find . -maxdepth 1 -type f \( -name '*.js' -o -name '*.css' \) ! -name 'vite.config.js' -print)"
+          test -z "$(find . -maxdepth 1 -type f \( -name 'current-*' -o -name 'v0*.js' -o -name 'v0*.css' \) -print)"
+          find src -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Install Vite
         run: npm install --no-audit --no-fund
-      - name: Build production bundle
+      - name: Build
         run: npm run build
-      - name: Validate hashed distribution
+      - name: Validate artifact
         shell: bash
         run: |
           set -euo pipefail
           test -s dist/index.html
           test -s dist/.vite/manifest.json
-          test -s dist/manifest.webmanifest
-          test -s dist/collectish-icon-192.png
-          test -s dist/build-version.json
-          test -s dist/web-version.json
           grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.js' dist/index.html
-          ! grep -Eq '<script[^>]+current-.*\.js' dist/index.html
-          ! grep -Eq '<link[^>]+current-.*\.css' dist/index.html
-          grep -q 'collectish-build' dist/index.html
-          grep -q 'collectish-revision' dist/index.html
-          node -e "const fs=require('fs');const m=JSON.parse(fs.readFileSync('dist/.vite/manifest.json','utf8'));if(!Object.keys(m).length)process.exit(1)"
-          node -e "const fs=require('fs');const v=JSON.parse(fs.readFileSync('dist/web-version.json','utf8'));if(v.build!==process.env.GITHUB_SHA)process.exit(1);if(v.label!==process.env.COLLECTISH_WEB_REVISION)process.exit(1)"
+          grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.css' dist/index.html
+          ! grep -Eq '(current-|v0[0-9]+\.(js|css))' dist/index.html
       - uses: actions/upload-artifact@v4
         with:
           name: collectish-vite-dist

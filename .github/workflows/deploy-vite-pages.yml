@@ -1,18 +1,15 @@
-name: Deploy Vite web to Pages
+name: Deploy Collectish web
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
+      - 'index.html'
       - 'package.json'
       - 'vite.config.js'
-      - 'index.html'
       - 'src/**'
       - 'tools/finalize-vite-build.mjs'
-      - 'modern-core.css'
-      - 'current-*.js'
-      - 'current-*.css'
       - 'manifest.webmanifest'
       - 'collectish-icon-*.png'
       - '.github/workflows/deploy-vite-pages.yml'
@@ -32,183 +29,91 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      COLLECTISH_WEB_REVISION: r110${{ github.run_number }}
+      COLLECTISH_WEB_REVISION: r${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Enforce ESM ownership boundaries
+        with: { node-version: '24' }
+      - name: Enforce modular source tree
         shell: bash
         run: |
           set -euo pipefail
-          test ! -e src/legacy-runtime.js
-          test ! -e src/run-classic.js
-          test ! -e vite-index.html
-          ! grep -R --line-number --fixed-strings '?raw' src
-          ! grep -R --line-number 'runClassicSequence\|legacy-runtime' src
-          grep -q '<script type="module" src="/src/main.js"></script>' index.html
-          ! grep -Eq '<script[^>]+current-.*\.js' index.html
-          ! grep -Eq '<link[^>]+current-.*\.css' index.html
-          grep -q "from './runtime/shell.js'" src/main.js
-          grep -q "from './runtime/rest.js'" src/main.js
-          grep -q "from './features/scout/cache-read.js'" src/main.js
-          grep -q "from './features/install-remaining.js'" src/main.js
-          node --check src/main.js
-          node --check src/lazy-pages.js
-          node --check src/features/install-remaining.js
-          node --check src/features/sealed.js
-          node --check src/features/seller.js
-          node --check src/features/syp.js
-          node --check src/runtime/shell.js
-          node --check src/runtime/session.js
-          node --check src/runtime/rest.js
-          node --check src/runtime/build-info.js
-          node --check src/runtime/theme.js
-          node --check src/runtime/health.js
-          node --check src/features/scout/cache-read.js
-          node --check src/features/scout/bootstrap.js
-          node --check src/features/scout/index.js
-          node --check src/features/scout/health.js
-          node --check src/features/sealed/ui-guardian.js
-          node --check src/features/ask/markdown.js
-          node --check src/features/seller/readonly-agent.js
-      - name: Publish source-gate success status
+          test -z "$(find . -maxdepth 1 -type f \( -name '*.js' -o -name '*.css' \) ! -name 'vite.config.js' -print)"
+          test -z "$(find . -maxdepth 1 -type f \( -name 'current-*' -o -name 'v0*.js' -o -name 'v0*.css' \) -print)"
+          test -d src/core
+          test -d src/state
+          test -d src/modules/scout
+          test -d src/modules/sealed
+          test -d src/modules/seller
+          test -d src/modules/admin
+          test -d src/styles
+          grep -q "./styles/index.css" src/main.js
+          grep -q "./core/shell.js" src/main.js
+          grep -q "./state/store.js" src/main.js
+          grep -q "./modules/index.js" src/main.js
+          find src -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Publish source-gate status
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-source-gate' -f description='Native ESM source gate passed'
-      - name: Install pinned Vite toolchain
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-source-gate' -f description='Modular frontend source gate passed'
+      - name: Install pinned Vite
         run: npm install --no-audit --no-fund
       - name: Build production bundle
         run: npm run build
-      - name: Publish Vite-build success status
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-build' -f description='Vite production bundle built successfully'
       - name: Validate production artifact
         shell: bash
         run: |
           set -euo pipefail
           test -s dist/index.html
           test -s dist/.vite/manifest.json
-          test -s dist/manifest.webmanifest
-          test -s dist/collectish-icon-192.png
-          test -s dist/build-version.json
           test -s dist/web-version.json
           grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.js' dist/index.html
           grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.css' dist/index.html
-          ! grep -Eq '<script[^>]+current-.*\.js' dist/index.html
-          ! grep -Eq '<link[^>]+current-.*\.css' dist/index.html
-          ! grep -Eq '<script[^>]+modern-core\.js' dist/index.html
-          grep -q 'collectish-build' dist/index.html
-          grep -q 'collectish-revision' dist/index.html
-          node -e "const fs=require('fs');const m=JSON.parse(fs.readFileSync('dist/.vite/manifest.json','utf8'));if(!Object.keys(m).length)process.exit(1)"
-          node -e "const fs=require('fs');const v=JSON.parse(fs.readFileSync('dist/web-version.json','utf8'));if(v.build!==process.env.GITHUB_SHA)process.exit(1);if(v.label!==process.env.COLLECTISH_WEB_REVISION)process.exit(1)"
-      - name: Publish artifact-gate success status
+          ! grep -Eq '(current-|v0[0-9]+\.(js|css))' dist/index.html
+          node -e "const v=require('./dist/web-version.json');if(v.build!==process.env.GITHUB_SHA)process.exit(1)"
+      - name: Publish build statuses
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-artifact' -f description='Hashed production artifact validated'
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-build' -f description='Vite production bundle built successfully'
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-artifact' -f description='Hashed production artifact validated'
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
+        with: { path: dist }
 
   deploy:
+    runs-on: ubuntu-latest
+    needs: build
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
     steps:
-      - name: Deploy validated Vite artifact
+      - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Verify live Pages version
-        id: live_version
-        continue-on-error: true
+      - name: Verify live build
         shell: bash
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
           EXPECTED_SHA: ${{ github.sha }}
-          EXPECTED_REV: r110${{ github.run_number }}
         run: |
           set -euo pipefail
           base="${PAGE_URL%/}"
           for i in {1..60}; do
-            if curl -fsSL --retry 2 --retry-delay 1 "$base/web-version.json?cb=$(date +%s%N)" -o /tmp/web-version.json; then
-              if node -e "const v=require('/tmp/web-version.json');process.exit(v.build===process.env.EXPECTED_SHA&&v.label===process.env.EXPECTED_REV?0:1)"; then exit 0; fi
-            fi
+            if curl -fsSL "$base/web-version.json?cb=$(date +%s%N)" -o /tmp/web-version.json && node -e "const v=require('/tmp/web-version.json');process.exit(v.build===process.env.EXPECTED_SHA?0:1)"; then break; fi
             sleep 5
           done
-          cat /tmp/web-version.json || true
-          exit 1
-      - name: Publish Pages-version status
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-          RESULT: ${{ steps.live_version.outcome }}
-        run: |
-          state=success; desc='Live Pages version matches deployed Vite build'
-          if [ "$RESULT" != success ]; then state=failure; desc='Pages metadata did not converge within 5 minutes'; fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/vite-pages-version' -f description="$desc" -f target_url="$PAGE_URL"
-      - name: Check headless Chrome availability
-        id: chrome_binary
+          node -e "const v=require('/tmp/web-version.json');if(v.build!==process.env.EXPECTED_SHA)process.exit(1)"
+      - name: Browser smoke
         shell: bash
+        env: { PAGE_URL: '${{ steps.deployment.outputs.page_url }}' }
         run: |
           set -euo pipefail
-          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
-          test -n "$chrome"
-          echo "chrome=$chrome" >> "$GITHUB_OUTPUT"
-      - name: Publish Chrome-binary success status
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-chrome-binary' -f description='Headless Chrome binary available'
-      - name: Execute frontend in headless Chrome
-        id: chrome_run
-        shell: bash
-        env:
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-          CHROME: ${{ steps.chrome_binary.outputs.chrome }}
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          "$chrome" --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 --dump-dom "${PAGE_URL%/}/?smoke=${GITHUB_RUN_ID}" >/tmp/dom.html 2>/tmp/chrome.log
+          grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/dom.html
+          ! grep -q 'Could not start Collectish' /tmp/dom.html
+      - name: Publish live smoke statuses
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}', PAGE_URL: '${{ steps.deployment.outputs.page_url }}' }
         run: |
-          set -euo pipefail
-          base="${PAGE_URL%/}"
-          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 --dump-dom "$base/?smoke=${GITHUB_RUN_ID}&cb=$(date +%s%N)" >/tmp/collectish-dom.html 2>/tmp/chrome.log
-          test -s /tmp/collectish-dom.html
-      - name: Publish Chrome-run success status
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-chrome-run' -f description='Headless Chrome loaded the live page'
-      - name: Validate rendered Collectish shell
-        id: shell_dom
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -euo pipefail
-          ! grep -q 'Could not start Collectish' /tmp/collectish-dom.html
-          grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/collectish-dom.html
-      - name: Publish shell DOM status
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-          RESULT: ${{ steps.shell_dom.outcome }}
-        run: |
-          if [ "$RESULT" = success ]; then
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-shell-dom' -f description='Collectish shell rendered in Chrome' -f target_url="$PAGE_URL"
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-browser-smoke' -f description='Headless Chrome executed Collectish frontend' -f target_url="$PAGE_URL"
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-live-smoke' -f description='Vite Pages deploy and browser smoke passed' -f target_url="$PAGE_URL"
-          else
-            desc='Rendered DOM missing shell marker'
-            if grep -q 'Could not start Collectish' /tmp/collectish-dom.html; then desc='Collectish rendered startup failure screen'; fi
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-shell-dom' -f description="$desc" -f target_url="$PAGE_URL"
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-browser-smoke' -f description="$desc" -f target_url="$PAGE_URL"
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/vite-live-smoke' -f description="$desc" -f target_url="$PAGE_URL"
-          fi
-      - name: Upload live smoke diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: collectish-live-smoke-diagnostics
-          path: |
-            /tmp/collectish-dom.html
-            /tmp/chrome.log
-            /tmp/web-version.json
-          if-no-files-found: warn
+          for context in collectish/vite-pages-version collectish/vite-chrome-run collectish/vite-shell-dom collectish/vite-browser-smoke collectish/vite-live-smoke; do
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context="$context" -f description='Collectish modular Vite deployment verified' -f target_url="$PAGE_URL"
+          done

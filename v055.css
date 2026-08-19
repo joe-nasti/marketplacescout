@@ -1,7 +1,0 @@
-/* Collectish web v0.5.5 */
-.collectish-legacy-nav-hidden,.mobile-product-nav.collectish-legacy-nav-hidden{display:none!important}
-#mobileProductShell{margin-top:0}
-.collectish-queue-hint{display:grid;gap:5px;padding:12px 14px;margin:0 0 12px;border:1px solid var(--c-border,#303a48);border-radius:12px;background:var(--c-panel2,#1d2430);color:var(--c-text,#edf2f7)}
-.collectish-queue-hint strong{font-size:15px}.collectish-queue-hint span{color:var(--c-muted,#a8b3c2);font-size:12px;line-height:1.45}
-html[data-theme="light"] .collectish-queue-hint{background:#f8fafc;color:#151a22;border-color:#dfe5ec}
-html[data-theme="light"] .collectish-queue-hint span{color:#687486}
