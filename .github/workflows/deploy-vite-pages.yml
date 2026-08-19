@@ -7,7 +7,7 @@ on:
     paths:
       - 'package.json'
       - 'vite.config.js'
-      - 'vite-index.html'
+      - 'index.html'
       - 'src/**'
       - 'tools/finalize-vite-build.mjs'
       - 'modern-core.css'
@@ -43,8 +43,12 @@ jobs:
           set -euo pipefail
           test ! -e src/legacy-runtime.js
           test ! -e src/run-classic.js
+          test ! -e vite-index.html
           ! grep -R --line-number --fixed-strings '?raw' src
           ! grep -R --line-number 'runClassicSequence\|legacy-runtime' src
+          grep -q '<script type="module" src="/src/main.js"></script>' index.html
+          ! grep -Eq '<script[^>]+current-.*\.js' index.html
+          ! grep -Eq '<link[^>]+current-.*\.css' index.html
           grep -q "from './runtime/shell.js'" src/main.js
           grep -q "from './runtime/rest.js'" src/main.js
           grep -q "from './features/scout/cache-read.js'" src/main.js
