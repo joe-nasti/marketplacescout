@@ -6,6 +6,7 @@ import store from '../../state/store.js';
 const SEARCH_URL='https://store.tcgplayer.com/admin/product/searchcatalog';
 const QUANTITY_URL='https://store.tcgplayer.com/admin/product/updateinstockquantities';
 const PAGE_SIZE=250;
+const MAX_PAGES=100;
 const AUTO_ENRICH=20;
 let active=false;
 let syncing=false;
@@ -56,33 +57,52 @@ async function checkpoint(data){
   }catch(error){patch({checkpointState:'delayed',checkpointError:String(error?.message||error)});return false}
 }
 
+function pageSignature(products){return products.slice(0,8).map(x=>String(x.ProductId||'')).join(',')}
+
 async function runSync(){
   if(syncing)return;if(!hasBridge())throw new Error('Store inventory sync requires the current Android authenticated Store bridge.');if(!userId())throw new Error('Sign in required');
   syncing=true;stopped=false;setButtons(true);
-  const startedAt=new Date().toISOString();let pagesFetched=0,productsSeen=0,productsWithStock=0,totalPages=1;const all=[];
-  patch({status:'syncing',phase:'starting',startedAt,pagesFetched,productsSeen,productsWithStock,totalPages,checkpointState:'saving',error:null});
+  const startedAt=new Date().toISOString();let pagesFetched=0,productsSeen=0,productsWithStock=0,reportedTotalPages=0;const all=[];const signatures=new Set();let fullScanConfirmed=false;
+  patch({status:'syncing',phase:'starting',startedAt,pagesFetched,productsSeen,productsWithStock,totalPages:0,checkpointState:'saving',error:null});
   try{
     await checkpoint({status:'running',phase:'starting',pages_fetched:0,products_seen:0,products_with_stock:0,conditions_enriched:0,last_started_at:startedAt,last_error:null,detail:{requestedPageSize:PAGE_SIZE}});
-    for(let page=1;page<=totalPages;page++){
+
+    for(let page=1;page<=MAX_PAGES;page++){
       if(stopped)throw new Error('Inventory sync stopped');
-      patch({phase:'catalog request',currentPage:page,totalPages,pagesFetched,productsSeen,productsWithStock});
+      patch({phase:'catalog request',currentPage:page,totalPages:reportedTotalPages,pagesFetched,productsSeen,productsWithStock});
       const search=await probe({mode:'fetch_json',method:'POST',url:`${SEARCH_URL}?r=${Date.now()}-${page}`,body:catalogBody(page)});
       const body=search.body||{},products=Array.isArray(body.Products)?body.Products:[];
-      totalPages=Math.max(1,Number(body.TotalPageCount||1));patch({totalPages});
-      if(!products.length&&page===1)throw new Error('Store returned no Magic inventory products. Check Store authentication.');
+      const reported=Math.max(0,Number(body.TotalPageCount||0));if(reported)reportedTotalPages=Math.max(reportedTotalPages,reported);
+      patch({totalPages:reportedTotalPages});
 
-      patch({phase:'quantity request',currentPage:page,totalPages});
-      const qtyOut=products.length?await probe({mode:'fetch_json',method:'POST',url:QUANTITY_URL,body:quantityBody(products)}):{body:[]};
+      if(!products.length){
+        if(page===1)throw new Error('Store returned no Magic inventory products. Check Store authentication.');
+        fullScanConfirmed=true;break;
+      }
+
+      const sig=pageSignature(products);
+      if(sig&&signatures.has(sig))throw new Error(`Store repeated catalog page ${page}; keeping prior inventory instead of treating this as a full sync.`);
+      if(sig)signatures.add(sig);
+
+      patch({phase:'quantity request',currentPage:page,totalPages:reportedTotalPages});
+      const qtyOut=await probe({mode:'fetch_json',method:'POST',url:QUANTITY_URL,body:quantityBody(products)});
       const quantities=Array.isArray(qtyOut.body)?qtyOut.body:[];
       const normalized=products.map((p,i)=>normalizeProduct(p,quantities[i],startedAt));
       all.push(...normalized);productsSeen+=normalized.length;productsWithStock+=normalized.filter(x=>x.quantity>0).length;
 
-      patch({phase:'saving page',currentPage:page,totalPages,productsSeen,productsWithStock});
+      patch({phase:'saving page',currentPage:page,totalPages:reportedTotalPages,productsSeen,productsWithStock});
       if(normalized.length)await timeout(rest('store_inventory_products?on_conflict=user_id,product_id',{method:'POST',body:normalized,prefer:'resolution=merge-duplicates,return=minimal'}),15000,'Inventory page save');
       pagesFetched++;
-      patch({phase:'catalog',pagesFetched,currentPage:page,totalPages,productsSeen,productsWithStock});
-      await checkpoint({status:'running',phase:'catalog',pages_fetched:pagesFetched,products_seen:productsSeen,products_with_stock:productsWithStock,detail:{totalPages,pageSize:Number(body.PageSize||products.length||0),requestedPageSize:PAGE_SIZE}});
+      patch({phase:'catalog',pagesFetched,currentPage:page,totalPages:reportedTotalPages,productsSeen,productsWithStock});
+      await checkpoint({status:'running',phase:'catalog',pages_fetched:pagesFetched,products_seen:productsSeen,products_with_stock:productsWithStock,detail:{reportedTotalPages,pageSize:Number(body.PageSize||products.length||0),requestedPageSize:PAGE_SIZE,paginationMode:'until-short-page'}});
+
+      // Do not trust TotalPageCount as the stop condition. TCGplayer has returned
+      // TotalPageCount=1 while still returning a full 250-row page. A short page is
+      // the reliable terminal signal; if every page is full, the next empty page is.
+      if(products.length<PAGE_SIZE){fullScanConfirmed=true;break;}
     }
+
+    if(!fullScanConfirmed)throw new Error(`Inventory scan hit the ${MAX_PAGES}-page safety limit before a terminal page; prior inventory was preserved.`);
 
     patch({phase:'cleaning old rows'});
     await timeout(rest(`store_inventory_products?captured_at=lt.${encodeURIComponent(startedAt)}`,{method:'DELETE'}),15000,'Inventory cleanup');
@@ -93,13 +113,13 @@ async function runSync(){
       patch({conditionsEnriched:enriched});await sleep(80);
     }
     const completed=new Date().toISOString();
-    await checkpoint({status:stopped?'stopped':'complete',phase:stopped?'stopped':'complete',pages_fetched:pagesFetched,products_seen:productsSeen,products_with_stock:productsWithStock,conditions_enriched:enriched,last_completed_at:stopped?null:completed,last_error:null,detail:{totalPages,requestedPageSize:PAGE_SIZE,autoEnrichedProducts:top.length}});
+    await checkpoint({status:stopped?'stopped':'complete',phase:stopped?'stopped':'complete',pages_fetched:pagesFetched,products_seen:productsSeen,products_with_stock:productsWithStock,conditions_enriched:enriched,last_completed_at:stopped?null:completed,last_error:null,detail:{reportedTotalPages,requestedPageSize:PAGE_SIZE,autoEnrichedProducts:top.length,fullScanConfirmed:true}});
     patch({status:stopped?'stopped':'ready',phase:stopped?'stopped':'complete',completedAt:completed});
     await window.CollectishInventory.load();
   }catch(error){
     const message=String(error?.message||error),status=stopped?'stopped':'failed';
     patch({status:'error',phase:status,error:message});
-    await checkpoint({status,phase:status,pages_fetched:pagesFetched,products_seen:productsSeen,products_with_stock:productsWithStock,last_error:message});
+    await checkpoint({status,phase:status,pages_fetched:pagesFetched,products_seen:productsSeen,products_with_stock:productsWithStock,last_error:message,detail:{reportedTotalPages,requestedPageSize:PAGE_SIZE,fullScanConfirmed:false}});
     throw error;
   }finally{syncing=false;stopped=false;setButtons(false)}
 }
