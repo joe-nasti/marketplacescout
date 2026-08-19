@@ -1,3 +1,5 @@
+import { registerComponent } from '../../core/lifecycle.js';
+
 let started=false;
 let loading=null;
 
@@ -13,23 +15,17 @@ export async function startScout(){
       started=true;
     }catch(error){
       started=false;
-      if(host)host.innerHTML='<div class="cx-empty">Scout failed to load. Tap Scout to retry.</div>';
+      host.innerHTML='<div class="cx-empty">Scout failed to load. Reopen Scout to retry.</div>';
       console.error('Scout renderer failed to load',error);
       throw error;
-    }finally{
-      loading=null;
-    }
+    }finally{loading=null}
   })();
   return loading;
 }
 
-export function installScoutBootstrap(){
-  document.addEventListener('collectish:ready',()=>queueMicrotask(()=>startScout().catch(()=>{})),{once:true});
-  document.addEventListener('click',event=>{
-    if(event.target?.closest?.('[data-cx-page="scout"]'))setTimeout(()=>startScout().catch(()=>{}),0);
-  },true);
-  if(document.getElementById('cxScout'))queueMicrotask(()=>startScout().catch(()=>{}));
-  window.CollectishScoutBootstrap={start:startScout};
-}
+registerComponent('scout-bootstrap',{
+  mount:()=>startScout().catch(()=>{}),
+  onPage:page=>{if(page==='scout')startScout().catch(()=>{})}
+});
 
-installScoutBootstrap();
+window.CollectishScoutBootstrap={start:startScout};
