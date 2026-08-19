@@ -1,0 +1,51 @@
+name: Temporary CardTrader sealed integration harness
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/cardtrader-sealed-live-harness.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      CARDTRADER_JWT_TOKEN: ${{ secrets.CARDTRADER_JWT_TOKEN }}
+      CARDTRADER_CATALOG_STALE_HOURS: "24"
+      CARDTRADER_REQUEST_INTERVAL_MS: "1050"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/cardtrader-sealed-integration
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate and run CardTrader integration
+        shell: bash
+        run: |
+          mkdir -p audit-results
+          set +e
+          node --check cloud-worker/cardtrader-sealed-refresh.mjs > audit-results/cardtrader-integration-run.txt 2>&1
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            node cloud-worker/cardtrader-sealed-refresh.mjs >> audit-results/cardtrader-integration-run.txt 2>&1
+            status=$?
+          fi
+          set -e
+          echo "exit_code=$status" > audit-results/cardtrader-integration-status.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add audit-results/cardtrader-integration-run.txt audit-results/cardtrader-integration-status.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'capture CardTrader integration validation'
+            git push origin HEAD:agent/cardtrader-sealed-integration
+          fi
+          exit $status
