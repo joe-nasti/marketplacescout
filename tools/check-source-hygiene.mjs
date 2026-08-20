@@ -6,6 +6,7 @@ const root=process.cwd();
 const ignoredTop=new Set(['.git','.github','android-agent','cloud-worker','docs','node_modules','dist','.vite','tools']);
 const revisionStamped=/^(?:current-.+-r\d+|v\d{3,})\.(?:js|mjs|css)$/i;
 const legacyEntrypoint=/^(?:collectish-app|current-.+|v\d+)\.(?:js|mjs|css)$/i;
+const nativePatchStamped=/^patch-native-v\d+\.py$/i;
 const allowedRootWebFiles=new Set(['vite.config.js']);
 const domScriptInjection=/(?:createElement\s*\(\s*['"]script['"]\s*\)|\.src\s*=\s*['"][^'"]+\.js|appendChild\s*\([^\n]*script)/i;
 const mutationObserver=/\bMutationObserver\b/;
@@ -38,10 +39,13 @@ async function walk(dir,{rootOnly=false}={}){
 
 await walk(join(root,'src'));
 await walk(root,{rootOnly:true});
+for(const entry of await readdir(join(root,'tools'),{withFileTypes:true})){
+  if(entry.isFile()&&nativePatchStamped.test(entry.name))offenders.add(`tools/${entry.name}`);
+}
 
 if(offenders.size||rootAppFiles.size||scriptInjectors.size||mutationGuardians.size){
   if(offenders.size){
-    console.error('Legacy/revision-stamped web source is not allowed. Active application code must live under src/ and Vite owns production hashing:');
+    console.error('Legacy/revision-stamped source is not allowed. Web app logic lives under src/, Android changes live in canonical source, and build tooling owns generated versions:');
     for(const file of [...offenders].sort())console.error(` - ${file}`);
   }
   if(rootAppFiles.size){
@@ -59,4 +63,4 @@ if(offenders.size||rootAppFiles.size||scriptInjectors.size||mutationGuardians.si
   process.exit(1);
 }
 
-console.log('Source hygiene OK: src-only app logic, stable filenames, ESM loading, and deterministic DOM lifecycle.');
+console.log('Source hygiene OK: canonical Android source, src-only web app logic, stable filenames, ESM loading, and deterministic DOM lifecycle.');
