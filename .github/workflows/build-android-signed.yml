@@ -91,6 +91,7 @@ jobs:
           gradle :app:assembleRelease
           test -s app/build/outputs/apk/release/app-release.apk
           cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/$RELEASE_APK"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/collectish-android-signed.apk"
 
       - name: Verify APK signature and package
         shell: bash
@@ -102,7 +103,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: collectish-android-signed
-          path: ${{ runner.temp }}/${{ env.RELEASE_APK }}
+          path: ${{ runner.temp }}/collectish-android-signed.apk
 
       - name: Publish stable GitHub Release APK
         shell: bash
