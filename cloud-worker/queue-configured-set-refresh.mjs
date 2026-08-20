@@ -86,6 +86,13 @@ for(const p of profiles||[]){
     continue;
   }
 
+  // The profile label can drift from TCGplayer's exact filter value (for example
+  // punctuation or legality suffixes). Resolve the canonical Marketplace catalog
+  // display name from the cached TCG slug before creating a scan job.
+  let tcgSetName=String(p.set_name||'').trim();
+  const catalogRows=await sb(`marketplace_set_catalog?select=set_name&user_id=eq.${encodeURIComponent(p.user_id)}&set_slug=eq.${encodeURIComponent(tcgSlug)}&limit=1`);
+  if(catalogRows?.[0]?.set_name)tcgSetName=String(catalogRows[0].set_name).trim();
+
   const sameSet=await sb(`collector_jobs?select=job_id,status,available_at&user_id=eq.${encodeURIComponent(p.user_id)}&source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&payload_json->profile->>setSlug=eq.${encodeURIComponent(p.set_slug)}&limit=20`);
   if((sameSet||[]).some(runnable)){skipped++;continue}
 
@@ -93,10 +100,10 @@ for(const p of profiles||[]){
   if((scheduledActive||[]).some(runnable)){skipped++;break}
 
   const next=advanceSlot(p);
-  const job={user_id:p.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:20,required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',payload_json:{profile:{setName:p.set_name,setSlug:p.set_slug,tcgSetSlug:tcgSlug,tcgplayerGroupId:p.tcgplayer_group_id,language:p.language||'English',printing:p.printing||'Both',condition:p.condition||'Near Mint',scanDepth:p.scan_depth||'Smart',salesEnrich:0},cloudPrimary:true,cloudOnly:true,pcFallback:false,pcFallbackQueued:false,configuredSchedule:true,executionClass:'cloud_public',scheduledFor:p.next_due_at||nowIso},progress_json:{stage:'queued',percent:0,detail:`Configured scan: ${p.set_name}`,updatedAt:nowIso},attempt_count:0,max_attempts:2,available_at:nowIso};
+  const job={user_id:p.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:20,required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',payload_json:{profile:{setName:tcgSetName,setSlug:p.set_slug,tcgSetSlug:tcgSlug,tcgplayerGroupId:p.tcgplayer_group_id,language:p.language||'English',printing:p.printing||'Both',condition:p.condition||'Near Mint',scanDepth:p.scan_depth||'Smart',salesEnrich:0},cloudPrimary:true,cloudOnly:true,pcFallback:false,pcFallbackQueued:false,configuredSchedule:true,executionClass:'cloud_public',scheduledFor:p.next_due_at||nowIso},progress_json:{stage:'queued',percent:0,detail:`Configured scan: ${tcgSetName}`,updatedAt:nowIso},attempt_count:0,max_attempts:2,available_at:nowIso};
   await sb('collector_jobs',{method:'POST',body:[job],prefer:'return=minimal'});
   await sb(`marketplace_scan_profiles?user_id=eq.${encodeURIComponent(p.user_id)}&set_slug=eq.${encodeURIComponent(p.set_slug)}`,{method:'PATCH',body:{last_queued_at:nowIso,next_due_at:next,updated_at:nowIso},prefer:'return=minimal'});
   queued++;
   break;
 }
-console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,releasedPaused,health,mode:'staggered-one-runnable-at-a-time',setIdentity:'biweekly-tcg-id-cache'},null,2));
+console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,releasedPaused,health,mode:'staggered-one-runnable-at-a-time',setIdentity:'biweekly-tcg-id-cache+canonical-catalog-name'},null,2));
