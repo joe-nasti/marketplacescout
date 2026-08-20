@@ -44,8 +44,8 @@ jobs:
           set -euo pipefail
           test -s dist/index.html
           test -s dist/.vite/manifest.json
-          grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.js' dist/index.html
-          grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.css' dist/index.html
+          grep -Eq 'assets/[^" ]+[.-][A-Za-z0-9_-]+\.js' dist/index.html
+          grep -Eq 'assets/[^" ]+[.-][A-Za-z0-9_-]+\.css' dist/index.html
           ! grep -Eq '(current-|v0[0-9]+\.(js|css))' dist/index.html
       - uses: actions/upload-artifact@v4
         with:
