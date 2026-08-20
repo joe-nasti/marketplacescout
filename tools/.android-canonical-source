@@ -1,0 +1,1 @@
+Canonical Android source is materialized under android-agent/. Historical patch-native-vNNN scripts must not be reintroduced.
