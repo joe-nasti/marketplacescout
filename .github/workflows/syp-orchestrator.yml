@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: "*/30 * * * *"
   push:
+    branches: [main]
     paths:
       - "cloud-worker/recover-agent-probe-leases.mjs"
       - "cloud-worker/syp-orchestrator.mjs"
