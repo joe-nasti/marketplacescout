@@ -16,12 +16,12 @@ function scopedKey(key,scope='user'){
 
 export function getResource(key){return store.get().resources?.[key]||null}
 
-async function runLoader(key,loader,{persistent=false,scope='user'}={}){
+async function runLoader(key,loader,{persistent=true,scope='user'}={}){
   if(inflight.has(key))return inflight.get(key);
   write(key,{status:'loading',error:null,requestedAt:Date.now()});
   const job=Promise.resolve().then(loader).then(async data=>{
     const fetchedAt=Date.now();
-    write(key,{status:'ready',data,error:null,fetchedAt,source:'network'});
+    write(key,{status:'ready',data,error:null,fetchedAt,source:'network',stale:false});
     if(persistent)await writePersistentResource(scopedKey(key,scope),data,{fetchedAt});
     return data;
   }).catch(error=>{
@@ -32,7 +32,7 @@ async function runLoader(key,loader,{persistent=false,scope='user'}={}){
   return job;
 }
 
-export async function loadResource(key,loader,{force=false,ttl=30000,persistent=false,scope='user',staleWhileRevalidate=false,maxStale=7*24*60*60*1000}={}){
+export async function loadResource(key,loader,{force=false,ttl=30000,persistent=true,scope='user',staleWhileRevalidate=true,maxStale=7*24*60*60*1000}={}){
   const current=getResource(key);
   const fresh=current?.status==='ready'&&Date.now()-Number(current.fetchedAt||0)<ttl;
   if(!force&&fresh)return current.data;
@@ -50,6 +50,11 @@ export async function loadResource(key,loader,{force=false,ttl=30000,persistent=
     }
   }
 
+  if(!force&&current?.data&&staleWhileRevalidate){
+    void runLoader(key,loader,{persistent,scope}).catch(()=>{});
+    return current.data;
+  }
+
   return runLoader(key,loader,{persistent,scope});
 }
 
@@ -58,7 +63,7 @@ export function invalidateResource(key){
   if(current)write(key,{...current,fetchedAt:0,stale:true});
 }
 
-export async function clearResource(key,{persistent=false,scope='user'}={}){
+export async function clearResource(key,{persistent=true,scope='user'}={}){
   const resources={...(store.get().resources||{})};
   delete resources[key];
   store.update('resources',resources);
