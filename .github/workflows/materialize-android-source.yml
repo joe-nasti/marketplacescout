@@ -27,10 +27,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
         run: |
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
-            -f state=pending \
-            -f context='collectish/android-materialize' \
-            -f description='Materializing canonical Android source'
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=pending -f context='collectish/android-materialize' -f description='Materializing canonical Android source'
 
       - uses: actions/setup-java@v4
         with:
@@ -69,6 +66,11 @@ jobs:
             python "$patch"
           done
 
+      - name: Mark patches success
+        if: ${{ steps.patches.outcome == 'success' }}
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-materialize-patches' -f description='Historical patch chain applied'
+
       - name: Stamp canonical Android version
         id: stamp
         shell: bash
@@ -77,18 +79,21 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re
-
           main = Path('android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt')
           text = main.read_text()
           text = re.sub(r'private val version = "[0-9.]+"', 'private val version = "0.2.15"', text)
           main.write_text(text)
-
           gradle = Path('android-agent/app/build.gradle.kts')
           text = gradle.read_text()
           text = re.sub(r'versionCode = \d+', 'versionCode = 35', text)
           text = re.sub(r'versionName = "[0-9.]+"', 'versionName = "0.2.15"', text)
           gradle.write_text(text)
           PY
+
+      - name: Mark stamp success
+        if: ${{ steps.stamp.outcome == 'success' }}
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-materialize-stamp' -f description='Android version stamped'
 
       - name: Validate canonical source invariants
         id: validate
@@ -105,10 +110,20 @@ jobs:
           grep -q 'text = "← Collectish"' android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'sellerReturn.visibility=View.VISIBLE' android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt
 
+      - name: Mark validation success
+        if: ${{ steps.validate.outcome == 'success' }}
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-materialize-validate' -f description='Canonical source invariants verified'
+
       - name: Compile canonical Android source
         id: compile
         working-directory: android-agent
         run: gradle :app:assembleDebug
+
+      - name: Mark compile success
+        if: ${{ steps.compile.outcome == 'success' }}
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-materialize-compile' -f description='Canonical Android source compiled'
 
       - name: Commit canonical Android source only
         id: commit
@@ -125,6 +140,11 @@ jobs:
           git commit -m "refactor: materialize canonical Android source"
           git push origin HEAD:${GITHUB_REF_NAME}
 
+      - name: Mark commit success
+        if: ${{ steps.commit.outcome == 'success' }}
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-materialize-commit' -f description='Canonical Android source committed'
+
       - name: Publish materialization diagnostic
         if: always()
         env:
@@ -140,7 +160,4 @@ jobs:
           set -euo pipefail
           if [[ "$PATCHES" == success && "$STAMP" == success && "$VALIDATE" == success && "$COMPILE" == success && "$COMMIT" == success ]]; then state=success; else state=failure; fi
           desc="patch=$PATCHES stamp=$STAMP validate=$VALIDATE compile=$COMPILE commit=$COMMIT"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
-            -f state="$state" \
-            -f context='collectish/android-materialize' \
-            -f description="$desc"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/android-materialize' -f description="$desc"
