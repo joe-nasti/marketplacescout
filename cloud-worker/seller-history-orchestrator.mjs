@@ -149,12 +149,20 @@ async function upsertDetailBundle(job){
   await markOrchestrated(job,{orchestratorStatus:'order_detail_normalized',normalizedOrderNumber:bundle.order.order_number,normalizedItems:bundle.items.length,normalizedRefunds:bundle.refunds.length,normalizedReview:Boolean(bundle.review)});
   return bundle.order.order_number;
 }
+async function fetchUnprocessedKind(kindName,limit){
+  if(limit<=0)return [];
+  return await sb(`collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&payload_json->>sellerHistoryKind=eq.${enc(kindName)}&progress_json->>orchestratedAt=is.null&order=completed_at.asc&limit=${limit}`);
+}
 async function main(){
-  // Seller History work is explicitly tagged. Query only those recognized result
-  // kinds so unrelated/manual authenticated probes can never consume this batch.
-  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&payload_json->>sellerHistoryKind=in.(auth_detail,order_search,order_detail)&progress_json->>orchestratedAt=is.null&order=completed_at.asc&limit=50');
+  // Control-plane results can gate future backfill. Clear completed search/auth work
+  // before spending the remaining bounded batch on detail normalization/refreshes.
+  const BATCH=50;
+  const searches=await fetchUnprocessedKind('order_search',BATCH);
+  const auth=await fetchUnprocessedKind('auth_detail',BATCH-searches.length);
+  const details=await fetchUnprocessedKind('order_detail',BATCH-searches.length-auth.length);
+  const completed=[...searches,...auth,...details];
   let authProcessed=0,searchProcessed=0,detailProcessed=0,ignored=0;
-  for(const job of completed||[]){const k=kind(job);try{
+  for(const job of completed){const k=kind(job);try{
     if(k==='auth_detail'){const body=probeBody(job),sellerKey=body?.seller?.sellerKey;if(!sellerKey){await markOrchestrated(job,{orchestratorStatus:'auth_result_missing_seller_key'});continue;}const queued=await queueIncrementalSearch(job,String(sellerKey));await markOrchestrated(job,{orchestratorStatus:queued?'incremental_search_queued':'incremental_search_already_active'});authProcessed++;continue;}
     if(k==='order_search'){await processSearchJob(job);searchProcessed++;continue;}
     if(k==='order_detail'){await upsertDetailBundle(job);detailProcessed++;continue;}
