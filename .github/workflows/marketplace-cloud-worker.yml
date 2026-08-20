@@ -27,8 +27,10 @@ on:
 permissions:
   contents: read
 
+# Use a redesign-era lane so obsolete pre-cutover runs cannot hold the current
+# cloud-only worker behind the historical concurrency group.
 concurrency:
-  group: collectish-marketplace-cloud-worker
+  group: collectish-marketplace-cloud-worker-v2
   cancel-in-progress: false
 
 jobs:
@@ -66,8 +68,6 @@ jobs:
           grep -q 'Set filter mismatch' cloud-worker/marketplace-worker.mjs
           grep -q 'setName:profile.setName' cloud-worker/marketplace-worker.mjs || grep -q 'setName=profile.setName' cloud-worker/marketplace-worker.mjs
           ! grep -Rqs 'patch-marketplace-set-filter\|patch-ask-collectish-investigate\|requeue-failed-to-pc' .github/workflows cloud-worker
-      # Existing valid cloud jobs are useful work and must not be starved by a
-      # failure in scheduler/recovery bookkeeping. Drain them before maintenance.
       - name: Drain existing canonical Marketplace queue
         run: node cloud-worker/marketplace-worker.mjs
       - name: Queue configured set scans
