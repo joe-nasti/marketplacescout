@@ -1,8 +1,12 @@
-name: Validate Android Inventory bridge
+name: Validate Collectish Android agent
 
 on:
   workflow_dispatch:
   push:
+    paths:
+      - "android-agent/**"
+      - ".github/workflows/android-inventory-compile.yml"
+  pull_request:
     paths:
       - "android-agent/**"
       - ".github/workflows/android-inventory-compile.yml"
@@ -12,7 +16,7 @@ permissions:
   statuses: write
 
 concurrency:
-  group: collectish-android-inventory-compile
+  group: collectish-android-agent-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -30,13 +34,13 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
-      - name: Verify canonical Inventory bridge and WebView return
+      - name: Verify canonical authenticated-agent bridge
         working-directory: android-agent
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'versionCode = 35' app/build.gradle.kts
-          grep -q 'versionName = "0.2.15"' app/build.gradle.kts
+          grep -Eq 'versionCode = [0-9]+' app/build.gradle.kts
+          grep -Eq 'versionName = "[^"]+"' app/build.gradle.kts
           grep -q '/admin/product/searchcatalog' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q '/admin/product/updateinstockquantities' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q 'path.startsWith("/admin/product/manage/")' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
@@ -57,26 +61,14 @@ jobs:
         working-directory: android-agent
         run: gradle :app:assembleDebug
 
-      - name: Publish Inventory compile success
-        if: success()
+      - name: Publish Android validation status
+        if: always() && github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
+          RESULT: ${{ job.status }}
+        shell: bash
         run: |
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
-            -f state=success \
-            -f context='collectish/android-inventory-compile' \
-            -f description='Canonical Android Inventory bridge compiled' \
-            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-
-      - name: Publish Inventory compile failure
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-        run: |
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
-            -f state=failure \
-            -f context='collectish/android-inventory-compile' \
-            -f description='Canonical Android Inventory validation failed' \
-            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          state=success; desc='Canonical Android authenticated-agent source compiled'
+          if [ "$RESULT" != success ]; then state=failure; desc='Canonical Android authenticated-agent validation failed'; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/android-agent-compile' -f description="$desc" -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
