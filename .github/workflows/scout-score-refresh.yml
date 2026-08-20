@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: "17 */3 * * *"
   push:
+    branches: [main]
     paths:
       - ".github/workflows/scout-score-refresh.yml"
       - "cloud-worker/refresh-scout-24h.mjs"
