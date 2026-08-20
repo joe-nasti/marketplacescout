@@ -1,4 +1,5 @@
 import store from '../state/store.js';
+import { readPersistentResource, writePersistentResource } from '../state/persistent-cache.js';
 
 const TTL_MS=6*60*60*1000;
 const MAX_ENTRIES=400;
@@ -18,6 +19,7 @@ function isScryfallGet(input,init){
 }
 
 function keyFor(input){return requestUrl(input)?.href||(typeof input==='string'?input:input?.url||String(input))}
+const persistentKey=key=>`global:scryfall:${key}`;
 
 function normalizeName(name=''){
   return String(name).replace(/\s*\([^)]*(foil|showcase|borderless|extended art|serialized|retro frame|etched|alternate art|halo foil|rainbow foil|surge foil|galaxy foil)[^)]*\)\s*/ig,' ').replace(/\s+/g,' ').trim().toLowerCase();
@@ -73,6 +75,21 @@ function syntheticScryfallResponse(url){
   return new Response(JSON.stringify(payload),{status:200,headers:{'Content-Type':'application/json','X-Collectish-Source':'tcgplayer-product'}});
 }
 
+function responseFromRecord(record){
+  if(!record?.data?.body)return null;
+  const headers=new Headers(record.data.headers||{});
+  headers.set('X-Collectish-Source','indexeddb');
+  return new Response(record.data.body,{status:Number(record.data.status||200),statusText:record.data.statusText||'',headers});
+}
+
+function persistResponse(key,response){
+  const clone=response.clone();
+  void clone.text().then(body=>{
+    const headers={};clone.headers.forEach((value,name)=>{headers[name]=value});
+    return writePersistentResource(persistentKey(key),{status:clone.status,statusText:clone.statusText,headers,body},{fetchedAt:Date.now()});
+  }).catch(()=>{});
+}
+
 function prune(){
   const now=Date.now();
   for(const [key,entry] of cache){if(now-entry.at>TTL_MS)cache.delete(key)}
@@ -91,10 +108,16 @@ async function cachedFetch(input,init){
   const key=keyFor(input),hit=cache.get(key);
   if(hit&&Date.now()-hit.at<=TTL_MS)return hit.response.clone();
 
+  const persisted=await readPersistentResource(persistentKey(key));
+  if(persisted&&Date.now()-Number(persisted.fetchedAt||0)<=TTL_MS){
+    const response=responseFromRecord(persisted);
+    if(response){cache.set(key,{at:persisted.fetchedAt,response:response.clone()});return response}
+  }
+
   let job=inflight.get(key);
   if(!job){
     job=originalFetch(input,{...init,cache:'no-store'}).then(response=>{
-      if(response.ok)cache.set(key,{at:Date.now(),response:response.clone()});
+      if(response.ok){cache.set(key,{at:Date.now(),response:response.clone()});persistResponse(key,response)}
       return response;
     }).finally(()=>inflight.delete(key));
     inflight.set(key,job);
@@ -110,4 +133,4 @@ export function installScryfallCache(){
 }
 
 export function clearScryfallCache(){cache.clear();inflight.clear()}
-export function getScryfallCacheStats(){return {entries:cache.size,inflight:inflight.size,ttlMs:TTL_MS}}
+export function getScryfallCacheStats(){return {entries:cache.size,inflight:inflight.size,ttlMs:TTL_MS,persistent:true}}
