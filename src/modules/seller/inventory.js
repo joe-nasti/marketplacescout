@@ -113,10 +113,22 @@ async function loadCrossSource(productIds){
   }catch{}
 }
 
+async function restAll(basePath,{pageSize=1000,maxRows=20000}={}){
+  const out=[];
+  for(let offset=0;offset<maxRows;offset+=pageSize){
+    const sep=basePath.includes('?')?'&':'?';
+    const batch=await rest(`${basePath}${sep}limit=${pageSize}&offset=${offset}`);
+    if(!Array.isArray(batch)||!batch.length)break;
+    out.push(...batch);
+    if(batch.length<pageSize)break;
+  }
+  return out;
+}
+
 async function loadStored(){
   const [products,conditions,stateRows]=await Promise.all([
-    rest('store_inventory_products?select=*&quantity=gt.0&order=quantity.desc,product_name.asc&limit=5000'),
-    rest('store_inventory_conditions?select=*&quantity=gt.0&order=quantity.desc&limit=5000'),
+    restAll('store_inventory_products?select=*&quantity=gt.0&order=quantity.desc,product_name.asc'),
+    restAll('store_inventory_conditions?select=*&quantity=gt.0&order=quantity.desc'),
     rest('store_inventory_sync_state?select=*&limit=1')
   ]);
   rows=products||[];conditionRows=conditions||[];
