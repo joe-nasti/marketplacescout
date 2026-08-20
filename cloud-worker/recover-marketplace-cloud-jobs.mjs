@@ -32,8 +32,8 @@ async function main(){
     await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.queued`,{method:'PATCH',body:{priority:40,preferred_executor:'cloud_worker',required_capability:'marketplace_public_api',available_at:job.available_at||now,payload_json:{...payload,pcFallback:false,pcFallbackQueued:false,executionClass:'cloud_public',cloudOnly:true,cloudPrimary:true},progress_json:{stage:'queued',percent:0,detail:'Legacy PC fallback removed; restored to Collectish Cloud.',updatedAt:now}},prefer:'return=minimal'});repairedLegacy++;
   }
 
-  const queuedDaily=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.queued&order=created_at.asc&limit=500');
-  for(const job of queuedDaily||[]){if(!daily(job)||!completedToday.has(setKey(job)))continue;await cancelQueued(job,'Daily set refresh already completed today; redundant cloud retry cancelled.');cancelledRedundant++;}
+  const queuedManaged=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.queued&order=created_at.asc&limit=500');
+  for(const job of queuedManaged||[]){if(!managedRetry(job)||!completedToday.has(setKey(job)))continue;await cancelQueued(job,'Marketplace set already completed today; redundant managed cloud retry cancelled.');cancelledRedundant++;}
 
   const activeRows=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&order=created_at.asc&limit=500');
   const groups=new Map();
@@ -52,8 +52,8 @@ async function main(){
     const payload=job.payload_json||{},attempts=Number(job.attempt_count||0),max=Math.max(1,Number(job.max_attempts||3));
     const error=String(job.error_message||job.progress_json?.detail||'');
     if(!isTransient(error))continue;
-    const key=setKey(job),isDaily=daily(job),isManaged=managedRetry(job);
-    if(isDaily&&completedToday.has(key))continue;
+    const key=setKey(job),isManaged=managedRetry(job);
+    if(completedToday.has(key)){deduped++;continue;}
     if(isManaged&&activeManaged.has(key)){deduped++;continue;}
     const now=new Date(),baseBackoffMinutes=Math.max(10,15*Math.max(1,attempts)),backoffMinutes=Math.min(180,baseBackoffMinutes+retryJitterMinutes(key,12));
     const availableAt=new Date(now.getTime()+backoffMinutes*60000).toISOString();
@@ -66,6 +66,6 @@ async function main(){
     const freshCooldownMinutes=60+retryJitterMinutes(key,20),childAt=new Date(now.getTime()+freshCooldownMinutes*60000).toISOString();
     await sb('collector_jobs',{method:'POST',body:[{user_id:job.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:45,available_at:childAt,required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',parent_job_id:job.job_id,payload_json:{...payload,pcFallback:false,pcFallbackQueued:false,cloudFreshRetryCount:freshCount+1,cloudFreshRetryOf:job.job_id,executionClass:'cloud_public',cloudOnly:true,cloudPrimary:true},progress_json:{stage:'deferred',percent:0,detail:`Cloud attempts exhausted on transient upstream errors; fresh cloud retry scheduled after ${freshCooldownMinutes}m cool-down.`,updatedAt:now.toISOString()},max_attempts:max}],prefer:'return=minimal'});deferred++;activeManaged.add(key);
   }
-  console.log(`Cloud-only recovery ${today} Chicago: ${repairedLegacy} legacy PC fallback(s) restored, ${cancelledRedundant} redundant retry(s) cancelled, ${requeued} same-job retry(s), ${deferred} fresh cloud retry job(s), ${deduped} duplicate lineage retry(s) suppressed.`);
+  console.log(`Cloud-only recovery ${today} Chicago: ${repairedLegacy} legacy PC fallback(s) restored, ${cancelledRedundant} redundant retry(s) cancelled, ${requeued} same-job retry(s), ${deferred} fresh cloud retry job(s), ${deduped} completed/duplicate lineage retry(s) suppressed.`);
 }
 await main();
