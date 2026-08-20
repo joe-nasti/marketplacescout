@@ -22,12 +22,8 @@ const marker=`  <meta name="collectish-build" content="${build}">\n  <meta name=
 html=html.replace('  <meta name="theme-color" content="#f5f8ff">',`  <meta name="theme-color" content="#f5f8ff">\n${marker}`);
 await writeFile(targetHtml,html);
 
-await writeFile(join(dist,'build-version.json'),JSON.stringify({
-  build,
-  revision:revisionNumber,
-  label:revision,
-  deployed_at:deployedAt
-})+'\n');
+// Deployment identity is a build artifact only. Keep a single canonical file in dist/
+// rather than maintaining parallel build-version/web-version outputs or committing stamps.
 await writeFile(join(dist,'web-version.json'),JSON.stringify({
   version:'0.9.52',
   revision:revisionNumber,
