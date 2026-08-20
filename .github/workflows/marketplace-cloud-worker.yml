@@ -19,7 +19,7 @@ on:
       - "cloud-worker/validate-claim-rpc.mjs"
       - "cloud-worker/normalize-marketplace-jobs.mjs"
       - "cloud-worker/recover-stale-jobs.mjs"
-      - "cloud-worker/requeue-failed-to-pc.mjs"
+      - "cloud-worker/recover-marketplace-cloud-jobs.mjs"
       - "cloud-worker/enable-atomic-claim.mjs"
       - "cloud-worker/enrich-scout-scryfall.mjs"
       - "cloud-worker/refresh-scout-rankings.mjs"
@@ -57,7 +57,7 @@ jobs:
           node --check cloud-worker/validate-claim-rpc.mjs
           node --check cloud-worker/normalize-marketplace-jobs.mjs
           node --check cloud-worker/recover-stale-jobs.mjs
-          node --check cloud-worker/requeue-failed-to-pc.mjs
+          node --check cloud-worker/recover-marketplace-cloud-jobs.mjs
           node --check cloud-worker/enable-atomic-claim.mjs
           node --check cloud-worker/marketplace-worker.mjs
           node --check cloud-worker/ask-investigate-worker.mjs
@@ -65,7 +65,7 @@ jobs:
           node --check cloud-worker/refresh-scout-rankings.mjs
           grep -q 'Set filter mismatch' cloud-worker/marketplace-worker.mjs
           grep -q 'setName:profile.setName' cloud-worker/marketplace-worker.mjs || grep -q 'setName=profile.setName' cloud-worker/marketplace-worker.mjs
-          ! grep -Rqs 'patch-marketplace-set-filter\|patch-ask-collectish-investigate' .github/workflows cloud-worker
+          ! grep -Rqs 'patch-marketplace-set-filter\|patch-ask-collectish-investigate\|requeue-failed-to-pc' .github/workflows cloud-worker
       - name: Queue configured set scans
         run: node cloud-worker/queue-configured-set-refresh.mjs
       - name: Validate atomic claim RPC
@@ -75,7 +75,7 @@ jobs:
       - name: Recover expired Marketplace leases
         run: node cloud-worker/recover-stale-jobs.mjs
       - name: Recover and deduplicate cloud retries
-        run: node cloud-worker/requeue-failed-to-pc.mjs
+        run: node cloud-worker/recover-marketplace-cloud-jobs.mjs
       - name: Final cloud routing normalization
         run: node cloud-worker/normalize-marketplace-jobs.mjs
       - name: Enable atomic job claim
@@ -94,4 +94,4 @@ jobs:
         run: node cloud-worker/refresh-scout-rankings.mjs
       - name: Recover failed cloud jobs with deferred retries
         if: always()
-        run: node cloud-worker/requeue-failed-to-pc.mjs
+        run: node cloud-worker/recover-marketplace-cloud-jobs.mjs
