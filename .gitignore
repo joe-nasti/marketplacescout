@@ -3,3 +3,11 @@ dist/
 .vite/
 *.log
 .DS_Store
+
+# Source files keep stable names; Vite owns production cache-busting.
+/current-*-r*.js
+/current-*-r*.mjs
+/current-*-r*.css
+/v[0-9][0-9][0-9].js
+/v[0-9][0-9][0-9].mjs
+/v[0-9][0-9][0-9].css
