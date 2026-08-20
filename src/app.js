@@ -9,6 +9,7 @@ import store from './state/store.js';
 import { startShell } from './core/shell.js';
 import { installRestBridge } from './core/rest.js';
 import { installExternalFetchBridge } from './core/data.js';
+import { installScryfallCache } from './core/scryfall-cache.js';
 import { installScoutCacheBridge } from './modules/scout/cache-read.js';
 import { installModules } from './modules/index.js';
 
@@ -16,6 +17,7 @@ export function startCollectish(){
   store.update('runtime',{phase:'starting'});
   installExternalFetchBridge();
   installRestBridge();
+  installScryfallCache();
   installScoutCacheBridge();
   startShell({beforeReady:async()=>{
     store.update('runtime',{phase:'loading-modules'});
