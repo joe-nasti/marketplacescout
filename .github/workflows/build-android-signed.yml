@@ -3,6 +3,7 @@ name: Build signed Collectish Android
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - "android-agent/**"
       - ".github/workflows/build-android-signed.yml"
