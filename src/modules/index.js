@@ -5,7 +5,8 @@ const scoutEnhancers=[
   ()=>import('./scout/noise-filter.js'),
   ()=>import('./scout/search.js'),
   ()=>import('./scout/vendor.js'),
-  ()=>import('./scout/detail-swipe.js')
+  ()=>import('./scout/detail-swipe.js'),
+  ()=>import('./scout/compact-mobile.js')
 ];
 
 const inventoryEnhancers=[
