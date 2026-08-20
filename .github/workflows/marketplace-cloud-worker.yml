@@ -12,9 +12,16 @@ on:
   push:
     paths:
       - ".github/workflows/marketplace-cloud-worker.yml"
-      - "cloud-worker/**"
-      - "tools/patch-marketplace-set-filter.py"
-      - "tools/patch-ask-collectish-investigate.py"
+      - "cloud-worker/marketplace-worker.mjs"
+      - "cloud-worker/ask-investigate-worker.mjs"
+      - "cloud-worker/queue-configured-set-refresh.mjs"
+      - "cloud-worker/validate-claim-rpc.mjs"
+      - "cloud-worker/normalize-marketplace-jobs.mjs"
+      - "cloud-worker/recover-stale-jobs.mjs"
+      - "cloud-worker/requeue-failed-to-pc.mjs"
+      - "cloud-worker/enable-atomic-claim.mjs"
+      - "cloud-worker/enrich-scout-scryfall.mjs"
+      - "cloud-worker/refresh-scout-rankings.mjs"
 
 permissions:
   contents: read
@@ -42,10 +49,22 @@ jobs:
       - name: Validate worker secret
         shell: bash
         run: |
-          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "Missing repository secret SUPABASE_SERVICE_ROLE_KEY"
-            exit 1
-          fi
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Validate canonical cloud workers
+        run: |
+          node --check cloud-worker/queue-configured-set-refresh.mjs
+          node --check cloud-worker/validate-claim-rpc.mjs
+          node --check cloud-worker/normalize-marketplace-jobs.mjs
+          node --check cloud-worker/recover-stale-jobs.mjs
+          node --check cloud-worker/requeue-failed-to-pc.mjs
+          node --check cloud-worker/enable-atomic-claim.mjs
+          node --check cloud-worker/marketplace-worker.mjs
+          node --check cloud-worker/ask-investigate-worker.mjs
+          node --check cloud-worker/enrich-scout-scryfall.mjs
+          node --check cloud-worker/refresh-scout-rankings.mjs
+          grep -q 'Set filter mismatch' cloud-worker/marketplace-worker.mjs
+          grep -q 'setName:profile.setName' cloud-worker/marketplace-worker.mjs || grep -q 'setName=profile.setName' cloud-worker/marketplace-worker.mjs
+          ! grep -Rqs 'patch-marketplace-set-filter\|patch-ask-collectish-investigate' .github/workflows cloud-worker
       - name: Queue configured set scans
         run: node cloud-worker/queue-configured-set-refresh.mjs
       - name: Validate atomic claim RPC
@@ -54,65 +73,24 @@ jobs:
         run: node cloud-worker/normalize-marketplace-jobs.mjs
       - name: Recover expired Marketplace leases
         run: node cloud-worker/recover-stale-jobs.mjs
-      - name: Re-normalize recovered jobs
-        run: node cloud-worker/normalize-marketplace-jobs.mjs
-      - name: Deduplicate and defer cloud-only retries before claim
+      - name: Recover and deduplicate cloud retries
         run: node cloud-worker/requeue-failed-to-pc.mjs
-      - name: Final cloud-only routing normalization
+      - name: Final cloud routing normalization
         run: node cloud-worker/normalize-marketplace-jobs.mjs
-      - name: Prepare cloud worker identity
-        shell: bash
-        run: |
-          sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/marketplace-worker.mjs
-          sed -i 's/const WORKER_ID="cloud-marketplace-worker"/const WORKER_ID="00000000-0000-4000-8000-000000000001"/' cloud-worker/parity-check.mjs
-      - name: Harden TCGplayer set filter
-        run: python tools/patch-marketplace-set-filter.py
-      - name: Harden scan-row persistence
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('cloud-worker/marketplace-worker.mjs')
-          s = p.read_text()
-          old = 'for(let i=0;i<rr.length;i+=200)await sb("marketplace_scan_rows?on_conflict=user_id,scan_id,sku_id",{method:"POST",body:rr.slice(i,i+200),prefer:"resolution=merge-duplicates,return=minimal"})'
-          new = 'try{for(let i=0;i<rr.length;i+=25)await sb("marketplace_scan_rows?on_conflict=user_id,scan_id,sku_id",{method:"POST",body:rr.slice(i,i+25),prefer:"resolution=merge-duplicates,return=minimal"})}catch(e){try{await sb(`marketplace_scan_rows?user_id=eq.${encodeURIComponent(job.user_id)}&scan_id=eq.${encodeURIComponent(scan.scanId)}`,{method:"DELETE",prefer:"return=minimal"})}catch{}try{await sb(`marketplace_scans?user_id=eq.${encodeURIComponent(job.user_id)}&scan_id=eq.${encodeURIComponent(scan.scanId)}`,{method:"DELETE",prefer:"return=minimal"})}catch{}throw e}'
-          if old not in s:
-              raise SystemExit('Expected Marketplace persistence batch code was not found')
-          p.write_text(s.replace(old, new))
-          PY
-      - name: Enable Ask Collectish Investigate jobs
-        run: python tools/patch-ask-collectish-investigate.py
       - name: Enable atomic job claim
         run: node cloud-worker/enable-atomic-claim.mjs
-      - name: Validate patched worker
-        run: |
-          python -m py_compile tools/patch-marketplace-set-filter.py tools/patch-ask-collectish-investigate.py
-          node --check cloud-worker/queue-configured-set-refresh.mjs
-          node --check cloud-worker/marketplace-worker.mjs
-          node --check cloud-worker/enrich-scout-scryfall.mjs
-          node --check cloud-worker/rescore-new-scout-v4.mjs
-          grep -q 'Set filter mismatch' cloud-worker/marketplace-worker.mjs
-          grep -q 'setName:profile.setName' cloud-worker/marketplace-worker.mjs
-          grep -q 'runScoutSalesEnrich' cloud-worker/marketplace-worker.mjs
-          grep -q 'source=eq.ask_collectish' cloud-worker/marketplace-worker.mjs
-          grep -q 'recalculate_scout_base_v4_batch' cloud-worker/rescore-new-scout-v4.mjs
-      - name: Capture Scout row watermark
-        run: node cloud-worker/rescore-new-scout-v4.mjs capture
+      - name: Run Ask Collectish Investigate jobs
+        run: node cloud-worker/ask-investigate-worker.mjs
       - name: Run cloud-targeted Marketplace jobs
         run: node cloud-worker/marketplace-worker.mjs
-      - name: Canonically score newly inserted Marketplace rows
-        run: node cloud-worker/rescore-new-scout-v4.mjs rescore
       - name: Enrich Scout card metadata
         if: always()
         continue-on-error: true
         run: node cloud-worker/enrich-scout-scryfall.mjs
+      - name: Refresh promoted Scout v5 rankings
+        if: always()
+        continue-on-error: true
+        run: node cloud-worker/refresh-scout-rankings.mjs
       - name: Recover failed cloud jobs with deferred retries
         if: always()
         run: node cloud-worker/requeue-failed-to-pc.mjs
-      - name: Compare any completed manual verification pair
-        if: always()
-        continue-on-error: true
-        run: node cloud-worker/parity-check.mjs
-      - name: Finalize linked manual pair when both scans exist
-        if: always()
-        run: node cloud-worker/finalize-linked-pair.mjs
