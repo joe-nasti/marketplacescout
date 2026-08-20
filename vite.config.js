@@ -19,7 +19,12 @@ export default defineConfig({
     target: 'es2020',
     sourcemap: false,
     rollupOptions: {
-      input: resolve(process.cwd(), 'index.html')
+      input: resolve(process.cwd(), 'index.html'),
+      output: {
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash][extname]'
+      }
     }
   }
 });
