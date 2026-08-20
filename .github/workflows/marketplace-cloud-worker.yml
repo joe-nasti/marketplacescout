@@ -84,7 +84,10 @@ jobs:
           grep -q 'Set filter mismatch' cloud-worker/marketplace-worker.mjs
           grep -q 'const setFilter=String(setName||setSlug' cloud-worker/marketplace-worker.mjs
           grep -q 'setName:\[setFilter\]' cloud-worker/marketplace-worker.mjs
-          ! grep -Rqs 'patch-marketplace-set-filter\|patch-ask-collectish-investigate\|requeue-failed-to-pc' .github/workflows cloud-worker
+          test ! -e tools/patch-marketplace-set-filter.py
+          test ! -e tools/patch-ask-collectish-investigate.py
+          test ! -e cloud-worker/requeue-failed-to-pc.mjs
+          ! grep -RqsE '(^|[[:space:]])(python|node)[[:space:]]+(tools/patch-marketplace-set-filter\.py|tools/patch-ask-collectish-investigate\.py|cloud-worker/requeue-failed-to-pc\.mjs)' .github/workflows
       - name: Publish Marketplace validation status
         if: always()
         env:
