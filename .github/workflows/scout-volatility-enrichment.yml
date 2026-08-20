@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: "23 */6 * * *"
   push:
+    branches: [main]
     paths:
       - "cloud-worker/refresh-scout-volatility.mjs"
       - ".github/workflows/scout-volatility-enrichment.yml"
