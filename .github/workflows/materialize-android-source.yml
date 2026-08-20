@@ -26,8 +26,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
-        run: |
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=pending -f context='collectish/android-materialize' -f description='Materializing canonical Android source'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=pending -f context='collectish/android-materialize' -f description='Materializing canonical Android source'
 
       - uses: actions/setup-java@v4
         with:
@@ -43,27 +42,27 @@ jobs:
       - name: Apply historical patch chain once
         id: patches
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
         run: |
-          set -euo pipefail
-          for patch in \
-            tools/patch-native-v021.py \
-            tools/patch-native-v022.py \
-            tools/patch-native-v023.py \
-            tools/patch-native-v024.py \
-            tools/patch-native-v025.py \
-            tools/patch-native-v026.py \
-            tools/patch-native-v027.py \
-            tools/patch-native-v028.py \
-            tools/patch-native-v030.py \
-            tools/patch-native-v031.py \
-            tools/patch-native-v032.py \
-            tools/patch-native-v033.py \
-            tools/patch-native-v034.py \
-            tools/patch-native-v035.py \
-            tools/patch-native-v036.py
-          do
+          set -uo pipefail
+          patches=(021 022 023 024 025 026 027 028 030 031 032 033 034 035 036)
+          for rev in "${patches[@]}"; do
+            patch="tools/patch-native-v${rev}.py"
+            context="collectish/android-patch-v${rev}"
             echo "Applying $patch"
-            python "$patch"
+            if output="$(python "$patch" 2>&1)"; then
+              echo "$output"
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context="$context" -f description="v${rev} applied"
+            else
+              rc=$?
+              echo "$output"
+              desc="$(printf '%s' "$output" | tail -1 | tr '\n' ' ' | cut -c1-120)"
+              [ -n "$desc" ] || desc="patch v${rev} failed rc=$rc"
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context="$context" -f description="$desc"
+              exit "$rc"
+            fi
           done
 
       - name: Mark patches success
@@ -90,11 +89,6 @@ jobs:
           gradle.write_text(text)
           PY
 
-      - name: Mark stamp success
-        if: ${{ steps.stamp.outcome == 'success' }}
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-materialize-stamp' -f description='Android version stamped'
-
       - name: Validate canonical source invariants
         id: validate
         shell: bash
@@ -110,20 +104,10 @@ jobs:
           grep -q 'text = "← Collectish"' android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'sellerReturn.visibility=View.VISIBLE' android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt
 
-      - name: Mark validation success
-        if: ${{ steps.validate.outcome == 'success' }}
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-materialize-validate' -f description='Canonical source invariants verified'
-
       - name: Compile canonical Android source
         id: compile
         working-directory: android-agent
         run: gradle :app:assembleDebug
-
-      - name: Mark compile success
-        if: ${{ steps.compile.outcome == 'success' }}
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-materialize-compile' -f description='Canonical Android source compiled'
 
       - name: Commit canonical Android source only
         id: commit
@@ -139,11 +123,6 @@ jobs:
           fi
           git commit -m "refactor: materialize canonical Android source"
           git push origin HEAD:${GITHUB_REF_NAME}
-
-      - name: Mark commit success
-        if: ${{ steps.commit.outcome == 'success' }}
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-materialize-commit' -f description='Canonical Android source committed'
 
       - name: Publish materialization diagnostic
         if: always()
