@@ -66,7 +66,8 @@ jobs:
           node --check cloud-worker/enrich-scout-scryfall.mjs
           node --check cloud-worker/refresh-scout-rankings.mjs
           grep -q 'Set filter mismatch' cloud-worker/marketplace-worker.mjs
-          grep -q 'setName:profile.setName' cloud-worker/marketplace-worker.mjs || grep -q 'setName=profile.setName' cloud-worker/marketplace-worker.mjs
+          grep -q 'const setFilter=String(setName||setSlug' cloud-worker/marketplace-worker.mjs
+          grep -q 'setName:\[setFilter\]' cloud-worker/marketplace-worker.mjs
           ! grep -Rqs 'patch-marketplace-set-filter\|patch-ask-collectish-investigate\|requeue-failed-to-pc' .github/workflows cloud-worker
       - name: Drain existing canonical Marketplace queue
         run: node cloud-worker/marketplace-worker.mjs
