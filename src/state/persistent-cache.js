@@ -39,6 +39,13 @@ export async function readPersistentResource(key){
   return tx('readonly',store=>store.get(key));
 }
 
+export async function readPersistentResources(keys=[]){
+  const unique=[...new Set((keys||[]).filter(Boolean))];
+  if(!unique.length)return new Map();
+  const rows=await Promise.all(unique.map(async key=>[key,await readPersistentResource(key)]));
+  return new Map(rows.filter(([,value])=>value));
+}
+
 export async function writePersistentResource(key,data,meta={}){
   const value={key,data,fetchedAt:Number(meta.fetchedAt||Date.now()),version:1};
   await tx('readwrite',store=>store.put(value));
