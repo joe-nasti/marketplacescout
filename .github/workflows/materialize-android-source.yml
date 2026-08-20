@@ -82,29 +82,31 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          import re
 
-          files = [
+          for path in [
               Path('.github/workflows/build-android-signed.yml'),
               Path('.github/workflows/android-inventory-compile.yml'),
-          ]
-          for path in files:
+          ]:
               text = path.read_text()
               text = text.replace('      - "tools/patch-native-v0*.py"\n', '')
-              text = re.sub(
-                  r'\n      - name: Apply native patch chain\n        shell: bash\n        run: \|\n(?:          .*\n)+?(?=\n      - name: )',
-                  '\n',
-                  text,
-              )
+              marker = '\n      - name: Apply native patch chain\n'
+              if marker in text:
+                  start = text.index(marker)
+                  end = text.index('\n      - name: ', start + len(marker))
+                  text = text[:start] + text[end:]
               path.write_text(text)
 
           signed = Path('.github/workflows/build-android-signed.yml')
-          text = signed.read_text()
-          text = text.replace('      - name: Stamp and validate 0.2.15 Inventory UX fixes\n', '      - name: Validate Android 0.2.15 source\n')
-          text = re.sub(r"          sed -i -E 's/private val version = .*?\n", '', text)
-          text = re.sub(r"          sed -i -E 's/versionCode = .*?\n", '', text)
-          text = re.sub(r"          sed -i -E 's/versionName = .*?\n", '', text)
-          signed.write_text(text)
+          lines = signed.read_text().splitlines()
+          out = []
+          for line in lines:
+              if line.strip() == '- name: Stamp and validate 0.2.15 Inventory UX fixes':
+                  out.append('      - name: Validate Android 0.2.15 source')
+                  continue
+              if 'sed -i -E' in line and ('private val version' in line or 'versionCode' in line or 'versionName' in line):
+                  continue
+              out.append(line)
+          signed.write_text('\n'.join(out) + '\n')
           PY
 
       - name: Delete historical native patch scripts and harden hygiene check
@@ -116,14 +118,15 @@ jobs:
           from pathlib import Path
           p = Path('tools/check-source-hygiene.mjs')
           s = p.read_text()
-          s = s.replace(
-              "const offenders=new Set();",
-              "const offenders=new Set();\nconst nativePatchStamped=/^patch-native-v\\d+\\.py$/i;"
-          )
-          s = s.replace(
-              "await walk(root,{rootOnly:true});",
-              "await walk(root,{rootOnly:true});\nfor(const entry of await readdir(join(root,'tools'),{withFileTypes:true})){if(entry.isFile()&&nativePatchStamped.test(entry.name))offenders.add(`tools/${entry.name}`)}"
-          )
+          if 'nativePatchStamped' not in s:
+              s = s.replace(
+                  "const offenders=new Set();",
+                  "const offenders=new Set();\nconst nativePatchStamped=/^patch-native-v\\d+\\.py$/i;"
+              )
+              s = s.replace(
+                  "await walk(root,{rootOnly:true});",
+                  "await walk(root,{rootOnly:true});\nfor(const entry of await readdir(join(root,'tools'),{withFileTypes:true})){if(entry.isFile()&&nativePatchStamped.test(entry.name))offenders.add(`tools/${entry.name}`)}"
+              )
           s = s.replace(
               "Revision-stamped web source files are not allowed. Keep stable source names and let Vite hash dist assets:",
               "Revision-stamped source artifacts are not allowed. Keep stable source names; let Vite hash web dist assets and edit Android source directly:"
@@ -154,14 +157,11 @@ jobs:
           grep -q 'loginByUrl' android-agent/app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
           grep -q 'text = "← Collectish"' android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'sellerReturn.visibility=View.VISIBLE' android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt
-          npm ci
-          npm run check:hygiene
+          node tools/check-source-hygiene.mjs
           (cd android-agent && gradle :app:assembleDebug)
 
       - name: Commit materialized Android source
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
