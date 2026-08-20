@@ -10,6 +10,7 @@ import { startShell } from './core/shell.js';
 import { installRestBridge } from './core/rest.js';
 import { installExternalFetchBridge } from './core/data.js';
 import { installScryfallCache } from './core/scryfall-cache.js';
+import { installActivityBar } from './core/activity-bar.js';
 import { primeResources } from './state/resources.js';
 import { installScoutCacheBridge } from './modules/scout/cache-read.js';
 import { installModules } from './modules/index.js';
@@ -25,6 +26,7 @@ export function startCollectish(){
   installExternalFetchBridge();
   installRestBridge();
   installScryfallCache();
+  installActivityBar();
   installScoutCacheBridge();
   startShell({beforeReady:async()=>{
     store.update('runtime',{phase:'hydrating-cache'});
