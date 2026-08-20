@@ -5,7 +5,6 @@ on:
   push:
     paths:
       - "android-agent/**"
-      - "tools/patch-native-v0*.py"
       - ".github/workflows/build-android-signed.yml"
 
 permissions:
@@ -59,34 +58,12 @@ jobs:
           echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
           keytool -list -keystore "$RUNNER_TEMP/collectish-release.jks" -storepass "$COLLECTISH_KEYSTORE_PASSWORD" -alias "$COLLECTISH_KEY_ALIAS" >/dev/null
 
-      - name: Apply native patch chain
-        shell: bash
-        run: |
-          set -euo pipefail
-          python tools/patch-native-v021.py
-          python tools/patch-native-v022.py
-          python tools/patch-native-v023.py
-          python tools/patch-native-v024.py
-          python tools/patch-native-v025.py
-          python tools/patch-native-v026.py
-          python tools/patch-native-v027.py
-          python tools/patch-native-v028.py
-          python tools/patch-native-v030.py
-          python tools/patch-native-v031.py
-          python tools/patch-native-v032.py
-          python tools/patch-native-v033.py
-          python tools/patch-native-v034.py
-          python tools/patch-native-v035.py
-          python tools/patch-native-v036.py
-
-      - name: Stamp and validate 0.2.15 Inventory UX fixes
+      - name: Validate canonical Android 0.2.15 source
         working-directory: android-agent
         shell: bash
         run: |
           set -euo pipefail
-          sed -i -E 's/private val version = "[0-9.]+"/private val version = "'"$ANDROID_VERSION_NAME"'"/' app/src/main/java/com/collectish/agent/MainActivity.kt
-          sed -i -E 's/versionCode = [0-9]+/versionCode = '"$ANDROID_VERSION_CODE"'/' app/build.gradle.kts
-          sed -i -E 's/versionName = "[0-9.]+"/versionName = "'"$ANDROID_VERSION_NAME"'"/' app/build.gradle.kts
+          grep -q 'private val version = "0.2.15"' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'versionCode = 35' app/build.gradle.kts
           grep -q 'versionName = "0.2.15"' app/build.gradle.kts
           grep -q '/admin/product/searchcatalog' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
@@ -128,17 +105,17 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --clobber
           else
-            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME. Adds a persistent one-tap Collectish return control over the shared TCGplayer WebView while retaining Store authentication diagnostics and Inventory sync support."
+            gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME built directly from canonical Android source."
           fi
 
       - name: Publish signed Android success status
         if: success()
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.15 built with Inventory UX fixes'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.15 built from canonical source'
 
       - name: Publish signed Android failure status
         if: failure()
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/android-signed' -f description='Signed Android 0.2.15 Inventory UX build failed'
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/android-signed' -f description='Canonical Android 0.2.15 signed build failed'
