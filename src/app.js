@@ -14,10 +14,10 @@ import { primeResources } from './state/resources.js';
 import { installScoutCacheBridge } from './modules/scout/cache-read.js';
 import { installModules } from './modules/index.js';
 
-const GLOBAL_PRIME=[
-  {key:'sealed.rows',scope:'global',maxStale:7*24*60*60*1000},
-  {key:'sealed.setTypes',scope:'global',maxStale:30*24*60*60*1000},
-  {key:'scout.rows',scope:'global',maxStale:24*60*60*1000}
+const STARTUP_PRIME=[
+  {key:'sealed.rows',scope:'user',maxStale:7*24*60*60*1000},
+  {key:'sealed.setTypes',scope:'user',maxStale:30*24*60*60*1000},
+  {key:'scout.rows',scope:'user',maxStale:24*60*60*1000}
 ];
 
 export function startCollectish(){
@@ -28,7 +28,7 @@ export function startCollectish(){
   installScoutCacheBridge();
   startShell({beforeReady:async()=>{
     store.update('runtime',{phase:'hydrating-cache'});
-    await primeResources(GLOBAL_PRIME).catch(()=>0);
+    await primeResources(STARTUP_PRIME).catch(()=>0);
     store.update('runtime',{phase:'loading-modules'});
     await installModules();
     store.update('runtime',{phase:'ready'});
