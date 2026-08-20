@@ -150,18 +150,14 @@ async function upsertDetailBundle(job){
   return bundle.order.order_number;
 }
 async function main(){
-  // Filter to genuinely unprocessed completions before applying the batch limit;
-  // otherwise a large wall of already-normalized newer refreshes can starve an
-  // older pending orders/search result forever.
-  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&progress_json->>orchestratedAt=is.null&order=completed_at.asc&limit=50');
+  // Seller History work is explicitly tagged. Query only those recognized result
+  // kinds so unrelated/manual authenticated probes can never consume this batch.
+  const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&payload_json->>sellerHistoryKind=in.(auth_detail,order_search,order_detail)&progress_json->>orchestratedAt=is.null&order=completed_at.asc&limit=50');
   let authProcessed=0,searchProcessed=0,detailProcessed=0,ignored=0;
   for(const job of completed||[]){const k=kind(job);try{
     if(k==='auth_detail'){const body=probeBody(job),sellerKey=body?.seller?.sellerKey;if(!sellerKey){await markOrchestrated(job,{orchestratorStatus:'auth_result_missing_seller_key'});continue;}const queued=await queueIncrementalSearch(job,String(sellerKey));await markOrchestrated(job,{orchestratorStatus:queued?'incremental_search_queued':'incremental_search_already_active'});authProcessed++;continue;}
     if(k==='order_search'){await processSearchJob(job);searchProcessed++;continue;}
     if(k==='order_detail'){await upsertDetailBundle(job);detailProcessed++;continue;}
-    // Legacy/manual read-only probes share this action name. Mark them consumed so
-    // they cannot permanently occupy the oldest-unprocessed batch and starve real
-    // Seller History auth/search/detail completions behind them.
     await markOrchestrated(job,{orchestratorStatus:'ignored_unrecognized_probe'});
     ignored++;
   }catch(error){
