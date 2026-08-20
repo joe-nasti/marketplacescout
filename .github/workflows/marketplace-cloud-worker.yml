@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       max_jobs:
-        description: Maximum queued cloud Marketplace jobs to process
+        description: Maximum queued cloud Marketplace jobs to process per worker pass
         required: false
         default: "4"
   schedule:
@@ -66,6 +66,10 @@ jobs:
           grep -q 'Set filter mismatch' cloud-worker/marketplace-worker.mjs
           grep -q 'setName:profile.setName' cloud-worker/marketplace-worker.mjs || grep -q 'setName=profile.setName' cloud-worker/marketplace-worker.mjs
           ! grep -Rqs 'patch-marketplace-set-filter\|patch-ask-collectish-investigate\|requeue-failed-to-pc' .github/workflows cloud-worker
+      # Existing valid cloud jobs are useful work and must not be starved by a
+      # failure in scheduler/recovery bookkeeping. Drain them before maintenance.
+      - name: Drain existing canonical Marketplace queue
+        run: node cloud-worker/marketplace-worker.mjs
       - name: Queue configured set scans
         run: node cloud-worker/queue-configured-set-refresh.mjs
       - name: Validate atomic claim RPC
@@ -82,7 +86,7 @@ jobs:
         run: node cloud-worker/enable-atomic-claim.mjs
       - name: Run Ask Collectish Investigate jobs
         run: node cloud-worker/ask-investigate-worker.mjs
-      - name: Run cloud-targeted Marketplace jobs
+      - name: Run newly admitted or recovered Marketplace jobs
         run: node cloud-worker/marketplace-worker.mjs
       - name: Enrich Scout card metadata
         if: always()
