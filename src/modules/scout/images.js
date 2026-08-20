@@ -1,3 +1,5 @@
+import store from '../../state/store.js';
+
 // Scout list images — viewport lazy loading + detail-to-list image sync.
 (() => {
   let observer=null, token=0, installed=false;
@@ -15,13 +17,31 @@
     img.onerror=()=>{if(slot.contains(img)){img.remove(); if(!slot.children.length){const p=document.createElement('div');p.className='cx-scout-thumb-placeholder';p.textContent=slot.closest('.cx-scout-card')?.querySelector('.cx-grade')?.textContent?.trim()||'•';slot.append(p)}}};
     slot.append(img);
   };
+
+  function hydrateFromStore(ids){
+    const wanted=new Set(ids);
+    for(const r of store.get()?.scout?.rows||[]){
+      const sku=String(r?.sku_id||'');
+      if(sku&&wanted.has(sku)&&r?.product_id)meta.set(sku,{sku_id:sku,product_id:r.product_id,product_name:r.product_name||''});
+    }
+  }
+
   async function hydrateMeta(){
     const ids=slots().map(s=>String(s.dataset.v5Thumb||'')).filter(Boolean).filter(x=>!meta.has(x));
     if(!ids.length)return;
+
+    // The renderer already loaded these rows into shared state. Reuse them first so
+    // normal list rendering creates zero duplicate Supabase round trips for images.
+    hydrateFromStore(ids);
+    const missing=ids.filter(x=>!meta.has(x));
+    if(!missing.length)return;
+
+    // Fallback only for unusual cases where a slot exists without a corresponding
+    // row in the current Scout state (for example, an independently rendered card).
     const my=++token;
     try{
-      for(let i=0;i<ids.length;i+=80){
-        const batch=ids.slice(i,i+80);
+      for(let i=0;i<missing.length;i+=80){
+        const batch=missing.slice(i,i+80);
         const rows=await window.rest(`scout_opportunities_v5?select=sku_id,product_id,product_name&sku_id=in.(${batch.map(encodeURIComponent).join(',')})`);
         if(my!==token)return;
         for(const r of rows||[])meta.set(String(r.sku_id),r);
