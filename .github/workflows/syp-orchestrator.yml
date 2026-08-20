@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "cloud-worker/recover-agent-probe-leases.mjs"
+      - "cloud-worker/syp-response-guard.mjs"
       - "cloud-worker/syp-orchestrator.mjs"
       - "cloud-worker/syp-prioritize.mjs"
       - ".github/workflows/syp-orchestrator.yml"
@@ -40,10 +41,13 @@ jobs:
       - name: Validate SYP orchestrator
         run: |
           node --check cloud-worker/recover-agent-probe-leases.mjs
+          node --check cloud-worker/syp-response-guard.mjs
           node --check cloud-worker/syp-orchestrator.mjs
           node --check cloud-worker/syp-prioritize.mjs
       - name: Recover expired authenticated Android probes
         run: node cloud-worker/recover-agent-probe-leases.mjs
+      - name: Quarantine malformed SYP timestamp responses
+        run: node cloud-worker/syp-response-guard.mjs
       - name: Run SYP orchestrator
         run: node cloud-worker/syp-orchestrator.mjs
       - name: Promote bounded SYP probes ahead of detail backfill
