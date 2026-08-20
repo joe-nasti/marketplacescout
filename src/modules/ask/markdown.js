@@ -36,4 +36,8 @@ export function renderMarkdownElement(el,text=el?.textContent||''){
   return el;
 }
 
+// Keep every Ask surface on the same Markdown implementation. The V3
+// investigate bridge historically called CollectishRenderMarkdown while the
+// main chat used CollectishMarkdown; expose both names as the same renderer.
 window.CollectishMarkdown={render:renderMarkdownElement,toHtml:markdown};
+window.CollectishRenderMarkdown=renderMarkdownElement;
