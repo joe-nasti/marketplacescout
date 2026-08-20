@@ -5,9 +5,12 @@ import process from 'node:process';
 const root=process.cwd();
 const ignoredTop=new Set(['.git','.github','android-agent','cloud-worker','docs','node_modules','dist','.vite','tools']);
 const revisionStamped=/^(?:current-.+-r\d+|v\d{3,})\.(?:js|mjs|css)$/i;
+const legacyEntrypoint=/^(?:collectish-app|current-.+|v\d+)\.(?:js|mjs|css)$/i;
+const allowedRootWebFiles=new Set(['vite.config.js']);
 const domScriptInjection=/(?:createElement\s*\(\s*['"]script['"]\s*\)|\.src\s*=\s*['"][^'"]+\.js|appendChild\s*\([^\n]*script)/i;
 const mutationObserver=/\bMutationObserver\b/;
 const offenders=new Set();
+const rootAppFiles=new Set();
 const scriptInjectors=new Set();
 const mutationGuardians=new Set();
 
@@ -23,7 +26,8 @@ async function walk(dir,{rootOnly=false}={}){
     }
     const ext=extname(entry.name);
     if(!['.js','.mjs','.css'].includes(ext))continue;
-    if(revisionStamped.test(entry.name))offenders.add(rel);
+    if(revisionStamped.test(entry.name)||legacyEntrypoint.test(entry.name))offenders.add(rel);
+    if(rootOnly&&!allowedRootWebFiles.has(entry.name))rootAppFiles.add(rel);
     if(!rootOnly&&['.js','.mjs'].includes(ext)){
       const source=await readFile(full,'utf8');
       if(domScriptInjection.test(source))scriptInjectors.add(rel);
@@ -35,10 +39,14 @@ async function walk(dir,{rootOnly=false}={}){
 await walk(join(root,'src'));
 await walk(root,{rootOnly:true});
 
-if(offenders.size||scriptInjectors.size||mutationGuardians.size){
+if(offenders.size||rootAppFiles.size||scriptInjectors.size||mutationGuardians.size){
   if(offenders.size){
-    console.error('Revision-stamped web source files are not allowed. Keep stable source names and let Vite hash dist assets:');
+    console.error('Legacy/revision-stamped web source is not allowed. Active application code must live under src/ and Vite owns production hashing:');
     for(const file of [...offenders].sort())console.error(` - ${file}`);
+  }
+  if(rootAppFiles.size){
+    console.error('Root-level application JS/CSS is not allowed. Keep application source under src/; only approved build configuration may remain at repository root:');
+    for(const file of [...rootAppFiles].sort())console.error(` - ${file}`);
   }
   if(scriptInjectors.size){
     console.error('Runtime DOM script injection is not allowed in src/. Use ESM imports or dynamic import() so Vite owns chunk loading:');
@@ -51,4 +59,4 @@ if(offenders.size||scriptInjectors.size||mutationGuardians.size){
   process.exit(1);
 }
 
-console.log('Source hygiene OK: stable filenames, ESM loading, and deterministic DOM lifecycle.');
+console.log('Source hygiene OK: src-only app logic, stable filenames, ESM loading, and deterministic DOM lifecycle.');
