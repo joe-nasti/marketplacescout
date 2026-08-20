@@ -6,6 +6,7 @@ const KNOWN_KEY='collectishSellerKnownOrder';
 const AUTO_UI_CHECK_MS=24*60*60*1000;
 const MANUAL_WATCH_MS=5_000;
 const MANUAL_WATCH_LIMIT=84; // Up to ~7 minutes while Collectish advances Seller history.
+const SELLER_INTERACTIVE_PRIORITY=1; // Lower numbers claim first; historical detail backfill is priority 5.
 let timer=null;
 let polling=false;
 let manualWatch=null;
@@ -83,20 +84,20 @@ function renderFreshness(){
   line.classList.toggle('stale',stale);
   line.classList.toggle('new-order',Boolean(s.hasNewOrder));
   const status=s.manualSyncStatus;
-  const suffix=status==='queued'||status==='running'?' · syncing now':status==='waiting'?' · sync queued':status==='error'?' · sync failed':s.hasNewOrder?' · NEW ORDER':'';
+  const suffix=status==='queued'||status==='running'?' · priority refresh':status==='waiting'?' · priority refresh waiting':status==='error'?' · sync failed':s.hasNewOrder?' · NEW ORDER':'';
   line.textContent=`Seller data synced ${age(synced)}${synced?` · ${fmt(synced)}`:''}${suffix}`;
   const button=document.getElementById('cxSellerParityRefresh');
   if(button){
     const busy=status==='queued'||status==='running';
-    button.textContent=busy?'Syncing…':'Refresh';
+    button.textContent=busy?'Refreshing…':'Refresh';
     button.disabled=busy;
   }
   if(['queued','running','waiting'].includes(status)){
-    renderProgress({visible:true,percent:s.manualSyncPercent??5,detail:s.manualSyncDetail||'Seller history sync queued'});
+    renderProgress({visible:true,percent:s.manualSyncPercent??5,detail:s.manualSyncDetail||'Priority refresh queued · background history continues'});
   }else if(status==='done'){
-    renderProgress({visible:true,percent:100,detail:s.manualSyncDetail||'Seller history updated'});
+    renderProgress({visible:true,percent:100,detail:s.manualSyncDetail||'Seller refresh complete'});
   }else if(status==='error'){
-    renderProgress({visible:true,percent:s.manualSyncPercent??0,detail:s.manualSyncError||'Seller history sync failed'});
+    renderProgress({visible:true,percent:s.manualSyncPercent??0,detail:s.manualSyncError||'Seller refresh failed'});
   }else renderProgress({visible:false});
   bindRefresh();
 }
@@ -226,7 +227,9 @@ async function importCompletedOrderSearch(userId,job){
 }
 
 async function queueManualJob(userId,jobs){
-  const active=(jobs||[]).find(j=>['queued','claimed','running'].includes(j.status)&&['auth_detail','order_search'].includes(j.payload_json?.sellerHistoryKind));
+  // Only another user-triggered refresh may coalesce this request. Background
+  // auth/search work must not absorb an explicit UI action.
+  const active=(jobs||[]).find(j=>['queued','claimed','running'].includes(j.status)&&j.payload_json?.manualSellerRefresh===true&&['auth_detail','order_search'].includes(j.payload_json?.sellerHistoryKind));
   if(active)return {kind:active.payload_json?.sellerHistoryKind||'sync',alreadyActive:true,job:active};
   const sellerKey=sellerKeyFromJobs(jobs);
   const now=new Date().toISOString();
@@ -237,29 +240,29 @@ async function queueManualJob(userId,jobs){
     const to=tomorrowUtc();
     const body={searchRange:'Custom',filters:{sellerKey,orderDate:{from,to}},sortBy:[{sortingType:'orderDate',direction:'descending'}],from:0,size:1000};
     await rest('collector_jobs',{method:'POST',body:[{
-      user_id:userId,source:'agent',action:'seller_portal_readonly_probe',status:'queued',priority:9,
+      user_id:userId,source:'agent',action:'seller_portal_readonly_probe',status:'queued',priority:SELLER_INTERACTIVE_PRIORITY,
       required_capability:'tcgplayer_authenticated_session',preferred_executor:'android_agent',
-      payload_json:{sellerHistoryKind:'order_search',windowFrom:from,windowTo:to,pageFrom:0,pageSize:1000,manualSellerRefresh:true,probe:{mode:'fetch_json',method:'POST',url:'https://order-management-api.tcgplayer.com/orders/search?api-version=2.0',body}},
-      progress_json:{stage:'queued',percent:0,detail:'Manual Seller refresh queued',updatedAt:now},max_attempts:3
+      payload_json:{sellerHistoryKind:'order_search',windowFrom:from,windowTo:to,pageFrom:0,pageSize:1000,manualSellerRefresh:true,requestClass:'interactive',requestedFrom:'seller_ui',probe:{mode:'fetch_json',method:'POST',url:'https://order-management-api.tcgplayer.com/orders/search?api-version=2.0',body}},
+      progress_json:{stage:'queued',percent:0,detail:'Priority Seller refresh queued · background history continues',updatedAt:now},max_attempts:3
     }],prefer:'return=minimal'});
     return {kind:'order_search',alreadyActive:false};
   }
   await rest('collector_jobs',{method:'POST',body:[{
-    user_id:userId,source:'agent',action:'seller_portal_readonly_probe',status:'queued',priority:9,
+    user_id:userId,source:'agent',action:'seller_portal_readonly_probe',status:'queued',priority:SELLER_INTERACTIVE_PRIORITY,
     required_capability:'tcgplayer_authenticated_session',preferred_executor:'android_agent',
-    payload_json:{sellerHistoryKind:'auth_detail',manualSellerRefresh:true,probe:{mode:'fetch_json',method:'GET',url:'https://sp-api.tcgplayer.com/Account/auth-detail'}},
-    progress_json:{stage:'queued',percent:0,detail:'Manual Seller refresh auth check queued',updatedAt:now},max_attempts:3
+    payload_json:{sellerHistoryKind:'auth_detail',manualSellerRefresh:true,requestClass:'interactive',requestedFrom:'seller_ui',probe:{mode:'fetch_json',method:'GET',url:'https://sp-api.tcgplayer.com/Account/auth-detail'}},
+    progress_json:{stage:'queued',percent:0,detail:'Priority Seller auth check queued · background history continues',updatedAt:now},max_attempts:3
   }],prefer:'return=minimal'});
   return {kind:'auth_detail',alreadyActive:false};
 }
 
 function jobProgress(job){
-  if(!job)return {percent:5,detail:'Seller history sync queued'};
-  if(job.status==='queued')return {percent:10,detail:'Waiting for Android Seller session…'};
-  if(job.status==='claimed'||job.status==='running')return {percent:45,detail:'Fetching Seller Portal orders…'};
-  if(job.status==='failed')return {percent:Number(job.progress_json?.percent)||45,detail:job.error_message||job.progress_json?.detail||'Seller history fetch failed'};
-  if(job.status==='completed')return {percent:78,detail:'Seller Portal orders received; saving history…'};
-  return {percent:Number(job.progress_json?.percent)||20,detail:job.progress_json?.detail||'Seller history sync working…'};
+  if(!job)return {percent:5,detail:'Priority refresh queued · background history continues'};
+  if(job.status==='queued')return {percent:10,detail:'Priority refresh queued · next Android Seller slot'};
+  if(job.status==='claimed'||job.status==='running')return {percent:45,detail:'Checking Seller Portal for new orders now…'};
+  if(job.status==='failed')return {percent:Number(job.progress_json?.percent)||45,detail:job.error_message||job.progress_json?.detail||'Seller refresh failed'};
+  if(job.status==='completed')return {percent:78,detail:'New-order check received · updating Seller history…'};
+  return {percent:Number(job.progress_json?.percent)||20,detail:job.progress_json?.detail||'Seller refresh working…'};
 }
 
 function watchManualResult(before,userId){
@@ -284,7 +287,7 @@ function watchManualResult(before,userId){
           const result=await importCompletedOrderSearch(userId,relevant);
           const row=await latestSnapshot();
           const changed=row?.collected_at&&row.collected_at!==before;
-          store.update('seller',{manualSyncStatus:'done',manualSyncPercent:100,manualSyncDetail:`Seller history updated · ${result.imported.toLocaleString()} orders checked`});
+          store.update('seller',{manualSyncStatus:'done',manualSyncPercent:100,manualSyncDetail:`Priority refresh complete · ${result.imported.toLocaleString()} orders checked`});
           renderFreshness();
           clearInterval(manualWatch);manualWatch=null;
           await checkSellerFreshness({forceReload:true});
@@ -300,7 +303,7 @@ function watchManualResult(before,userId){
     }
     if(checks>=MANUAL_WATCH_LIMIT){
       clearInterval(manualWatch);manualWatch=null;
-      store.update('seller',{manualSyncStatus:'waiting',manualSyncPercent:20,manualSyncDetail:'Still waiting for Seller history worker'});
+      store.update('seller',{manualSyncStatus:'waiting',manualSyncPercent:20,manualSyncDetail:'Priority refresh still waiting; background history continues'});
       renderFreshness();
     }
   };
@@ -313,11 +316,11 @@ export async function requestSellerSync(){
   const userId=session?.user?.id;
   if(!userId)throw new Error('Sign in required');
   const before=(await latestSnapshot())?.collected_at||null;
-  store.update('seller',{manualSyncStatus:'queued',manualSyncError:null,manualSyncPercent:5,manualSyncDetail:'Preparing Seller history sync…'});
+  store.update('seller',{manualSyncStatus:'queued',manualSyncError:null,manualSyncPercent:5,manualSyncDetail:'Preparing priority Seller refresh…'});
   renderFreshness();
   const jobs=await sellerJobs(userId);
   const queued=await queueManualJob(userId,jobs);
-  store.update('seller',{manualSyncStatus:'running',manualSyncKind:queued.kind,manualSyncRequestedAt:new Date().toISOString(),manualSyncPercent:10,manualSyncDetail:'Seller history sync queued'});
+  store.update('seller',{manualSyncStatus:'running',manualSyncKind:queued.kind,manualSyncRequestedAt:new Date().toISOString(),manualSyncPercent:10,manualSyncDetail:queued.alreadyActive?'Priority refresh already active':'Priority refresh queued · background history continues'});
   renderFreshness();
   window.CollectishSellerAgent?.run?.().catch?.(()=>{});
   watchManualResult(before,userId);
