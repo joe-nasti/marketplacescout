@@ -1,0 +1,171 @@
+name: Materialize Android source
+
+on:
+  push:
+    paths:
+      - ".github/workflows/materialize-android-source.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collectish-materialize-android-source
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Apply historical patch chain once
+        shell: bash
+        run: |
+          set -euo pipefail
+          for patch in \
+            tools/patch-native-v021.py \
+            tools/patch-native-v022.py \
+            tools/patch-native-v023.py \
+            tools/patch-native-v024.py \
+            tools/patch-native-v025.py \
+            tools/patch-native-v026.py \
+            tools/patch-native-v027.py \
+            tools/patch-native-v028.py \
+            tools/patch-native-v030.py \
+            tools/patch-native-v031.py \
+            tools/patch-native-v032.py \
+            tools/patch-native-v033.py \
+            tools/patch-native-v034.py \
+            tools/patch-native-v035.py \
+            tools/patch-native-v036.py
+          do
+            python "$patch"
+          done
+
+      - name: Stamp current Android version in source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          main = Path('android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt')
+          text = main.read_text()
+          text = re.sub(r'private val version = "[0-9.]+"', 'private val version = "0.2.15"', text)
+          main.write_text(text)
+
+          gradle = Path('android-agent/app/build.gradle.kts')
+          text = gradle.read_text()
+          text = re.sub(r'versionCode = \d+', 'versionCode = 35', text)
+          text = re.sub(r'versionName = "[0-9.]+"', 'versionName = "0.2.15"', text)
+          gradle.write_text(text)
+          PY
+
+      - name: Remove patch-chain dependency from Android workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          files = [
+              Path('.github/workflows/build-android-signed.yml'),
+              Path('.github/workflows/android-inventory-compile.yml'),
+          ]
+          for path in files:
+              text = path.read_text()
+              text = text.replace('      - "tools/patch-native-v0*.py"\n', '')
+              text = re.sub(
+                  r'\n      - name: Apply native patch chain\n        shell: bash\n        run: \|\n(?:          .*\n)+?(?=\n      - name: )',
+                  '\n',
+                  text,
+              )
+              path.write_text(text)
+
+          signed = Path('.github/workflows/build-android-signed.yml')
+          text = signed.read_text()
+          text = text.replace('      - name: Stamp and validate 0.2.15 Inventory UX fixes\n', '      - name: Validate Android 0.2.15 source\n')
+          text = re.sub(r"          sed -i -E 's/private val version = .*?\n", '', text)
+          text = re.sub(r"          sed -i -E 's/versionCode = .*?\n", '', text)
+          text = re.sub(r"          sed -i -E 's/versionName = .*?\n", '', text)
+          signed.write_text(text)
+          PY
+
+      - name: Delete historical native patch scripts and harden hygiene check
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tools/patch-native-v0*.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('tools/check-source-hygiene.mjs')
+          s = p.read_text()
+          s = s.replace(
+              "const offenders=new Set();",
+              "const offenders=new Set();\nconst nativePatchStamped=/^patch-native-v\\d+\\.py$/i;"
+          )
+          s = s.replace(
+              "await walk(root,{rootOnly:true});",
+              "await walk(root,{rootOnly:true});\nfor(const entry of await readdir(join(root,'tools'),{withFileTypes:true})){if(entry.isFile()&&nativePatchStamped.test(entry.name))offenders.add(`tools/${entry.name}`)}"
+          )
+          s = s.replace(
+              "Revision-stamped web source files are not allowed. Keep stable source names and let Vite hash dist assets:",
+              "Revision-stamped source artifacts are not allowed. Keep stable source names; let Vite hash web dist assets and edit Android source directly:"
+          )
+          s = s.replace(
+              "Source hygiene OK: no revision-stamped web source files.",
+              "Source hygiene OK: no revision-stamped web or Android patch artifacts."
+          )
+          p.write_text(s)
+          PY
+
+      - name: Remove this one-time materializer
+        run: rm -f .github/workflows/materialize-android-source.yml
+
+      - name: Validate materialized source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e tools/patch-native-v021.py
+          ! grep -R -q 'Apply native patch chain' .github/workflows
+          ! grep -R -q 'tools/patch-native-v0' .github/workflows
+          grep -q 'private val version = "0.2.15"' android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'versionCode = 35' android-agent/app/build.gradle.kts
+          grep -q 'versionName = "0.2.15"' android-agent/app/build.gradle.kts
+          grep -q '/admin/product/searchcatalog' android-agent/app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
+          grep -q '/admin/product/updateinstockquantities' android-agent/app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
+          grep -q 'fetch_html' android-agent/app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
+          grep -q 'loginByUrl' android-agent/app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
+          grep -q 'text = "← Collectish"' android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'sellerReturn.visibility=View.VISIBLE' android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt
+          npm ci
+          npm run check:hygiene
+          (cd android-agent && gradle :app:assembleDebug)
+
+      - name: Commit materialized Android source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "refactor: replace native patch chain with canonical Android source"
+          git push origin HEAD:${GITHUB_REF_NAME}
