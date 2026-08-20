@@ -1,5 +1,6 @@
 import { collectishConfig } from './config.js';
 import { readSession, saveSession, validSession, signIn } from './session.js';
+import { readUrlState, writeUrlState, onUrlStateChange } from './url-state.js';
 import store from '../state/store.js';
 import lifecycle from './lifecycle.js';
 
@@ -10,6 +11,7 @@ const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'
 const brand=()=>'<span class="cx-brand-collect">collect</span><span class="cx-brand-ish">ish</span>';
 let started=false;
 let beforeReadyHook=null;
+let stopUrlListener=null;
 
 export function startupView(message='Resuming your session…'){
   lifecycle.unmountApp();
@@ -46,12 +48,13 @@ export function adminView(){
   document.getElementById('modernSignOut')?.addEventListener('click',()=>{saveSession(null);loginView()});
 }
 
-export function switchPage(name,{scroll=true}={}){
+export function switchPage(name,{scroll=true,history=true,replace=false}={}){
   if(!name)return;
   const targetId=`cx${name[0].toUpperCase()+name.slice(1)}`;
   document.querySelectorAll('.cx-page').forEach(el=>el.classList.toggle('active',el.id===targetId));
   document.querySelectorAll('[data-cx-page]').forEach(el=>el.classList.toggle('active',el.dataset.cxPage===name));
   lifecycle.setPage(name);
+  if(history)writeUrlState({tab:name},{replace});
   if(name==='admin')adminView();
   if(scroll)window.scrollTo({top:0,behavior:'smooth'});
   document.dispatchEvent(new CustomEvent('collectish:page-change',{detail:{page:name}}));
@@ -74,7 +77,8 @@ export async function boot(){
   renderShell();
   if(beforeReadyHook)await beforeReadyHook();
   lifecycle.mountApp();
-  lifecycle.setPage('scout');
+  const initial=readUrlState().tab;
+  switchPage(initial,{scroll:false,history:false});
   document.dispatchEvent(new CustomEvent('collectish:ready',{detail:{version:WEB_VERSION,user:session.user}}));
   return session;
 }
@@ -85,6 +89,9 @@ export function startShell({beforeReady}={}){
   started=true;
   document.addEventListener('click',pageClickHandler,true);
   document.addEventListener('collectish:auth-invalid',()=>loginView('Your session was rejected by the server. Please sign in again.'));
+  stopUrlListener=onUrlStateChange(state=>{
+    if(store.get().runtime?.screen==='app')switchPage(state.tab,{scroll:false,history:false});
+  });
   if(readSession())startupView();else loginView();
   void boot().catch(error=>{
     console.error('Collectish boot failed',error);
