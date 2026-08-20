@@ -13,6 +13,7 @@ const expected=[
   'scout.css',
   'sealed-mobile-economics.css',
   'sealed.css',
+  'seller-progress.css',
   'seller.css',
   'tokens.css'
 ].sort();
