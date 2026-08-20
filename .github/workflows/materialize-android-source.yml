@@ -140,3 +140,5 @@ jobs:
           if [[ "$PATCHES" == success && "$STAMP" == success && "$VALIDATE" == success && "$COMPILE" == success && "$COMMIT" == success ]]; then state=success; else state=failure; fi
           desc="patch=$PATCHES stamp=$STAMP validate=$VALIDATE compile=$COMPILE commit=$COMMIT"
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/android-materialize' -f description="$desc"
+
+# rerun-marker: v036-robust
