@@ -3,14 +3,30 @@ import { join } from 'node:path';
 
 const root=process.cwd();
 const styles=join(root,'src/styles');
-const expected=['admin.css','ask.css','base.css','index.css','scout.css','sealed.css','seller.css','tokens.css'];
+const expected=[
+  'activity-bar.css',
+  'admin.css',
+  'ask.css',
+  'base.css',
+  'index.css',
+  'scout-compact.css',
+  'scout.css',
+  'sealed-mobile-economics.css',
+  'sealed.css',
+  'seller.css',
+  'tokens.css'
+].sort();
 const files=(await readdir(styles)).sort();
 if(JSON.stringify(files)!==JSON.stringify(expected)){
   throw new Error(`Style tree drifted. Expected ${expected.join(', ')}, found ${files.join(', ')}`);
 }
 const index=await readFile(join(styles,'index.css'),'utf8');
 const imports=index.match(/^@import\s+[^;]+;/gm)||[];
-if(imports.length!==7)throw new Error(`Expected 7 style imports, found ${imports.length}`);
+const expectedImports=expected.filter(file=>file!=='index.css');
+if(imports.length!==expectedImports.length)throw new Error(`Expected ${expectedImports.length} style imports, found ${imports.length}`);
+for(const file of expectedImports){
+  if(!index.includes(`'./${file}'`)&&!index.includes(`"./${file}"`))throw new Error(`Missing canonical style import: ${file}`);
+}
 const tokens=await readFile(join(styles,'tokens.css'),'utf8');
 for(const required of ['--color-bg-primary','--color-bg-surface','--color-text-primary','--color-accent','--font-scale-md','[data-theme="dark"]']){
   if(!tokens.includes(required))throw new Error(`Missing design token/theme contract: ${required}`);
