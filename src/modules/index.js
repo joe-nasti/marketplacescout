@@ -14,7 +14,6 @@ const inventoryEnhancers=[
   ()=>import('./seller/inventory-sync-controller.js'),
   ()=>import('./seller/inventory-reconciler.js'),
   ()=>import('./seller/inventory-reconcile-status.js'),
-  ()=>import('./seller/seller-sync-progress-style.js'),
   ()=>import('./seller/freshness.js')
 ];
 

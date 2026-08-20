@@ -3,6 +3,7 @@ name: Build signed Collectish Android
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - "android-agent/**"
       - ".github/workflows/build-android-signed.yml"
@@ -14,12 +15,6 @@ permissions:
 concurrency:
   group: collectish-android-signed
   cancel-in-progress: false
-
-env:
-  ANDROID_VERSION_NAME: "0.2.15"
-  ANDROID_VERSION_CODE: "35"
-  RELEASE_TAG: "android-v0.2.15"
-  RELEASE_APK: "collectish-android-v0.2.15.apk"
 
 jobs:
   build:
@@ -40,6 +35,20 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
+      - name: Read canonical Android version
+        working-directory: android-agent
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_name="$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)"
+          version_code="$(sed -n 's/.*versionCode = \([0-9][0-9]*\).*/\1/p' app/build.gradle.kts | head -1)"
+          test -n "$version_name"
+          test -n "$version_code"
+          echo "ANDROID_VERSION_NAME=$version_name" >> "$GITHUB_ENV"
+          echo "ANDROID_VERSION_CODE=$version_code" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=android-v$version_name" >> "$GITHUB_ENV"
+          echo "RELEASE_APK=collectish-android-v$version_name.apk" >> "$GITHUB_ENV"
+
       - name: Require persistent signing identity
         shell: bash
         run: |
@@ -58,14 +67,14 @@ jobs:
           echo "COLLECTISH_KEYSTORE_FILE=$RUNNER_TEMP/collectish-release.jks" >> "$GITHUB_ENV"
           keytool -list -keystore "$RUNNER_TEMP/collectish-release.jks" -storepass "$COLLECTISH_KEYSTORE_PASSWORD" -alias "$COLLECTISH_KEY_ALIAS" >/dev/null
 
-      - name: Validate canonical Android 0.2.15 source
+      - name: Validate canonical Android source
         working-directory: android-agent
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'private val version = "0.2.15"' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'versionCode = 35' app/build.gradle.kts
-          grep -q 'versionName = "0.2.15"' app/build.gradle.kts
+          grep -Fq "private val version = \"$ANDROID_VERSION_NAME\"" app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -Fq "versionCode = $ANDROID_VERSION_CODE" app/build.gradle.kts
+          grep -Fq "versionName = \"$ANDROID_VERSION_NAME\"" app/build.gradle.kts
           grep -q '/admin/product/searchcatalog' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q '/admin/product/updateinstockquantities' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q 'fetch_html' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
@@ -83,18 +92,19 @@ jobs:
           gradle :app:assembleRelease
           test -s app/build/outputs/apk/release/app-release.apk
           cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/$RELEASE_APK"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/collectish-android-signed.apk"
 
       - name: Verify APK signature and package
         shell: bash
         run: |
           set -euo pipefail
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/$RELEASE_APK"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -q "package: name='com.collectish.agent' versionCode='35' versionName='0.2.15'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RUNNER_TEMP/$RELEASE_APK" | grep -Fq "package: name='com.collectish.agent' versionCode='$ANDROID_VERSION_CODE' versionName='$ANDROID_VERSION_NAME'"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: collectish-android-v0.2.15-signed
-          path: ${{ runner.temp }}/${{ env.RELEASE_APK }}
+          name: collectish-android-signed
+          path: ${{ runner.temp }}/collectish-android-signed.apk
 
       - name: Publish stable GitHub Release APK
         shell: bash
@@ -108,14 +118,11 @@ jobs:
             gh release create "$RELEASE_TAG" "$RUNNER_TEMP/$RELEASE_APK" --title "Collectish Android $ANDROID_VERSION_NAME" --notes "Signed Collectish Android $ANDROID_VERSION_NAME built directly from canonical Android source."
           fi
 
-      - name: Publish signed Android success status
-        if: success()
+      - name: Publish signed Android status
+        if: always()
         shell: bash
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/android-signed' -f description='Signed Android 0.2.15 built from canonical source'
-
-      - name: Publish signed Android failure status
-        if: failure()
-        shell: bash
-        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
-        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=failure -f context='collectish/android-signed' -f description='Canonical Android 0.2.15 signed build failed'
+        env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}', RESULT: '${{ job.status }}' }
+        run: |
+          state=success; desc="Signed Android $ANDROID_VERSION_NAME built from canonical source"
+          if [ "$RESULT" != success ]; then state=failure; desc="Canonical Android $ANDROID_VERSION_NAME signed build failed"; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/android-signed' -f description="$desc"

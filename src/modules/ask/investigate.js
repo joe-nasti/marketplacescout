@@ -1,5 +1,5 @@
 // Ask Collectish V3 — startup-safe Investigate bridge.
-// Intentionally: no MutationObserver, no fetch monkeypatch, no startup RPC, no DOM scan loop.
+// Intentionally event-driven: no DOM observer guardian, fetch monkeypatch, startup RPC, or DOM scan loop.
 (() => {
   const cfg=window.COLLECTISH_CONFIG;
   if(!cfg?.supabaseUrl)return;

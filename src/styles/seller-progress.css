@@ -1,0 +1,9 @@
+/* Seller History sync progress. */
+.cx-seller-sync-progress{margin-top:8px;max-width:560px;font-size:12px;color:var(--color-text-secondary)}
+.cx-seller-sync-progress[hidden]{display:none!important}
+.cx-seller-sync-progress-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:5px}
+.cx-seller-sync-progress-label{font-weight:700;color:var(--color-text-primary)}
+.cx-seller-sync-progress-pct{font-variant-numeric:tabular-nums}
+.cx-seller-sync-progress-track{height:7px;width:100%;overflow:hidden;border-radius:999px;background:color-mix(in srgb,var(--color-border) 70%,transparent)}
+.cx-seller-sync-progress-fill{height:100%;width:0;border-radius:inherit;background:var(--color-accent);transition:width .3s ease}
+.cx-seller-sync-progress-detail{margin-top:5px;line-height:1.3}

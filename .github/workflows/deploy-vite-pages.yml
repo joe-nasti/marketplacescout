@@ -138,8 +138,8 @@ jobs:
           test -s dist/index.html
           test -s dist/.vite/manifest.json
           test -s dist/web-version.json
-          grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.js' dist/index.html
-          grep -Eq 'assets/[^" ]+-[A-Za-z0-9_-]+\.css' dist/index.html
+          grep -Eq 'assets/[^" ]+[.-][A-Za-z0-9_-]+\.js' dist/index.html
+          grep -Eq 'assets/[^" ]+[.-][A-Za-z0-9_-]+\.css' dist/index.html
           ! grep -Eq '(current-|v0[0-9]+\.(js|css))' dist/index.html
           node -e "const v=require('./dist/web-version.json');if(v.build!==process.env.GITHUB_SHA)process.exit(1)"
 

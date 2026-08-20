@@ -154,17 +154,21 @@ async function main(){
   // otherwise a large wall of already-normalized newer refreshes can starve an
   // older pending orders/search result forever.
   const completed=await sb('collector_jobs?select=*&source=eq.agent&action=eq.seller_portal_readonly_probe&status=eq.completed&progress_json->>orchestratedAt=is.null&order=completed_at.asc&limit=50');
-  let authProcessed=0,searchProcessed=0,detailProcessed=0,other=0;
+  let authProcessed=0,searchProcessed=0,detailProcessed=0,ignored=0;
   for(const job of completed||[]){const k=kind(job);try{
     if(k==='auth_detail'){const body=probeBody(job),sellerKey=body?.seller?.sellerKey;if(!sellerKey){await markOrchestrated(job,{orchestratorStatus:'auth_result_missing_seller_key'});continue;}const queued=await queueIncrementalSearch(job,String(sellerKey));await markOrchestrated(job,{orchestratorStatus:queued?'incremental_search_queued':'incremental_search_already_active'});authProcessed++;continue;}
     if(k==='order_search'){await processSearchJob(job);searchProcessed++;continue;}
     if(k==='order_detail'){await upsertDetailBundle(job);detailProcessed++;continue;}
-    other++;
+    // Legacy/manual read-only probes share this action name. Mark them consumed so
+    // they cannot permanently occupy the oldest-unprocessed batch and starve real
+    // Seller History auth/search/detail completions behind them.
+    await markOrchestrated(job,{orchestratorStatus:'ignored_unrecognized_probe'});
+    ignored++;
   }catch(error){
     // A transient marker outage must not abort the rest of an idempotent normalization batch.
     try{await markOrchestrated(job,{orchestratorStatus:'normalization_failed',orchestratorError:String(error?.message||error)});}
     catch(markError){console.error(`Seller History marker deferred for ${job.job_id}: ${String(markError?.message||markError)}`);}
   }}
-  console.log(`Seller History orchestrator: ${authProcessed} auth, ${searchProcessed} search, ${detailProcessed} detail result(s) processed; ${other} unrelated.`);
+  console.log(`Seller History orchestrator: ${authProcessed} auth, ${searchProcessed} search, ${detailProcessed} detail result(s) processed; ${ignored} unrecognized probe(s) marked consumed.`);
 }
 await main();

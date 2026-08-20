@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: "37 10 * * *"
   push:
+    branches: [main]
     paths:
       - ".github/workflows/edhrec-cloud-worker.yml"
       - "cloud-worker/edhrec-worker.mjs"

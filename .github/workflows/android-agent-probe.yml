@@ -3,6 +3,7 @@ name: Collectish Android agent probe
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - ".github/workflows/android-agent-probe.yml"
       - "cloud-worker/android-agent-probe.mjs"

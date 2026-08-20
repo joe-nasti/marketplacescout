@@ -1,5 +1,5 @@
 // Ask Collectish V3 — startup-safe contextual actions, confirmations and purchase-list inspection.
-// No startup RPCs, no MutationObserver, no window.fetch override.
+// No startup RPCs, DOM observer guardians, or window.fetch override.
 (() => {
   const cfg=window.COLLECTISH_CONFIG;if(!cfg?.supabaseUrl)return;
   const ENDPOINT=`${String(cfg.supabaseUrl).replace(/\/$/,'')}/functions/v1/ask-collectish`;

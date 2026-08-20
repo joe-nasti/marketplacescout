@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: "35 11 * * *"
   push:
+    branches: [main]
     paths:
       - "cloud-worker/refresh-sealed-commander-prices.mjs"
       - "cloud-worker/refresh-sealed-cardkingdom-prices.mjs"

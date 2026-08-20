@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: "23 11 * * 0"
   push:
+    branches: [main]
     paths:
       - "cloud-worker/refresh-magic-set-catalog.mjs"
       - ".github/workflows/magic-set-catalog.yml"
