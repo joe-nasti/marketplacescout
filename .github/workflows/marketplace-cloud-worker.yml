@@ -26,9 +26,8 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
-# Use a redesign-era lane so obsolete pre-cutover runs cannot hold the current
-# cloud-only worker behind the historical concurrency group.
 concurrency:
   group: collectish-marketplace-cloud-worker-v2
   cancel-in-progress: false
@@ -50,10 +49,27 @@ jobs:
         with:
           node-version: "24"
       - name: Validate worker secret
+        id: secret
+        continue-on-error: true
+        shell: bash
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Publish Marketplace secret status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          RESULT: ${{ steps.secret.outcome }}
         shell: bash
         run: |
-          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          state=success; desc='Marketplace worker secret is available'
+          if [ "$RESULT" != success ]; then state=failure; desc='Marketplace worker secret is missing'; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/marketplace-secret' -f description="$desc" -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+      - name: Stop on missing Marketplace secret
+        if: steps.secret.outcome != 'success'
+        run: exit 1
       - name: Validate canonical cloud workers
+        id: validation
+        continue-on-error: true
         run: |
           node --check cloud-worker/queue-configured-set-refresh.mjs
           node --check cloud-worker/validate-claim-rpc.mjs
@@ -69,8 +85,38 @@ jobs:
           grep -q 'const setFilter=String(setName||setSlug' cloud-worker/marketplace-worker.mjs
           grep -q 'setName:\[setFilter\]' cloud-worker/marketplace-worker.mjs
           ! grep -Rqs 'patch-marketplace-set-filter\|patch-ask-collectish-investigate\|requeue-failed-to-pc' .github/workflows cloud-worker
+      - name: Publish Marketplace validation status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          RESULT: ${{ steps.validation.outcome }}
+        shell: bash
+        run: |
+          state=success; desc='Canonical Marketplace worker validation passed'
+          if [ "$RESULT" != success ]; then state=failure; desc='Canonical Marketplace worker validation failed'; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/marketplace-validation' -f description="$desc" -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+      - name: Stop on Marketplace validation failure
+        if: steps.validation.outcome != 'success'
+        run: exit 1
       - name: Drain existing canonical Marketplace queue
+        id: drain
+        continue-on-error: true
         run: node cloud-worker/marketplace-worker.mjs
+      - name: Publish Marketplace drain status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          RESULT: ${{ steps.drain.outcome }}
+        shell: bash
+        run: |
+          state=success; desc='Marketplace worker reached first queue-drain pass'
+          if [ "$RESULT" != success ]; then state=failure; desc='Marketplace first queue-drain pass failed'; fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/marketplace-drain' -f description="$desc" -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+      - name: Stop on Marketplace drain failure
+        if: steps.drain.outcome != 'success'
+        run: exit 1
       - name: Queue configured set scans
         run: node cloud-worker/queue-configured-set-refresh.mjs
       - name: Validate atomic claim RPC
