@@ -10,6 +10,7 @@ on:
   schedule:
     - cron: "*/5 * * * *"
   push:
+    branches: [main]
     paths:
       - ".github/workflows/marketplace-cloud-worker.yml"
       - "cloud-worker/marketplace-worker.mjs"
