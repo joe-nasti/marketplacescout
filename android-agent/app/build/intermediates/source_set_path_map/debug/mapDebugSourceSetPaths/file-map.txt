@@ -1,0 +1,7 @@
+com.collectish.agent.app-pngs-0 /home/runner/work/marketplacescout/marketplacescout/android-agent/app/build/generated/res/pngs/debug
+com.collectish.agent.app-resValues-1 /home/runner/work/marketplacescout/marketplacescout/android-agent/app/build/generated/res/resValues/debug
+com.collectish.agent.app-packageDebugResources-2 /home/runner/work/marketplacescout/marketplacescout/android-agent/app/build/intermediates/incremental/debug/packageDebugResources/merged.dir
+com.collectish.agent.app-packageDebugResources-3 /home/runner/work/marketplacescout/marketplacescout/android-agent/app/build/intermediates/incremental/debug/packageDebugResources/stripped.dir
+com.collectish.agent.app-debug-4 /home/runner/work/marketplacescout/marketplacescout/android-agent/app/build/intermediates/merged_res/debug/mergeDebugResources
+com.collectish.agent.app-debug-5 /home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/debug/res
+com.collectish.agent.app-main-6 /home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/res

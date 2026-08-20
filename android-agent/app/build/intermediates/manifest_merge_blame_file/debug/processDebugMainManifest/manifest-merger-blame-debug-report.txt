@@ -1,0 +1,61 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.collectish.agent"
+4    android:versionCode="35"
+5    android:versionName="0.2.15" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="28"
+9        android:targetSdkVersion="35" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:2:5-67
+11-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:2:22-64
+12    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+12-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:3:5-77
+12-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:3:22-74
+13    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+13-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:4:5-87
+13-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:4:22-84
+14
+15    <application
+15-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:5:5-20:19
+16        android:debuggable="true"
+17        android:extractNativeLibs="false"
+18        android:icon="@drawable/collectish_launcher"
+18-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:8:9-53
+19        android:label="Collectish"
+19-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:7:9-35
+20        android:roundIcon="@drawable/collectish_launcher"
+20-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:9:9-58
+21        android:theme="@style/AppTheme" >
+21-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:6:9-40
+22        <activity
+22-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:10:9-15:20
+23            android:name="com.collectish.agent.MainActivity"
+23-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:10:19-47
+24            android:exported="true" >
+24-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:10:48-71
+25            <intent-filter>
+25-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:11:13-14:29
+26                <action android:name="android.intent.action.MAIN" />
+26-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:12:17-69
+26-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:12:25-66
+27
+28                <category android:name="android.intent.category.LAUNCHER" />
+28-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:13:17-77
+28-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:13:27-74
+29            </intent-filter>
+30        </activity>
+31
+32        <service
+32-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:16:9-19:56
+33            android:name="com.collectish.agent.SellerSyncService"
+33-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:17:13-46
+34            android:exported="false"
+34-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:18:13-37
+35            android:foregroundServiceType="dataSync" />
+35-->/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/AndroidManifest.xml:19:13-53
+36    </application>
+37
+38</manifest>

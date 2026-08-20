@@ -1,0 +1,28 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.collectish.agent.app-mergeDebugResources-2:/values/values.xml",
+            "map": [
+                {
+                    "source": "/home/runner/work/marketplacescout/marketplacescout/android-agent/app/src/main/res/values/styles.xml",
+                    "from": {
+                        "startLines": "1",
+                        "startColumns": "4",
+                        "startOffsets": "16",
+                        "endLines": "10",
+                        "endColumns": "12",
+                        "endOffsets": "611"
+                    },
+                    "to": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "11",
+                        "endColumns": "12",
+                        "endOffsets": "650"
+                    }
+                }
+            ]
+        }
+    ]
+}

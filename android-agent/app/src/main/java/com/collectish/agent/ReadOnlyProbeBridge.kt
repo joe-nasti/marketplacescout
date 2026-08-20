@@ -40,7 +40,8 @@ class ReadOnlyProbeBridge(
     fun startReadOnlyProbe(configJson: String) {
         activity.runOnUiThread {
             try {
-                if (sessionState() != "authenticated") { fail("Seller Portal session is not authenticated"); return@runOnUiThread }
+                // Do not pre-reject from the coarse Seller Portal state.
+                // The request itself verifies the authenticated Store origin.
                 val config = JSONObject(configJson)
                 val mode = config.optString("mode", "fetch_json")
                 val url = config.optString("url", "")
@@ -76,7 +77,7 @@ class ReadOnlyProbeBridge(
         seller.postDelayed({
             if (token != activeToken || state != "running") return@postDelayed
             if (!seller.url.orEmpty().startsWith(storeOrigin)) {
-                fail("Authenticated Store origin was not ready for the allowlisted request")
+                fail("TCGplayer Store session is not authenticated (Store origin redirected away before request)")
                 return@postDelayed
             }
             runFetch(url, method, body, mode, token)
@@ -99,9 +100,12 @@ class ReadOnlyProbeBridge(
                     if(method==='POST'){opts.headers['Content-Type']='application/json';opts.body=rawBody;}
                     const started=Date.now(); const response=await fetch(url,opts); const text=(await response.text()).slice(0,${ReadOnlyProbePolicy.maxResponseChars});
                     const html=/<!doctype html|<html/i.test(text.slice(0,700));
-                    const loginHtml=html&&(/sign[ -]?in|login|account\/login/i.test(text.slice(0,12000))||/login/i.test(response.url||''));
-                    if(response.ok&&!loginHtml){let parsed=null;if(mode==='fetch_json'){try{parsed=JSON.parse(text)}catch(e){}}send({ok:true,status:response.status,statusText:response.statusText,url:response.url||url,method,contentType:response.headers.get('content-type')||'',elapsedMs:Date.now()-started,attempt,body:parsed===null?text:parsed,checkedAt:new Date().toISOString()});return;}
-                    if(loginHtml){send({error:'TCGplayer login appears to be required',status:response.status,url:response.url||url,method,checkedAt:new Date().toISOString()});return;}
+                    const finalUrl=response.url||url;let finalHost='',finalPath='';try{const u=new URL(finalUrl);finalHost=u.host;finalPath=u.pathname}catch(e){}
+                    const loginByUrl=/login|signin|account\/login/i.test(finalUrl);
+                    const loginByBody=html&&/sign[ -]?in|log[ -]?in|forgot password|account\/login/i.test(text.slice(0,12000));
+                    const loginHtml=loginByUrl||loginByBody;
+                    if(response.ok&&!loginHtml){let parsed=null;if(mode==='fetch_json'){try{parsed=JSON.parse(text)}catch(e){}}send({ok:true,status:response.status,statusText:response.statusText,url:finalUrl,requestedUrl:url,finalHost,finalPath,loginByUrl:false,loginByBody:false,method,contentType:response.headers.get('content-type')||'',elapsedMs:Date.now()-started,attempt,body:parsed===null?text:parsed,checkedAt:new Date().toISOString()});return;}
+                    if(loginHtml){send({error:'TCGplayer login appears to be required',status:response.status,statusText:response.statusText,url:finalUrl,requestedUrl:url,finalHost,finalPath,loginByUrl,loginByBody,method,contentType:response.headers.get('content-type')||'',htmlDetected:html,bodyPreview:text.slice(0,500),checkedAt:new Date().toISOString()});return;}
                     const transient=response.status===408||response.status===425||response.status===429||response.status>=500;
                     if(!transient||attempt>=maxAttempts){send({error:'TCGplayer returned HTTP '+response.status+': '+text.slice(0,250),status:response.status,url:response.url||url,method,checkedAt:new Date().toISOString()});return;}
                     const retryRaw=response.headers.get('retry-after'),retrySeconds=retryRaw&&Number(retryRaw);const backoff=Number.isFinite(retrySeconds)?Math.max(0,retrySeconds*1000):Math.min(8000,750*(2**(attempt-1)));await sleep(backoff+Math.floor(Math.random()*250));
