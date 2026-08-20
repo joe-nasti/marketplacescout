@@ -1,0 +1,46 @@
+name: Validate Collectish Marketplace cloud worker
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/marketplace-cloud-worker-check.yml"
+      - ".github/workflows/marketplace-cloud-worker.yml"
+      - "cloud-worker/marketplace-worker.mjs"
+      - "cloud-worker/ask-investigate-worker.mjs"
+      - "cloud-worker/queue-configured-set-refresh.mjs"
+      - "cloud-worker/validate-claim-rpc.mjs"
+      - "cloud-worker/normalize-marketplace-jobs.mjs"
+      - "cloud-worker/recover-stale-jobs.mjs"
+      - "cloud-worker/recover-marketplace-cloud-jobs.mjs"
+      - "cloud-worker/enable-atomic-claim.mjs"
+      - "cloud-worker/enrich-scout-scryfall.mjs"
+      - "cloud-worker/refresh-scout-rankings.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate canonical Marketplace sources
+        run: |
+          node --check cloud-worker/queue-configured-set-refresh.mjs
+          node --check cloud-worker/validate-claim-rpc.mjs
+          node --check cloud-worker/normalize-marketplace-jobs.mjs
+          node --check cloud-worker/recover-stale-jobs.mjs
+          node --check cloud-worker/recover-marketplace-cloud-jobs.mjs
+          node --check cloud-worker/enable-atomic-claim.mjs
+          node --check cloud-worker/marketplace-worker.mjs
+          node --check cloud-worker/ask-investigate-worker.mjs
+          node --check cloud-worker/enrich-scout-scryfall.mjs
+          node --check cloud-worker/refresh-scout-rankings.mjs
+          grep -q 'Set filter mismatch' cloud-worker/marketplace-worker.mjs
+          grep -q 'const setFilter=String(setName||setSlug' cloud-worker/marketplace-worker.mjs
+          grep -q 'setName:\[setFilter\]' cloud-worker/marketplace-worker.mjs
+          ! grep -Rqs 'patch-marketplace-set-filter\|patch-ask-collectish-investigate\|requeue-failed-to-pc' .github/workflows cloud-worker
