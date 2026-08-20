@@ -1,12 +1,18 @@
 let installed=false;
+
 export async function install(){
   if(installed)return;
   installed=true;
-  await import('./detail-focus.js');
-  await import('./cardtrader.js');
-  await import('./cardtrader-opportunities.js');
-  await import('./cardtrader-summary.js');
-  await import('./cardtrader-links.js');
-  const module=await import('./renderer.js');
-  await module.install();
+
+  // Start every sealed feature import at once. The previous serial awaits created
+  // a mobile-WebView network waterfall even though these modules are independent.
+  const [,,,,,renderer]=await Promise.all([
+    import('./detail-focus.js'),
+    import('./cardtrader.js'),
+    import('./cardtrader-opportunities.js'),
+    import('./cardtrader-summary.js'),
+    import('./cardtrader-links.js'),
+    import('./renderer.js')
+  ]);
+  await renderer.install();
 }
