@@ -49,8 +49,10 @@ const MAX_ACTIVE_DETAILS=50;
 // large orders/search delta; without this reserve they could starve historical
 // missing-detail backfill for many Android sessions.
 const MIN_MISSING_DETAIL_SLOTS=25;
+// Recent Seller history is most operationally useful, so drain the newest missing
+// detail first while preserving the same bounded, resumable historical queue.
 const missing=await allRows(
-  'seller_orders?select=user_id,order_number,order_date&or=(has_details.eq.false,has_details.is.null)&order=order_date.asc.nullslast',
+  'seller_orders?select=user_id,order_number,order_date&or=(has_details.eq.false,has_details.is.null)&order=order_date.desc.nullslast',
   1000,
   5000
 );
