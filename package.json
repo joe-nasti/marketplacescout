@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "check:styles": "node tools/check-style-system.mjs",
     "check:hygiene": "node tools/check-source-hygiene.mjs",
-    "build": "node tools/patch-web-inventory-pagination.mjs && npm run check:hygiene && npm run check:styles && vite build && node tools/finalize-vite-build.mjs",
+    "build": "npm run check:hygiene && npm run check:styles && vite build && node tools/finalize-vite-build.mjs",
     "preview": "vite preview --host 0.0.0.0"
   },
   "devDependencies": {
