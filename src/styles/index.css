@@ -1,5 +1,6 @@
 @import './tokens.css';
 @import './base.css';
+@import './activity-bar.css';
 @import './scout.css';
 @import './scout-compact.css';
 @import './sealed.css';
