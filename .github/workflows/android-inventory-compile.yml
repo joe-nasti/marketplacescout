@@ -5,7 +5,6 @@ on:
   push:
     paths:
       - "android-agent/**"
-      - "tools/patch-native-v0*.py"
       - ".github/workflows/android-inventory-compile.yml"
 
 permissions:
@@ -31,31 +30,13 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
-      - name: Apply native patch chain
-        shell: bash
-        run: |
-          set -euo pipefail
-          python tools/patch-native-v021.py
-          python tools/patch-native-v022.py
-          python tools/patch-native-v023.py
-          python tools/patch-native-v024.py
-          python tools/patch-native-v025.py
-          python tools/patch-native-v026.py
-          python tools/patch-native-v027.py
-          python tools/patch-native-v028.py
-          python tools/patch-native-v030.py
-          python tools/patch-native-v031.py
-          python tools/patch-native-v032.py
-          python tools/patch-native-v033.py
-          python tools/patch-native-v034.py
-          python tools/patch-native-v035.py
-          python tools/patch-native-v036.py
-
-      - name: Verify Inventory bridge and WebView return survived patches
+      - name: Verify canonical Inventory bridge and WebView return
         working-directory: android-agent
         shell: bash
         run: |
           set -euo pipefail
+          grep -q 'versionCode = 35' app/build.gradle.kts
+          grep -q 'versionName = "0.2.15"' app/build.gradle.kts
           grep -q '/admin/product/searchcatalog' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q '/admin/product/updateinstockquantities' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
           grep -q 'path.startsWith("/admin/product/manage/")' app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt
@@ -85,7 +66,7 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
             -f state=success \
             -f context='collectish/android-inventory-compile' \
-            -f description='Android Inventory bridge + WebView return compiled' \
+            -f description='Canonical Android Inventory bridge compiled' \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Publish Inventory compile failure
@@ -97,5 +78,5 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
             -f state=failure \
             -f context='collectish/android-inventory-compile' \
-            -f description='Android Inventory/WebView return validation failed' \
+            -f description='Canonical Android Inventory validation failed' \
             -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
