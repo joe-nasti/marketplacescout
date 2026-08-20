@@ -3,6 +3,7 @@ name: Refresh sealed component TCG pricing
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - 'cloud-worker/refresh-sealed-component-tcg.mjs'
       - '.github/workflows/sealed-component-tcg.yml'
