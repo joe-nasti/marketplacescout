@@ -30,7 +30,7 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
             -f state=pending \
             -f context='collectish/android-materialize' \
-            -f description='Applying historical Android patches to canonical source'
+            -f description='Materializing canonical Android source'
 
       - uses: actions/setup-java@v4
         with:
@@ -44,6 +44,7 @@ jobs:
           gradle-version: "8.10.2"
 
       - name: Apply historical patch chain once
+        id: patches
         shell: bash
         run: |
           set -euo pipefail
@@ -64,10 +65,12 @@ jobs:
             tools/patch-native-v035.py \
             tools/patch-native-v036.py
           do
+            echo "Applying $patch"
             python "$patch"
           done
 
       - name: Stamp canonical Android version
+        id: stamp
         shell: bash
         run: |
           set -euo pipefail
@@ -87,7 +90,8 @@ jobs:
           gradle.write_text(text)
           PY
 
-      - name: Validate canonical Android source
+      - name: Validate canonical source invariants
+        id: validate
         shell: bash
         run: |
           set -euo pipefail
@@ -100,37 +104,43 @@ jobs:
           grep -q 'loginByUrl' android-agent/app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
           grep -q 'text = "← Collectish"' android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'sellerReturn.visibility=View.VISIBLE' android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt
-          (cd android-agent && gradle :app:assembleDebug)
+
+      - name: Compile canonical Android source
+        id: compile
+        working-directory: android-agent
+        run: gradle :app:assembleDebug
 
       - name: Commit canonical Android source only
+        id: commit
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add android-agent
-          git diff --cached --quiet && { echo "No Android source changes to commit"; exit 0; }
+          if git diff --cached --quiet; then
+            echo "No Android source changes to commit"
+            exit 0
+          fi
           git commit -m "refactor: materialize canonical Android source"
           git push origin HEAD:${GITHUB_REF_NAME}
 
-      - name: Publish materialization success
-        if: success()
+      - name: Publish materialization diagnostic
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
+          PATCHES: ${{ steps.patches.outcome }}
+          STAMP: ${{ steps.stamp.outcome }}
+          VALIDATE: ${{ steps.validate.outcome }}
+          COMPILE: ${{ steps.compile.outcome }}
+          COMMIT: ${{ steps.commit.outcome }}
+        shell: bash
         run: |
+          set -euo pipefail
+          if [[ "$PATCHES" == success && "$STAMP" == success && "$VALIDATE" == success && "$COMPILE" == success && "$COMMIT" == success ]]; then state=success; else state=failure; fi
+          desc="patch=$PATCHES stamp=$STAMP validate=$VALIDATE compile=$COMPILE commit=$COMMIT"
           gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
-            -f state=success \
+            -f state="$state" \
             -f context='collectish/android-materialize' \
-            -f description='Canonical Android source materialized and compiled'
-
-      - name: Publish materialization failure
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-        run: |
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
-            -f state=failure \
-            -f context='collectish/android-materialize' \
-            -f description='Android source materialization failed before commit'
+            -f description="$desc"
