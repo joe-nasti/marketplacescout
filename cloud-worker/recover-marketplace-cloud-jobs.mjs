@@ -15,25 +15,41 @@ const setKey=job=>`${job.user_id}|${job?.payload_json?.profile?.setSlug||''}`;
 const activeRank=j=>j.status==='running'?0:j.status==='claimed'?1:2;
 function retryJitterMinutes(key,span=12){let h=2166136261;for(const ch of String(key||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return (h>>>0)%(Math.max(0,span)+1);}
 
+async function canonicalPayload(payload){
+  const p=payload?.profile||{},gid=Number(p.tcgplayerGroupId||0);
+  if(!gid)return payload||{};
+  const rows=await sb(`tcgplayer_set_identity_cache?select=set_name,url_name&tcgplayer_group_id=eq.${enc(gid)}&limit=1`);
+  const id=rows?.[0];if(!id)return payload||{};
+  return {...(payload||{}),profile:{...p,setName:String(id.set_name||p.setName||'').trim(),tcgSetSlug:String(id.url_name||p.tcgSetSlug||'').trim()}};
+}
+
 async function cancelQueued(job,detail){
   const now=new Date().toISOString();
   await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.queued`,{method:'PATCH',body:{status:'cancelled',completed_at:now,error_message:null,progress_json:{stage:'cancelled',percent:100,detail,updatedAt:now}},prefer:'return=minimal'});
 }
 
 async function main(){
-  let repairedLegacy=0,requeued=0,deferred=0,cancelledRedundant=0,deduped=0;
+  let repairedLegacy=0,requeued=0,deferred=0,cancelledRedundant=0,deduped=0,canonicalized=0;
   const completed=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.completed&select=user_id,payload_json,completed_at&order=completed_at.desc&limit=500');
   const completedToday=new Set((completed||[]).filter(j=>j.completed_at&&chicagoDay(j.completed_at)===today).map(setKey));
 
   const legacy=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.queued&preferred_executor=eq.browser_connector&limit=200');
   for(const job of legacy||[]){
-    const now=new Date().toISOString(),payload=job.payload_json||{};
+    const now=new Date().toISOString(),payload=await canonicalPayload(job.payload_json||{});
     if(daily(job)&&completedToday.has(setKey(job))){await cancelQueued(job,'Daily set refresh already completed today; redundant legacy fallback cancelled.');cancelledRedundant++;continue;}
     await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.queued`,{method:'PATCH',body:{priority:40,preferred_executor:'cloud_worker',required_capability:'marketplace_public_api',available_at:job.available_at||now,payload_json:{...payload,pcFallback:false,pcFallbackQueued:false,executionClass:'cloud_public',cloudOnly:true,cloudPrimary:true},progress_json:{stage:'queued',percent:0,detail:'Legacy PC fallback removed; restored to Collectish Cloud.',updatedAt:now}},prefer:'return=minimal'});repairedLegacy++;
   }
 
   const queuedManaged=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.queued&order=created_at.asc&limit=500');
-  for(const job of queuedManaged||[]){if(!managedRetry(job)||!completedToday.has(setKey(job)))continue;await cancelQueued(job,'Marketplace set already completed today; redundant managed cloud retry cancelled.');cancelledRedundant++;}
+  for(const job of queuedManaged||[]){
+    if(!managedRetry(job))continue;
+    const payload=await canonicalPayload(job.payload_json||{});
+    if(JSON.stringify(payload)!==JSON.stringify(job.payload_json||{})){
+      await sb(`collector_jobs?job_id=eq.${enc(job.job_id)}&status=eq.queued`,{method:'PATCH',body:{payload_json:payload},prefer:'return=minimal'});canonicalized++;
+    }
+    if(!completedToday.has(setKey(job)))continue;
+    await cancelQueued(job,'Marketplace set already completed today; redundant managed cloud retry cancelled.');cancelledRedundant++;
+  }
 
   const activeRows=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&order=created_at.asc&limit=500');
   const groups=new Map();
@@ -49,7 +65,7 @@ async function main(){
   const activeManaged=new Set((activeAfter||[]).filter(managedRetry).map(setKey));
   const failed=await sb('collector_jobs?source=eq.marketplace&action=eq.scan_set&status=eq.failed&preferred_executor=in.(cloud_worker,server)&order=completed_at.asc&limit=200');
   for(const job of failed||[]){
-    const payload=job.payload_json||{},attempts=Number(job.attempt_count||0),max=Math.max(1,Number(job.max_attempts||3));
+    const payload=await canonicalPayload(job.payload_json||{}),attempts=Number(job.attempt_count||0),max=Math.max(1,Number(job.max_attempts||3));
     const error=String(job.error_message||job.progress_json?.detail||'');
     if(!isTransient(error))continue;
     const key=setKey(job),isManaged=managedRetry(job);
@@ -66,6 +82,6 @@ async function main(){
     const freshCooldownMinutes=60+retryJitterMinutes(key,20),childAt=new Date(now.getTime()+freshCooldownMinutes*60000).toISOString();
     await sb('collector_jobs',{method:'POST',body:[{user_id:job.user_id,source:'marketplace',action:'scan_set',status:'queued',priority:45,available_at:childAt,required_capability:'marketplace_public_api',preferred_executor:'cloud_worker',parent_job_id:job.job_id,payload_json:{...payload,pcFallback:false,pcFallbackQueued:false,cloudFreshRetryCount:freshCount+1,cloudFreshRetryOf:job.job_id,executionClass:'cloud_public',cloudOnly:true,cloudPrimary:true},progress_json:{stage:'deferred',percent:0,detail:`Cloud attempts exhausted on transient upstream errors; fresh cloud retry scheduled after ${freshCooldownMinutes}m cool-down.`,updatedAt:now.toISOString()},max_attempts:max}],prefer:'return=minimal'});deferred++;activeManaged.add(key);
   }
-  console.log(`Cloud-only recovery ${today} Chicago: ${repairedLegacy} legacy PC fallback(s) restored, ${cancelledRedundant} redundant retry(s) cancelled, ${requeued} same-job retry(s), ${deferred} fresh cloud retry job(s), ${deduped} completed/duplicate lineage retry(s) suppressed.`);
+  console.log(`Cloud-only recovery ${today} Chicago: ${repairedLegacy} legacy PC fallback(s) restored, ${canonicalized} queued identity payload(s) canonicalized, ${cancelledRedundant} redundant retry(s) cancelled, ${requeued} same-job retry(s), ${deferred} fresh cloud retry job(s), ${deduped} completed/duplicate lineage retry(s) suppressed.`);
 }
 await main();
