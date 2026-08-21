@@ -9,11 +9,12 @@
   .cx-sealed-mobile-econ-row>summary strong,.cx-sealed-mobile-econ-row>summary small{display:block}
   .cx-sealed-mobile-econ-row>summary strong{font-size:12px;line-height:1.25;color:var(--color-text-primary)}
   .cx-sealed-mobile-econ-row>summary small{margin-top:3px;font-size:9px;color:var(--color-text-secondary)}
-  .cx-sealed-mobile-econ-primary{display:grid;gap:3px;text-align:right;font-size:9px;color:var(--color-text-secondary)}
-  .cx-sealed-mobile-econ-primary b{display:inline-block;margin-left:3px;color:var(--color-text-primary);font-size:11px}
+  .cx-sealed-mobile-econ-primary{text-align:right;min-width:82px}
+  .cx-sealed-mobile-econ-route{display:grid;gap:1px;justify-items:end}.cx-sealed-mobile-econ-route small{margin:0!important;font-size:8px!important;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--color-text-secondary)}.cx-sealed-mobile-econ-route b{font-size:12px;color:var(--color-text-primary)}.cx-sealed-mobile-econ-route.muted b{font-size:10px;font-weight:700;color:var(--color-text-secondary)}
   .cx-sealed-mobile-econ-row[open]>summary{border-bottom:1px solid var(--color-border);background:color-mix(in srgb,var(--color-accent-soft) 35%,var(--color-bg-surface))}
   .cx-sealed-mobile-econ-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:9px}
   .cx-sealed-mobile-econ-stat{padding:8px;border:1px solid var(--color-border);border-radius:9px;background:var(--color-bg-primary)}
   .cx-sealed-mobile-econ-stat span{display:block;font-size:8px;text-transform:uppercase;font-weight:800;color:var(--color-text-secondary)}
   .cx-sealed-mobile-econ-stat strong{display:block;margin-top:2px;font-size:11px;color:var(--color-text-primary)}
+  .cx-sealed-mobile-econ-missing{grid-column:1/-1;justify-self:start;display:inline-flex;align-items:center;min-height:28px;padding:4px 8px;border:1px dashed var(--color-border);border-radius:999px;background:color-mix(in srgb,var(--color-bg-surface) 80%,var(--color-bg-primary));color:var(--color-text-secondary);font-size:9px;font-weight:750}
 }
