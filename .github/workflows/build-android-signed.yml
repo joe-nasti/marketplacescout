@@ -125,4 +125,4 @@ jobs:
         run: |
           state=success; desc="Signed Android $ANDROID_VERSION_NAME built from canonical source"
           if [ "$RESULT" != success ]; then state=failure; desc="Canonical Android $ANDROID_VERSION_NAME signed build failed"; fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/android-signed' -f description="$desc"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state="$state" -f context='collectish/android-signed' -f description="$desc" -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
