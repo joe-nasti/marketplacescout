@@ -73,7 +73,11 @@ function renderShell(){
   renderRows();
 }
 
-function updateFilters(patch){const s=store.get().sealed||{},filters={...(s.filters||{}),...patch};store.update('sealed',{filters});renderShell()}
+function updateFilters(patch){
+  const s=store.get().sealed||{},filters={...(s.filters||{}),...patch};store.update('sealed',{filters});
+  const buylist=document.getElementById('cxSealedBuylistBacked');if(buylist){buylist.setAttribute('aria-pressed',filters.buylistBacked?'true':'false');buylist.classList.toggle('active',Boolean(filters.buylistBacked))}
+  renderRows();
+}
 function selectProduct(id){store.update('sealed',{selectedId:id});renderRows();renderDetail(selectedRow()).catch(()=>{})}
 
 function renderRows(){
