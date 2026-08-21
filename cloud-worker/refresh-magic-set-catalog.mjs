@@ -54,7 +54,7 @@ for(let i=0;i<identityRows.length;i+=200)await sb('tcgplayer_set_identity_cache?
 
 const rows=physical.map(s=>{
   const gid=Number(s.tcgplayer_id),tcg=tcgById.get(gid);
-  return {scryfall_id:s.id,code:String(s.code||'').toUpperCase(),name:s.name,set_type:s.set_type||null,released_at:s.released_at||null,digital:false,tcgplayer_group_id:gid,tcgplayer_slug:tcg?.urlName||null,catalog_source:'scryfall+tcgplayer-cache',updated_at:nowIso};
+  return {scryfall_id:s.id,code:String(s.code||'').toUpperCase(),name:tcg?.name||s.name,set_type:s.set_type||null,released_at:s.released_at||null,digital:false,tcgplayer_group_id:gid,tcgplayer_slug:tcg?.urlName||null,catalog_source:'scryfall+tcgplayer-cache',updated_at:nowIso};
 });
 for(let i=0;i<rows.length;i+=200)await sb('magic_set_catalog?on_conflict=scryfall_id',{method:'POST',body:rows.slice(i,i+200),prefer:'resolution=merge-duplicates,return=minimal'});
-console.log(JSON.stringify({catalogRows:rows.length,requestedTcgSetIds:ids.length,cachedTcgSetIds:identityRows.length,missingTcgIdentity:ids.length-identityRows.length,refreshPolicy:'biweekly'},null,2));
+console.log(JSON.stringify({catalogRows:rows.length,requestedTcgSetIds:ids.length,cachedTcgSetIds:identityRows.length,missingTcgIdentity:ids.length-identityRows.length,refreshPolicy:'biweekly',nameAuthority:'tcgplayer-group-name-when-available'},null,2));
