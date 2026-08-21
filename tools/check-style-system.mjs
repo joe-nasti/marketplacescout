@@ -6,10 +6,12 @@ const styles=join(root,'src/styles');
 const expected=[
   'activity-bar.css',
   'admin.css',
+  'ask-readable.css',
   'ask.css',
   'base.css',
   'index.css',
   'scout-compact.css',
+  'scout-detail-compact.css',
   'scout.css',
   'sealed-mobile-economics.css',
   'sealed.css',
