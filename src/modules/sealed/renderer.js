@@ -116,7 +116,7 @@ async function loadDetailData(r){
 async function renderDetail(r){
   const h=document.getElementById('cxSealedDetail');if(!h)return;const seq=++detailSeq;
   if(!r){h.innerHTML='<div class="cx-empty">Select a sealed product.</div>';return}
-  h.innerHTML='<div class="cx-sealed-detail-skeleton" aria-hidden="true"><div class="cx-skeleton-line wide"></div><div class="cx-skeleton-line"></div><div class="cx-skeleton-grid">${'<span></span>'.repeat(4)}</div><div class="cx-skeleton-table"></div></div>';
+  h.innerHTML=`<div class="cx-sealed-detail-skeleton" aria-hidden="true"><div class="cx-skeleton-line wide"></div><div class="cx-skeleton-line"></div><div class="cx-skeleton-grid">${'<span></span>'.repeat(4)}</div><div class="cx-skeleton-table"></div></div>`;
   try{
     const d=await loadDetailData(r);if(seq!==detailSeq)return;
     const s=store.get().sealed||{},type=s.setTypes?.[String(r.set_code||'').toUpperCase()],sc=score(r),a=acquisition(r),sealedUrl=d.price?.product_id?`https://www.tcgplayer.com/product/${encodeURIComponent(d.price.product_id)}?page=1`:'';
