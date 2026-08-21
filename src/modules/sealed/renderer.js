@@ -12,6 +12,7 @@ const score=r=>r?.scout_sealed_score==null?null:Number(r.scout_sealed_score);
 const grade=r=>r?.scout_sealed_grade||'—';
 const acquisition=r=>r?.sealed_acquisition_price==null?null:Number(r.sealed_acquisition_price);
 const marketSpread=r=>r?.market_spread==null?null:Number(r.market_spread);
+const buylistBacked=r=>{const buy=Number(r?.cardkingdom_buylist_ev),acq=acquisition(r);return Number.isFinite(buy)&&buy>0&&Number.isFinite(acq)&&acq>0&&buy>acq};
 const xval=(r,k)=>Number(r?.quantity||0)*Number(r?.[k]||0);
 const setMap=()=>new Map(Object.entries(store.get().sealed?.setTypes||{}));
 let detailSeq=0;
@@ -20,7 +21,7 @@ function languageMeta(r){const s=r?.score_components||{};return{lang:s.sealed_la
 function languageClass(r){const m=languageMeta(r);if(m.mode==='english_equivalent_fallback'||m.fallback>0)return'fallback';if(m.lang.toLowerCase()!=='english'&&m.exact>0)return'nonenglish_exact';return'english_exact'}
 function languageBadge(r){const m=languageMeta(r);if(m.lang==='English')return'';const short=m.lang==='Japanese'?'JP':m.lang.slice(0,2).toUpperCase();return `<span class="cx-sealed-badge cx-sealed-lang-badge risk">${short} · ${m.fallback>0?'fallback':'exact'}</span>`}
 function languageNote(r){const m=languageMeta(r);if(m.lang==='English')return'';return `<div class="cx-sealed-language-note"><strong>${esc(m.lang)} sealed product</strong><span>${m.fallback>0?`Component EV uses English-equivalent pricing where exact ${esc(m.lang)} pricing is unavailable.`:`Component EV uses exact ${esc(m.lang)} pricing where available.`}</span><small>Exact ${esc(m.lang)} coverage ${m.exact.toFixed(0)}% · English fallback ${m.fallback.toFixed(0)}%${m.penalty?` · confidence −${m.penalty.toFixed(0)} pts`:''}${m.raw!=null?` · raw score ${m.raw.toFixed(1)}`:''}</small></div>`}
-function badges(r){const out=[];if(r.lifecycle_status==='scout_sealed')out.push('<span class="cx-sealed-badge direct">SCOUT READY</span>');if(r.cardkingdom_buylist_ev!=null&&acquisition(r)&&Number(r.cardkingdom_buylist_ev)>acquisition(r))out.push('<span class="cx-sealed-badge buylist">BUYLIST BACKED</span>');if(r.blocker)out.push(`<span class="cx-sealed-badge risk">${esc(human(r.blocker))}</span>`);else if(r.lifecycle_status==='ev_ready')out.push('<span class="cx-sealed-badge syp">EV READY</span>');out.push(languageBadge(r));return out.join('')}
+function badges(r){const out=[];if(r.lifecycle_status==='scout_sealed')out.push('<span class="cx-sealed-badge direct">SCOUT READY</span>');if(buylistBacked(r))out.push('<span class="cx-sealed-badge buylist">BUYLIST BACKED</span>');if(r.blocker)out.push(`<span class="cx-sealed-badge risk">${esc(human(r.blocker))}</span>`);else if(r.lifecycle_status==='ev_ready')out.push('<span class="cx-sealed-badge syp">EV READY</span>');out.push(languageBadge(r));return out.join('')}
 function metric(label,value,sub='',cls=''){return `<div class="cx-sealed-metric ${cls}"><span>${esc(label)}</span><b>${value}</b>${sub?`<small>${esc(sub)}</small>`:''}</div>`}
 function stat(label,value,sub='',url=''){const body=`<span>${esc(label)}</span><strong>${value}</strong>${sub?`<small>${esc(sub)}</small>`:''}`;return `<div class="cx-sealed-stat">${url?`<a class="cx-source-anchor" href="${esc(url)}" target="_blank" rel="noopener">${body}</a>`:body}</div>`}
 function sortRows(a,b){const as=score(a),bs=score(b);if(as!=null&&bs!=null)return bs-as;if(as!=null)return-1;if(bs!=null)return 1;return Number(b.tcg_market_ev||0)-Number(a.tcg_market_ev||0)}
@@ -44,6 +45,7 @@ function filteredRows(){
     const st=types.get(String(r.set_code||'').toUpperCase())||'',hay=`${r.product_name||''} ${r.set_code||''} ${r.category||''} ${r.subtype||''} ${st}`.toLowerCase();
     if(f.query&&!hay.includes(String(f.query).toLowerCase()))return false;
     if(f.setType&&st!==f.setType)return false;
+    if(f.buylistBacked&&!buylistBacked(r))return false;
     if(f.status==='graded'&&score(r)==null)return false;
     if(f.status==='scout'&&r.lifecycle_status!=='scout_sealed')return false;
     if(f.status==='evready'&&!['ev_ready','scout_sealed'].includes(r.lifecycle_status))return false;
@@ -59,18 +61,19 @@ function renderShell(){
   const h=document.getElementById('cxSealed');if(!h)return;
   const s=store.get().sealed||{},rows=s.rows||[],f=s.filters||{},types=[...new Set(rows.map(r=>s.setTypes?.[String(r.set_code||'').toUpperCase()]).filter(Boolean))].sort();
   const assessed=rows.length,graded=rows.filter(r=>score(r)!=null).length,sets=new Set(rows.map(r=>r.set_code).filter(Boolean)).size,last=rows.reduce((m,r)=>!m||new Date(r.refreshed_at)>new Date(m)?r.refreshed_at:m,null);
-  h.innerHTML=`<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Generalized sealed opportunities across enabled sets.</p><small class="cx-sub">${assessed} assessed · ${graded} graded · ${sets} enabled sets · refreshed ${esc(age(last))}</small></div><button class="cx-refresh" id="cxSealedRefresh">Refresh</button></div><div class="cx-sealed-toolbar"><input id="cxSealedSearch" value="${esc(f.query||'')}" placeholder="Search sealed products…"><select id="cxSealedFilter"><option value="">All assessed products</option><option value="graded">Graded only</option><option value="scout">Scout Sealed only</option><option value="evready">EV ready</option><option value="blocked">Blocked / pending</option></select><select id="cxSealedSetType"><option value="">All set types</option>${types.map(x=>`<option value="${esc(x)}">${esc(human(x))}</option>`).join('')}</select><select id="cxSealedLanguagePricing"><option value="all">All language pricing</option><option value="exclude_fallback">Exclude fallback pricing</option><option value="english_exact">English / exact-default only</option><option value="nonenglish_exact">Non-English exact-language only</option><option value="fallback">English fallback only</option></select><small id="cxSealedLanguageFilterCount"></small></div><div class="cx-sealed-layout"><section><div id="cxSealedRows" class="cx-sealed-list"></div></section><aside id="cxSealedDetail" class="cx-card cx-sealed-detail"></aside></div>`;
+  h.innerHTML=`<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Generalized sealed opportunities across enabled sets.</p><small class="cx-sub">${assessed} assessed · ${graded} graded · ${sets} enabled sets · refreshed ${esc(age(last))}</small></div><button class="cx-refresh" id="cxSealedRefresh">Refresh</button></div><div class="cx-sealed-toolbar cx-sealed-toolbar-compact"><input id="cxSealedSearch" value="${esc(f.query||'')}" placeholder="Search sealed products…"><select id="cxSealedFilter" class="cx-sealed-filter-internal"><option value="">All assessed products</option><option value="graded">Graded only</option><option value="scout">Scout Sealed only</option><option value="evready">EV ready</option><option value="blocked">Blocked / pending</option></select><div class="cx-sealed-chip-bar"><select id="cxSealedSetType" class="cx-sealed-filter-chip"><option value="">All Types</option>${types.map(x=>`<option value="${esc(x)}">${esc(human(x))}</option>`).join('')}</select><select id="cxSealedLanguagePricing" class="cx-sealed-filter-chip"><option value="all">Language</option><option value="exclude_fallback">Exclude fallback pricing</option><option value="english_exact">English / exact-default only</option><option value="nonenglish_exact">Non-English exact-language only</option><option value="fallback">English fallback only</option></select><button type="button" id="cxSealedBuylistBacked" class="cx-sealed-filter-toggle ${f.buylistBacked?'active':''}" aria-pressed="${f.buylistBacked?'true':'false'}"><span aria-hidden="true">⚡</span><span>Buylist Backed</span></button></div><small id="cxSealedLanguageFilterCount" class="cx-sealed-filter-internal"></small></div><div class="cx-sealed-layout"><section><div id="cxSealedRows" class="cx-sealed-list"></div></section><aside id="cxSealedDetail" class="cx-card cx-sealed-detail"></aside></div>`;
   h.querySelector('#cxSealedFilter').value=f.status||'';h.querySelector('#cxSealedSetType').value=f.setType||'';h.querySelector('#cxSealedLanguagePricing').value=f.language||'all';
   h.querySelector('#cxSealedSearch').addEventListener('input',e=>updateFilters({query:e.target.value}));
   h.querySelector('#cxSealedFilter').addEventListener('change',e=>updateFilters({status:e.target.value}));
   h.querySelector('#cxSealedSetType').addEventListener('change',e=>updateFilters({setType:e.target.value}));
-  h.querySelector('#cxSealedLanguagePricing').addEventListener('change',e=>{localStorage.setItem('collectishSealedLanguageFilter',e.target.value);updateFilters({language:e.target.value})});
+  h.querySelector('#cxSealedLanguagePricing').addEventListener('change',e=>updateFilters({language:e.target.value}));
+  h.querySelector('#cxSealedBuylistBacked').addEventListener('click',()=>updateFilters({buylistBacked:!Boolean(store.get().sealed?.filters?.buylistBacked)}));
   h.querySelector('#cxSealedRefresh').addEventListener('click',()=>load(true));
   h.querySelector('#cxSealedRows').addEventListener('click',e=>{const b=e.target.closest('[data-deck]');if(b)selectProduct(b.dataset.deck)});
   renderRows();
 }
 
-function updateFilters(patch){const s=store.get().sealed||{},filters={...(s.filters||{}),...patch};store.update('sealed',{filters});renderRows()}
+function updateFilters(patch){const s=store.get().sealed||{},filters={...(s.filters||{}),...patch};store.update('sealed',{filters});renderShell()}
 function selectProduct(id){store.update('sealed',{selectedId:id});renderRows();renderDetail(selectedRow()).catch(()=>{})}
 
 function renderRows(){
@@ -109,7 +112,7 @@ async function loadDetailData(r){
 async function renderDetail(r){
   const h=document.getElementById('cxSealedDetail');if(!h)return;const seq=++detailSeq;
   if(!r){h.innerHTML='<div class="cx-empty">Select a sealed product.</div>';return}
-  h.innerHTML='<div class="cx-empty">Loading product economics…</div>';
+  h.innerHTML='<div class="cx-sealed-detail-skeleton" aria-hidden="true"><div class="cx-skeleton-line wide"></div><div class="cx-skeleton-line"></div><div class="cx-skeleton-grid">${'<span></span>'.repeat(4)}</div><div class="cx-skeleton-table"></div></div>';
   try{
     const d=await loadDetailData(r);if(seq!==detailSeq)return;
     const s=store.get().sealed||{},type=s.setTypes?.[String(r.set_code||'').toUpperCase()],sc=score(r),a=acquisition(r),sealedUrl=d.price?.product_id?`https://www.tcgplayer.com/product/${encodeURIComponent(d.price.product_id)}?page=1`:'';
@@ -122,7 +125,7 @@ async function renderDetail(r){
 
 export async function load(force=false){
   const h=document.getElementById('cxSealed');if(!h)return;
-  h.innerHTML='<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Loading sealed model…</p></div></div><div class="cx-empty">Loading enabled-set assessments…</div>';
+  h.innerHTML='<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Loading sealed model…</p></div></div><div class="cx-sealed-page-skeleton" aria-hidden="true"><div class="cx-skeleton-toolbar"></div><div class="cx-skeleton-layout"><div class="cx-skeleton-list">'+Array.from({length:6},()=>'<div class="cx-skeleton-card"><span class="cx-skeleton-art"></span><span class="cx-skeleton-copy"></span></div>').join('')+'</div><div class="cx-skeleton-table"></div></div></div>';
   try{await loadIndex(force);renderShell()}
   catch(error){h.innerHTML=`<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Could not load the sealed model.</p></div><button class="cx-refresh" id="cxSealedRetry">Retry</button></div><div class="cx-card"><div class="cx-empty">${esc(error.message||error)}</div></div>`;h.querySelector('#cxSealedRetry')?.addEventListener('click',()=>load(true))}
 }
@@ -131,8 +134,6 @@ let installed=false;
 export async function install(){
   if(installed)return;
   installed=true;
-  const saved=localStorage.getItem('collectishSealedLanguageFilter')||'all',s=store.get().sealed||{};
-  store.update('sealed',{filters:{...(s.filters||{}),language:s.filters?.language||saved}});
   await load(false);
 }
 
