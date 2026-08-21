@@ -24,8 +24,8 @@ async function mapLimit(items,limit,fn){
   await Promise.all(Array.from({length:Math.min(limit,items.length)},worker));return out;
 }
 
-// Bi-weekly catalog refresh. The numeric TCG set-id -> canonical urlName mapping
-// is refreshed only here and cached in tcgplayer_set_identity_cache.
+// Bi-weekly catalog refresh. Scryfall owns display/metadata naming; TCGplayer owns
+// Marketplace execution naming and slug identity. Never collapse the two strings.
 const force=String(process.env.COLLECTISH_FORCE_SET_CATALOG||'').toLowerCase()==='true';
 if(!force){
   const latest=await sb('tcgplayer_set_identity_cache?select=updated_at&order=updated_at.desc&limit=1');
@@ -54,7 +54,7 @@ for(let i=0;i<identityRows.length;i+=200)await sb('tcgplayer_set_identity_cache?
 
 const rows=physical.map(s=>{
   const gid=Number(s.tcgplayer_id),tcg=tcgById.get(gid);
-  return {scryfall_id:s.id,code:String(s.code||'').toUpperCase(),name:tcg?.name||s.name,set_type:s.set_type||null,released_at:s.released_at||null,digital:false,tcgplayer_group_id:gid,tcgplayer_slug:tcg?.urlName||null,catalog_source:'scryfall+tcgplayer-cache',updated_at:nowIso};
+  return {scryfall_id:s.id,code:String(s.code||'').toUpperCase(),name:s.name,scryfall_name:s.name,tcgplayer_name:tcg?.name||null,set_type:s.set_type||null,released_at:s.released_at||null,digital:false,tcgplayer_group_id:gid,tcgplayer_slug:tcg?.urlName||null,catalog_source:'scryfall+tcgplayer-cache',updated_at:nowIso};
 });
 for(let i=0;i<rows.length;i+=200)await sb('magic_set_catalog?on_conflict=scryfall_id',{method:'POST',body:rows.slice(i,i+200),prefer:'resolution=merge-duplicates,return=minimal'});
-console.log(JSON.stringify({catalogRows:rows.length,requestedTcgSetIds:ids.length,cachedTcgSetIds:identityRows.length,missingTcgIdentity:ids.length-identityRows.length,refreshPolicy:'biweekly',nameAuthority:'tcgplayer-group-name-when-available'},null,2));
+console.log(JSON.stringify({catalogRows:rows.length,requestedTcgSetIds:ids.length,cachedTcgSetIds:identityRows.length,missingTcgIdentity:ids.length-identityRows.length,refreshPolicy:'biweekly',displayNameAuthority:'scryfall',marketplaceNameAuthority:'tcgplayer'},null,2));
