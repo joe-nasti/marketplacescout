@@ -13,6 +13,7 @@ const expected=[
   'scout-compact.css',
   'scout-detail-compact.css',
   'scout.css',
+  'sealed-compact-controls.css',
   'sealed-mobile-economics.css',
   'sealed.css',
   'seller-progress.css',
