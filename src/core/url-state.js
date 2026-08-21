@@ -11,6 +11,7 @@ export function readUrlState(){
       setType:p.get('settype')||'',
       setCode:(p.get('set')||'').toUpperCase(),
       language:parseLanguage(p.get('lang')),
+      buylistBacked:parseBool(p.get('buylist_backed')),
       selectedId:p.get('sealed')||null
     }
   };
@@ -30,6 +31,11 @@ export function serializeLanguage(value){
   return ({english_exact:'en',nonenglish_exact:'nonenglish',fallback:'fallback',exclude_fallback:'nofallback'})[value]||'all';
 }
 
+export function parseBool(value){
+  const v=String(value||'').toLowerCase();
+  return ['1','true','yes','on'].includes(v);
+}
+
 export function writeUrlState(patch,{replace=false}={}){
   const u=new URL(location.href),p=u.searchParams;
   if(Object.prototype.hasOwnProperty.call(patch,'tab'))setOrDelete(p,'tab',patch.tab==='scout'?'':patch.tab);
@@ -40,9 +46,12 @@ export function writeUrlState(patch,{replace=false}={}){
     if(Object.prototype.hasOwnProperty.call(s,'setType'))setOrDelete(p,'settype',s.setType);
     if(Object.prototype.hasOwnProperty.call(s,'setCode'))setOrDelete(p,'set',String(s.setCode||'').toLowerCase());
     if(Object.prototype.hasOwnProperty.call(s,'language'))setOrDelete(p,'lang',serializeLanguage(s.language)==='all'?'':serializeLanguage(s.language));
+    if(Object.prototype.hasOwnProperty.call(s,'buylistBacked'))setOrDelete(p,'buylist_backed',s.buylistBacked?'true':'');
     if(Object.prototype.hasOwnProperty.call(s,'selectedId'))setOrDelete(p,'sealed',s.selectedId);
   }
   const next=`${u.pathname}${p.toString()?`?${p}`:''}${u.hash}`;
+  const current=`${location.pathname}${location.search}${location.hash}`;
+  if(next===current)return;
   history[replace?'replaceState':'pushState']({},'',next);
 }
 

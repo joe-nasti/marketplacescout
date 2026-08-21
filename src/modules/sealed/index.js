@@ -12,12 +12,11 @@ export async function install(){
     import('./cardtrader-opportunities.js'),
     import('./cardtrader-summary.js'),
     import('./cardtrader-links.js'),
-    import('./compact-controls.js'),
     import('./url-state.js'),
     import('./mobile-economics.js'),
     import('./renderer.js')
   ]);
-  const urlState=modules[6],renderer=modules[8];
+  const urlState=modules[5],renderer=modules[7];
   urlState.installSealedUrlState();
   await renderer.install();
 }
