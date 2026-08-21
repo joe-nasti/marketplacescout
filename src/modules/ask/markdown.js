@@ -1,6 +1,7 @@
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-const LABELS=new Set(['SHORT ANSWER','VERDICT','CONFIDENCE','THESIS','EVIDENCE','RISKS','DATA QUALITY','ENTRY','EXIT','EXIT / TARGET','TARGET','POSITION SIZE','CORE SETUP','COVERAGE','GAPS']);
+const LABELS=new Set(['SHORT ANSWER','VERDICT','CONFIDENCE','THESIS','EVIDENCE','KEY EVIDENCE','RISKS','DATA QUALITY','ENTRY','EXIT','EXIT / TARGET','TARGET','POSITION SIZE','CORE SETUP','COVERAGE','GAPS']);
+const SECTION_RE=/^(?:KEY\s+)?EVIDENCE(?:\s*\([^)]*\))?$|^THESIS$|^RISKS?$|^DATA QUALITY$|^ENTRY$|^EXIT(?: \/ TARGET)?$|^POSITION SIZE$|^CORE SETUP$|^COVERAGE$|^GAPS$/i;
 
 function inline(s){
   let x=esc(s);
@@ -18,24 +19,39 @@ function labeled(line){
   if(!m)return null;
   const label=m[1].trim().toUpperCase();
   if(!LABELS.has(label))return null;
-  return `<p><strong>${inline(m[1].trim())}:</strong> ${inline(m[2].trim())}</p>`;
+  return {label,html:`<p class="cx-md-labeled"><strong>${inline(m[1].trim())}:</strong> ${inline(m[2].trim())}</p>`};
+}
+
+function sectionHeading(text){
+  const clean=String(text||'').trim().replace(/:$/,'');
+  return SECTION_RE.test(clean)?clean:null;
 }
 
 export function markdown(src){
   const lines=String(src??'').replace(/\r\n?/g,'\n').split('\n');
-  const out=[];let list=null;
+  const out=[];let list=null,section='',evidenceRank=0;
   const close=()=>{if(list){out.push(`</${list}>`);list=null}};
+  const setSection=s=>{section=String(s||'').toUpperCase();if(/EVIDENCE/.test(section))evidenceRank=0};
   for(const raw of lines){
     const line=raw.trimEnd();
     if(/^\s*$/.test(line)){close();continue}
     if(/^\s*---+\s*$/.test(line)){close();out.push('<hr>');continue}
     let m;
-    if((m=/^\s*#{1,4}\s+(.+)$/.exec(line))){close();const n=Math.min(4,(line.match(/^\s*(#+)/)?.[1]?.length||2));out.push(`<h${n}>${inline(m[1])}</h${n}>`);continue}
+    if((m=/^\s*#{1,4}\s+(.+)$/.exec(line))){
+      close();const title=m[1].trim();setSection(title);const n=Math.min(4,(line.match(/^\s*(#+)/)?.[1]?.length||2));out.push(`<h${n}>${inline(title)}</h${n}>`);continue;
+    }
+    const plainSection=sectionHeading(line);
+    if(plainSection){close();setSection(plainSection);out.push(`<h2 class="cx-md-section">${inline(plainSection)}</h2>`);continue}
     if((m=/^\s*>\s+(.+)$/.exec(line))){close();out.push(`<blockquote>${inline(m[1])}</blockquote>`);continue}
     if((m=/^\s*[-*•]\s+(.+)$/.exec(line))){if(list!=='ul'){close();list='ul';out.push('<ul>')}out.push(`<li>${inline(m[1])}</li>`);continue}
-    if((m=/^\s*\d+[.)]\s+(.+)$/.exec(line))){if(list!=='ol'){close();list='ol';out.push('<ol>')}out.push(`<li>${inline(m[1])}</li>`);continue}
-    const label=labeled(line);if(label){close();out.push(label);continue}
-    if((m=/^\s*(Short answer)\s*[—-]\s*(.+)$/i.exec(line))){close();out.push(`<p><strong>${inline(m[1])}</strong> — ${inline(m[2])}</p>`);continue}
+    if((m=/^\s*\d+[.)]\s+(.+)$/.exec(line))){
+      if(/EVIDENCE/.test(section)){
+        close();evidenceRank++;out.push(`<div class="cx-md-evidence-title"><span class="cx-md-rank">${evidenceRank}</span><strong>${inline(m[1])}</strong></div>`);continue;
+      }
+      if(list!=='ol'){close();list='ol';out.push('<ol>')}out.push(`<li>${inline(m[1])}</li>`);continue;
+    }
+    const label=labeled(line);if(label){close();if(/EVIDENCE/.test(label.label))setSection(label.label);out.push(label.html);continue}
+    if((m=/^\s*(Short answer)\s*[—-]\s*(.+)$/i.exec(line))){close();out.push(`<p class="cx-md-short"><strong>${inline(m[1])}</strong><span>${inline(m[2])}</span></p>`);continue}
     close();out.push(`<p>${inline(line)}</p>`);
   }
   close();return out.join('');

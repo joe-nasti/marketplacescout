@@ -1,0 +1,44 @@
+/* Ask Collectish reading hierarchy: shared across every tab. */
+#cxAskMessages .cx-ask-assistant{max-width:94%}
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md]{white-space:normal;padding:13px 14px;line-height:1.5}
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] p{margin:.52rem 0}
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] h1,
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] h2,
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] h3{margin:1.05rem 0 .48rem;line-height:1.2}
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] h2,
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] .cx-md-section{padding-top:.8rem;border-top:1px solid color-mix(in srgb,var(--color-border) 80%,transparent);font-size:.92rem;letter-spacing:.035em;text-transform:uppercase}
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] h2:first-child,
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] .cx-md-section:first-child{padding-top:0;border-top:0;margin-top:.15rem}
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] ul,
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] ol{margin:.42rem 0 .82rem;padding-left:1.2rem;display:grid;gap:.34rem}
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] li{padding-left:.12rem;line-height:1.46}
+#cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md] li::marker{color:var(--color-text-secondary);font-weight:800}
+#cxAskMessages .cx-md-short{display:grid;gap:.25rem;margin:0 0 .85rem!important;padding:.72rem .8rem;border-radius:11px;background:color-mix(in srgb,var(--color-accent-soft) 38%,var(--color-bg-surface));border:1px solid color-mix(in srgb,var(--color-accent) 20%,var(--color-border))}
+#cxAskMessages .cx-md-short>strong{font-size:.76rem;letter-spacing:.04em;text-transform:uppercase;color:var(--color-accent)}
+#cxAskMessages .cx-md-labeled>strong{color:var(--color-text-secondary);font-size:.76rem;letter-spacing:.025em;text-transform:uppercase;margin-right:.18rem}
+#cxAskMessages .cx-md-evidence-title{display:grid;grid-template-columns:1.65rem minmax(0,1fr);gap:.55rem;align-items:start;margin:1rem 0 .42rem;padding-top:.82rem;border-top:1px solid color-mix(in srgb,var(--color-border) 76%,transparent)}
+#cxAskMessages .cx-md-evidence-title:first-of-type{margin-top:.5rem}
+#cxAskMessages .cx-md-evidence-title>strong{line-height:1.34;font-size:.94rem}
+#cxAskMessages .cx-md-rank{display:grid;place-items:center;width:1.55rem;height:1.55rem;border-radius:999px;background:color-mix(in srgb,var(--color-accent) 14%,var(--color-bg-surface));border:1px solid color-mix(in srgb,var(--color-accent) 38%,var(--color-border));color:var(--color-accent);font-size:.72rem;font-weight:900}
+#cxAskMessages .cx-investigate-summary{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.5rem;margin:0 0 .9rem;align-items:start}
+#cxAskMessages .cx-investigate-badge{min-width:0;border-radius:12px;padding:.48rem .65rem;align-items:flex-start}
+#cxAskMessages .cx-investigate-badge small{white-space:nowrap;line-height:1.25;padding-top:.08rem}
+#cxAskMessages .cx-investigate-badge b{min-width:0;line-height:1.3;overflow-wrap:anywhere}
+#cxAskMessages .cx-investigate-badge.confidence{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.5rem;width:100%}
+#cxAskMessages .cx-ask-deeper{margin:.95rem 0 0;padding-top:.72rem}
+#cxAskMessages .cx-ask-deeper>summary{display:flex;align-items:center;gap:.45rem;padding:.15rem 0;font-size:.86rem}
+#cxAskMessages .cx-ask-deeper>summary::before{content:'＋';font-size:.8rem}
+#cxAskMessages .cx-ask-deeper[open]>summary::before{content:'−'}
+#cxAskMessages .cx-ask-deeper-body{padding-top:.3rem}
+#cxAskMessages blockquote{margin:.65rem 0;padding:.6rem .75rem;border-left:3px solid color-mix(in srgb,var(--color-accent) 45%,var(--color-border));background:color-mix(in srgb,var(--color-accent-soft) 18%,transparent);border-radius:0 8px 8px 0}
+
+@media(max-width:700px){
+  #cxAskMessages.cx-ask-messages{padding:12px 10px 18px;gap:11px}
+  #cxAskMessages .cx-ask-assistant{max-width:96%}
+  #cxAskMessages .cx-ask-assistant .cx-ask-msg-body[data-md]{font-size:12.75px;padding:12px 13px}
+  #cxAskMessages .cx-investigate-summary{grid-template-columns:1fr}
+  #cxAskMessages .cx-investigate-badge.verdict{justify-self:start}
+  #cxAskMessages .cx-investigate-badge.confidence{grid-template-columns:5.7rem minmax(0,1fr);justify-self:stretch}
+  #cxAskMessages .cx-md-evidence-title{grid-template-columns:1.5rem minmax(0,1fr);gap:.48rem}
+  #cxAskMessages .cx-md-rank{width:1.4rem;height:1.4rem;font-size:.68rem}
+}
