@@ -9,12 +9,16 @@ on:
     paths:
       - "cloud-worker/collectish-alerts.mjs"
       - ".github/workflows/collectish-alerts.yml"
+  pull_request:
+    paths:
+      - "cloud-worker/collectish-alerts.mjs"
+      - ".github/workflows/collectish-alerts.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: collectish-alerts
+  group: collectish-alerts-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -30,8 +34,10 @@ jobs:
         with:
           node-version: "24"
       - name: Validate alert worker
-        run: |
-          test -n "$SUPABASE_SERVICE_ROLE_KEY"
-          node --check cloud-worker/collectish-alerts.mjs
+        run: node --check cloud-worker/collectish-alerts.mjs
+      - name: Validate alert secret
+        if: github.event_name != 'pull_request'
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
       - name: Evaluate Collectish alerts
+        if: github.event_name != 'pull_request'
         run: node cloud-worker/collectish-alerts.mjs
