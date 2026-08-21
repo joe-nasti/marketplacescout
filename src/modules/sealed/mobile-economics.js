@@ -1,14 +1,36 @@
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const money=n=>n==null||n===''||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString(undefined,{style:'currency',currency:'USD'});
 const human=s=>String(s||'').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
+const hasPrice=v=>v!=null&&v!==''&&Number.isFinite(Number(v))&&Number(v)>0;
 
-function stat(label,value){return `<div class="cx-sealed-mobile-econ-stat"><span>${esc(label)}</span><strong>${value}</strong></div>`}
+function stat(label,value){return `<div class="cx-sealed-mobile-econ-stat"><span>${esc(label)}</span><strong>${money(value)}</strong></div>`}
+function statIf(label,value){return hasPrice(value)?stat(label,value):''}
+function bestExit(c){
+  const routes=[
+    {label:'CK Buylist',value:c.cardkingdom_buylist},
+    {label:'Direct net',value:c.tcg_direct_net},
+    {label:'Market',value:c.tcg_market}
+  ].filter(x=>hasPrice(x.value)).sort((a,b)=>Number(b.value)-Number(a.value));
+  return routes[0]||null;
+}
+function directMissing(c){return hasPrice(c.tcg_direct_net)?'':'<span class="cx-sealed-mobile-econ-missing">No Direct listing</span>'}
 
 function accordion(cards){
   if(!cards?.length)return '';
   return `<div class="cx-sealed-mobile-econ" data-no-detail-swipe><div class="cx-econ-legend"><span class="retail">RETAIL / ACQUIRE</span><span class="reference">TCGM = MARKET REF</span><span class="exit">EXIT / SELL</span></div>${cards.map(c=>{
-    const qty=Number(c.quantity||0),market=Number(c.tcg_market||0),componentEv=qty*market;
-    return `<details class="cx-sealed-mobile-econ-row"><summary><div><strong>${esc(c.card_name||'Unknown card')}</strong><small>${esc(c.set_code||'')} #${esc(c.collector_number||'—')} · ×${qty.toLocaleString()} · ${esc(human(c.finish||''))}</small></div><div class="cx-sealed-mobile-econ-primary"><span>EV <b>${money(componentEv)}</b></span><span>Direct <b>${money(c.tcg_direct_net)}</b></span></div></summary><div class="cx-sealed-mobile-econ-grid">${stat('TCG Low',money(c.tcg_low))}${stat('Low + ship',money(c.tcg_low_with_shipping))}${stat('TCG Market',money(c.tcg_market))}${stat('CK retail',money(c.cardkingdom_retail))}${stat('Mana Pool',money(c.manapool_retail))}${stat('Cardmarket',money(c.cardmarket_retail))}${stat('CK buylist',money(c.cardkingdom_buylist))}${stat('TCG Direct net',money(c.tcg_direct_net))}</div></details>`;
+    const qty=Number(c.quantity||0),route=bestExit(c);
+    const primary=route?`<span class="cx-sealed-mobile-econ-route"><small>${esc(route.label)}</small><b>${money(route.value)}</b></span>`:'<span class="cx-sealed-mobile-econ-route muted"><small>Exit</small><b>Unconfirmed</b></span>';
+    const tiles=[
+      statIf('TCG Low',c.tcg_low),
+      statIf('Low + ship',c.tcg_low_with_shipping),
+      statIf('TCG Market',c.tcg_market),
+      statIf('CK retail',c.cardkingdom_retail),
+      statIf('Mana Pool',c.manapool_retail),
+      statIf('Cardmarket',c.cardmarket_retail),
+      statIf('CK buylist',c.cardkingdom_buylist),
+      statIf('TCG Direct net',c.tcg_direct_net)
+    ].filter(Boolean).join('');
+    return `<details class="cx-sealed-mobile-econ-row"><summary><div><strong>${esc(c.card_name||'Unknown card')}</strong><small>${esc(c.set_code||'')} #${esc(c.collector_number||'—')} · ×${qty.toLocaleString()} · ${esc(human(c.finish||''))}</small></div><div class="cx-sealed-mobile-econ-primary">${primary}</div></summary><div class="cx-sealed-mobile-econ-grid">${tiles}${directMissing(c)}</div></details>`;
   }).join('')}</div>`;
 }
 
