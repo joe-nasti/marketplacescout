@@ -12,7 +12,7 @@ async function marketplaceHealthGate(){
   const since=new Date(Date.now()-windowHours*3600000).toISOString();
   const recent=await sb(`collector_jobs?select=status,error_message,created_at,completed_at,progress_json,payload_json&source=eq.marketplace&action=eq.scan_set&completed_at=gte.${encodeURIComponent(since)}&status=in.(completed,failed)&order=completed_at.desc&limit=250`);
   const all=recent||[];
-  const recoveryCanary=all.find(x=>x.status==='completed'&&x.progress_json?.circuitBreakerCanary===true&&x.payload_json?.profile?.tcgSetSlug);
+  const recoveryCanary=all.find(x=>x.status==='completed'&&(x.progress_json?.circuitBreakerCanary===true||x.payload_json?.circuitBreakerCanary===true)&&x.payload_json?.profile?.tcgSetSlug);
   const boundary=recoveryCanary?.completed_at?new Date(recoveryCanary.completed_at).getTime():null;
   const terminal=boundary?all.filter(x=>new Date(x.completed_at||0).getTime()>=boundary):all;
   const failed=terminal.filter(x=>x.status==='failed');
@@ -41,8 +41,6 @@ if(health.open){
 }
 const releasedPaused=await releasePausedBacklog(2);
 
-// Profiles own stable phase slots inside their cadence window. Never turn a group of
-// overdue profiles into a backlog: queue at most one configured scan per scheduler pass.
 const profiles=await sb(`marketplace_scan_profiles?select=*&enabled=eq.true&or=(next_due_at.is.null,next_due_at.lte.${encodeURIComponent(nowIso)})&order=next_due_at.asc.nullsfirst,set_slug.asc&limit=25`);
 let queued=0,skipped=0,initialized=0,unresolved=0;
 
@@ -71,27 +69,19 @@ for(const p of profiles||[]){
     if(new Date(first)>now)continue;
   }
 
-  // Scan-time identity is a pure cache lookup. The numeric TCG set id -> canonical
-  // urlName mapping is refreshed only by the bi-weekly TCG set catalog job.
-  let tcgSlug='';
+  let tcgSlug='',tcgSetName='';
   if(p.tcgplayer_group_id){
-    const idRows=await sb(`tcgplayer_set_identity_cache?select=url_name&tcgplayer_group_id=eq.${encodeURIComponent(p.tcgplayer_group_id)}&limit=1`);
+    const idRows=await sb(`tcgplayer_set_identity_cache?select=url_name,set_name&tcgplayer_group_id=eq.${encodeURIComponent(p.tcgplayer_group_id)}&limit=1`);
     tcgSlug=String(idRows?.[0]?.url_name||'').trim();
+    tcgSetName=String(idRows?.[0]?.set_name||'').trim();
   }
-  if(!tcgSlug){
+  if(!tcgSlug||!tcgSetName){
     const next=advanceSlot(p);
     await sb(`marketplace_scan_profiles?user_id=eq.${encodeURIComponent(p.user_id)}&set_slug=eq.${encodeURIComponent(p.set_slug)}`,{method:'PATCH',body:{next_due_at:next,updated_at:nowIso},prefer:'return=minimal'});
     unresolved++;
     console.warn(`Configured scan deferred: no cached TCG set identity for ${p.set_name} (${p.tcgplayer_group_id||'no group id'})`);
     continue;
   }
-
-  // The profile label can drift from TCGplayer's exact filter value (for example
-  // punctuation or legality suffixes). Resolve the canonical Marketplace catalog
-  // display name from the cached TCG slug before creating a scan job.
-  let tcgSetName=String(p.set_name||'').trim();
-  const catalogRows=await sb(`marketplace_set_catalog?select=set_name&user_id=eq.${encodeURIComponent(p.user_id)}&set_slug=eq.${encodeURIComponent(tcgSlug)}&limit=1`);
-  if(catalogRows?.[0]?.set_name)tcgSetName=String(catalogRows[0].set_name).trim();
 
   const sameSet=await sb(`collector_jobs?select=job_id,status,available_at&user_id=eq.${encodeURIComponent(p.user_id)}&source=eq.marketplace&action=eq.scan_set&status=in.(queued,claimed,running)&payload_json->profile->>setSlug=eq.${encodeURIComponent(p.set_slug)}&limit=20`);
   if((sameSet||[]).some(runnable)){skipped++;continue}
@@ -106,4 +96,4 @@ for(const p of profiles||[]){
   queued++;
   break;
 }
-console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,releasedPaused,health,mode:'staggered-one-runnable-at-a-time',setIdentity:'biweekly-tcg-id-cache+canonical-catalog-name'},null,2));
+console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,releasedPaused,health,mode:'staggered-one-runnable-at-a-time',setIdentity:'biweekly-tcg-id-cache-name+slug'},null,2));
