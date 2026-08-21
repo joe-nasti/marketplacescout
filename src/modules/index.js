@@ -1,6 +1,7 @@
 const scoutEnhancers=[
   ()=>import('./scout/volatility.js'),
   ()=>import('./scout/detail-links.js'),
+  ()=>import('./scout/detail-compact-header.js'),
   ()=>import('./scout/images.js'),
   ()=>import('./scout/noise-filter.js'),
   ()=>import('./scout/search.js'),
