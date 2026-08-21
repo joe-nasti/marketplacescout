@@ -4,7 +4,7 @@ import { readUrlState, writeUrlState, onUrlStateChange } from '../../core/url-st
 let installed=false,applying=false,stopStore=null,stopUrl=null;
 
 function applyState(urlState){
-  const u=urlState?.sealed||{},current=store.get().sealed||{},saved=localStorage.getItem('collectishSealedLanguageFilter')||'all';
+  const u=urlState?.sealed||{},current=store.get().sealed||{};
   // set=LTR is intentionally represented through the existing sealed search field
   // until the toolbar grows a dedicated set-code control. The renderer's search haystack
   // includes set_code, so deep links are deterministic without a DOM patching layer.
@@ -16,7 +16,8 @@ function applyState(urlState){
       query,
       status:u.status||'',
       setType:u.setType||'',
-      language:u.language||saved
+      language:u.language||'all',
+      buylistBacked:Boolean(u.buylistBacked)
     },
     selectedId:u.selectedId||current.selectedId||null
   });
@@ -26,14 +27,14 @@ function applyState(urlState){
 function persistFromState(sealed){
   if(applying)return;
   const f=sealed?.filters||{};
-  if(f.language)localStorage.setItem('collectishSealedLanguageFilter',f.language);
-  writeUrlState({sealed:{
+  writeUrlState({tab:'sealed',sealed:{
     query:f.query||'',
     status:f.status||'',
     setType:f.setType||'',
     language:f.language||'all',
+    buylistBacked:Boolean(f.buylistBacked),
     selectedId:sealed?.selectedId||null
-  }},{replace:true});
+  }});
 }
 
 export function installSealedUrlState(){
@@ -41,14 +42,14 @@ export function installSealedUrlState(){
   installed=true;
   applyState(readUrlState());
   stopStore=store.subscribe(
-    s=>({filters:s.sealed?.filters||{},selectedId:s.sealed?.selectedId||null}),
-    value=>persistFromState(value),
+    s=>JSON.stringify({filters:s.sealed?.filters||{},selectedId:s.sealed?.selectedId||null}),
+    ()=>persistFromState(store.get().sealed||{}),
     {immediate:false}
   );
   stopUrl=onUrlStateChange(state=>{
     if(state.tab!=='sealed')return;
     applyState(state);
-    window.CollectishSealed?.load?.(false);
+    window.CollectishSealed?.render?.();
   });
 }
 
