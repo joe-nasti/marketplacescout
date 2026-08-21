@@ -19,6 +19,7 @@ const inventoryEnhancers=[
 ];
 
 const adminModules=[
+  ()=>import('./admin/alerts.js'),
   ()=>import('./admin/scans.js'),
   ()=>import('./admin/fixed-nav.js'),
   ()=>import('./admin/marketplace-health.js'),

@@ -5,6 +5,7 @@ const root=process.cwd();
 const styles=join(root,'src/styles');
 const expected=[
   'activity-bar.css',
+  'admin-alerts.css',
   'admin.css',
   'ask-readable.css',
   'ask.css',

@@ -1,0 +1,43 @@
+name: Collectish alerts
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "cloud-worker/collectish-alerts.mjs"
+      - ".github/workflows/collectish-alerts.yml"
+  pull_request:
+    paths:
+      - "cloud-worker/collectish-alerts.mjs"
+      - ".github/workflows/collectish-alerts.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-alerts-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  alerts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate alert worker
+        run: node --check cloud-worker/collectish-alerts.mjs
+      - name: Validate alert secret
+        if: github.event_name != 'pull_request'
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Evaluate Collectish alerts
+        if: github.event_name != 'pull_request'
+        run: node cloud-worker/collectish-alerts.mjs

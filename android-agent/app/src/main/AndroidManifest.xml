@@ -2,7 +2,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
+        android:name=".CollectishApp"
         android:theme="@style/AppTheme"
         android:label="Collectish"
         android:icon="@drawable/collectish_launcher"
@@ -13,6 +15,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".AlertLandingActivity" android:exported="false" />
         <service
             android:name=".SellerSyncService"
             android:exported="false"
