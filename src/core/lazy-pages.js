@@ -4,6 +4,7 @@ import store from '../state/store.js';
 const loaded=new Set();
 const loading=new Map();
 const pageLoaders={
+  signals:async()=>{const m=await import('../modules/signals/index.js');await m.install()},
   sealed:async()=>{const m=await import('../modules/sealed/index.js');await m.install()},
   seller:async()=>{const m=await import('../modules/seller/index.js');await m.install()},
   syp:async()=>{const m=await import('../modules/seller/syp.js');await m.install()}
