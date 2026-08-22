@@ -5,17 +5,17 @@ const MODEL=Deno.env.get('MARKET_INTEL_MODEL')||'gpt-5.6-luna';
 const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
 const J=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{...CORS,'Content-Type':'application/json','Cache-Control':'no-store'}});
 const bearer=(r:Request)=>{const h=r.headers.get('authorization')||'';return h.toLowerCase().startsWith('bearer ')?h.slice(7):''};
-const URL=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
+const SUPABASE_URL=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
 const ANON=Deno.env.get('SUPABASE_ANON_KEY')||'';
 
 async function auth(token:string){
-  const r=await fetch(`${URL}/auth/v1/user`,{headers:{apikey:ANON,Authorization:`Bearer ${token}`}});
+  const r=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:ANON,Authorization:`Bearer ${token}`}});
   if(!r.ok)throw new Error('Unauthorized');
   const u=await r.json();if(!u?.id)throw new Error('Unauthorized');return u;
 }
 
 function safeUrl(value:string){
-  const u=new URL(value);
+  const u=new globalThis.URL(value);
   if(!['http:','https:'].includes(u.protocol))throw new Error('Only http/https sources are supported');
   const h=u.hostname.toLowerCase();
   if(h==='localhost'||h==='127.0.0.1'||h==='::1'||h.endsWith('.local'))throw new Error('Private hosts are not supported');
@@ -76,7 +76,7 @@ Deno.serve(async(req:Request)=>{
   const token=bearer(req);if(!token)return J({error:'Authentication required'},401);
   try{await auth(token)}catch{return J({error:'Authentication required'},401)}
   let body:any;try{body=await req.json()}catch{return J({error:'Invalid JSON'},400)}
-  let u:URL;try{u=safeUrl(String(body?.url||''))}catch(e){return J({error:(e as Error).message},400)}
+  let u:globalThis.URL;try{u=safeUrl(String(body?.url||''))}catch(e){return J({error:(e as Error).message},400)}
   try{
     const source=await fetchSource(u.toString());
     if(source.text.length<120)throw new Error('Not enough readable source text');
