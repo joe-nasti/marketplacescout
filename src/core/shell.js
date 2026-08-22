@@ -4,7 +4,7 @@ import { readUrlState, writeUrlState, onUrlStateChange } from './url-state.js';
 import store from '../state/store.js';
 import lifecycle from './lifecycle.js';
 
-export const WEB_VERSION='0.9.59';
+export const WEB_VERSION='0.9.60';
 window.COLLECTISH_WEB_VERSION=WEB_VERSION;
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[ch]));
@@ -12,93 +12,13 @@ const brand=()=>'<span class="cx-brand-collect">collect</span><span class="cx-br
 let started=false;
 let beforeReadyHook=null;
 let stopUrlListener=null;
-
-export function startupView(message='Resuming your session…'){
-  lifecycle.unmountApp();
-  store.update('runtime',{screen:'startup'});
-  document.body.innerHTML=`<main class="cx-auth" data-collectish-startup><section class="cx-auth-card"><div class="cx-brand">${brand()}</div><div class="cx-version">web ${WEB_VERSION}</div><h1>Collectish</h1><p>${esc(message)}</p><div class="cx-auth-msg">Loading…</div></section></main>`;
-  document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'startup'}}));
-}
-
-export function loginView(message=''){
-  lifecycle.unmountApp();
-  store.batch(()=>{store.update('session',{user:null});store.update('runtime',{screen:'login'})});
-  document.body.innerHTML=`<main class="cx-auth"><section class="cx-auth-card"><div class="cx-brand">${brand()}</div><div class="cx-version">web ${WEB_VERSION}</div><h1>Sign in</h1><p>Scout opportunities, market signals, sealed EV, Seller analytics, SYP changes, inventory, and operations.</p><input id="modernEmail" type="email" autocomplete="email" placeholder="Email"><input id="modernPassword" type="password" autocomplete="current-password" placeholder="Password"><button id="modernSignIn" class="cx-primary">Sign in</button><div id="modernMsg" class="cx-auth-msg">${esc(message)}</div></section></main>`;
-  document.getElementById('modernSignIn')?.addEventListener('click',login);
-  document.getElementById('modernPassword')?.addEventListener('keydown',e=>{if(e.key==='Enter')login()});
-  document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'login'}}));
-}
-
-async function login(){
-  const email=document.getElementById('modernEmail')?.value.trim();
-  const password=document.getElementById('modernPassword')?.value||'';
-  const msg=document.getElementById('modernMsg');
-  const btn=document.getElementById('modernSignIn');
-  if(!email||!password){if(msg)msg.textContent='Enter email and password.';return}
-  if(btn)btn.disabled=true;
-  if(msg)msg.textContent='Signing in…';
-  try{await signIn(email,password);startupView('Opening Collectish…');await boot()}
-  catch(error){if(btn)btn.disabled=false;loginView(error.message||'Sign in failed')}
-}
-
-export function adminView(){
-  const host=document.getElementById('cxAdmin');
-  if(!host)return;
-  host.innerHTML=`<div class="cx-page-head"><div><h2>Admin</h2><p>Cloud operations and build identity.</p></div></div><div class="cx-grid"><div class="cx-card cx-span-6"><div class="cx-section-title">Build</div><div class="cx-detail-list"><div class="cx-detail-stat"><span>Web UI</span><strong>${WEB_VERSION}</strong></div><div class="cx-detail-stat"><span>Frontend</span><strong>Vite hosted shell</strong></div><div class="cx-detail-stat"><span>Scout source</span><strong>v5 promoted rankings</strong></div></div></div><div class="cx-card cx-span-6"><div class="cx-section-title">Account</div><button id="modernSignOut" class="cx-refresh">Sign out</button></div></div>`;
-  document.getElementById('modernSignOut')?.addEventListener('click',()=>{saveSession(null);loginView()});
-}
-
-export function switchPage(name,{scroll=true,history=true,replace=false}={}){
-  if(!name)return;
-  const targetId=`cx${name[0].toUpperCase()+name.slice(1)}`;
-  document.querySelectorAll('.cx-page').forEach(el=>el.classList.toggle('active',el.id===targetId));
-  document.querySelectorAll('[data-cx-page]').forEach(el=>el.classList.toggle('active',el.dataset.cxPage===name));
-  lifecycle.setPage(name);
-  if(history)writeUrlState({tab:name},{replace});
-  if(name==='admin')adminView();
-  if(scroll)window.scrollTo({top:0,behavior:'smooth'});
-  document.dispatchEvent(new CustomEvent('collectish:page-change',{detail:{page:name}}));
-}
-
-export function renderShell(){
-  const pages=['scout','signals','sealed','seller','syp','inventory','admin'];
-  const label=key=>key==='syp'?'SYP':key==='sealed'?'Sealed':key[0].toUpperCase()+key.slice(1);
-  document.body.innerHTML=`<div id="cxNetworkProgress" class="cx-network-progress" aria-hidden="true"><div class="cx-network-progress-runner"></div></div><div class="cx-top-version">web ${WEB_VERSION}</div><main id="app" class="collectish-modern-app"><section id="collectishUxShell" class="collectish-product-shell"><aside class="cx-side"><div class="cx-brand">${brand()}</div><nav class="cx-nav">${pages.map((key,index)=>`<button data-cx-page="${key}" class="${index===0?'active':''}">${label(key)}</button>`).join('')}</nav><div class="cx-side-spacer"></div><div class="cx-side-meta">web ${WEB_VERSION}<br>Smarter data. Better decisions.</div></aside><div class="cx-main"><section id="cxScout" class="cx-page active"></section><section id="cxSignals" class="cx-page"></section><section id="cxSealed" class="cx-page"></section><section id="cxSeller" class="cx-page"></section><section id="cxSyp" class="cx-page"></section><section id="cxInventory" class="cx-page"></section><section id="cxAdmin" class="cx-page"></section></div><nav class="cx-mobile-nav">${pages.map((key,index)=>`<button data-cx-page="${key}" class="${index===0?'active':''}">${label(key)}</button>`).join('')}</nav></section></main>`;
-  store.update('runtime',{screen:'app'});
-  document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'app'}}));
-}
-
+export function startupView(message='Resuming your session…'){lifecycle.unmountApp();store.update('runtime',{screen:'startup'});document.body.innerHTML=`<main class="cx-auth" data-collectish-startup><section class="cx-auth-card"><div class="cx-brand">${brand()}</div><div class="cx-version">web ${WEB_VERSION}</div><h1>Collectish</h1><p>${esc(message)}</p><div class="cx-auth-msg">Loading…</div></section></main>`;document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'startup'}}))}
+export function loginView(message=''){lifecycle.unmountApp();store.batch(()=>{store.update('session',{user:null});store.update('runtime',{screen:'login'})});document.body.innerHTML=`<main class="cx-auth"><section class="cx-auth-card"><div class="cx-brand">${brand()}</div><div class="cx-version">web ${WEB_VERSION}</div><h1>Sign in</h1><p>Scout opportunities, market signals, sealed EV, Seller analytics, SYP changes, inventory, and operations.</p><input id="modernEmail" type="email" autocomplete="email" placeholder="Email"><input id="modernPassword" type="password" autocomplete="current-password" placeholder="Password"><button id="modernSignIn" class="cx-primary">Sign in</button><div id="modernMsg" class="cx-auth-msg">${esc(message)}</div></section></main>`;document.getElementById('modernSignIn')?.addEventListener('click',login);document.getElementById('modernPassword')?.addEventListener('keydown',e=>{if(e.key==='Enter')login()});document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'login'}}))}
+async function login(){const email=document.getElementById('modernEmail')?.value.trim();const password=document.getElementById('modernPassword')?.value||'';const msg=document.getElementById('modernMsg');const btn=document.getElementById('modernSignIn');if(!email||!password){if(msg)msg.textContent='Enter email and password.';return}if(btn)btn.disabled=true;if(msg)msg.textContent='Signing in…';try{await signIn(email,password);startupView('Opening Collectish…');await boot()}catch(error){if(btn)btn.disabled=false;loginView(error.message||'Sign in failed')}}
+export function adminView(){const host=document.getElementById('cxAdmin');if(!host)return;host.innerHTML=`<div class="cx-page-head"><div><h2>Admin</h2><p>Cloud operations and build identity.</p></div></div><div class="cx-grid"><div class="cx-card cx-span-6"><div class="cx-section-title">Build</div><div class="cx-detail-list"><div class="cx-detail-stat"><span>Web UI</span><strong>${WEB_VERSION}</strong></div><div class="cx-detail-stat"><span>Frontend</span><strong>Vite hosted shell</strong></div><div class="cx-detail-stat"><span>Scout source</span><strong>v5 promoted rankings</strong></div></div></div><div class="cx-card cx-span-6"><div class="cx-section-title">Account</div><button id="modernSignOut" class="cx-refresh">Sign out</button></div></div>`;document.getElementById('modernSignOut')?.addEventListener('click',()=>{saveSession(null);loginView()})}
+export function switchPage(name,{scroll=true,history=true,replace=false}={}){if(!name)return;const targetId=`cx${name[0].toUpperCase()+name.slice(1)}`;document.querySelectorAll('.cx-page').forEach(el=>el.classList.toggle('active',el.id===targetId));document.querySelectorAll('[data-cx-page]').forEach(el=>el.classList.toggle('active',el.dataset.cxPage===name));lifecycle.setPage(name);if(history)writeUrlState({tab:name},{replace});if(name==='admin')adminView();if(scroll)window.scrollTo({top:0,behavior:'smooth'});document.dispatchEvent(new CustomEvent('collectish:page-change',{detail:{page:name}}))}
+export function renderShell(){const pages=['scout','signals','sealed','seller','syp','inventory','admin'];const label=key=>key==='syp'?'SYP':key==='sealed'?'Sealed':key[0].toUpperCase()+key.slice(1);document.body.innerHTML=`<div id="cxNetworkProgress" class="cx-network-progress" aria-hidden="true"><div class="cx-network-progress-runner"></div></div><div class="cx-top-version">web ${WEB_VERSION}</div><main id="app" class="collectish-modern-app"><section id="collectishUxShell" class="collectish-product-shell"><aside class="cx-side"><div class="cx-brand">${brand()}</div><nav class="cx-nav">${pages.map((key,index)=>`<button data-cx-page="${key}" class="${index===0?'active':''}">${label(key)}</button>`).join('')}</nav><div class="cx-side-spacer"></div><div class="cx-side-meta">web ${WEB_VERSION}<br>Smarter data. Better decisions.</div></aside><div class="cx-main"><section id="cxScout" class="cx-page active"></section><section id="cxSignals" class="cx-page"></section><section id="cxSealed" class="cx-page"></section><section id="cxSeller" class="cx-page"></section><section id="cxSyp" class="cx-page"></section><section id="cxInventory" class="cx-page"></section><section id="cxAdmin" class="cx-page"></section></div><nav class="cx-mobile-nav">${pages.map((key,index)=>`<button data-cx-page="${key}" class="${index===0?'active':''}">${label(key)}</button>`).join('')}</nav></section></main>`;store.update('runtime',{screen:'app'});document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'app'}}))}
 function pageClickHandler(event){const button=event.target.closest?.('[data-cx-page]');if(button)switchPage(button.dataset.cxPage)}
-
-export async function boot(){
-  const session=await validSession();
-  if(!session){loginView();return null}
-  store.update('session',{user:session.user});
-  renderShell();
-  if(beforeReadyHook)await beforeReadyHook();
-  lifecycle.mountApp();
-  const initial=readUrlState().tab;
-  switchPage(initial,{scroll:false,history:false});
-  document.dispatchEvent(new CustomEvent('collectish:ready',{detail:{version:WEB_VERSION,user:session.user}}));
-  return session;
-}
-
-export function startShell({beforeReady}={}){
-  if(typeof beforeReady==='function')beforeReadyHook=beforeReady;
-  if(started)return;
-  started=true;
-  document.addEventListener('click',pageClickHandler,true);
-  document.addEventListener('collectish:auth-invalid',()=>loginView('Your session was rejected by the server. Please sign in again.'));
-  stopUrlListener=onUrlStateChange(state=>{
-    if(store.get().runtime?.screen==='app')switchPage(state.tab,{scroll:false,history:false});
-  });
-  if(readSession())startupView();else loginView();
-  void boot().catch(error=>{
-    console.error('Collectish boot failed',error);
-    store.update('runtime',{screen:'error',bootError:String(error?.message||error)});
-    loginView('Collectish could not resume your session. Please sign in again.');
-  });
-  window.CollectishShell={boot,switchPage,adminView,loginView,startupView,version:WEB_VERSION,session:readSession};
-}
-
+export async function boot(){const session=await validSession();if(!session){loginView();return null}store.update('session',{user:session.user});renderShell();if(beforeReadyHook)await beforeReadyHook();lifecycle.mountApp();const initial=readUrlState().tab;switchPage(initial,{scroll:false,history:false});document.dispatchEvent(new CustomEvent('collectish:ready',{detail:{version:WEB_VERSION,user:session.user}}));return session}
+export function startShell({beforeReady}={}){if(typeof beforeReady==='function')beforeReadyHook=beforeReady;if(started)return;started=true;document.addEventListener('click',pageClickHandler,true);document.addEventListener('collectish:auth-invalid',()=>loginView('Your session was rejected by the server. Please sign in again.'));stopUrlListener=onUrlStateChange(state=>{if(store.get().runtime?.screen==='app')switchPage(state.tab,{scroll:false,history:false})});if(readSession())startupView();else loginView();void boot().catch(error=>{console.error('Collectish boot failed',error);store.update('runtime',{screen:'error',bootError:String(error?.message||error)});loginView('Collectish could not resume your session. Please sign in again.')});window.CollectishShell={boot,switchPage,adminView,loginView,startupView,version:WEB_VERSION,session:readSession}}
 export { collectishConfig };
