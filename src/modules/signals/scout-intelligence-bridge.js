@@ -10,24 +10,35 @@ const baseName=s=>String(s||'').replace(/\s*\([^)]*(foil|showcase|borderless|ext
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function scoutRows(){return store.get().scout?.rows||[]}
-function matchScout({sku_id,product_id,card_name,commander}={}){
+function matchScout({sku_id,product_id,scryfall_id,card_name,commander}={}){
   const rows=scoutRows();
   if(sku_id){const x=rows.find(r=>String(r.sku_id)===String(sku_id));if(x)return x}
+  if(scryfall_id){const x=rows.find(r=>String(r.scryfall_id||'')===String(scryfall_id));if(x)return x}
   if(product_id){const x=rows.find(r=>String(r.product_id)===String(product_id));if(x)return x}
   const q=lower(baseName(card_name||commander));if(!q)return null;
   return rows.find(r=>lower(baseName(r.product_name))===q)||rows.find(r=>lower(r.product_name)===q)||null;
 }
-function openScout(target){
-  const row=matchScout(target);if(!row)return;
-  window.CollectishShell?.switchPage?.('scout');
-  const tryOpen=()=>{
-    const input=document.getElementById('cxParitySearch');
-    if(input){input.value=baseName(row.product_name);input.dispatchEvent(new Event('input',{bubbles:true}))}
-    const card=document.querySelector(`#cxParityCards .cx-scout-card[data-sku="${CSS.escape(String(row.sku_id))}"]`);
-    if(card){card.click();card.scrollIntoView({block:'center',behavior:'smooth'});return true}
+function tryOpenTarget(target){
+  const row=matchScout(target);
+  const input=document.getElementById('cxParitySearch');
+  if(!row){
+    const q=baseName(target?.card_name||target?.commander||'');
+    if(q&&input){input.value=q;input.dispatchEvent(new Event('input',{bubbles:true}))}
     return false;
-  };
-  [40,120,260,500,900].forEach(ms=>setTimeout(tryOpen,ms));
+  }
+  if(input){input.value=baseName(row.product_name);input.dispatchEvent(new Event('input',{bubbles:true}))}
+  const selector=`#cxParityCards .cx-scout-card[data-sku="${CSS.escape(String(row.sku_id))}"]`;
+  const card=document.querySelector(selector);
+  if(!card)return false;
+  card.click();
+  card.scrollIntoView({block:'center',behavior:'smooth'});
+  return true;
+}
+function openScout(target){
+  window.CollectishShell?.switchPage?.('scout');
+  const attempts=[0,60,140,280,500,900,1500,2400];
+  let done=false;
+  for(const ms of attempts)setTimeout(()=>{if(!done)done=tryOpenTarget(target)},ms);
 }
 function detailFor(row){
   if(!row)return{competitive:[],commander:[],cedh:[]};
@@ -58,18 +69,52 @@ function decorateScoutDetail(sku){
   const section=document.createElement('section');section.className='cx-v5-section cx-intelligence-detail';section.innerHTML=`<div class="cx-section-title">Market intelligence <span class="cx-intel-context">context only</span></div><div class="cx-v5-grid">${pieces.join('')}</div><small class="cx-sub">Signals, competitive play, EDHREC and cEDH context do not change the Scout grade yet.</small>`;
   const anchor=host.querySelector('.cx-v5-components')||host.firstElementChild;if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor.nextSibling);else host.appendChild(section);
 }
-function decorateSignalsLinks(){
-  const candidates=[...document.querySelectorAll('#cxSignalsFeed .cx-signal-entities span,#cxCompetitiveIntel .cx-detail-stat')];
-  for(const el of candidates){
-    if(el.dataset.scoutLinked==='1')continue;
-    let name='';
-    if(el.matches('.cx-signal-entities span'))name=el.textContent.replace(/\s*✓\s*$/,'').trim();
-    else name=el.querySelector('strong')?.textContent?.trim()||'';
-    const row=matchScout({card_name:name});if(!row)continue;
-    el.dataset.scoutLinked='1';el.setAttribute('role','button');el.setAttribute('tabindex','0');el.title='Open this card in Scout';el.classList.add('cx-scout-deep-link');
-    el.addEventListener('click',e=>{if(e.target.closest('a,button'))return;openScout({sku_id:row.sku_id})});
-    el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openScout({sku_id:row.sku_id})}});
+function targetForIntelCard(card){
+  const id=card?.dataset?.intelId;if(!id)return null;
+  const item=(store.get().intel?.items||[]).find(x=>String(x.intel_id)===String(id));
+  const entities=Array.isArray(item?.market_intel_entities)?item.market_intel_entities:[];
+  for(const e of entities){
+    const target={product_id:e.product_id,scryfall_id:e.scryfall_id,card_name:e.entity_name};
+    if(matchScout(target))return target;
   }
+  const first=entities[0];
+  return first?{product_id:first.product_id,scryfall_id:first.scryfall_id,card_name:first.entity_name}:null;
+}
+function targetForSignalEntity(el){
+  const card=el.closest('.cx-signal-card');
+  const id=card?.dataset?.intelId;
+  const item=(store.get().intel?.items||[]).find(x=>String(x.intel_id)===String(id));
+  const name=String(el.textContent||'').replace(/\s*✓\s*$/,'').trim();
+  const entity=(item?.market_intel_entities||[]).find(e=>lower(e.entity_name)===lower(name));
+  return entity?{product_id:entity.product_id,scryfall_id:entity.scryfall_id,card_name:entity.entity_name}:{card_name:name};
+}
+function decorateSignalsLinks(){
+  document.querySelectorAll('#cxSignalsFeed .cx-signal-card').forEach(card=>{
+    const target=targetForIntelCard(card);if(!target)return;
+    card.classList.add('cx-scout-deep-link');card.setAttribute('role','button');card.setAttribute('tabindex','0');card.title='Open linked card in Scout';
+  });
+  document.querySelectorAll('#cxCompetitiveIntel .cx-detail-stat').forEach(el=>{
+    if(el.dataset.scoutLinked==='1')return;
+    const name=el.querySelector('strong')?.textContent?.trim()||'';if(!name)return;
+    el.dataset.scoutLinked='1';el.classList.add('cx-scout-deep-link');el.setAttribute('role','button');el.setAttribute('tabindex','0');el.title='Open this card in Scout';
+  });
+}
+function delegatedOpen(event){
+  const blocked=event.target.closest?.('a,button,input,select,textarea,label');
+  if(blocked)return;
+  const entity=event.target.closest?.('#cxSignalsFeed .cx-signal-entities span');
+  if(entity){const target=targetForSignalEntity(entity);if(target){event.preventDefault();openScout(target)}return}
+  const signalCard=event.target.closest?.('#cxSignalsFeed .cx-signal-card');
+  if(signalCard){const target=targetForIntelCard(signalCard);if(target){event.preventDefault();openScout(target)}return}
+  const comp=event.target.closest?.('#cxCompetitiveIntel .cx-detail-stat');
+  if(comp){const name=comp.querySelector('strong')?.textContent?.trim()||'';if(name){event.preventDefault();openScout({card_name:name})}}
+}
+function delegatedKey(event){
+  if(event.key!=='Enter'&&event.key!==' ')return;
+  const el=event.target.closest?.('#cxSignalsFeed .cx-signal-card,#cxCompetitiveIntel .cx-detail-stat');if(!el)return;
+  event.preventDefault();
+  if(el.matches('.cx-signal-card')){const target=targetForIntelCard(el);if(target)openScout(target)}
+  else{const name=el.querySelector('strong')?.textContent?.trim()||'';if(name)openScout({card_name:name})}
 }
 async function load(){
   if(loading)return loading;
@@ -81,6 +126,8 @@ async function load(){
   return loading;
 }
 
+document.addEventListener('click',delegatedOpen,true);
+document.addEventListener('keydown',delegatedKey,true);
 document.addEventListener('collectish:scout-list-rendered',()=>{if(competitive.length||commander.length||cedh.length)decorateScoutList();else void load()});
 document.addEventListener('collectish:scout-detail-rendered',e=>{if(competitive.length||commander.length||cedh.length)decorateScoutDetail(e.detail?.sku);else void load()});
 document.addEventListener('collectish:intel-changed',()=>setTimeout(decorateSignalsLinks,0));
