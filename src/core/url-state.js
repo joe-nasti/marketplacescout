@@ -1,4 +1,4 @@
-const PAGE_SET=new Set(['scout','sealed','seller','syp','inventory','admin']);
+const PAGE_SET=new Set(['scout','signals','sealed','seller','syp','inventory','admin']);
 
 export function readUrlState(){
   const u=new URL(location.href);
