@@ -8,9 +8,9 @@ let deckEventIds=[];
 let loading=null;
 let lastLoadedAt=0;
 let syncMessage='';
+let loadWarning='';
 const AUTO_REFRESH_MS=5*60*1000;
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const pct=v=>v==null?'—':`${Number(v)>=0?'+':''}${Number(v).toFixed(1)}%`;
 const stageClass=s=>s==='early'?'leading':s==='confirming'?'confirming':s==='late'?'lagging':'unclassified';
 const BASIC_NAMES=new Set(['plains','island','swamp','mountain','forest','wastes','snow-covered plains','snow-covered island','snow-covered swamp','snow-covered mountain','snow-covered forest']);
 
@@ -64,11 +64,11 @@ function rankedRows(){
     const scoutComponent=clamp(r.opportunity_score);
     const spreadComponent=spread==null?0:clamp(spread);
     const priority=clamp(Math.round(adoptionComponent*.25+conversionComponent*.20+scoutComponent*.25+scarcity*.20+spreadComponent*.10-(premiumRisk?10:0)));
-    const marketMove=Number(r.market_change_7d_pct);
+    const marketMove=r.market_change_7d_pct==null?null:Number(r.market_change_7d_pct);
     let stage='watch';
-    if(Number.isFinite(marketMove)&&marketMove>=25)stage='late';
-    else if(adoption>=5&&top8>=2&&(!Number.isFinite(marketMove)||marketMove<8)&&Number(r.direct_available)<=25)stage='early';
-    else if(adoption>=5&&top8>=1&&(!Number.isFinite(marketMove)||marketMove<25))stage='confirming';
+    if(marketMove!=null&&Number.isFinite(marketMove)&&marketMove>=25)stage='late';
+    else if(adoption>=5&&top8>=2&&(marketMove==null||!Number.isFinite(marketMove)||marketMove<8)&&Number(r.direct_available)<=25)stage='early';
+    else if(adoption>=5&&top8>=1&&(marketMove==null||!Number.isFinite(marketMove)||marketMove<25))stage='confirming';
     const reason=stage==='early'?'Competitive adoption + Top 8 results are strong while the selected Scout printing remains supply-tight.'
       :stage==='late'?'Competitive evidence is real, but Scout already shows a material market move.'
       :stage==='confirming'?'Tournament adoption is meaningful and the market setup is worth monitoring for follow-through.'
@@ -98,7 +98,8 @@ function render(){
   if(withheld.premium)withheldParts.push(`${withheld.premium} premium-print distortions hidden`);
   if(withheld.incomplete)withheldParts.push(`${withheld.incomplete} rows withheld for incomplete/mismatched event coverage`);
   const empty=loading?'<div class="cx-empty">Loading competitive market setups…</div>':'<div class="cx-empty">No fully linked competitive market setups yet. Refresh MTGO to import recent Challenge/Qualifier/Showcase results.</div>';
-  panel.innerHTML=`<div class="cx-page-head"><div><div class="cx-section-title">Competitive opportunities</div><p class="cx-sub">Published tournament samples ranked against Scout market setup. Adoption is published-sample adoption—not full-field metagame share unless an event is explicitly marked complete. Curated League samples are excluded from share calculations.</p></div><button type="button" class="cx-refresh" id="cxRefreshMtgo">Refresh MTGO</button></div>${latest?`<p class="cx-sub">Latest imported: ${esc(latest)}</p>`:''}<div class="cx-detail-list">${ranked.length?ranked.slice(0,12).map(rowHtml).join(''):empty}</div>${withheldParts.length?`<p class="cx-sub">Ranking guardrails: ${esc(withheldParts.join(' · '))}.</p>`:''}<div id="cxCompetitiveMsg" class="cx-sub">${esc(syncMessage)}</div>`;
+  const warning=loadWarning?`<p class="cx-sub">${esc(loadWarning)}</p>`:'';
+  panel.innerHTML=`<div class="cx-page-head"><div><div class="cx-section-title">Competitive opportunities</div><p class="cx-sub">Published tournament samples ranked against Scout market setup. Adoption is published-sample adoption—not full-field metagame share unless an event is explicitly marked complete. Curated League samples are excluded from share calculations.</p></div><button type="button" class="cx-refresh" id="cxRefreshMtgo">Refresh MTGO</button></div>${latest?`<p class="cx-sub">Latest imported: ${esc(latest)}</p>`:''}${warning}<div class="cx-detail-list">${ranked.length?ranked.slice(0,12).map(rowHtml).join(''):empty}</div>${withheldParts.length?`<p class="cx-sub">Ranking guardrails: ${esc(withheldParts.join(' · '))}.</p>`:''}<div id="cxCompetitiveMsg" class="cx-sub">${esc(syncMessage)}</div>`;
   document.getElementById('cxRefreshMtgo')?.addEventListener('click',sync);
 }
 async function loadRecentDeckEventIds(since){
@@ -116,13 +117,22 @@ async function load({force=false}={}){
   if(loading)return loading;
   if(!force&&lastLoadedAt&&Date.now()-lastLoadedAt<AUTO_REFRESH_MS){render();return rows}
   const since=new Date(Date.now()-30*86400000).toISOString().slice(0,10);
-  loading=Promise.all([
+  loadWarning='';
+  const jobs=[
     rest('rpc/competitive_scout_opportunities',{method:'POST',body:{p_format:null}}),
     rest(`competitive_events?select=event_id,event_name,format,event_date,player_count,published_deck_count,coverage_type,coverage_note,source_url,fetched_at&event_date=gte.${since}&order=event_date.desc,fetched_at.desc&limit=250`),
     loadRecentDeckEventIds(since)
-  ]).then(([r,e,d])=>{
-    rows=Array.isArray(r)?r:[];events=Array.isArray(e)?e:[];deckEventIds=Array.isArray(d)?d:[];lastLoadedAt=Date.now();return rows;
-  }).catch(error=>{console.warn('Competitive intel load failed',error);return rows}).finally(()=>{loading=null;render()});
+  ];
+  loading=Promise.allSettled(jobs).then(([r,e,d])=>{
+    if(r.status==='fulfilled')rows=Array.isArray(r.value)?r.value:[];
+    else{rows=[];loadWarning='Tournament coverage loaded, but the Scout market join is temporarily unavailable.';console.warn('Competitive Scout join failed',r.reason)}
+    if(e.status==='fulfilled')events=Array.isArray(e.value)?e.value:[];
+    else{events=[];loadWarning=loadWarning||'Competitive event coverage could not be loaded.';console.warn('Competitive event load failed',e.reason)}
+    if(d.status==='fulfilled')deckEventIds=Array.isArray(d.value)?d.value:[];
+    else{deckEventIds=[];loadWarning=loadWarning||'Competitive deck coverage could not be loaded.';console.warn('Competitive deck load failed',d.reason)}
+    lastLoadedAt=Date.now();
+    return rows;
+  }).finally(()=>{loading=null;render()});
   render();
   return loading;
 }
