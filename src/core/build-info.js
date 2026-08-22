@@ -1,12 +1,12 @@
 const ATTEMPT_KEY='collectishBuildReloadAttempt';
-let checking=false,latestInfo=null;
+let checking=false,latestInfo=null,fallbackRevision='';
 const loadedBuild=()=>document.querySelector('meta[name="collectish-build"]')?.content||'unknown';
-const loadedRevision=()=>document.querySelector('meta[name="collectish-revision"]')?.content||'r?';
-const version=()=>window.COLLECTISH_WEB_VERSION||'0.9.52';
+const loadedRevision=()=>{const meta=document.querySelector('meta[name="collectish-revision"]')?.content?.trim();return meta&&meta!=='r?'?meta:(fallbackRevision||'r?')};
+const version=()=>window.COLLECTISH_WEB_VERSION||'0.9.57';
 const short=s=>String(s||'').slice(0,8)||'unknown';
 const label=()=>`web ${version()} · ${loadedRevision()}`;
 
-async function fetchLatest(){try{const r=await fetch(`web-version.json?cb=${Date.now()}`,{cache:'no-store',headers:{'Cache-Control':'no-cache'}});if(!r.ok)return null;latestInfo=await r.json();return latestInfo}catch{return null}}
+async function fetchLatest(){try{const r=await fetch(`web-version.json?cb=${Date.now()}`,{cache:'no-store',headers:{'Cache-Control':'no-cache'}});if(!r.ok)return null;latestInfo=await r.json();fallbackRevision=String(latestInfo?.label||latestInfo?.revision&&`r${latestInfo.revision}`||'').trim();queueMicrotask(decorateBuildBadges);return latestInfo}catch{return null}}
 export async function checkForUpdate({reload=true}={}){if(checking||document.hidden)return null;checking=true;try{const info=await fetchLatest(),live=String(info?.build||'').trim();if(!live||live===loadedBuild())return info;if(!reload)return info;if(sessionStorage.getItem(ATTEMPT_KEY)===live)return info;sessionStorage.setItem(ATTEMPT_KEY,live);const next=new URL(location.href);next.searchParams.set('cv',live);next.searchParams.set('_cb',Date.now().toString());location.replace(next.toString());return info}finally{checking=false}}
 function decorateBadge(el){if(!el)return;const text=label();if(el.classList.contains('cx-side-meta')){if(el.dataset.cxBuildLabel!==text){el.innerHTML=`${text}<br>Smarter data. Better decisions.`;el.dataset.cxBuildLabel=text}}else if(el.textContent!==text)el.textContent=text;el.dataset.cxBuildBadge='1';el.setAttribute('role','button');el.setAttribute('tabindex','0');el.setAttribute('aria-label','Show Collectish build details');el.title='Show build details'}
 export function decorateBuildBadges(){document.querySelectorAll('.cx-top-version,.cx-version,.cx-side-meta').forEach(decorateBadge);document.querySelectorAll('#cxAdmin .cx-detail-stat').forEach(row=>{const key=(row.querySelector('span')?.textContent||'').trim(),strong=row.querySelector('strong'),text=`${version()} · ${loadedRevision()}`;if(key==='Web UI'&&strong&&strong.textContent!==text)strong.textContent=text})}

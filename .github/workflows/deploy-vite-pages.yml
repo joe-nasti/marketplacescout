@@ -140,8 +140,10 @@ jobs:
           test -s dist/web-version.json
           grep -Eq 'assets/[^" ]+[.-][A-Za-z0-9_-]+\.js' dist/index.html
           grep -Eq 'assets/[^" ]+[.-][A-Za-z0-9_-]+\.css' dist/index.html
+          grep -q 'name="collectish-build"' dist/index.html
+          grep -q 'name="collectish-revision"' dist/index.html
           ! grep -Eq '(current-|v0[0-9]+\.(js|css))' dist/index.html
-          node -e "const v=require('./dist/web-version.json');if(v.build!==process.env.GITHUB_SHA)process.exit(1)"
+          node -e "const v=require('./dist/web-version.json');if(v.build!==process.env.GITHUB_SHA||v.label!==process.env.COLLECTISH_WEB_REVISION||v.version==='unknown')process.exit(1)"
 
       - name: Publish artifact status
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
