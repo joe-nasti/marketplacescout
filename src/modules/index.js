@@ -12,7 +12,8 @@ const scoutEnhancers=[
   ()=>import('./signals/rendered-capture.js'),
   ()=>import('./signals/share-handoff.js'),
   ()=>import('./signals/market-evaluation.js'),
-  ()=>import('./signals/source-rollups.js')
+  ()=>import('./signals/source-rollups.js'),
+  ()=>import('./signals/source-performance.js')
 ];
 
 const inventoryEnhancers=[
