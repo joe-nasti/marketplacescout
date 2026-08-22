@@ -15,7 +15,8 @@ const inventoryEnhancers=[
   ()=>import('./seller/inventory-sync-controller.js'),
   ()=>import('./seller/inventory-reconciler.js'),
   ()=>import('./seller/inventory-reconcile-status.js'),
-  ()=>import('./seller/freshness.js')
+  ()=>import('./seller/freshness.js'),
+  ()=>import('./seller/refresh-detail-progress.js')
 ];
 
 const adminModules=[
