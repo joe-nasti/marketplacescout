@@ -11,6 +11,8 @@ const revision=process.env.COLLECTISH_WEB_REVISION||(
 );
 const revisionNumber=Number(String(revision).replace(/^r/,''))||null;
 const deployedAt=new Date().toISOString();
+const shellSource=await readFile(join(root,'src/core/shell.js'),'utf8').catch(()=> '');
+const version=shellSource.match(/WEB_VERSION\s*=\s*['"]([^'"]+)['"]/)?.[1]||'unknown';
 
 for(const name of ['manifest.webmanifest','collectish-icon-192.png']){
   const src=join(root,name),dst=join(dist,name);
@@ -19,13 +21,16 @@ for(const name of ['manifest.webmanifest','collectish-icon-192.png']){
 
 let html=await readFile(targetHtml,'utf8');
 const marker=`  <meta name="collectish-build" content="${build}">\n  <meta name="collectish-revision" content="${revision}">`;
-html=html.replace('  <meta name="theme-color" content="#f5f8ff">',`  <meta name="theme-color" content="#f5f8ff">\n${marker}`);
+if(!/name=["']collectish-build["']/.test(html)){
+  if(/<\/head>/i.test(html))html=html.replace(/<\/head>/i,`${marker}\n</head>`);
+  else throw new Error('Vite build index.html has no </head> for build metadata injection');
+}
 await writeFile(targetHtml,html);
 
 // Deployment identity is a build artifact only. Keep a single canonical file in dist/
 // rather than maintaining parallel build-version/web-version outputs or committing stamps.
 await writeFile(join(dist,'web-version.json'),JSON.stringify({
-  version:'0.9.52',
+  version,
   revision:revisionNumber,
   label:revision,
   build,
@@ -34,3 +39,4 @@ await writeFile(join(dist,'web-version.json'),JSON.stringify({
 
 const out=await stat(targetHtml).catch(()=>null);
 if(!out?.size)throw new Error('Vite build did not produce dist/index.html');
+if(!/name=["']collectish-revision["']/.test(html))throw new Error('Build metadata injection did not produce collectish-revision meta');
