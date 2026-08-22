@@ -19,6 +19,8 @@ const expected=[
   'sealed.css',
   'seller-progress.css',
   'seller.css',
+  'signals-rendered.css',
+  'signals.css',
   'tokens.css'
 ].sort();
 const files=(await readdir(styles)).sort();
