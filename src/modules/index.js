@@ -9,6 +9,7 @@ const scoutEnhancers=[
   ()=>import('./scout/detail-swipe.js'),
   ()=>import('./scout/compact-mobile.js'),
   ()=>import('./signals/scout-badges.js'),
+  ()=>import('./signals/scout-intelligence-bridge.js'),
   ()=>import('./signals/rendered-capture.js'),
   ()=>import('./signals/share-handoff.js'),
   ()=>import('./signals/market-evaluation.js'),
