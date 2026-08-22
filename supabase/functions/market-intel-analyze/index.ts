@@ -1,93 +1,28 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const OPENAI=Deno.env.get('OPENAI_API_KEY')||'';
-const MODEL=Deno.env.get('MARKET_INTEL_MODEL')||'gpt-5.6-luna';
+const MODEL=Deno.env.get('MARKET_INTEL_MODEL')||Deno.env.get('ASK_COLLECTISH_MODEL')||'gpt-5-mini';
 const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
 const J=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{...CORS,'Content-Type':'application/json','Cache-Control':'no-store'}});
 const bearer=(r:Request)=>{const h=r.headers.get('authorization')||'';return h.toLowerCase().startsWith('bearer ')?h.slice(7):''};
 const SUPABASE_URL=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
 const ANON=Deno.env.get('SUPABASE_ANON_KEY')||'';
 
-async function auth(token:string){
-  const r=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:ANON,Authorization:`Bearer ${token}`}});
-  if(!r.ok)throw new Error('Unauthorized');
-  const u=await r.json();if(!u?.id)throw new Error('Unauthorized');return u;
-}
-
-function safeUrl(value:string){
-  const u=new globalThis.URL(value);
-  if(!['http:','https:'].includes(u.protocol))throw new Error('Only http/https sources are supported');
-  const h=u.hostname.toLowerCase();
-  if(h==='localhost'||h==='127.0.0.1'||h==='::1'||h.endsWith('.local'))throw new Error('Private hosts are not supported');
-  return u;
-}
-
-function decodeEntities(s:string){return s.replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n)))}
-function htmlText(html:string){
-  const title=(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||'').replace(/<[^>]+>/g,' ').trim();
-  const body=html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')
-    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi,' ')
-    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi,' ')
-    .replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|article|section|h[1-6]|li)>/gi,'\n')
-    .replace(/<[^>]+>/g,' ');
-  const text=decodeEntities(body).replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
-  return {title:decodeEntities(title),text:text.slice(0,70000)};
-}
-
-async function fetchSource(url:string){
-  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
-  try{
-    const r=await fetch(url,{redirect:'follow',signal:controller.signal,headers:{'User-Agent':'MarketplaceScout/0.2 (+market intelligence analyzer)','Accept':'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5'}});
-    if(!r.ok)throw new Error(`Source returned HTTP ${r.status}`);
-    const ct=r.headers.get('content-type')||'';
-    if(!/text\/(html|plain)|application\/xhtml\+xml/i.test(ct))throw new Error('Source is not readable text/HTML');
-    const raw=(await r.text()).slice(0,250000);
-    return htmlText(raw);
-  }finally{clearTimeout(timer)}
-}
-
-async function openai(input:string){
-  if(!OPENAI)throw new Error('OPENAI_API_KEY not configured');
-  const r=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${OPENAI}`,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,store:false,input,max_output_tokens:2600})});
-  const text=await r.text();let data:any;try{data=JSON.parse(text)}catch{data={error:{message:text}}}
-  if(!r.ok)throw new Error(`OpenAI ${r.status}: ${data?.error?.message||'analysis failed'}`);
-  let out='';for(const x of data?.output||[])if(x.type==='message')for(const c of x.content||[])if(c.type==='output_text')out+=c.text;
-  return out.trim().replace(/^```json\s*/i,'').replace(/```$/,'').trim();
-}
-
+async function auth(token:string){const r=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:ANON,Authorization:`Bearer ${token}`}});if(!r.ok)throw new Error('Unauthorized');const u=await r.json();if(!u?.id)throw new Error('Unauthorized');return u}
+function safeUrl(value:string){const u=new globalThis.URL(value);if(!['http:','https:'].includes(u.protocol))throw new Error('Only http/https sources are supported');const h=u.hostname.toLowerCase();if(h==='localhost'||h==='127.0.0.1'||h==='::1'||h.endsWith('.local'))throw new Error('Private hosts are not supported');return u}
+function decodeEntities(s:string){return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n)))}
+function htmlText(html:string){const title=(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]||'').replace(/<[^>]+>/g,' ').trim();const body=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi,' ').replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi,' ').replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|article|section|h[1-6]|li)>/gi,'\n').replace(/<[^>]+>/g,' ');const text=decodeEntities(body).replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();return {title:decodeEntities(title),text:text.slice(0,70000)}}
+async function getText(url:string,accept='text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5'){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);try{const r=await fetch(url,{redirect:'follow',signal:controller.signal,headers:{'User-Agent':'MarketplaceScout/0.2 (+market intelligence analyzer)','Accept':accept}});if(!r.ok)throw new Error(`Source returned HTTP ${r.status}`);return await r.text()}finally{clearTimeout(timer)}}
+function xmlTag(item:string,tag:string){const m=item.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`,'i'));return m?decodeEntities(m[1]).trim():''}
+async function fetchMtgstocksSource(u:globalThis.URL){const slug=u.pathname.split('/').filter(Boolean).pop()||'';const id=Number((slug.match(/^(\d+)-/)||[])[1]||0);let meta:any=null;try{const raw=await getText('https://api.mtgstocks.com/news','application/json,text/plain;q=0.9,*/*;q=0.5');const list=JSON.parse(raw);if(Array.isArray(list))meta=list.find((x:any)=>Number(x?.id)===id||String(x?.slug||'')===slug)||null}catch{}
+  try{const feed=await getText('https://api.mtgstocks.com/news/feed','application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.5');const entries=[...feed.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)].map(m=>m[1]);let entry=entries.find(x=>{const link=xmlTag(x,'link');const guid=xmlTag(x,'guid');return link.includes(slug)||guid.includes(slug)||(id&&new RegExp(`(?:^|\\D)${id}(?:\\D|$)`).test(link+guid))});if(!entry&&meta?.title)entry=entries.find(x=>xmlTag(x,'title')===String(meta.title));if(entry){const title=xmlTag(entry,'title')||meta?.title||'';const desc=xmlTag(entry,'description');const encoded=xmlTag(entry,'content:encoded');const rawBody=encoded||desc;const text=htmlText(rawBody).text;const published=xmlTag(entry,'pubDate')||null;if(text.length>=120)return {title,text,published_at:published,adapter:'mtgstocks-rss'}}}catch{}
+  const excerpt=String(meta?.excerpt||meta?.description||'').trim();if(excerpt.length>=120)return {title:String(meta?.title||''),text:htmlText(excerpt).text,published_at:meta?.date?new Date(Number(meta.date)).toISOString():null,adapter:'mtgstocks-news-api'};return null}
+async function fetchSource(u:globalThis.URL){if(/(^|\.)mtgstocks\.com$/i.test(u.hostname)){const native=await fetchMtgstocksSource(u);if(native)return native}const raw=(await getText(u.toString())).slice(0,250000);return {...htmlText(raw),published_at:null,adapter:'html'}}
+async function openai(input:string){if(!OPENAI)throw new Error('OPENAI_API_KEY not configured');const r=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${OPENAI}`,'Content-Type':'application/json'},body:JSON.stringify({model:MODEL,store:false,input,max_output_tokens:2600})});const text=await r.text();let data:any;try{data=JSON.parse(text)}catch{data={error:{message:text}}}if(!r.ok)throw new Error(`OpenAI ${r.status}: ${data?.error?.message||'analysis failed'}`);let out='';for(const x of data?.output||[])if(x.type==='message')for(const c of x.content||[])if(c.type==='output_text')out+=c.text;return out.trim().replace(/^```json\s*/i,'').replace(/```$/,'').trim()}
 function normalizeStage(x:any){return ['leading','confirming','lagging','neutral','noise','unclassified'].includes(x)?x:'unclassified'}
 function normalizeClaim(x:any){return ['demand','supply','price','buylist','meta','reprint','competitive','product','other'].includes(x)?x:'other'}
 function normalizeDirection(x:any){return ['bullish','bearish','neutral'].includes(x)?x:'neutral'}
 function clamp(n:any){const v=Number(n);return Number.isFinite(v)?Math.max(0,Math.min(1,v)):0.5}
+async function resolveCard(name:string){if(!name)return null;try{const r=await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}`,{headers:{'User-Agent':'MarketplaceScout/0.2'}});if(!r.ok)return null;const c=await r.json();return {name:c.name||name,scryfall_id:c.id||null,set_code:c.set||null}}catch{return null}}
 
-async function resolveCard(name:string){
-  if(!name)return null;
-  try{
-    const r=await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}`,{headers:{'User-Agent':'MarketplaceScout/0.2'}});
-    if(!r.ok)return null;const c=await r.json();return {name:c.name||name,scryfall_id:c.id||null,set_code:c.set||null};
-  }catch{return null}
-}
-
-Deno.serve(async(req:Request)=>{
-  if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});
-  if(req.method!=='POST')return J({error:'POST required'},405);
-  const token=bearer(req);if(!token)return J({error:'Authentication required'},401);
-  try{await auth(token)}catch{return J({error:'Authentication required'},401)}
-  let body:any;try{body=await req.json()}catch{return J({error:'Invalid JSON'},400)}
-  let u:globalThis.URL;try{u=safeUrl(String(body?.url||''))}catch(e){return J({error:(e as Error).message},400)}
-  try{
-    const source=await fetchSource(u.toString());
-    if(source.text.length<120)throw new Error('Not enough readable source text');
-    const prompt=`You are MarketplaceScout's MTG market-intelligence extractor. Analyze the supplied public source for actionable Magic: The Gathering market claims. Do not invent cards, prices, catalysts, or timing. Separate different card theses into separate signals. A finance article describing a move that has already happened is usually confirming or lagging, not leading. Return ONLY valid JSON in this exact shape:\n{"title":string|null,"author":string|null,"published_at":string|null,"source_summary":string|null,"signals":[{"entity_name":string,"entity_type":"card"|"set"|"sealed_product"|"retailer"|"format"|"other","claim_type":"demand"|"supply"|"price"|"buylist"|"meta"|"reprint"|"competitive"|"product"|"other","direction":"bullish"|"bearish"|"neutral","signal_stage":"leading"|"confirming"|"lagging"|"neutral"|"noise"|"unclassified","confidence":number,"summary":string,"catalyst":string|null}]}\nRules: confidence is 0-1. Keep each summary under 450 characters. Include at most 12 high-value signals. Prefer exact printed card names. Ignore site navigation, ads, boilerplate, and unrelated article links. If the source has no useful MTG market claim, return signals: [].\nSOURCE URL: ${u.toString()}\nPAGE TITLE: ${source.title}\nSOURCE TEXT:\n${source.text}`;
-    const raw=await openai(prompt);let parsed:any;try{parsed=JSON.parse(raw)}catch{throw new Error('Analyzer returned invalid JSON')}
-    const candidates=Array.isArray(parsed?.signals)?parsed.signals.slice(0,12):[];
-    const signals=[];for(const s of candidates){
-      const entityName=String(s?.entity_name||'').trim();if(!entityName)continue;
-      const resolved=s?.entity_type==='card'?await resolveCard(entityName):null;
-      signals.push({entity_name:resolved?.name||entityName,entity_type:s?.entity_type||'other',scryfall_id:resolved?.scryfall_id||null,set_code:resolved?.set_code||null,claim_type:normalizeClaim(s?.claim_type),direction:normalizeDirection(s?.direction),signal_stage:normalizeStage(s?.signal_stage),confidence:clamp(s?.confidence),summary:String(s?.summary||'').slice(0,450),catalyst:s?.catalyst?String(s.catalyst).slice(0,220):null});
-    }
-    return J({ok:true,url:u.toString(),model:MODEL,title:parsed?.title||source.title||null,author:parsed?.author||null,published_at:parsed?.published_at||null,source_summary:parsed?.source_summary||null,signals});
-  }catch(e){return J({error:(e as Error).message},502)}
-});
+Deno.serve(async(req:Request)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return J({error:'POST required'},405);const token=bearer(req);if(!token)return J({error:'Authentication required'},401);try{await auth(token)}catch{return J({error:'Authentication required'},401)}let body:any;try{body=await req.json()}catch{return J({error:'Invalid JSON'},400)}let u:globalThis.URL;try{u=safeUrl(String(body?.url||''))}catch(e){return J({error:(e as Error).message},400)}try{const source:any=await fetchSource(u);if(source.text.length<120)throw new Error('Not enough readable source text');const prompt=`You are MarketplaceScout's MTG market-intelligence extractor. Analyze the supplied public source for actionable Magic: The Gathering market claims. Do not invent cards, prices, catalysts, or timing. Separate different card theses into separate signals. A finance article describing a move that has already happened is usually confirming or lagging, not leading. Return ONLY valid JSON in this exact shape:\n{"title":string|null,"author":string|null,"published_at":string|null,"source_summary":string|null,"signals":[{"entity_name":string,"entity_type":"card"|"set"|"sealed_product"|"retailer"|"format"|"other","claim_type":"demand"|"supply"|"price"|"buylist"|"meta"|"reprint"|"competitive"|"product"|"other","direction":"bullish"|"bearish"|"neutral","signal_stage":"leading"|"confirming"|"lagging"|"neutral"|"noise"|"unclassified","confidence":number,"summary":string,"catalyst":string|null}]}\nRules: confidence is 0-1. Keep each summary under 450 characters. Include at most 12 high-value signals. Prefer exact printed card names. Ignore site navigation, ads, boilerplate, and unrelated article links. If the source has no useful MTG market claim, return signals: [].\nSOURCE URL: ${u.toString()}\nPAGE TITLE: ${source.title}\nPUBLISHED: ${source.published_at||'unknown'}\nSOURCE TEXT:\n${source.text}`;const raw=await openai(prompt);let parsed:any;try{parsed=JSON.parse(raw)}catch{throw new Error('Analyzer returned invalid JSON')}const candidates=Array.isArray(parsed?.signals)?parsed.signals.slice(0,12):[];const signals=[];for(const s of candidates){const entityName=String(s?.entity_name||'').trim();if(!entityName)continue;const resolved=s?.entity_type==='card'?await resolveCard(entityName):null;signals.push({entity_name:resolved?.name||entityName,entity_type:s?.entity_type||'other',scryfall_id:resolved?.scryfall_id||null,set_code:resolved?.set_code||null,claim_type:normalizeClaim(s?.claim_type),direction:normalizeDirection(s?.direction),signal_stage:normalizeStage(s?.signal_stage),confidence:clamp(s?.confidence),summary:String(s?.summary||'').slice(0,450),catalyst:s?.catalyst?String(s.catalyst).slice(0,220):null})}return J({ok:true,url:u.toString(),adapter:source.adapter,model:MODEL,title:parsed?.title||source.title||null,author:parsed?.author||null,published_at:parsed?.published_at||source.published_at||null,source_summary:parsed?.source_summary||null,signals})}catch(e){return J({error:(e as Error).message},502)}});
