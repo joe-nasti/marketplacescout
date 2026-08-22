@@ -20,7 +20,7 @@ class NativeSupabase {
         return (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 12000
-            readTimeout = 20000
+            readTimeout = 30000
             setRequestProperty("apikey", KEY)
             setRequestProperty("Accept", "application/json")
             if (!token.isNullOrBlank()) setRequestProperty("Authorization", "Bearer $token")
@@ -30,6 +30,21 @@ class NativeSupabase {
     private fun body(conn: HttpURLConnection): String {
         val stream = if (conn.responseCode in 200..299) conn.inputStream else conn.errorStream
         return stream?.let { BufferedReader(InputStreamReader(it)).use { r -> r.readText() } }.orEmpty()
+    }
+
+    private fun postJson(url: String, token: String, payload: JSONObject, prefer: String? = null): String {
+        val conn = connection(url, "POST", token).apply {
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            if (!prefer.isNullOrBlank()) setRequestProperty("Prefer", prefer)
+        }
+        conn.outputStream.use { it.write(payload.toString().toByteArray()) }
+        val text = body(conn)
+        if (conn.responseCode !in 200..299) {
+            val message = runCatching { JSONObject(text).optString("error").ifBlank { JSONObject(text).optString("message") } }.getOrNull()
+            throw IllegalStateException(message?.ifBlank { null } ?: "Request failed (${conn.responseCode})")
+        }
+        return text
     }
 
     fun signIn(email: String, password: String): Session {
@@ -69,9 +84,7 @@ class NativeSupabase {
         val size = pageSize.coerceIn(100, 1000)
         while (from < maxRows) {
             val to = minOf(from + size - 1, maxRows - 1)
-            val conn = connection("$BASE/rest/v1/$path", "GET", token).apply {
-                setRequestProperty("Range", "$from-$to")
-            }
+            val conn = connection("$BASE/rest/v1/$path", "GET", token).apply { setRequestProperty("Range", "$from-$to") }
             val text = body(conn)
             if (conn.responseCode !in 200..299) throw IllegalStateException("Data request failed (${conn.responseCode})")
             val page = JSONArray(text)
@@ -91,6 +104,18 @@ class NativeSupabase {
         conn.responseCode
         val range = conn.getHeaderField("Content-Range").orEmpty()
         return range.substringAfter('/').toIntOrNull() ?: 0
+    }
+
+    fun analyzeMarketIntel(token: String, url: String, title: String, renderedText: String): JSONObject {
+        val payload = JSONObject().put("url", url).put("rendered_title", title).put("rendered_text", renderedText)
+        return JSONObject(postJson("$BASE/functions/v1/market-intel-analyze", token, payload))
+    }
+
+    fun insertOne(token: String, table: String, payload: JSONObject): JSONObject {
+        val text = postJson("$BASE/rest/v1/$table", token, payload, "return=representation")
+        val arr = JSONArray(text)
+        if (arr.length() == 0) throw IllegalStateException("Insert returned no row")
+        return arr.getJSONObject(0)
     }
 
     fun encode(value: String): String = URLEncoder.encode(value, "UTF-8")
