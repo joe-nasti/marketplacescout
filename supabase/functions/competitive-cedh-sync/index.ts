@@ -12,22 +12,29 @@ async function auth(token:string){const r=await fetch(`${SUPABASE_URL}/auth/v1/u
 const clean=(v:any)=>String(v??'').replace(/\s+/g,' ').trim();
 const isCedhName=(s:any)=>/\bcedh\b|competitive\s+(?:edh|commander)|topdeck invitational|breach the bay/i.test(clean(s));
 
-async function topdeckTournaments(days:number){
-  const c=new AbortController();const t=setTimeout(()=>c.abort(),20000);
+async function topdeckJson(url:string,init:RequestInit,timeoutMs=15000){
+  const c=new AbortController();const t=setTimeout(()=>c.abort(),timeoutMs);
   try{
-    const r=await fetch('https://topdeck.gg/api/v2/tournaments',{
-      method:'POST',signal:c.signal,
-      headers:{Authorization:TOPDECK_KEY,'Content-Type':'application/json','Accept':'application/json','User-Agent':'MarketplaceScout/0.2 cEDH intelligence'},
-      body:JSON.stringify({game:'Magic: The Gathering',format:'EDH',last:days,columns:['name','id','decklist','wins','draws','losses']})
-    });
+    const r=await fetch(url,{...init,signal:c.signal,headers:{Authorization:TOPDECK_KEY,'Accept':'application/json','User-Agent':'MarketplaceScout/0.3 cEDH intelligence',...(init.headers||{})}});
     const text=await r.text();
     if(!r.ok)throw new Error(`TopDeck API HTTP ${r.status}: ${text.slice(0,240)}`);
-    let data:any;try{data=JSON.parse(text)}catch{throw new Error('TopDeck API returned non-JSON data')}
-    if(!Array.isArray(data))throw new Error('TopDeck API returned an unexpected tournament payload');
-    return data;
-  } finally {clearTimeout(t)}
+    try{return JSON.parse(text)}catch{throw new Error('TopDeck API returned non-JSON data')}
+  }catch(e){if((e as Error)?.name==='AbortError')throw new Error(`TopDeck API timed out after ${Math.round(timeoutMs/1000)}s`);throw e}
+  finally{clearTimeout(t)}
 }
-
+async function discoverWindow(start:number,end:number,minSize:number){
+  const data=await topdeckJson('https://topdeck.gg/api/v2/tournaments',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({game:'Magic: The Gathering',format:'EDH',start,end,participantMin:minSize,columns:['name','wins','draws','losses']})
+  },15000);
+  if(!Array.isArray(data))throw new Error('TopDeck API returned an unexpected tournament payload');
+  return data;
+}
+async function standingsFor(tid:string){
+  const data=await topdeckJson(`https://topdeck.gg/api/v2/tournaments/${encodeURIComponent(tid)}/standings`,{method:'GET'},12000);
+  if(!Array.isArray(data))throw new Error('TopDeck standings returned an unexpected payload');
+  return data;
+}
 function sectionRows(deckObj:any,sectionName:string){
   const src=deckObj?.[sectionName];if(!src||typeof src!=='object')return[] as any[];
   const out:any[]=[];
@@ -66,27 +73,28 @@ Deno.serve(async req=>{
     const limit=Math.max(1,Math.min(8,Number(body?.limit)||4));
     const days=Math.max(30,Math.min(365,Number(body?.days)||120));
     const minSize=Math.max(8,Math.min(500,Number(body?.min_size)||16));
-    const all=await topdeckTournaments(days);
-    const candidates=all.filter((t:any)=>Array.isArray(t?.standings)&&t.standings.length>=minSize&&isCedhName(t?.tournamentName));
-    candidates.sort((a:any,b:any)=>Number(b?.startDate||0)-Number(a?.startDate||0));
     const {data:existing,error:existingError}=await db.from('competitive_events').select('source_event_id').eq('primary_source','topdeck');
     if(existingError)throw existingError;
     const seen=new Set((existing||[]).map((x:any)=>String(x.source_event_id||'')));
-    const targets=candidates.filter((t:any)=>t?.TID&&!seen.has(String(t.TID))).slice(0,limit);
-    let events=0,decks=0,cards=0,errors=0,skippedImported=candidates.length-targets.length;const details:any[]=[];
+    const nowSec=Math.floor(Date.now()/1000);const windowDays=30;let candidates:any[]=[];let discovered=0;let windowsChecked=0;
+    for(let offset=0;offset<days&&candidates.length<limit;offset+=windowDays){
+      if(Date.now()-started>32000)break;
+      const end=nowSec-offset*86400;const start=Math.max(0,end-windowDays*86400);
+      const batch=await discoverWindow(start,end,minSize);windowsChecked++;
+      discovered+=batch.length;
+      const matches=batch.filter((t:any)=>t?.TID&&isCedhName(t?.tournamentName)&&!seen.has(String(t.TID)));
+      candidates.push(...matches);
+    }
+    candidates.sort((a:any,b:any)=>Number(b?.startDate||0)-Number(a?.startDate||0));
+    const targets=candidates.slice(0,limit);
+    let events=0,decks=0,cards=0,errors=0;const details:any[]=[];
     for(const t of targets){
-      if(Date.now()-started>50000){errors++;details.push({tid:t?.TID,error:'Execution budget reached'});break}
+      if(Date.now()-started>52000){errors++;details.push({tid:t?.TID,error:'Execution budget reached'});break}
       try{
-        const tid=String(t.TID);const standings=Array.isArray(t.standings)?t.standings:[];const ts=Number(t.startDate||0);const dateStr=ts?new Date(ts*1000).toISOString().slice(0,10):null;
+        const tid=String(t.TID);const standings=await standingsFor(tid);const ts=Number(t.startDate||0);const dateStr=ts?new Date(ts*1000).toISOString().slice(0,10):null;
+        if(standings.length<minSize)continue;
         const eventUrl=`https://topdeck.gg/event/${encodeURIComponent(tid)}`;
-        const {data:event,error:eventError}=await db.from('competitive_events').upsert({
-          canonical_event_key:`topdeck:${tid}`,primary_source:'topdeck',source_event_id:tid,source_url:eventUrl,
-          event_name:clean(t.tournamentName)||`cEDH ${tid}`,format:'cEDH',event_type:'cEDH Tournament',event_date:dateStr,
-          player_count:standings.length,published_deck_count:standings.length,coverage_type:'complete_event',
-          coverage_note:'TopDeck v2 returned the complete published standings for this cEDH event.',
-          published_at:dateStr?`${dateStr}T12:00:00Z`:null,fetched_at:new Date().toISOString(),
-          raw_meta:{source:'TopDeck v2 API',format:t.format||'EDH',topCut:t.topCut??null,swissNum:t.swissNum??null,standings_count:standings.length,parser:'topdeck-v2-structured'}
-        },{onConflict:'canonical_event_key'}).select('event_id').single();
+        const {data:event,error:eventError}=await db.from('competitive_events').upsert({canonical_event_key:`topdeck:${tid}`,primary_source:'topdeck',source_event_id:tid,source_url:eventUrl,event_name:clean(t.tournamentName)||`cEDH ${tid}`,format:'cEDH',event_type:'cEDH Tournament',event_date:dateStr,player_count:standings.length,published_deck_count:standings.length,coverage_type:'complete_event',coverage_note:'TopDeck v2 returned complete published standings for this explicitly cEDH/competitive Commander event.',published_at:dateStr?`${dateStr}T12:00:00Z`:null,fetched_at:new Date().toISOString(),raw_meta:{source:'TopDeck v2 API',format:t.format||'EDH',topCut:t.topCut??null,swissNum:t.swissNum??null,standings_count:standings.length,parser:'topdeck-v2-targeted-standings'}},{onConflict:'canonical_event_key'}).select('event_id').single();
         if(eventError)throw eventError;
         const {error:sourceError}=await db.from('competitive_event_sources').upsert({event_id:event.event_id,source_name:'TopDeck.gg',source_url:eventUrl,source_event_id:tid,source_kind:'primary'},{onConflict:'event_id,source_name,source_url'});if(sourceError)throw sourceError;
         const deckPayload=standings.map((s:any,idx:number)=>{const parsed=parseDeckObj(s?.deckObj);return{event_id:event.event_id,player_name:clean(s?.name)||`Player ${idx+1}`,placement:Number(s?.standing)||idx+1,archetype:parsed.commander||'Unknown Commander',record:`${Number(s?.wins)||0}-${Number(s?.losses)||0}-${Number(s?.draws)||0}`,source_deck_id:clean(s?.id)||null,source_url:eventUrl,_cards:parsed.cards}});
@@ -101,6 +109,6 @@ Deno.serve(async req=>{
         events++;decks+=dbDeckPayload.length;cards+=cardPayload.length;details.push({tid,event:clean(t.tournamentName),date:dateStr,players:standings.length,decks:dbDeckPayload.length,card_rows:cardPayload.length,structured_decks:deckPayload.filter((x:any)=>x._cards.length).length});
       }catch(e){errors++;details.push({tid:t?.TID,error:(e as Error).message})}
     }
-    return J({ok:true,events,decks,cards,errors,available_cedh:candidates.length,skipped_imported:skippedImported,elapsed_ms:Date.now()-started,source:'TopDeck v2 API',details});
+    return J({ok:true,events,decks,cards,errors,available_cedh:candidates.length,discovered_edh:discovered,windows_checked:windowsChecked,skipped_imported:seen.size,elapsed_ms:Date.now()-started,source:'TopDeck v2 API',details});
   }catch(e){return J({error:(e as Error).message,elapsed_ms:Date.now()-started,source:'TopDeck v2 API'},502)}
 });
