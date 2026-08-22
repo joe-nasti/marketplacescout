@@ -4,7 +4,7 @@ import { readUrlState, writeUrlState, onUrlStateChange } from './url-state.js';
 import store from '../state/store.js';
 import lifecycle from './lifecycle.js';
 
-export const WEB_VERSION='0.9.52';
+export const WEB_VERSION='0.9.53';
 window.COLLECTISH_WEB_VERSION=WEB_VERSION;
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[ch]));
@@ -23,7 +23,7 @@ export function startupView(message='Resuming your session…'){
 export function loginView(message=''){
   lifecycle.unmountApp();
   store.batch(()=>{store.update('session',{user:null});store.update('runtime',{screen:'login'})});
-  document.body.innerHTML=`<main class="cx-auth"><section class="cx-auth-card"><div class="cx-brand">${brand()}</div><div class="cx-version">web ${WEB_VERSION}</div><h1>Sign in</h1><p>Scout opportunities, sealed EV, Seller analytics, SYP changes, inventory, and operations.</p><input id="modernEmail" type="email" autocomplete="email" placeholder="Email"><input id="modernPassword" type="password" autocomplete="current-password" placeholder="Password"><button id="modernSignIn" class="cx-primary">Sign in</button><div id="modernMsg" class="cx-auth-msg">${esc(message)}</div></section></main>`;
+  document.body.innerHTML=`<main class="cx-auth"><section class="cx-auth-card"><div class="cx-brand">${brand()}</div><div class="cx-version">web ${WEB_VERSION}</div><h1>Sign in</h1><p>Scout opportunities, market signals, sealed EV, Seller analytics, SYP changes, inventory, and operations.</p><input id="modernEmail" type="email" autocomplete="email" placeholder="Email"><input id="modernPassword" type="password" autocomplete="current-password" placeholder="Password"><button id="modernSignIn" class="cx-primary">Sign in</button><div id="modernMsg" class="cx-auth-msg">${esc(message)}</div></section></main>`;
   document.getElementById('modernSignIn')?.addEventListener('click',login);
   document.getElementById('modernPassword')?.addEventListener('keydown',e=>{if(e.key==='Enter')login()});
   document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'login'}}));
@@ -61,9 +61,9 @@ export function switchPage(name,{scroll=true,history=true,replace=false}={}){
 }
 
 export function renderShell(){
-  const pages=['scout','sealed','seller','syp','inventory','admin'];
+  const pages=['scout','signals','sealed','seller','syp','inventory','admin'];
   const label=key=>key==='syp'?'SYP':key==='sealed'?'Sealed':key[0].toUpperCase()+key.slice(1);
-  document.body.innerHTML=`<div id="cxNetworkProgress" class="cx-network-progress" aria-hidden="true"><div class="cx-network-progress-runner"></div></div><div class="cx-top-version">web ${WEB_VERSION}</div><main id="app" class="collectish-modern-app"><section id="collectishUxShell" class="collectish-product-shell"><aside class="cx-side"><div class="cx-brand">${brand()}</div><nav class="cx-nav">${pages.map((key,index)=>`<button data-cx-page="${key}" class="${index===0?'active':''}">${label(key)}</button>`).join('')}</nav><div class="cx-side-spacer"></div><div class="cx-side-meta">web ${WEB_VERSION}<br>Smarter data. Better decisions.</div></aside><div class="cx-main"><section id="cxScout" class="cx-page active"></section><section id="cxSealed" class="cx-page"></section><section id="cxSeller" class="cx-page"></section><section id="cxSyp" class="cx-page"></section><section id="cxInventory" class="cx-page"></section><section id="cxAdmin" class="cx-page"></section></div><nav class="cx-mobile-nav">${pages.map((key,index)=>`<button data-cx-page="${key}" class="${index===0?'active':''}">${label(key)}</button>`).join('')}</nav></section></main>`;
+  document.body.innerHTML=`<div id="cxNetworkProgress" class="cx-network-progress" aria-hidden="true"><div class="cx-network-progress-runner"></div></div><div class="cx-top-version">web ${WEB_VERSION}</div><main id="app" class="collectish-modern-app"><section id="collectishUxShell" class="collectish-product-shell"><aside class="cx-side"><div class="cx-brand">${brand()}</div><nav class="cx-nav">${pages.map((key,index)=>`<button data-cx-page="${key}" class="${index===0?'active':''}">${label(key)}</button>`).join('')}</nav><div class="cx-side-spacer"></div><div class="cx-side-meta">web ${WEB_VERSION}<br>Smarter data. Better decisions.</div></aside><div class="cx-main"><section id="cxScout" class="cx-page active"></section><section id="cxSignals" class="cx-page"></section><section id="cxSealed" class="cx-page"></section><section id="cxSeller" class="cx-page"></section><section id="cxSyp" class="cx-page"></section><section id="cxInventory" class="cx-page"></section><section id="cxAdmin" class="cx-page"></section></div><nav class="cx-mobile-nav">${pages.map((key,index)=>`<button data-cx-page="${key}" class="${index===0?'active':''}">${label(key)}</button>`).join('')}</nav></section></main>`;
   store.update('runtime',{screen:'app'});
   document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'app'}}));
 }
