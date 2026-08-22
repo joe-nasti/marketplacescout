@@ -1,0 +1,2 @@
+-- No automatic rollback is provided for the hot-path indexes/RPC because the previous RPC timed out under current data volume.
+-- If rollback is required, restore the previous function definition from Git history and retain the indexes; they are safe to keep.
