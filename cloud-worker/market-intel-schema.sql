@@ -17,12 +17,13 @@ create table if not exists public.market_intel_items (
   published_at timestamptz,
   observed_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint market_intel_items_intel_id_user_id_key unique (intel_id,user_id)
 );
 
 create table if not exists public.market_intel_entities (
   intel_entity_id uuid primary key default gen_random_uuid(),
-  intel_id uuid not null references public.market_intel_items(intel_id) on delete cascade,
+  intel_id uuid not null,
   user_id uuid not null default auth.uid(),
   entity_type text not null default 'card' check (entity_type in ('card','set','sealed_product','retailer','format','other')),
   entity_name text not null,
@@ -30,7 +31,9 @@ create table if not exists public.market_intel_entities (
   product_id text,
   set_code text,
   confidence numeric(4,3) not null default 0.750 check (confidence >= 0 and confidence <= 1),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint market_intel_entities_intel_user_fkey foreign key (intel_id,user_id)
+    references public.market_intel_items(intel_id,user_id) on delete cascade
 );
 
 create index if not exists market_intel_items_user_observed_idx on public.market_intel_items(user_id, observed_at desc);
