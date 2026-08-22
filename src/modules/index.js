@@ -11,7 +11,8 @@ const scoutEnhancers=[
   ()=>import('./signals/scout-badges.js'),
   ()=>import('./signals/rendered-capture.js'),
   ()=>import('./signals/share-handoff.js'),
-  ()=>import('./signals/market-evaluation.js')
+  ()=>import('./signals/market-evaluation.js'),
+  ()=>import('./signals/source-rollups.js')
 ];
 
 const inventoryEnhancers=[
