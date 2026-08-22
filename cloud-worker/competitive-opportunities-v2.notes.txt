@@ -1,0 +1,1 @@
+Production verification on 2026-08-22: optimized RPC returned 100 rows with max deck_count_30d 27 and max top8_decks_30d 8; EXPLAIN ANALYZE execution time approximately 30 ms in an authenticated-user context.
