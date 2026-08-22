@@ -6,13 +6,16 @@ let rows=[];
 let events=[];
 let deckEventIds=[];
 let loading=null;
+let lastLoadedAt=0;
 let syncMessage='';
+const AUTO_REFRESH_MS=5*60*1000;
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pct=v=>v==null?'—':`${Number(v)>=0?'+':''}${Number(v).toFixed(1)}%`;
 const stageClass=s=>s==='early'?'leading':s==='confirming'?'confirming':s==='late'?'lagging':'unclassified';
 const BASIC_NAMES=new Set(['plains','island','swamp','mountain','forest','wastes','snow-covered plains','snow-covered island','snow-covered swamp','snow-covered mountain','snow-covered forest']);
 
 function host(){return document.getElementById('cxSignals')}
+function signalsReady(){return host()?.dataset.cxLazyReady==='1'}
 function coverageLabel(e){return e?.coverage_type==='curated_sample'?'curated sample':e?.coverage_type==='partial_event'?'published event subset':e?.coverage_type==='complete_event'?'complete event':'coverage unknown'}
 function clamp(v,min=0,max=100){return Math.max(min,Math.min(max,Number(v)||0))}
 function scarcityScore(qty){const q=Number(qty);if(!Number.isFinite(q))return 0;if(q<=2)return 100;if(q<=5)return 85;if(q<=10)return 70;if(q<=25)return 55;if(q<=50)return 40;if(q<=100)return 25;return 10}
@@ -85,7 +88,7 @@ function rowHtml(r){
   return `<div class="cx-detail-stat"><span><strong>${esc(r.card_name)}</strong><small>${esc(`${r.format||'Unknown format'} · ${adoption} · ${conversion}`)}</small><small>${esc(print)}</small></span><span><strong><span class="cx-signal-stage ${stageClass(stage)}">${esc(String(stage).toUpperCase())}</span> <span class="cx-signal-stage confirming">${esc(`PRIORITY ${r.competitive_priority}`)}</span></strong><small>${esc(setup)}</small><small>${esc(r.competitive_reason_v2||'')}</small></span></div>`;
 }
 function render(){
-  const h=host();if(!h)return;
+  const h=host();if(!h||!signalsReady())return;
   let panel=document.getElementById('cxCompetitiveIntel');
   if(!panel){panel=document.createElement('section');panel.id='cxCompetitiveIntel';panel.className='cx-card';const layout=h.querySelector('.cx-signals-layout');if(layout)layout.insertAdjacentElement('beforebegin',panel);else h.appendChild(panel)}
   const latest=events.slice(0,4).map(e=>`${e.event_name}${e.format?` · ${e.format}`:''} · ${coverageLabel(e)} · ${e.published_deck_count||'?'} published`).join(' · ');
@@ -94,13 +97,14 @@ function render(){
   if(withheld.basics)withheldParts.push(`${withheld.basics} basic-land matches hidden`);
   if(withheld.premium)withheldParts.push(`${withheld.premium} premium-print distortions hidden`);
   if(withheld.incomplete)withheldParts.push(`${withheld.incomplete} rows withheld for incomplete/mismatched event coverage`);
-  panel.innerHTML=`<div class="cx-page-head"><div><div class="cx-section-title">Competitive opportunities</div><p class="cx-sub">Published tournament samples ranked against Scout market setup. Adoption is published-sample adoption—not full-field metagame share unless an event is explicitly marked complete. Curated League samples are excluded from share calculations.</p></div><button type="button" class="cx-refresh" id="cxRefreshMtgo">Refresh MTGO</button></div>${latest?`<p class="cx-sub">Latest imported: ${esc(latest)}</p>`:''}<div class="cx-detail-list">${ranked.length?ranked.slice(0,12).map(rowHtml).join(''):'<div class="cx-empty">No fully linked competitive market setups yet. Refresh MTGO to import recent Challenge/Qualifier/Showcase results.</div>'}</div>${withheldParts.length?`<p class="cx-sub">Ranking guardrails: ${esc(withheldParts.join(' · '))}.</p>`:''}<div id="cxCompetitiveMsg" class="cx-sub">${esc(syncMessage)}</div>`;
+  const empty=loading?'<div class="cx-empty">Loading competitive market setups…</div>':'<div class="cx-empty">No fully linked competitive market setups yet. Refresh MTGO to import recent Challenge/Qualifier/Showcase results.</div>';
+  panel.innerHTML=`<div class="cx-page-head"><div><div class="cx-section-title">Competitive opportunities</div><p class="cx-sub">Published tournament samples ranked against Scout market setup. Adoption is published-sample adoption—not full-field metagame share unless an event is explicitly marked complete. Curated League samples are excluded from share calculations.</p></div><button type="button" class="cx-refresh" id="cxRefreshMtgo">Refresh MTGO</button></div>${latest?`<p class="cx-sub">Latest imported: ${esc(latest)}</p>`:''}<div class="cx-detail-list">${ranked.length?ranked.slice(0,12).map(rowHtml).join(''):empty}</div>${withheldParts.length?`<p class="cx-sub">Ranking guardrails: ${esc(withheldParts.join(' · '))}.</p>`:''}<div id="cxCompetitiveMsg" class="cx-sub">${esc(syncMessage)}</div>`;
   document.getElementById('cxRefreshMtgo')?.addEventListener('click',sync);
 }
-async function loadAllDeckEventIds(){
+async function loadRecentDeckEventIds(since){
   const out=[];let offset=0;
-  for(let page=0;page<8;page++){
-    const batch=await rest(`competitive_decks?select=event_id&order=created_at.desc&limit=1000&offset=${offset}`);
+  for(let page=0;page<4;page++){
+    const batch=await rest(`competitive_decks?select=event_id&created_at=gte.${since}&order=created_at.desc&limit=1000&offset=${offset}`);
     if(!Array.isArray(batch))break;
     out.push(...batch);
     if(batch.length<1000)break;
@@ -108,15 +112,24 @@ async function loadAllDeckEventIds(){
   }
   return out;
 }
-async function load(){
+async function load({force=false}={}){
   if(loading)return loading;
+  if(!force&&lastLoadedAt&&Date.now()-lastLoadedAt<AUTO_REFRESH_MS){render();return rows}
   const since=new Date(Date.now()-30*86400000).toISOString().slice(0,10);
   loading=Promise.all([
     rest('rpc/competitive_scout_opportunities',{method:'POST',body:{p_format:null}}),
     rest(`competitive_events?select=event_id,event_name,format,event_date,player_count,published_deck_count,coverage_type,coverage_note,source_url,fetched_at&event_date=gte.${since}&order=event_date.desc,fetched_at.desc&limit=250`),
-    loadAllDeckEventIds()
-  ]).then(([r,e,d])=>{rows=Array.isArray(r)?r:[];events=Array.isArray(e)?e:[];deckEventIds=Array.isArray(d)?d:[];render();return rows}).catch(error=>{console.warn('Competitive intel load failed',error);render();return rows}).finally(()=>{loading=null});
+    loadRecentDeckEventIds(since)
+  ]).then(([r,e,d])=>{
+    rows=Array.isArray(r)?r:[];events=Array.isArray(e)?e:[];deckEventIds=Array.isArray(d)?d:[];lastLoadedAt=Date.now();return rows;
+  }).catch(error=>{console.warn('Competitive intel load failed',error);return rows}).finally(()=>{loading=null;render()});
+  render();
   return loading;
+}
+function ensureLoaded(){
+  if(!signalsReady())return;
+  render();
+  void load().catch(()=>{});
 }
 async function sync(){
   const btn=document.getElementById('cxRefreshMtgo');
@@ -133,13 +146,14 @@ async function sync(){
     const errorCount=Number(data.errors||0);
     const seconds=Math.max(1,Math.round(Number(data.elapsed_ms||0)/1000));
     syncMessage=`Imported ${data.events||0} event${Number(data.events)===1?'':'s'}, ${data.decks||0} decks and ${data.cards||0} card rows in ${seconds}s.${errorCount?` ${errorCount} event${errorCount===1?'':'s'} could not be fully imported.`:''}${Number(data.events||0)===0?` MTGO discovery found ${data.discovered||0} decklist URL${Number(data.discovered)===1?'':'s'}${data.message?`: ${data.message}`:'.'}`:''}`;
-    loading=null;await load();document.dispatchEvent(new CustomEvent('collectish:competitive-changed',{detail:data}));
+    await load({force:true});document.dispatchEvent(new CustomEvent('collectish:competitive-changed',{detail:data}));
   }catch(e){
     syncMessage=e?.name==='AbortError'?'MTGO refresh timed out after 65 seconds. Nothing will keep spinning; try again or inspect the returned event errors.':(e?.message||'Could not refresh MTGO results.');
     render();
   }finally{clearTimeout(timer);const current=document.getElementById('cxRefreshMtgo');if(current){current.disabled=false;current.textContent=original}}
 }
-document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>void load())});
-document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>void load())});
-document.addEventListener('collectish:competitive-changed',()=>{loading=null;void load()});
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals'&&signalsReady())queueMicrotask(ensureLoaded)});
+document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')queueMicrotask(ensureLoaded)});
+document.addEventListener('collectish:competitive-changed',()=>{lastLoadedAt=0;if(signalsReady())void load({force:true})});
+if(signalsReady())queueMicrotask(ensureLoaded);
 export { load as loadCompetitiveIntel, sync as syncCompetitiveMtgo };
