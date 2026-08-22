@@ -4,7 +4,7 @@ import { readUrlState, writeUrlState, onUrlStateChange } from './url-state.js';
 import store from '../state/store.js';
 import lifecycle from './lifecycle.js';
 
-export const WEB_VERSION='0.9.63';
+export const WEB_VERSION='0.9.64';
 window.COLLECTISH_WEB_VERSION=WEB_VERSION;
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[ch]));
