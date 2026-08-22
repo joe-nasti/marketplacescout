@@ -4,17 +4,19 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.View
+import android.view.WindowInsets
+import android.view.WindowManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.LinearLayout
-import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import org.json.JSONArray
@@ -24,29 +26,51 @@ import kotlin.concurrent.thread
 class IntelShareActivity : Activity() {
     private val api = NativeSupabase()
     private val handler = Handler(Looper.getMainLooper())
+    private lateinit var root: LinearLayout
     private lateinit var status: TextView
     private lateinit var web: WebView
+    private var sessionProbeWeb: WebView? = null
     private lateinit var results: LinearLayout
     private lateinit var save: Button
     private var sourceUrl = ""
     private var sourceTitle = ""
+    private var sharedText = ""
     private var analysis: JSONObject? = null
     private var captureAttempts = 0
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val shared = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString().orEmpty()
-        sourceTitle = intent.getStringExtra(Intent.EXTRA_SUBJECT).orEmpty()
-        sourceUrl = Regex("https?://[^\\s]+", RegexOption.IGNORE_CASE).find(shared)?.value?.trimEnd('.', ',', ')', ']', '}') ?: ""
+        configureWindowSafely()
 
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(18), dp(14), dp(14)); setBackgroundColor(Color.rgb(245,248,252)) }
-        root.addView(TextView(this).apply { text = "Add to MarketplaceScout Signals"; textSize = 22f; setTextColor(Color.rgb(16,24,40)); setTypeface(typeface,1) })
-        status = TextView(this).apply { textSize = 13f; setTextColor(Color.rgb(102,112,133)); setPadding(0,dp(8),0,dp(10)) }
+        sharedText = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString().orEmpty()
+        sourceTitle = intent.getStringExtra(Intent.EXTRA_SUBJECT).orEmpty()
+        sourceUrl = Regex("https?://[^\\s]+", RegexOption.IGNORE_CASE).find(sharedText)?.value?.trimEnd('.', ',', ')', ']', '}') ?: ""
+
+        root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(18), dp(14), dp(14))
+            setBackgroundColor(bg())
+        }
+        installSafeInsets(root)
+        root.addView(TextView(this).apply {
+            text = "Add to MarketplaceScout Signals"
+            textSize = 22f
+            setTextColor(Color.rgb(16,24,40))
+            setTypeface(typeface,1)
+        })
+        status = TextView(this).apply {
+            textSize = 13f
+            setTextColor(Color.rgb(102,112,133))
+            setPadding(0,dp(8),0,dp(10))
+        }
         root.addView(status)
         web = WebView(this).apply {
-            settings.javaScriptEnabled = true; settings.domStorageEnabled = true; settings.databaseEnabled = true
-            settings.loadWithOverviewMode = true; settings.useWideViewPort = true
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.databaseEnabled = true
+            settings.loadWithOverviewMode = true
+            settings.useWideViewPort = true
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView, url: String) {
                     status.text = "Page rendered. Extracting visible article text…"
@@ -57,23 +81,134 @@ class IntelShareActivity : Activity() {
         root.addView(web, LinearLayout.LayoutParams(-1,0,1f))
         results = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
         root.addView(ScrollView(this).apply { addView(results) }, LinearLayout.LayoutParams(-1,0,1f))
-        save = Button(this).apply { text="Save selected signals"; isAllCaps=false; visibility=View.GONE; setOnClickListener { saveSelected() } }
+        save = Button(this).apply {
+            text="Save selected signals"
+            isAllCaps=false
+            visibility=View.GONE
+            setOnClickListener { saveSelected() }
+        }
         root.addView(save, LinearLayout.LayoutParams(-1,dp(52)))
-        root.addView(Button(this).apply { text="Close"; isAllCaps=false; setOnClickListener { finish() } }, LinearLayout.LayoutParams(-1,dp(48)))
+        root.addView(Button(this).apply {
+            text="Close"
+            isAllCaps=false
+            setOnClickListener { finish() }
+        }, LinearLayout.LayoutParams(-1,dp(48)))
         setContentView(root)
 
-        val prefs=getSharedPreferences("collectish-native",MODE_PRIVATE)
-        if(prefs.getString("accessToken",null).isNullOrBlank()){status.text="Open Collectish and sign in first, then share this article again.";web.visibility=View.GONE;return}
-        if(sourceUrl.isBlank()){status.text="No public URL was included in the shared item.";web.visibility=View.GONE;return}
+        if(sourceUrl.isBlank()) {
+            status.text="No public URL was included in the shared item."
+            web.visibility=View.GONE
+            return
+        }
+        ensureSessionAndContinue()
+    }
 
-        val suppliedBody = shared.replace(sourceUrl,"").trim()
-        if(suppliedBody.length >= 500) analyze(sourceTitle,suppliedBody) else {
+    private fun bg() = Color.rgb(245,248,252)
+    private fun dp(v:Int)=(v*resources.displayMetrics.density).toInt()
+
+    private fun configureWindowSafely() {
+        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER
+            }
+        }
+        window.statusBarColor = bg()
+        window.navigationBarColor = bg()
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+            )
+        }
+    }
+
+    private fun installSafeInsets(view: View) {
+        view.setOnApplyWindowInsetsListener { v, insets ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val safe = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+                v.setPadding(dp(14)+safe.left, dp(18)+safe.top, dp(14)+safe.right, dp(14)+safe.bottom)
+            } else {
+                @Suppress("DEPRECATION")
+                v.setPadding(
+                    dp(14)+insets.systemWindowInsetLeft,
+                    dp(18)+insets.systemWindowInsetTop,
+                    dp(14)+insets.systemWindowInsetRight,
+                    dp(14)+insets.systemWindowInsetBottom
+                )
+            }
+            insets
+        }
+        view.requestApplyInsets()
+    }
+
+    private fun ensureSessionAndContinue() {
+        if(!currentToken().isNullOrBlank()) {
+            continueSharedFlow()
+            return
+        }
+        recoverHostedSession()
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun recoverHostedSession() {
+        status.text = "Recovering your existing Collectish session…"
+        web.visibility = View.GONE
+        val probe = WebView(this).apply {
+            visibility = View.INVISIBLE
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.databaseEnabled = true
+            webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView, url: String) {
+                    view.evaluateJavascript("localStorage.getItem('collectishSession')") { raw ->
+                        val decoded = decodeEval(raw)
+                        val session = runCatching { JSONObject(decoded) }.getOrNull()
+                        val token = session?.optString("token").orEmpty()
+                        val refresh = session?.optString("refresh").orEmpty()
+                        if(token.isNotBlank()) {
+                            getSharedPreferences("collectish-native",MODE_PRIVATE).edit()
+                                .putString("accessToken",token)
+                                .putString("refreshToken",refresh.ifBlank { null })
+                                .putString("email",session?.optJSONObject("user")?.optString("email")?.takeIf { it.isNotBlank() })
+                                .apply()
+                            cleanupSessionProbe()
+                            continueSharedFlow()
+                        } else {
+                            cleanupSessionProbe()
+                            status.text="Your hosted Collectish session could not be recovered. Open Collectish once, then share this article again."
+                        }
+                    }
+                }
+            }
+        }
+        sessionProbeWeb = probe
+        root.addView(probe, LinearLayout.LayoutParams(1,1))
+        probe.loadUrl("https://joe-nasti.github.io/marketplacescout/")
+    }
+
+    private fun cleanupSessionProbe() {
+        sessionProbeWeb?.let { p ->
+            runCatching { root.removeView(p) }
+            runCatching { p.stopLoading() }
+            runCatching { p.destroy() }
+        }
+        sessionProbeWeb = null
+    }
+
+    private fun continueSharedFlow() {
+        val suppliedBody = sharedText.replace(sourceUrl,"").trim()
+        if(suppliedBody.length >= 500) {
+            analyze(sourceTitle,suppliedBody)
+        } else {
+            web.visibility=View.VISIBLE
             status.text="Rendering ${android.net.Uri.parse(sourceUrl).host ?: "article"} with JavaScript…"
             web.loadUrl(sourceUrl)
         }
     }
-
-    private fun dp(v:Int)=(v*resources.displayMetrics.density).toInt()
 
     private fun decodeEval(raw:String):String = runCatching { JSONArray("[$raw]").getString(0) }.getOrDefault("")
 
@@ -153,5 +288,10 @@ class IntelShareActivity : Activity() {
         }
     }
 
-    override fun onDestroy(){handler.removeCallbacksAndMessages(null);web.destroy();super.onDestroy()}
+    override fun onDestroy(){
+        handler.removeCallbacksAndMessages(null)
+        cleanupSessionProbe()
+        web.destroy()
+        super.onDestroy()
+    }
 }
