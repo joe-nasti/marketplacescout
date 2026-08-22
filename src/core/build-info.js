@@ -2,7 +2,7 @@ const ATTEMPT_KEY='collectishBuildReloadAttempt';
 let checking=false,latestInfo=null,fallbackRevision='';
 const loadedBuild=()=>document.querySelector('meta[name="collectish-build"]')?.content||'unknown';
 const loadedRevision=()=>{const meta=document.querySelector('meta[name="collectish-revision"]')?.content?.trim();return meta&&meta!=='r?'?meta:(fallbackRevision||'r?')};
-const version=()=>window.COLLECTISH_WEB_VERSION||'0.9.58';
+const version=()=>window.COLLECTISH_WEB_VERSION||'0.9.59';
 const short=s=>String(s||'').slice(0,8)||'unknown';
 const label=()=>`web ${version()} · ${loadedRevision()}`;
 
