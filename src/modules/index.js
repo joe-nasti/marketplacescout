@@ -8,7 +8,8 @@ const scoutEnhancers=[
   ()=>import('./scout/vendor.js'),
   ()=>import('./scout/detail-swipe.js'),
   ()=>import('./scout/compact-mobile.js'),
-  ()=>import('./signals/scout-badges.js')
+  ()=>import('./signals/scout-badges.js'),
+  ()=>import('./signals/rendered-capture.js')
 ];
 
 const inventoryEnhancers=[
