@@ -116,3 +116,39 @@ Representative production measurements:
 - full `refresh_scout_v5_shadow()`: ~31.3 s measured history-table run → ~5.9 s with the materialized current-price cache
 
 The full rebuild improved roughly 5.3x versus the immediately preceding measured run while preserving sampled vendor-price inputs and all existing V5 score math.
+
+## 2026-08-23 Scout 24h rollup and sales-enrichment candidates
+
+### 24h refresh profiling
+
+`refresh_scout_opportunities_24h()` was measured at ~11.1 s in a cold production run and roughly 8 s once the relevant pages were warm. The source window is approximately 34k recent scan rows collapsing to about 29k SKU rows. The raw scan table is roughly 312k rows / 665 MB.
+
+A partial index was added for the all-history latest-demand lookup:
+
+`marketplace_scan_rows_user_demand_latest_idx (user_id, product_name, coalesce(edhrec_observed_at, commander_enriched_at) desc nulls last, id desc)`
+
+with the same signal-bearing predicate used by the refresh. A warm indexed latest-demand query is ~0.5 s; forcing a sequential scan/sort takes ~4.36 s and spills to disk.
+
+The 24h `recent` CTE was also narrowed from `r.*` to only the fields actually needed by latest/earliest/aggregate/scoring logic. That reduced refresh temp spill from roughly 14.8k/7.9k temp read/write blocks to roughly 2.6k/1.8k, although end-to-end wall time remained around 8 s. Direct profiling showed the extraction, latest selection, and forced percentile aggregation are each only hundreds of milliseconds; the remaining cost is the full 29k-row score/JSON projection plus cache rewrite. A larger improvement would require an incremental refresh design rather than another simple index.
+
+### Sales-enrichment candidate optimization
+
+`get_scout_sales_enrichment_candidates()` historically recomputed latest raw SKU state directly from `marketplace_scan_rows`. A fresh production plan before the change was ~583 ms and still spilled temporary blocks.
+
+To move this selector onto the already-computed 24h rollup without changing semantics, the rollup now preserves four latest-raw inputs separately from its joined demand/scoring fields:
+
+- `structural_score_latest`
+- `raw_demand_adjustment_latest`
+- `raw_demand_signal_latest`
+- `raw_demand_signal_score_latest`
+
+After refreshing the rollup, all five candidate inputs—including `base_score_latest` as current score—were compared against independently re-derived latest raw scan values across 29,059 SKUs. Mismatches: 0 for every field.
+
+`get_scout_sales_enrichment_candidates()` now groups directly from `scout_opportunities_24h` and no longer re-reads raw scan history.
+
+Representative database timing:
+
+- before: ~583 ms
+- after: ~190 ms
+
+That is roughly a 3x improvement, with no temporary spill in the post-change plan. The function remains service-role-only; neither `anon` nor `authenticated` can execute it.
