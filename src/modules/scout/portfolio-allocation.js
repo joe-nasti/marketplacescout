@@ -11,6 +11,7 @@ const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=v=>v==null?'—':Number(v).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
 const pct=v=>v==null?'—':`${Number(v).toFixed(1)}%`;
 const monthKey=()=>new Date().toISOString().slice(0,7)+'-01';
+const safeConfirmed=info=>info?.input_status==='auto_plus_manual'||info?.input_status==='manual_only';
 function budget(){const n=Number(localStorage.getItem(KEY)||1000);return Number.isFinite(n)?Math.max(100,Math.min(100000,n)):1000}
 function host(){return document.getElementById('cxScout')}
 function ready(){return !!document.getElementById('cxParityCards')}
@@ -20,7 +21,7 @@ function rowHtml(r){
   return `<button type="button" class="cx-detail-stat cx-scout-deep-link" data-portfolio-sku="${esc(r.sku_id)}"><span><strong>#${esc(r.allocation_rank)} · ${esc(r.card_name)}</strong><small>${esc(`${r.set_name||'Unknown set'} · ${r.printing||'printing unknown'}`)}</small><small>${esc(`${signal}${r.primary_signal?` · ${r.primary_signal}`:''} · ~${Number(r.expected_days_to_exit||0).toFixed(0)}d modeled exit`)}</small></span><span><strong><span class="cx-signal-stage leading">BUY ${esc(r.allocated_qty)}</span> <span class="cx-signal-stage confirming">${money(r.allocated_capital)}</span></strong><small>${esc(`ROI ${pct(r.direct_roi_pct)} · cushion +${pct(r.margin_cushion_pct)} · allocation ${r.allocation_score}/100`)}</small><small>${esc(`Est. Direct profit ${money(r.expected_net_profit)} · SKU cap ${money(r.per_sku_cap)}`)}</small></span></button>`;
 }
 function useSafeBudget(){
-  if(!safeBudgetInfo||safeBudgetInfo.input_status!=='entered')return;
+  if(!safeBudgetInfo||!safeConfirmed(safeBudgetInfo))return;
   const n=Number(safeBudgetInfo.safe_additional_buy_budget||0);if(!Number.isFinite(n)||n<100)return;
   localStorage.setItem(KEY,String(Math.round(n)));void load({force:true});
 }
@@ -37,7 +38,7 @@ function safeControl(){
   if(safeLoading&&!safeBudgetInfo)return '<button type="button" class="cx-refresh" disabled>Safe budget…</button>';
   if(!safeBudgetInfo)return '';
   const n=Number(safeBudgetInfo.safe_additional_buy_budget||0);
-  if(safeBudgetInfo.input_status!=='entered')return `<button type="button" class="cx-refresh" disabled title="Enter monthly inventory and operating spend in Seller first">Safe budget ${money(n)} · enter spend in Seller</button>`;
+  if(!safeConfirmed(safeBudgetInfo))return `<button type="button" class="cx-refresh" disabled title="Confirm monthly off-platform and operating spend in Seller first">Safe budget ${money(n)} · confirm month in Seller</button>`;
   if(n<100)return `<button type="button" class="cx-refresh" disabled>Safe budget ${money(n)}</button>`;
   return `<button type="button" class="cx-primary" id="cxPortfolioUseSafe">Use safe budget ${money(n)}</button>`;
 }
@@ -70,6 +71,7 @@ function ensure(){if(!ready())return;render();void loadSafeBudget();void load()}
 document.addEventListener('collectish:scout-list-rendered',()=>setTimeout(ensure,0));
 document.addEventListener('collectish:position-sizing-changed',()=>{lastLoadedAt=0;setTimeout(()=>load({force:true}),40)});
 document.addEventListener('collectish:seller-cashflow-changed',e=>{safeBudgetInfo={...(safeBudgetInfo||{}),safe_additional_buy_budget:e.detail?.safeBudget,input_status:e.detail?.inputStatus};render()});
+document.addEventListener('collectish:buyer-orders-changed',()=>{safeBudgetInfo=null;void loadSafeBudget({force:true})});
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout')setTimeout(ensure,100)});
 document.addEventListener('collectish:ready',()=>setTimeout(ensure,120));
 export {load as loadPortfolioAllocation};
