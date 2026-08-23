@@ -32,6 +32,7 @@ const scoutIntelligence=[
 const askEnhancers=[
   ()=>import('./ask/investigate-presentation.js'),
   ()=>import('./ask/concise-view.js'),
+  ()=>import('./ask/rich-surfaces.js'),
   ()=>import('./ask/investigate.js'),
   ()=>import('./ask/actions.js'),
   ()=>import('./ask/admin.js')
