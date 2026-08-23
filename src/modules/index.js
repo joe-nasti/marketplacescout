@@ -10,6 +10,7 @@ const scoutEnhancers=[
   ()=>import('./scout/compact-mobile.js'),
   ()=>import('./scout/liquidity.js'),
   ()=>import('./scout/quick-turn.js'),
+  ()=>import('./scout/position-sizing.js'),
   ()=>import('./signals/scout-badges.js'),
   ()=>import('./signals/scout-intelligence-bridge.js'),
   ()=>import('./signals/rendered-capture.js'),
