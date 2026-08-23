@@ -25,16 +25,12 @@ async function jsonFetch(url,retries=3){
   }
   throw last;
 }
-async function refreshV4(){
-  let after=0,total=0;
-  for(let i=0;i<100;i++){
-    const d=await rpc('recalculate_scout_base_v4_batch',{p_after_id:after,p_limit:750});
-    const n=Number(d?.count||0),next=Number(d?.last_id||after);total+=n;
-    if(!n||next<=after)break;after=next;
-  }
-  const refreshed=await rpc('refresh_scout_opportunities_24h');
-  const annotated=await rpc('annotate_scout_sales_confidence');
-  return {rescored:total,refreshed,annotated};
+async function refreshCanonicalScout(){
+  const aggregate=Number(await rpc('refresh_scout_opportunities_24h'));
+  const annotated=Number(await rpc('annotate_scout_sales_confidence'));
+  const shadow=Number(await rpc('refresh_scout_v5_shadow'));
+  const promotedCache=Number(await rpc('refresh_scout_opportunities_v5_cache'));
+  return {aggregate,annotated,shadow,promotedCache};
 }
 
 const candidates=await rpc('get_scout_sales_enrichment_candidates',{p_limit:LIMIT})||[];
@@ -48,5 +44,5 @@ for(const c of candidates){
   }catch(e){failed++;console.error(`sales ${c.product_id} ${c.product_name}: ${e.message}`);}
   await sleep(90);
 }
-const refresh=await refreshV4();
-console.log(JSON.stringify({candidateCount:candidates.length,fetched,failed,appliedRows,...refresh,scoringVersion:'supply-structure-v4',limit:LIMIT},null,2));
+const refresh=await refreshCanonicalScout();
+console.log(JSON.stringify({candidateCount:candidates.length,fetched,failed,appliedRows,...refresh,scoringVersion:'scout-v5',limit:LIMIT},null,2));
