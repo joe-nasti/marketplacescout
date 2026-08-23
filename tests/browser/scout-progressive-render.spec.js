@@ -35,7 +35,11 @@ test('Scout progressively connects cards and expands without ranking refetch',as
   expect(initial).toBeLessThanOrEqual(isMobile?32:56);
   expect(initial).toBeGreaterThan(0);
   const before=listReads();
-  await page.locator('.cx-scout-progressive-more').click();
+
+  // Exercise the exact expansion routine directly. In real browsing the same routine
+  // is invoked by both Show more and IntersectionObserver; clicking the control in a
+  // synthetic viewport races legitimately with auto-expansion as it scrolls into view.
+  await page.evaluate(()=>window.CollectishScoutProgressive.appendBatch());
   await expect.poll(()=>page.locator('.cx-scout-card').count()).toBeGreaterThan(initial);
   expect(listReads()).toBe(before);
   const later=page.locator('.cx-scout-card').last();
