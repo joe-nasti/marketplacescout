@@ -1,11 +1,27 @@
 import { registerComponent } from '../../core/lifecycle.js';
+import store from '../../state/store.js';
 
 const detail=()=>document.getElementById('cxParityDetail');
 const norm=s=>String(s||'').trim().toLowerCase();
-function linkMap(h){const m=new Map();h.querySelectorAll('.cx-v5-links a').forEach(a=>{const t=norm(a.textContent.replace(/↗/g,''));if(t.includes('tcgplayer'))m.set('tcg',a.href);else if(t==='card kingdom')m.set('ck',a.href);else if(t.includes('ck buylist'))m.set('ckbuy',a.href);else if(t.includes('mana pool'))m.set('mana',a.href);else if(t.includes('cardmarket'))m.set('mkm',a.href);else if(t.includes('edhrec'))m.set('edh',a.href);else if(t.includes('scryfall'))m.set('scry',a.href)});return m}
+function selectedScoutRow(){
+  const scout=store.get().scout||{},sku=String(scout.selectedSku||'');
+  return (scout.rows||[]).find(r=>String(r.sku_id||'')===sku)||null;
+}
+function ensureMtgbanLink(h){
+  const row=selectedScoutRow(),pid=String(row?.product_id||'').trim(),links=h.querySelector('.cx-v5-links');
+  h.querySelector('[data-cx-mtgban-link]')?.remove();
+  if(!pid||!links)return;
+  const a=document.createElement('a');
+  a.href=`https://mtgban.com/search?q=${encodeURIComponent(pid)}`;
+  a.target='_blank';a.rel='noopener';a.dataset.cxMtgbanLink='1';
+  a.className='cx-mtgban-priority';a.textContent='MTGBAN ↗';
+  a.title=`Open TCGplayer product ${pid} in MTGBAN`;
+  links.prepend(a);
+}
+function linkMap(h){const m=new Map();h.querySelectorAll('.cx-v5-links a').forEach(a=>{const t=norm(a.textContent.replace(/↗/g,''));if(t.includes('mtgban'))m.set('mtgban',a.href);else if(t.includes('tcgplayer'))m.set('tcg',a.href);else if(t==='card kingdom')m.set('ck',a.href);else if(t.includes('ck buylist'))m.set('ckbuy',a.href);else if(t.includes('mana pool'))m.set('mana',a.href);else if(t.includes('cardmarket'))m.set('mkm',a.href);else if(t.includes('edhrec'))m.set('edh',a.href);else if(t.includes('scryfall'))m.set('scry',a.href)});return m}
 function sourceFor(label){const x=norm(label);if(x==='tcg market'||x==='tcg low'||x==='tcg direct low')return'tcg';if(x==='card kingdom')return'ck';if(x==='ck cash buylist')return'ckbuy';if(x==='mana pool')return'mana';if(x==='cardmarket / mkm'||x==='cardmarket')return'mkm';if(x==='edhrec rank')return'edh';return null}
 function activate(el,href){if(!href||el.dataset.cxTileLinked==='1')return;el.dataset.cxTileLinked='1';el.classList.add('cx-v5-stat-link');el.setAttribute('role','link');el.setAttribute('tabindex','0');el.setAttribute('aria-label',`${el.querySelector('span')?.textContent||'Open source'} — open source`);const go=()=>window.open(href,'_blank','noopener');el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();go()});el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}})}
-export function decorateScoutDetailLinks(){const h=detail();if(!h)return;const links=linkMap(h);if(!links.size)return;h.querySelectorAll('.cx-v5-stat').forEach(el=>{const src=sourceFor(el.querySelector(':scope > span')?.textContent);if(src)activate(el,links.get(src))});h.querySelectorAll('.cx-v5-callout > div').forEach(el=>{const label=norm(el.querySelector('span')?.textContent);if(label==='tcg direct low')activate(el,links.get('tcg'))})}
+export function decorateScoutDetailLinks(){const h=detail();if(!h)return;ensureMtgbanLink(h);const links=linkMap(h);if(!links.size)return;h.querySelectorAll('.cx-v5-stat').forEach(el=>{const src=sourceFor(el.querySelector(':scope > span')?.textContent);if(src)activate(el,links.get(src))});h.querySelectorAll('.cx-v5-callout > div').forEach(el=>{const label=norm(el.querySelector('span')?.textContent);if(label==='tcg direct low')activate(el,links.get('tcg'))})}
 function schedule(){requestAnimationFrame(()=>requestAnimationFrame(decorateScoutDetailLinks))}
 function onClick(event){if(event.target.closest?.('#cxParityCards .cx-scout-card'))schedule()}
 registerComponent('scout-detail-links',{
