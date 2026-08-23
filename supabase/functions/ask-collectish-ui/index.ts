@@ -26,27 +26,50 @@ function actionBar(screen:string,row:any){
   if(screen==='seller'&&row?.order_number)return [{type:'open_order',label:'Open order',order_id:String(row.order_number),primary:true}];
   return [];
 }
-function normalizeScout(row:any){return {sku_id:row?.sku_id??null,product_id:row?.product_id??null,product_name:row?.product_name??null,grade:row?.promoted_grade??null,score:row?.promoted_score??null,market_price:row?.sku_market_price??null,direct_available:row?.direct_available??null,edhrec_rank:row?.edhrec_rank??null,set_name:row?.set_name??null,condition:row?.condition??null,printing:row?.printing??null,language:row?.language??null}}
+function normalizeScout(row:any){return {sku_id:row?.sku_id??null,product_id:row?.product_id??null,product_name:row?.product_name??null,grade:row?.promoted_grade??row?.grade??null,score:row?.promoted_score??row?.opportunity_score??row?.score??null,market_price:row?.sku_market_price??row?.market_price??null,direct_available:row?.direct_available??null,edhrec_rank:row?.edhrec_rank??null,set_name:row?.set_name??null,condition:row?.condition??null,printing:row?.printing??null,language:row?.language??null}}
+const one=(x:any)=>Array.isArray(x)?x[0]:x;
 
-async function buildSurfaces(t:string,body:any,upstream:any){
-  const surfaces:any[]=[];const ctx=body?.context||{};const screen=String(ctx?.screen||upstream?.context_screen||'').toLowerCase();const tools=toolNames(upstream);
+async function addContextSurfaces(t:string,body:any,upstream:any,surfaces:any[]){
+  const ctx=body?.context||{},screen=String(ctx?.screen||upstream?.context_screen||'').toLowerCase(),tools=toolNames(upstream);
   try{
     if(screen==='scout'&&(ctx.product_id||ctx.sku_id)){
-      const row=await rpc(t,'ask_collectish_get_scout_card',{p_product_id:ctx.product_id??null,p_sku_id:ctx.sku_id??null});const card=Array.isArray(row)?row[0]:row;
+      const card=one(await rpc(t,'ask_collectish_get_scout_card',{p_product_id:ctx.product_id??null,p_sku_id:ctx.sku_id??null}));
       if(card)surfaces.push({type:'opportunity_card',domain:'scout',title:'Scout opportunity',item:normalizeScout(card),actions:actionBar('scout',card)});
+      const pid=String(card?.product_id||ctx.product_id||'');
+      if(pid&&tools.has('get_price_history')){
+        const d=await rpc(t,'ask_collectish_get_price_history',{p_product_id:pid});
+        if(d?.observations?.length)surfaces.push({type:'price_history',domain:'scout',title:'Price history',product_id:pid,observations:d.observations,count:d.count,actions:[{type:'ask',label:'What changed?',prompt:'Explain the important changes in this price history.'}]});
+      }
+      if((ctx.product_id||ctx.sku_id)&&tools.has('get_vendor_comparison')){
+        const d=await rpc(t,'ask_collectish_get_vendor_comparison',{p_product_id:ctx.product_id??null,p_sku_id:ctx.sku_id??null});
+        if(d?.found)surfaces.push({type:'vendor_comparison',domain:'vendors',title:'Vendor exits',item:d,actions:[{type:'ask',label:'Best exit?',prompt:'Which collected exit is best here after considering liquidity and execution risk?'}]});
+      }
+      if(tools.has('get_product_sales_history')){
+        const d=await rpc(t,'ask_collectish_get_product_sales_history',{p_product_id:ctx.product_id??card?.product_id??null,p_sku_id:ctx.sku_id??card?.sku_id??null});
+        if(d?.orders||d?.units_sold||d?.monthly?.length)surfaces.push({type:'seller_performance',domain:'seller',title:'Your sales history',data:d,actions:[{type:'ask',label:'Interpret velocity',prompt:'Interpret my historical sales velocity for this exact card.'}]});
+      }
     }else if(screen==='syp'&&ctx.sku_id){
-      const row=await rpc(t,'ask_collectish_get_syp_offer',{p_sku_id:String(ctx.sku_id)});const item=Array.isArray(row)?row[0]:row;
+      const item=one(await rpc(t,'ask_collectish_get_syp_offer',{p_sku_id:String(ctx.sku_id)}));
       if(item)surfaces.push({type:'entity_card',domain:'syp',title:'SYP offer',item,actions:actionBar('syp',item)});
+      if(tools.has('get_syp_history')){
+        const d=await rpc(t,'ask_collectish_get_syp_history',{p_sku_id:String(ctx.sku_id)});
+        if(d?.events?.length)surfaces.push({type:'syp_timeline',domain:'syp',title:'SYP history',offer:d.offer,events:d.events,actions:[{type:'ask',label:'Summarize changes',prompt:'Summarize the material changes in this exact SYP history.'}]});
+      }
     }else if(screen==='seller'&&ctx.order_id){
       const rows=await rpc(t,'ask_collectish_search_orders',{p_filters:{order_number:String(ctx.order_id),limit:1}});const item=rows?.results?.[0]||rows?.[0]||null;
       if(item)surfaces.push({type:'entity_card',domain:'seller',title:'Seller order',item,actions:actionBar('seller',item)});
-    }else if(screen==='inventory'&&ctx.sku_id){
-      const rows=await rpc(t,'ask_collectish_get_inventory_aging',{p_filters:{sku_id:String(ctx.sku_id),limit:1}});const item=rows?.results?.[0]||rows?.[0]||null;
-      if(item)surfaces.push({type:'entity_card',domain:'inventory',title:'Inventory item',item,actions:[]});
+    }else if(screen==='inventory'){
+      const filters=ctx.sku_id?{sku_id:String(ctx.sku_id),limit:8}:{limit:8};
+      const d=await rpc(t,'ask_collectish_get_inventory_aging',{p_filters:filters});
+      const item=d?.results?.[0]||null;
+      if(item&&ctx.sku_id)surfaces.push({type:'entity_card',domain:'inventory',title:'Inventory item',item,actions:[]});
+      if(tools.has('get_inventory_aging')&&d?.results?.length)surfaces.push({type:'inventory_aging',domain:'inventory',title:'Inventory aging',data:d,actions:[{type:'navigate',screen:'inventory',label:'Open Inventory',primary:true}]});
     }
   }catch{}
+}
 
-  const filtered=exactAction(upstream,'apply_filters');
+async function addSearchSurfaces(t:string,upstream:any,surfaces:any[]){
+  const tools=toolNames(upstream),filtered=exactAction(upstream,'apply_filters');
   if(filtered?.screen==='scout'&&tools.has('search_scout')){
     try{const data=await rpc(t,'ask_collectish_search_scout',{p_filters:{...(filtered.filters||{}),limit:8}});const rows=(data?.results||data||[]).slice(0,8);if(rows.length>1)surfaces.push({type:'opportunity_carousel',domain:'scout',title:'Scout opportunities',items:rows.map(normalizeScout),coverage_note:data?.coverage_note||data?.coverage?.coverage_note||null,actions:[{type:'navigate',screen:'scout',label:'Open Scout',primary:true}]})}catch{}
   }else if(filtered?.screen==='syp'&&tools.has('search_syp')){
@@ -54,9 +77,21 @@ async function buildSurfaces(t:string,body:any,upstream:any){
   }else if(filtered?.screen==='seller'&&tools.has('search_orders')){
     try{const data=await rpc(t,'ask_collectish_search_orders',{p_filters:{...(filtered.filters||{}),limit:8}});const rows=(data?.results||data||[]).slice(0,8);if(rows.length)surfaces.push({type:'result_list',domain:'seller',title:'Seller results',items:rows,coverage_note:data?.coverage_note||null})}catch{}
   }else if(filtered?.screen==='inventory'&&tools.has('get_inventory_aging')){
-    try{const data=await rpc(t,'ask_collectish_get_inventory_aging',{p_filters:{...(filtered.filters||{}),limit:8}});const rows=(data?.results||data||[]).slice(0,8);if(rows.length)surfaces.push({type:'result_list',domain:'inventory',title:'Inventory results',items:rows,coverage_note:data?.coverage_note||null})}catch{}
+    try{const data=await rpc(t,'ask_collectish_get_inventory_aging',{p_filters:{...(filtered.filters||{}),limit:8}});if(data?.results?.length)surfaces.push({type:'inventory_aging',domain:'inventory',title:'Inventory aging',data,actions:[{type:'navigate',screen:'inventory',label:'Open Inventory',primary:true}]})}catch{}
   }
-  return surfaces.slice(0,3);
+}
+
+async function addBriefSurface(t:string,upstream:any,surfaces:any[]){
+  const tools=toolNames(upstream);if(!tools.has('collectish_brief'))return;
+  try{const d=await rpc(t,'ask_collectish_collectish_brief_snapshot',{});if(d)surfaces.push({type:'market_brief',domain:'collectish',title:'Collectish brief',data:d,actions:[{type:'ask',label:'Find best action',prompt:'What is the single best action from this Collectish brief?'}]})}catch{}
+}
+
+async function buildSurfaces(t:string,body:any,upstream:any){
+  const surfaces:any[]=[];
+  await addContextSurfaces(t,body,upstream,surfaces);
+  await addSearchSurfaces(t,upstream,surfaces);
+  await addBriefSurface(t,upstream,surfaces);
+  return surfaces.slice(0,4);
 }
 
 Deno.serve(async(req:Request)=>{
@@ -69,5 +104,5 @@ Deno.serve(async(req:Request)=>{
   if(!r.ok)return json(upstream,r.status);
   if(String(body?.action||'chat')!=='chat')return json(upstream,r.status);
   const surfaces=await buildSurfaces(t,body,upstream);
-  return json({...upstream,surface_schema:'collectish.ask.surface.v1',surfaces},r.status);
+  return json({...upstream,surface_schema:'collectish.ask.surface.v2',surfaces},r.status);
 });
