@@ -3,6 +3,8 @@ dist/
 .vite/
 *.log
 .DS_Store
+playwright-report/
+test-results/
 
 # Source files keep stable names; Vite owns production cache-busting.
 /current-*-r*.js
