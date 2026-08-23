@@ -119,6 +119,17 @@ jobs:
       - name: Import MTGJSON daily prices
         if: env.MTGJSON_MODE == 'prices' || env.MTGJSON_MODE == 'all'
         run: node cloud-worker/mtgjson-sync.mjs prices
+      - name: Refresh Scout current vendor price cache
+        if: env.MTGJSON_MODE == 'prices' || env.MTGJSON_MODE == 'all'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/refresh_scout_vendor_price_current_cache" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
       - name: Refresh public TCG sealed Commander prices
         continue-on-error: true
         run: node cloud-worker/refresh-sealed-commander-prices.mjs
