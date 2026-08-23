@@ -26,29 +26,6 @@ const scoutEnhancers=[
   ()=>import('./signals/actionable-emerging.js')
 ];
 
-const inventoryEnhancers=[
-  ()=>import('./seller/cashflow-budget.js'),
-  ()=>import('./seller/buyer-account.js'),
-  ()=>import('./seller/inventory-progress.js'),
-  ()=>import('./seller/inventory-sync-controller.js'),
-  ()=>import('./seller/inventory-reconciler.js'),
-  ()=>import('./seller/inventory-reconcile-status.js'),
-  ()=>import('./seller/freshness.js'),
-  ()=>import('./seller/refresh-detail-progress.js')
-];
-
-const adminModules=[
-  ()=>import('./admin/alerts.js'),
-  ()=>import('./admin/scans.js'),
-  ()=>import('./admin/fixed-nav.js'),
-  ()=>import('./admin/marketplace-health.js'),
-  ()=>import('./admin/console.js'),
-  ()=>import('./admin/sealed-catalog.js'),
-  ()=>import('./admin/sealed-health.js'),
-  ()=>import('./admin/cardtrader-health.js'),
-  ()=>import('./admin/top.js')
-];
-
 const askEnhancers=[
   ()=>import('./ask/investigate-presentation.js'),
   ()=>import('./ask/concise-view.js'),
@@ -59,23 +36,31 @@ const askEnhancers=[
 
 const loadParallel=loaders=>Promise.all(loaders.map(load=>load()));
 let installPromise=null;
+let askPromise=null;
+
+function scheduleAsk(){
+  if(askPromise)return askPromise;
+  const run=()=>{
+    askPromise=(async()=>{
+      await import('./ask/main.js');
+      await loadParallel(askEnhancers);
+      document.dispatchEvent(new CustomEvent('collectish:ask-modules-ready'));
+    })();
+    return askPromise;
+  };
+  if('requestIdleCallback' in window)requestIdleCallback(()=>run(),{timeout:2500});
+  else setTimeout(()=>run(),1200);
+  return null;
+}
 
 export function installModules(){
   if(installPromise)return installPromise;
   installPromise=(async()=>{
-    // Preserve the few real ordering dependencies, but fetch/evaluate independent
-    // feature modules in parallel instead of one network roundtrip at a time.
+    // Scout is the default page, so only Scout-critical enhancers stay on the
+    // authenticated startup path. Inventory and Admin now load on first visit.
     await loadParallel(scoutEnhancers);
-
-    await import('./seller/inventory.js');
-    await loadParallel(inventoryEnhancers);
-
-    await loadParallel(adminModules);
-
-    await import('./ask/main.js');
-    await loadParallel(askEnhancers);
-
     document.dispatchEvent(new CustomEvent('collectish:feature-modules-ready'));
+    scheduleAsk();
   })();
   return installPromise;
 }
