@@ -93,6 +93,17 @@ jobs:
       - name: Import MTGJSON commerce catalog
         if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
         run: python cloud-worker/mtgjson-parquet-sync.py
+      - name: Refresh MTGJSON print stats cache
+        if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/refresh_mtgjson_print_stats_cache" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
       - name: Enrich sealed products from native set JSON
         if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
         run: python cloud-worker/mtgjson-set-sealed-sync.py
