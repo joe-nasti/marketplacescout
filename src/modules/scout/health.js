@@ -2,9 +2,10 @@ import { rest } from '../../core/rest.js';
 
 const WARN_MIN=90;
 const BAD_MIN=120;
+const INITIAL_DELAY_MS=8000;
 let timer=0;
 let last=null;
-const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 const ageMin=t=>t?Math.max(0,(Date.now()-new Date(t).getTime())/60000):Infinity;
 const rel=t=>{if(!t)return'Never';const m=Math.round(ageMin(t));return m<60?`${Math.max(1,m)}m ago`:`${Math.round(m/60)}h ago`};
 const secs=ms=>ms==null?'—':`${(Number(ms)/1000).toFixed(1)}s`;
@@ -14,5 +15,6 @@ function renderAdminCard(x){const grid=document.getElementById('cxAdminOverviewC
 export function renderScoutHealth(x=last){if(!x)return;renderScoutBanner(x);renderAdminCard(x)}
 export async function checkScoutHealth(){try{last=await readScoutHealth();renderScoutHealth(last);document.dispatchEvent(new CustomEvent('collectish:scout-health',{detail:last}));return last}catch(error){console.warn('Scout health monitor',error);return null}}
 function schedule(){clearTimeout(timer);if(document.hidden)return;timer=setTimeout(async()=>{await checkScoutHealth();schedule()},60000)}
-export function installScoutHealthMonitor(){document.addEventListener('collectish:ready',()=>{setTimeout(checkScoutHealth,400);schedule()});document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer);return}checkScoutHealth();schedule()});document.addEventListener('click',e=>{if(e.target.closest?.('[data-cx-page="scout"],[data-cx-page="admin"],#cxScoutRefresh'))setTimeout(checkScoutHealth,350)},true);document.addEventListener('collectish:admin-section-change',()=>setTimeout(()=>renderScoutHealth(last),0))}
+function scheduleInitial(){clearTimeout(timer);timer=setTimeout(async()=>{if(!document.hidden)await checkScoutHealth();schedule()},INITIAL_DELAY_MS)}
+export function installScoutHealthMonitor(){document.addEventListener('collectish:ready',scheduleInitial);document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer);return}if(last){renderScoutHealth(last);schedule()}else scheduleInitial()});document.addEventListener('click',e=>{if(e.target.closest?.('[data-cx-page="admin"],#cxScoutRefresh'))setTimeout(checkScoutHealth,350)},true);document.addEventListener('collectish:admin-section-change',()=>setTimeout(()=>renderScoutHealth(last),0))}
 installScoutHealthMonitor();
