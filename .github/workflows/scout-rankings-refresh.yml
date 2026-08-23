@@ -20,6 +20,7 @@ jobs:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SCOUT_RANKINGS_STALE_MINUTES: "105"
+      SCOUT_FORCE_FULL: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
