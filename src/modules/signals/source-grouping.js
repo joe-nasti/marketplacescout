@@ -1,0 +1,61 @@
+import store from '../../state/store.js';
+
+const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pretty=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+const stageClass=s=>['leading','confirming','lagging','noise','neutral'].includes(s)?s:'unclassified';
+const labelFor=e=>e?.entity_type==='card'&&(e?.scryfall_id||e?.product_id)?'Card':({format:'Format',set:'Set',sealed_product:'Product',retailer:'Retailer',card:'Unverified',other:'Context'}[e?.entity_type]||'Context');
+
+function groupKey(item){return String(item?.source_url||item?.title||item?.intel_id||'').trim()}
+function groupsFor(rows){
+  const map=new Map();
+  for(const row of rows){const key=groupKey(row);if(!map.has(key))map.set(key,[]);map.get(key).push(row)}
+  return [...map.entries()].map(([key,items])=>({key,items}));
+}
+function entityKey(e){return `${e?.entity_type||''}|${e?.entity_name||''}|${e?.scryfall_id||''}|${e?.product_id||''}`}
+function entityChips(rows){
+  const seen=new Set(),out=[];
+  for(const row of rows){
+    for(const e of Array.isArray(row.market_intel_entities)?row.market_intel_entities:[]){
+      const key=entityKey(e);if(seen.has(key))continue;seen.add(key);
+      const verified=e.entity_type==='card'&&!!(e.scryfall_id||e.product_id);
+      if(verified){
+        out.push(`<button type="button" class="cx-signal-entity-chip cx-scout-deep-link" data-group-card data-product-id="${esc(e.product_id||'')}" data-scryfall-id="${esc(e.scryfall_id||'')}" data-card-name="${esc(e.entity_name||'')}">Card · ${esc(e.entity_name)} ✓</button>`);
+      }else{
+        out.push(`<span class="cx-signal-entity-chip" data-entity-type="${esc(e.entity_type||'other')}">${esc(labelFor(e))} · ${esc(e.entity_name||'')}</span>`);
+      }
+    }
+  }
+  return out.join('');
+}
+function claimRow(row){
+  return `<div class="cx-signal-group-claim" data-intel-id="${esc(row.intel_id)}"><div class="cx-signal-card-head"><span class="cx-signal-stage ${stageClass(row.signal_stage)}">${esc(pretty(row.signal_stage))}</span><span class="cx-signal-direction ${esc(row.direction)}">${esc(pretty(row.direction))}</span><span class="cx-signal-claim-type">${esc(pretty(row.claim_type))}</span></div>${row.summary?`<p>${esc(row.summary)}</p>`:''}<button type="button" class="cx-signal-remove-claim" data-delete-intel="${esc(row.intel_id)}">Remove claim</button></div>`;
+}
+function sourceCard(group){
+  const rows=group.items;
+  const title=rows.find(x=>x.title)?.title||'Market intelligence';
+  const source=rows.find(x=>x.source_name)?.source_name||pretty(rows[0]?.source_type);
+  const author=rows.find(x=>x.author)?.author||'';
+  const url=rows.find(x=>x.source_url)?.source_url||'';
+  const chips=entityChips(rows);
+  return `<article class="cx-signal-card cx-signal-source-group" data-source-key="${esc(group.key)}"><h3>${esc(title)}</h3><div class="cx-signal-meta">${esc(source)}${author?` · ${esc(author)}`:''} · ${rows.length} claim${rows.length===1?'':'s'}</div>${chips?`<div class="cx-signal-entities">${chips}</div>`:''}<div class="cx-signal-group-claims">${rows.map(claimRow).join('')}</div><div class="cx-signal-actions">${url?`<a href="${esc(url)}" target="_blank" rel="noopener">Open source ↗</a>`:''}</div></article>`;
+}
+function activeStage(){return document.querySelector('[data-signal-stage].active')?.dataset?.signalStage||'all'}
+function decorate(){
+  const box=document.getElementById('cxSignalsFeed');if(!box)return;
+  const rows=Array.isArray(store.get().intel?.items)?store.get().intel.items:[];
+  const stage=activeStage(),filtered=stage==='all'?rows:rows.filter(x=>x.signal_stage===stage);
+  if(!filtered.length)return;
+  box.innerHTML=groupsFor(filtered).map(sourceCard).join('');
+}
+function openGroupedCard(button){
+  document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{product_id:button.dataset.productId||null,scryfall_id:button.dataset.scryfallId||null,card_name:button.dataset.cardName||null}}));
+}
+const schedule=()=>setTimeout(decorate,0);
+document.addEventListener('collectish:intel-changed',schedule);
+document.addEventListener('click',e=>{
+  const card=e.target.closest?.('[data-group-card]');if(card){e.preventDefault();e.stopPropagation();openGroupedCard(card);return}
+  if(e.target.closest?.('[data-signal-stage]'))setTimeout(decorate,0);
+},true);
+document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')setTimeout(decorate,80)});
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')setTimeout(decorate,100)});
+queueMicrotask(decorate);
