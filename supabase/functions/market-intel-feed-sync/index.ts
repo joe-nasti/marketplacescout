@@ -30,7 +30,7 @@ function parseFeed(xml:string,feedUrl:string){
   }).filter(x=>x.url);
 }
 async function sha(value:string){const bytes=new TextEncoder().encode(value),hash=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-async function ingest(t:string,item:any,sourceName:string){const r=await fetch(`${U}/functions/v1/market-intel-ingest`,{method:'POST',headers:H(t),body:JSON.stringify({url:item.url,rendered_text:item.summary||undefined,rendered_title:item.title,author:item.author,published_at:item.published_at,source_type:'article',source_name:sourceName})});const raw=await r.text();let d:any;try{d=raw?JSON.parse(raw):{}}catch{d={error:raw}}if(!r.ok)throw Error(d?.error||`Ingest ${r.status}`);return d}
+async function ingest(t:string,item:any,sourceName:string){const body:any={url:item.url,rendered_title:item.title,author:item.author,published_at:item.published_at,source_type:'article',source_name:sourceName};if(String(item.summary||'').trim().length>=120)body.rendered_text=item.summary;const r=await fetch(`${U}/functions/v1/market-intel-ingest`,{method:'POST',headers:H(t),body:JSON.stringify(body)});const raw=await r.text();let d:any;try{d=raw?JSON.parse(raw):{}}catch{d={error:raw}}if(!r.ok)throw Error(d?.error||`Ingest ${r.status}`);return d}
 async function subscriptions(t:string,b:any){
   if(b?.feed_url){const url=safeUrl(String(b.feed_url));return [{source:trim(b.source_name,120)||new URL(url).hostname,source_key:url,payload_json:{feed_url:url,enabled:true,max_items:Number(b.max_items)||5}}]}
   const rows=await rest(t,"source_captures?select=source,source_key,payload_json&capture_type=eq.feed_subscription&order=captured_at.asc&limit=50");
