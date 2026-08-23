@@ -2,107 +2,52 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const U=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
 const A=Deno.env.get('SUPABASE_ANON_KEY')||'';
-const C={
-  'Access-Control-Allow-Origin':'*',
-  'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods':'POST, OPTIONS'
-};
+const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
 const json=(body:any,status=200)=>new Response(JSON.stringify(body),{status,headers:{...C,'Content-Type':'application/json','Cache-Control':'no-store'}});
 const token=(req:Request)=>{const h=req.headers.get('authorization')||'';return h.toLowerCase().startsWith('bearer ')?h.slice(7):''};
 const headers=(t:string)=>({apikey:A,Authorization:`Bearer ${t}`,'Content-Type':'application/json'});
-
-async function rpc(t:string,name:string,args:any={}){
-  const r=await fetch(`${U}/rest/v1/rpc/${name}`,{method:'POST',headers:headers(t),body:JSON.stringify(args)});
-  const text=await r.text();let data:any;try{data=text?JSON.parse(text):null}catch{data=text}
-  if(!r.ok)throw Error(data?.message||`${name} failed (${r.status})`);
-  return data;
-}
-
+async function rpc(t:string,name:string,args:any={}){const r=await fetch(`${U}/rest/v1/rpc/${name}`,{method:'POST',headers:headers(t),body:JSON.stringify(args)});const text=await r.text();let data:any;try{data=text?JSON.parse(text):null}catch{data=text}if(!r.ok)throw Error(data?.message||`${name} failed (${r.status})`);return data}
+async function rest(t:string,path:string){const r=await fetch(`${U}/rest/v1/${path}`,{headers:headers(t)});const text=await r.text();let data:any;try{data=text?JSON.parse(text):null}catch{data=text}if(!r.ok)throw Error(data?.message||`REST failed (${r.status})`);return data}
 function toolNames(upstream:any){return new Set((upstream?.tools||[]).filter((x:any)=>x?.ok!==false).map((x:any)=>String(x?.name||'').replace(':auto_context','')))}
 function exactAction(upstream:any,type:string){return (upstream?.ui_actions||[]).find((a:any)=>a?.type===type)||null}
-function actionBar(screen:string,row:any){
-  if(screen==='scout'&&row?.product_id)return [{type:'open_card',label:'Open in Scout',product_id:String(row.product_id),primary:true},{type:'ask',label:'Explain risks',prompt:'What are the biggest risks for this opportunity?'}];
-  if(screen==='syp'&&row?.sku_id)return [{type:'open_syp_item',label:'Open SYP item',sku_id:String(row.sku_id),primary:true},{type:'ask',label:'Show history',prompt:'Show the history for this exact SYP SKU.'}];
-  if(screen==='seller'&&row?.order_number)return [{type:'open_order',label:'Open order',order_id:String(row.order_number),primary:true}];
-  return [];
-}
+function actionBar(screen:string,row:any){if(screen==='scout'&&row?.product_id)return [{type:'open_card',label:'Open in Scout',product_id:String(row.product_id),primary:true},{type:'ask',label:'Explain risks',prompt:'What are the biggest risks for this opportunity?'}];if(screen==='syp'&&row?.sku_id)return [{type:'open_syp_item',label:'Open SYP item',sku_id:String(row.sku_id),primary:true},{type:'ask',label:'Show history',prompt:'Show the history for this exact SYP SKU.'}];if(screen==='seller'&&row?.order_number)return [{type:'open_order',label:'Open order',order_id:String(row.order_number),primary:true}];return []}
 function normalizeScout(row:any){return {sku_id:row?.sku_id??null,product_id:row?.product_id??null,product_name:row?.product_name??null,grade:row?.promoted_grade??row?.grade??null,score:row?.promoted_score??row?.opportunity_score??row?.score??null,market_price:row?.sku_market_price??row?.market_price??null,direct_available:row?.direct_available??null,edhrec_rank:row?.edhrec_rank??null,set_name:row?.set_name??null,condition:row?.condition??null,printing:row?.printing??null,language:row?.language??null}}
 const one=(x:any)=>Array.isArray(x)?x[0]:x;
+
+async function marketIntelForProduct(t:string,pid:string){
+  const rollups=await rest(t,`market_intel_entity_rollups?select=entity_key,entity_name,product_id,claim_count,independent_source_count,bullish_claims,bearish_claims,early_sources,confirming_sources,late_sources,intel_direction_score,latest_observed_at&product_id=eq.${encodeURIComponent(pid)}&order=latest_observed_at.desc&limit=1`);
+  const rollup=rollups?.[0];if(!rollup)return null;
+  const entities=await rest(t,`market_intel_entities?select=intel_id,confidence&product_id=eq.${encodeURIComponent(pid)}&order=created_at.desc&limit=12`);
+  const ids=[...new Set((entities||[]).map((x:any)=>x.intel_id).filter(Boolean))];let claims:any[]=[];
+  if(ids.length){const filter=encodeURIComponent(`in.(${ids.join(',')})`);claims=await rest(t,`market_intel_items?select=intel_id,source_type,source_name,title,author,summary,claim_type,direction,signal_stage,confidence,published_at,observed_at&intel_id=${filter}&order=observed_at.desc&limit=8`)}
+  return {rollup,claims};
+}
 
 async function addContextSurfaces(t:string,body:any,upstream:any,surfaces:any[]){
   const ctx=body?.context||{},screen=String(ctx?.screen||upstream?.context_screen||'').toLowerCase(),tools=toolNames(upstream);
   try{
     if(screen==='scout'&&(ctx.product_id||ctx.sku_id)){
-      const card=one(await rpc(t,'ask_collectish_get_scout_card',{p_product_id:ctx.product_id??null,p_sku_id:ctx.sku_id??null}));
-      if(card)surfaces.push({type:'opportunity_card',domain:'scout',title:'Scout opportunity',item:normalizeScout(card),actions:actionBar('scout',card)});
+      const card=one(await rpc(t,'ask_collectish_get_scout_card',{p_product_id:ctx.product_id??null,p_sku_id:ctx.sku_id??null}));if(card)surfaces.push({type:'opportunity_card',domain:'scout',title:'Scout opportunity',item:normalizeScout(card),actions:actionBar('scout',card)});
       const pid=String(card?.product_id||ctx.product_id||'');
-      if(pid&&tools.has('get_price_history')){
-        const d=await rpc(t,'ask_collectish_get_price_history',{p_product_id:pid});
-        if(d?.observations?.length)surfaces.push({type:'price_history',domain:'scout',title:'Price history',product_id:pid,observations:d.observations,count:d.count,actions:[{type:'ask',label:'What changed?',prompt:'Explain the important changes in this price history.'}]});
-      }
-      if((ctx.product_id||ctx.sku_id)&&tools.has('get_vendor_comparison')){
-        const d=await rpc(t,'ask_collectish_get_vendor_comparison',{p_product_id:ctx.product_id??null,p_sku_id:ctx.sku_id??null});
-        if(d?.found)surfaces.push({type:'vendor_comparison',domain:'vendors',title:'Vendor exits',item:d,actions:[{type:'ask',label:'Best exit?',prompt:'Which collected exit is best here after considering liquidity and execution risk?'}]});
-      }
-      if(tools.has('get_product_sales_history')){
-        const d=await rpc(t,'ask_collectish_get_product_sales_history',{p_product_id:ctx.product_id??card?.product_id??null,p_sku_id:ctx.sku_id??card?.sku_id??null});
-        if(d?.orders||d?.units_sold||d?.monthly?.length)surfaces.push({type:'seller_performance',domain:'seller',title:'Your sales history',data:d,actions:[{type:'ask',label:'Interpret velocity',prompt:'Interpret my historical sales velocity for this exact card.'}]});
-      }
-    }else if(screen==='syp'&&ctx.sku_id){
-      const item=one(await rpc(t,'ask_collectish_get_syp_offer',{p_sku_id:String(ctx.sku_id)}));
-      if(item)surfaces.push({type:'entity_card',domain:'syp',title:'SYP offer',item,actions:actionBar('syp',item)});
-      if(tools.has('get_syp_history')){
-        const d=await rpc(t,'ask_collectish_get_syp_history',{p_sku_id:String(ctx.sku_id)});
-        if(d?.events?.length)surfaces.push({type:'syp_timeline',domain:'syp',title:'SYP history',offer:d.offer,events:d.events,actions:[{type:'ask',label:'Summarize changes',prompt:'Summarize the material changes in this exact SYP history.'}]});
-      }
-    }else if(screen==='seller'&&ctx.order_id){
-      const rows=await rpc(t,'ask_collectish_search_orders',{p_filters:{order_number:String(ctx.order_id),limit:1}});const item=rows?.results?.[0]||rows?.[0]||null;
-      if(item)surfaces.push({type:'entity_card',domain:'seller',title:'Seller order',item,actions:actionBar('seller',item)});
-    }else if(screen==='inventory'){
-      const filters=ctx.sku_id?{sku_id:String(ctx.sku_id),limit:8}:{limit:8};
-      const d=await rpc(t,'ask_collectish_get_inventory_aging',{p_filters:filters});
-      const item=d?.results?.[0]||null;
-      if(item&&ctx.sku_id)surfaces.push({type:'entity_card',domain:'inventory',title:'Inventory item',item,actions:[]});
-      if(tools.has('get_inventory_aging')&&d?.results?.length)surfaces.push({type:'inventory_aging',domain:'inventory',title:'Inventory aging',data:d,actions:[{type:'navigate',screen:'inventory',label:'Open Inventory',primary:true}]});
-    }
+      if(pid&&tools.has('get_price_history')){const d=await rpc(t,'ask_collectish_get_price_history',{p_product_id:pid});if(d?.observations?.length)surfaces.push({type:'price_history',domain:'scout',title:'Price history',product_id:pid,observations:d.observations,count:d.count,actions:[{type:'ask',label:'What changed?',prompt:'Explain the important changes in this price history.'}]})}
+      if((ctx.product_id||ctx.sku_id)&&tools.has('get_vendor_comparison')){const d=await rpc(t,'ask_collectish_get_vendor_comparison',{p_product_id:ctx.product_id??null,p_sku_id:ctx.sku_id??null});if(d?.found)surfaces.push({type:'vendor_comparison',domain:'vendors',title:'Vendor exits',item:d,actions:[{type:'ask',label:'Best exit?',prompt:'Which collected exit is best here after considering liquidity and execution risk?'}]})}
+      if(tools.has('get_product_sales_history')){const d=await rpc(t,'ask_collectish_get_product_sales_history',{p_product_id:ctx.product_id??card?.product_id??null,p_sku_id:ctx.sku_id??card?.sku_id??null});if(d?.orders||d?.units_sold||d?.monthly?.length)surfaces.push({type:'seller_performance',domain:'seller',title:'Your sales history',data:d,actions:[{type:'ask',label:'Interpret velocity',prompt:'Interpret my historical sales velocity for this exact card.'}]})}
+      if(pid){const intel=await marketIntelForProduct(t,pid).catch(()=>null);if(intel?.rollup)surfaces.push({type:'market_intelligence',domain:'signals',title:'Market intelligence',data:intel,actions:[{type:'ask',label:'Weigh evidence',prompt:'Weigh the market-intelligence evidence for this card, including contradictions and source quality.'}]})}
+    }else if(screen==='syp'&&ctx.sku_id){const item=one(await rpc(t,'ask_collectish_get_syp_offer',{p_sku_id:String(ctx.sku_id)}));if(item)surfaces.push({type:'entity_card',domain:'syp',title:'SYP offer',item,actions:actionBar('syp',item)});if(tools.has('get_syp_history')){const d=await rpc(t,'ask_collectish_get_syp_history',{p_sku_id:String(ctx.sku_id)});if(d?.events?.length)surfaces.push({type:'syp_timeline',domain:'syp',title:'SYP history',offer:d.offer,events:d.events,actions:[{type:'ask',label:'Summarize changes',prompt:'Summarize the material changes in this exact SYP history.'}]})}}
+    else if(screen==='seller'&&ctx.order_id){const rows=await rpc(t,'ask_collectish_search_orders',{p_filters:{order_number:String(ctx.order_id),limit:1}});const item=rows?.results?.[0]||rows?.[0]||null;if(item)surfaces.push({type:'entity_card',domain:'seller',title:'Seller order',item,actions:actionBar('seller',item)})}
+    else if(screen==='inventory'){const filters=ctx.sku_id?{sku_id:String(ctx.sku_id),limit:8}:{limit:8};const d=await rpc(t,'ask_collectish_get_inventory_aging',{p_filters:filters});const item=d?.results?.[0]||null;if(item&&ctx.sku_id)surfaces.push({type:'entity_card',domain:'inventory',title:'Inventory item',item,actions:[]});if(tools.has('get_inventory_aging')&&d?.results?.length)surfaces.push({type:'inventory_aging',domain:'inventory',title:'Inventory aging',data:d,actions:[{type:'navigate',screen:'inventory',label:'Open Inventory',primary:true}]})}
   }catch{}
 }
 
-async function addSearchSurfaces(t:string,upstream:any,surfaces:any[]){
-  const tools=toolNames(upstream),filtered=exactAction(upstream,'apply_filters');
-  if(filtered?.screen==='scout'&&tools.has('search_scout')){
-    try{const data=await rpc(t,'ask_collectish_search_scout',{p_filters:{...(filtered.filters||{}),limit:8}});const rows=(data?.results||data||[]).slice(0,8);if(rows.length>1)surfaces.push({type:'opportunity_carousel',domain:'scout',title:'Scout opportunities',items:rows.map(normalizeScout),coverage_note:data?.coverage_note||data?.coverage?.coverage_note||null,actions:[{type:'navigate',screen:'scout',label:'Open Scout',primary:true}]})}catch{}
-  }else if(filtered?.screen==='syp'&&tools.has('search_syp')){
-    try{const data=await rpc(t,'ask_collectish_search_syp',{p_filters:{...(filtered.filters||{}),limit:8}});const rows=(data?.results||data||[]).slice(0,8);if(rows.length)surfaces.push({type:'result_list',domain:'syp',title:'SYP results',items:rows,coverage_note:data?.coverage_note||null})}catch{}
-  }else if(filtered?.screen==='seller'&&tools.has('search_orders')){
-    try{const data=await rpc(t,'ask_collectish_search_orders',{p_filters:{...(filtered.filters||{}),limit:8}});const rows=(data?.results||data||[]).slice(0,8);if(rows.length)surfaces.push({type:'result_list',domain:'seller',title:'Seller results',items:rows,coverage_note:data?.coverage_note||null})}catch{}
-  }else if(filtered?.screen==='inventory'&&tools.has('get_inventory_aging')){
-    try{const data=await rpc(t,'ask_collectish_get_inventory_aging',{p_filters:{...(filtered.filters||{}),limit:8}});if(data?.results?.length)surfaces.push({type:'inventory_aging',domain:'inventory',title:'Inventory aging',data,actions:[{type:'navigate',screen:'inventory',label:'Open Inventory',primary:true}]})}catch{}
-  }
+async function addSearchSurfaces(t:string,upstream:any,surfaces:any[]){const tools=toolNames(upstream),filtered=exactAction(upstream,'apply_filters');if(filtered?.screen==='scout'&&tools.has('search_scout')){try{const data=await rpc(t,'ask_collectish_search_scout',{p_filters:{...(filtered.filters||{}),limit:8}});const rows=(data?.results||data||[]).slice(0,8);if(rows.length>1)surfaces.push({type:'opportunity_carousel',domain:'scout',title:'Scout opportunities',items:rows.map(normalizeScout),coverage_note:data?.coverage_note||data?.coverage?.coverage_note||null,actions:[{type:'navigate',screen:'scout',label:'Open Scout',primary:true}]})}catch{}}else if(filtered?.screen==='syp'&&tools.has('search_syp')){try{const data=await rpc(t,'ask_collectish_search_syp',{p_filters:{...(filtered.filters||{}),limit:8}});const rows=(data?.results||data||[]).slice(0,8);if(rows.length)surfaces.push({type:'result_list',domain:'syp',title:'SYP results',items:rows,coverage_note:data?.coverage_note||null})}catch{}}else if(filtered?.screen==='seller'&&tools.has('search_orders')){try{const data=await rpc(t,'ask_collectish_search_orders',{p_filters:{...(filtered.filters||{}),limit:8}});const rows=(data?.results||data||[]).slice(0,8);if(rows.length)surfaces.push({type:'result_list',domain:'seller',title:'Seller results',items:rows,coverage_note:data?.coverage_note||null})}catch{}}else if(filtered?.screen==='inventory'&&tools.has('get_inventory_aging')){try{const data=await rpc(t,'ask_collectish_get_inventory_aging',{p_filters:{...(filtered.filters||{}),limit:8}});if(data?.results?.length)surfaces.push({type:'inventory_aging',domain:'inventory',title:'Inventory aging',data,actions:[{type:'navigate',screen:'inventory',label:'Open Inventory',primary:true}]})}catch{}}}
+
+async function addIntelligenceSurfaces(t:string,upstream:any,surfaces:any[]){
+  const tools=toolNames(upstream);if(!(tools.has('cross_source_search')||tools.has('collectish_brief')))return;
+  try{const rows=await rpc(t,'cross_source_market_watches',{p_limit:8});if(rows?.length)surfaces.push({type:'cross_source_watch',domain:'signals',title:'Cross-source watch',items:rows,actions:[{type:'navigate',screen:'scout',label:'Open Scout',primary:true}]})}catch{}
+  if(tools.has('collectish_brief')){try{const sources=await rest(t,'market_intel_source_performance?select=source_name,author,total_claims,covered_claims,early_claims,confirming_claims,late_claims,coverage_pct,early_pct,confirming_pct,timing_score,avg_extraction_confidence,latest_observed_at&order=timing_score.desc.nullslast&limit=6');if(sources?.length)surfaces.push({type:'source_performance',domain:'signals',title:'Source track record',items:sources})}catch{}}
 }
 
-async function addBriefSurface(t:string,upstream:any,surfaces:any[]){
-  const tools=toolNames(upstream);if(!tools.has('collectish_brief'))return;
-  try{const d=await rpc(t,'ask_collectish_collectish_brief_snapshot',{});if(d)surfaces.push({type:'market_brief',domain:'collectish',title:'Collectish brief',data:d,actions:[{type:'ask',label:'Find best action',prompt:'What is the single best action from this Collectish brief?'}]})}catch{}
-}
+async function addBriefSurface(t:string,upstream:any,surfaces:any[]){const tools=toolNames(upstream);if(!tools.has('collectish_brief'))return;try{const d=await rpc(t,'ask_collectish_collectish_brief_snapshot',{});if(d)surfaces.push({type:'market_brief',domain:'collectish',title:'Collectish brief',data:d,actions:[{type:'ask',label:'Find best action',prompt:'What is the single best action from this Collectish brief?'}]})}catch{}}
+async function buildSurfaces(t:string,body:any,upstream:any){const surfaces:any[]=[];await addContextSurfaces(t,body,upstream,surfaces);await addSearchSurfaces(t,upstream,surfaces);await addIntelligenceSurfaces(t,upstream,surfaces);await addBriefSurface(t,upstream,surfaces);return surfaces.slice(0,5)}
 
-async function buildSurfaces(t:string,body:any,upstream:any){
-  const surfaces:any[]=[];
-  await addContextSurfaces(t,body,upstream,surfaces);
-  await addSearchSurfaces(t,upstream,surfaces);
-  await addBriefSurface(t,upstream,surfaces);
-  return surfaces.slice(0,4);
-}
-
-Deno.serve(async(req:Request)=>{
-  if(req.method==='OPTIONS')return new Response('ok',{headers:C});
-  if(req.method!=='POST')return json({error:'POST required'},405);
-  const t=token(req);if(!t)return json({error:'Authentication required'},401);
-  let body:any;try{body=await req.json()}catch{return json({error:'Invalid JSON'},400)}
-  const r=await fetch(`${U}/functions/v1/ask-collectish`,{method:'POST',headers:headers(t),body:JSON.stringify(body)});
-  const text=await r.text();let upstream:any;try{upstream=text?JSON.parse(text):{}}catch{return new Response(text,{status:r.status,headers:{...C,'Content-Type':r.headers.get('content-type')||'text/plain','Cache-Control':'no-store'}})}
-  if(!r.ok)return json(upstream,r.status);
-  if(String(body?.action||'chat')!=='chat')return json(upstream,r.status);
-  const surfaces=await buildSurfaces(t,body,upstream);
-  return json({...upstream,surface_schema:'collectish.ask.surface.v2',surfaces},r.status);
-});
+Deno.serve(async(req:Request)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method!=='POST')return json({error:'POST required'},405);const t=token(req);if(!t)return json({error:'Authentication required'},401);let body:any;try{body=await req.json()}catch{return json({error:'Invalid JSON'},400)}const r=await fetch(`${U}/functions/v1/ask-collectish`,{method:'POST',headers:headers(t),body:JSON.stringify(body)});const text=await r.text();let upstream:any;try{upstream=text?JSON.parse(text):{}}catch{return new Response(text,{status:r.status,headers:{...C,'Content-Type':r.headers.get('content-type')||'text/plain','Cache-Control':'no-store'}})}if(!r.ok)return json(upstream,r.status);if(String(body?.action||'chat')!=='chat')return json(upstream,r.status);const surfaces=await buildSurfaces(t,body,upstream);return json({...upstream,surface_schema:'collectish.ask.surface.v3',surfaces},r.status)});
