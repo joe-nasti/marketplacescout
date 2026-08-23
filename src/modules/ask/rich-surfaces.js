@@ -90,7 +90,11 @@
   }
 
   async function enhance(ev){
-    const {role,element}=ev.detail||{};if(role!=='assistant'||!element||element.closest('.cx-ask-thinking'))return;
+    const {role,element}=ev.detail||{};if(role!=='assistant'||!element)return;
+    if(/Thinking with Collectish data/i.test(element.textContent||''))return;
+    // Typed server surfaces own this message when present; do not race them with
+    // prompt heuristics or issue duplicate Scout reads.
+    if(window.__CollectishAskSurfaceQueue?.[0]?.surfaces?.length)return;
     const prompt=latestUserPrompt(element).toLowerCase();
     try{
       if(/best|top|opportunit|strong signal|what.*buy|power search/.test(prompt)){
