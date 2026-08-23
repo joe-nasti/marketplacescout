@@ -16,7 +16,8 @@ const scoutEnhancers=[
   ()=>import('./signals/source-rollups.js'),
   ()=>import('./signals/source-performance.js'),
   ()=>import('./signals/competitive.js'),
-  ()=>import('./signals/commander.js')
+  ()=>import('./signals/commander.js'),
+  ()=>import('./signals/cross-source.js')
 ];
 
 const inventoryEnhancers=[
