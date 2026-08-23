@@ -8,7 +8,7 @@
     "mcp:chrome": "npx chrome-devtools-mcp@latest",
     "check:styles": "node tools/check-style-system.mjs",
     "check:hygiene": "node tools/check-source-hygiene.mjs",
-    "test:browser": "playwright test",
+    "test:browser": "playwright test --config tools/playwright.config.mjs",
     "test:browser:install": "playwright install chromium",
     "build": "npm run check:hygiene && npm run check:styles && vite build && node tools/finalize-vite-build.mjs",
     "preview": "vite preview --host 0.0.0.0"
