@@ -75,3 +75,44 @@ Under the real `authenticated` database role with an actual user JWT claim, the 
 Representative execution time was ~0.16 ms at the database layer.
 
 This preserves the existing RLS behavior and query contract while eliminating the full-cache scan/sort from the freshness path.
+
+## 2026-08-23 Scout shadow vendor-price cache
+
+### Bottleneck
+
+The V5 shadow refresh originally paged `scout_opportunities_24h` using a concatenated text cursor and, for every SKU, searched `mtgjson_vendor_prices` for the newest matching UUID/finish day. At the time of profiling:
+
+- `mtgjson_vendor_prices`: ~4.84 million rows / ~924 MB
+- `scout_opportunities_24h`: ~29k active rows
+- historical `refresh_scout_v5_shadow_batch` mean: ~327 ms
+- historical `refresh_scout_v5_shadow` mean: ~18 s
+
+A measured full rebuild after only the cursor/direct-finish rewrite still took ~31.3 s because it touched roughly 859k shared buffers and read ~31k blocks from vendor-price history.
+
+### Changes
+
+Migration `optimize_scout_v5_shadow_batch` changed batch pagination to the existing `(user_id, sku_id)` primary-key order and removed redundant `lower(finish)` wrappers. A row-value cursor benchmark reduced the 350-row page lookup from roughly 62 ms of sequential scan/sort work to ~0.38 ms via an index-only scan.
+
+Migration `cache_current_vendor_prices_for_scout_shadow` added `public.scout_vendor_price_current_cache`, materializing only the latest-day vendor values required by the shadow score:
+
+- Card Kingdom retail
+- Card Kingdom buylist
+- ManaPool retail
+- Cardmarket retail
+- latest observed date
+
+The cache preserves the previous semantics: for each UUID/finish, only provider rows from the globally latest `observed_on` day are eligible. A 500-key comparison against the old history lookup produced 0 mismatches.
+
+The cache currently contains roughly 170k UUID/finish rows. Normal app roles cannot read it, and `refresh_scout_vendor_price_current_cache()` cannot be executed by `anon` or `authenticated`; the service role alone has table access and RPC execution. The refresh function also checks the JWT role claim before rebuilding the cache.
+
+The daily MTGJSON price workflow refreshes this cache immediately after importing new vendor prices, so frequent Scout shadow rebuilds read the compact current snapshot instead of re-deriving current prices from history.
+
+### Verified after the change
+
+Representative production measurements:
+
+- direct `finish` equality vs `lower(finish)` in the old history lookup: ~290 ms → ~138 ms for the 350-row lookup benchmark
+- row-value Scout cursor: ~62 ms → ~0.38 ms for the 350-row page lookup
+- full `refresh_scout_v5_shadow()`: ~31.3 s measured history-table run → ~5.9 s with the materialized current-price cache
+
+The full rebuild improved roughly 5.3x versus the immediately preceding measured run while preserving sampled vendor-price inputs and all existing V5 score math.
