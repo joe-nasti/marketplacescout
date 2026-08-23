@@ -49,7 +49,7 @@ function scheduleIdleEnhancers(){
     idlePromise=(async()=>{
       await Promise.all([
         loadParallel(scoutIntelligence),
-        (async()=>{await import('./ask/main.js');await loadParallel(askEnhancers)})()
+        (async()=>{await import('./ask/endpoint-proxy.js');await import('./ask/main.js');await loadParallel(askEnhancers)})()
       ]);
       document.dispatchEvent(new CustomEvent('collectish:idle-modules-ready'));
     })();
