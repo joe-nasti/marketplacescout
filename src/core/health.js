@@ -2,6 +2,10 @@ import { readMetrics } from './rest.js';
 
 const started=performance.now();
 const KEY='collectishRuntimeHealth';
+let clsTotal=0;
+let longTaskCount=0;
+let longTaskTotal=0;
+let longTaskMax=0;
 
 function writeMetrics(patch){
   const next={...readMetrics(),...patch};
@@ -10,7 +14,68 @@ function writeMetrics(patch){
 }
 
 const fmtMs=value=>value==null?'—':value<1000?`${Math.round(value)} ms`:`${(Number(value)/1000).toFixed(2)} s`;
+const fmtBytes=value=>value==null?'—':Number(value)<1024?`${Math.round(Number(value))} B`:Number(value)<1024*1024?`${(Number(value)/1024).toFixed(1)} KB`:`${(Number(value)/(1024*1024)).toFixed(2)} MB`;
 const clean=value=>String(value??'').replace(/[<>]/g,'');
+
+function captureNavigation(){
+  const nav=performance.getEntriesByType?.('navigation')?.[0];
+  if(!nav)return;
+  const resources=performance.getEntriesByType?.('resource')||[];
+  const transfer=resources.reduce((sum,e)=>sum+Number(e.transferSize||0),0)+Number(nav.transferSize||0);
+  writeMetrics({
+    browser_ttfb_ms:Math.round(nav.responseStart||0),
+    browser_dom_content_loaded_ms:Math.round(nav.domContentLoadedEventEnd||0),
+    browser_load_ms:Math.round(nav.loadEventEnd||0),
+    browser_resource_count:resources.length,
+    browser_transfer_bytes:transfer
+  });
+}
+
+function observePerformance(){
+  captureNavigation();
+  if(typeof PerformanceObserver!=='function')return;
+
+  try{
+    new PerformanceObserver(list=>{
+      for(const entry of list.getEntries()){
+        if(entry.name==='first-contentful-paint')writeMetrics({browser_fcp_ms:Math.round(entry.startTime)});
+      }
+    }).observe({type:'paint',buffered:true});
+  }catch{}
+
+  try{
+    new PerformanceObserver(list=>{
+      const entries=list.getEntries();
+      const last=entries[entries.length-1];
+      if(last)writeMetrics({browser_lcp_ms:Math.round(last.startTime)});
+    }).observe({type:'largest-contentful-paint',buffered:true});
+  }catch{}
+
+  try{
+    new PerformanceObserver(list=>{
+      for(const entry of list.getEntries())if(!entry.hadRecentInput)clsTotal+=Number(entry.value||0);
+      writeMetrics({browser_cls:Number(clsTotal.toFixed(4))});
+    }).observe({type:'layout-shift',buffered:true});
+  }catch{}
+
+  try{
+    new PerformanceObserver(list=>{
+      for(const entry of list.getEntries()){
+        const duration=Number(entry.duration||0);
+        longTaskCount+=1;
+        longTaskTotal+=duration;
+        longTaskMax=Math.max(longTaskMax,duration);
+      }
+      writeMetrics({
+        browser_long_task_count:longTaskCount,
+        browser_long_task_total_ms:Math.round(longTaskTotal),
+        browser_long_task_max_ms:Math.round(longTaskMax)
+      });
+    }).observe({type:'longtask',buffered:true});
+  }catch{}
+
+  addEventListener('load',()=>setTimeout(captureNavigation,0),{once:true});
+}
 
 export function renderRuntimeHealth(){
   const host=document.getElementById('cxAdmin');
@@ -34,6 +99,14 @@ export function renderRuntimeHealth(){
   box.innerHTML=`<div class="cx-section-title">Runtime health</div><div class="cx-detail-list">
     <div class="cx-detail-stat"><span>Scout first load</span><strong>${fmtMs(metrics.scout_first_load_ms)}</strong></div>
     <div class="cx-detail-stat"><span>Scout ranking cache</span><strong>${cache}</strong></div>
+    <div class="cx-detail-stat"><span>TTFB</span><strong>${fmtMs(metrics.browser_ttfb_ms)}</strong></div>
+    <div class="cx-detail-stat"><span>First contentful paint</span><strong>${fmtMs(metrics.browser_fcp_ms)}</strong></div>
+    <div class="cx-detail-stat"><span>Largest contentful paint</span><strong>${fmtMs(metrics.browser_lcp_ms)}</strong></div>
+    <div class="cx-detail-stat"><span>DOMContentLoaded</span><strong>${fmtMs(metrics.browser_dom_content_loaded_ms)}</strong></div>
+    <div class="cx-detail-stat"><span>Page load</span><strong>${fmtMs(metrics.browser_load_ms)}</strong></div>
+    <div class="cx-detail-stat"><span>Layout shift (CLS)</span><strong>${metrics.browser_cls==null?'—':Number(metrics.browser_cls).toFixed(3)}</strong></div>
+    <div class="cx-detail-stat"><span>Long tasks</span><strong>${Number(metrics.browser_long_task_count||0)} · max ${fmtMs(metrics.browser_long_task_max_ms)}</strong></div>
+    <div class="cx-detail-stat"><span>Transferred resources</span><strong>${Number(metrics.browser_resource_count||0)} · ${fmtBytes(metrics.browser_transfer_bytes)}</strong></div>
     <div class="cx-detail-stat"><span>Timeout retries</span><strong>${retries}</strong></div>
     <div class="cx-detail-stat"><span>Recovered retries</span><strong>${recoveries}</strong></div>
     <div class="cx-detail-stat"><span>Retry failures</span><strong>${failures}</strong></div>
@@ -43,6 +116,7 @@ export function renderRuntimeHealth(){
 }
 
 export function installRuntimeHealth(){
+  observePerformance();
   document.addEventListener('collectish:scout-v5-ready',()=>{
     const metrics=readMetrics();
     if(metrics.scout_first_load_ms==null){
@@ -55,9 +129,6 @@ export function installRuntimeHealth(){
   });
   document.addEventListener('collectish:runtime-health',()=>{
     if(document.getElementById('cxAdmin')?.classList.contains('active'))renderRuntimeHealth();
-  });
-  document.addEventListener('collectish:admin-section-change',event=>{
-    if(event.detail?.section==='system')setTimeout(renderRuntimeHealth,0);
   });
   document.addEventListener('click',event=>{
     if(event.target?.closest?.('[data-cx-page="admin"]'))setTimeout(renderRuntimeHealth,120);
