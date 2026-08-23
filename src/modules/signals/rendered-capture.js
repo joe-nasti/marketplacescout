@@ -10,6 +10,7 @@ let result=null;
 function normalizeUrl(value){const v=String(value||'').trim();if(!v)return'';try{const u=new URL(/^https?:\/\//i.test(v)?v:`https://${v}`);return ['http:','https:'].includes(u.protocol)?u.toString():''}catch{return''}}
 function scoutMatch(entity){const rows=store.get().scout?.rows||[];if(entity?.scryfall_id){const x=rows.find(r=>String(r.scryfall_id||'')===String(entity.scryfall_id));if(x)return x}const q=lower(entity?.entity_name||entity);return q?(rows.find(r=>lower(r.product_name)===q)||rows.find(r=>lower(r.product_name).startsWith(`${q} (`))||rows.find(r=>lower(r.product_name).includes(q))):null}
 function stageClass(x){return ['leading','confirming','lagging','noise','neutral'].includes(x)?x:'unclassified'}
+function sourceMeta(){return {source_type:document.getElementById('cxRenderedSourceType')?.value||'',source_name:document.getElementById('cxRenderedSourceName')?.value.trim()||''}}
 
 function mount(){
   const page=document.getElementById('cxSignals');
@@ -17,7 +18,7 @@ function mount(){
   if(!anchor||document.getElementById('cxRenderedIntel'))return;
   const wrap=document.createElement('details');
   wrap.id='cxRenderedIntel';wrap.className='cx-rendered-intel';
-  wrap.innerHTML=`<summary>JS-heavy page? Analyze rendered text</summary><div class="cx-rendered-intel-body"><p class="cx-sub">Copy the visible article, X post, Discord message/thread, or other source text from your browser. MarketplaceScout analyzes it transiently; the raw text is not saved with Signals.</p><input id="cxRenderedTitle" placeholder="Source title (optional)"><textarea id="cxRenderedText" rows="8" placeholder="Paste the rendered source text here…"></textarea><div class="cx-signal-submit"><button type="button" class="cx-primary" id="cxAnalyzeRendered">Analyze rendered text</button><span id="cxRenderedMsg" class="cx-sub"></span></div><div id="cxRenderedResults"></div></div>`;
+  wrap.innerHTML=`<summary>JS-heavy page? Analyze rendered text</summary><div class="cx-rendered-intel-body"><p class="cx-sub">Copy the visible article, X post, Discord message/thread, or other source text from your browser. MarketplaceScout analyzes it transiently; the raw text is not saved with Signals.</p><select id="cxRenderedSourceType"><option value="">Auto-detect source type</option><option value="article">Article</option><option value="x">X</option><option value="discord">Discord</option><option value="reddit">Reddit</option><option value="youtube">YouTube</option><option value="official">Official</option><option value="manual">Manual</option><option value="other">Other</option></select><input id="cxRenderedSourceName" placeholder="Source / channel / creator (optional)"><input id="cxRenderedTitle" placeholder="Source title (optional)"><textarea id="cxRenderedText" rows="8" placeholder="Paste the rendered source text here…"></textarea><div class="cx-signal-submit"><button type="button" class="cx-primary" id="cxAnalyzeRendered">Analyze rendered text</button><span id="cxRenderedMsg" class="cx-sub"></span></div><div id="cxRenderedResults"></div></div>`;
   anchor.insertAdjacentElement('afterend',wrap);
   document.getElementById('cxAnalyzeRendered')?.addEventListener('click',analyze);
 }
@@ -38,6 +39,7 @@ async function analyze(){
   btn.disabled=true;if(msg)msg.textContent='Analyzing rendered source text…';result=null;renderResult();
   try{
     result=await callFunction('market-intel-analyze',{url,rendered_text:renderedText,rendered_title:renderedTitle});
+    result.__source_meta=sourceMeta();
     renderResult();if(msg)msg.textContent=`Found ${(result.signals||[]).length} proposed signal${(result.signals||[]).length===1?'':'s'}.`;
   }catch(e){if(msg)msg.textContent=e?.message||'Could not analyze rendered text.'}
   finally{btn.disabled=false}
@@ -46,7 +48,8 @@ async function analyze(){
 function renderResult(){
   const box=document.getElementById('cxRenderedResults');if(!box)return;if(!result){box.innerHTML='';return}
   const signals=Array.isArray(result.signals)?result.signals:[];
-  box.innerHTML=`<div class="cx-rendered-result-head"><div><strong>${esc(result.title||'Rendered source')}</strong><small>${esc(result.author||'Unknown author')} · full rendered-text analysis</small></div><button type="button" class="cx-primary" id="cxSaveRendered" ${signals.length?'':'disabled'}>Save selected</button></div>${result.source_summary?`<p>${esc(result.source_summary)}</p>`:''}<div class="cx-signal-proposals">${signals.length?signals.map((s,i)=>`<label class="cx-signal-proposal"><input type="checkbox" data-rendered-proposal="${i}" ${s.signal_stage==='noise'?'':'checked'}><div><div class="cx-signal-proposal-top"><strong>${esc(s.entity_name)}</strong><span class="cx-signal-stage ${stageClass(s.signal_stage)}">${esc(pretty(s.signal_stage))}</span><span class="cx-signal-direction ${esc(s.direction)}">${esc(pretty(s.direction))}</span></div><small>${esc(pretty(s.claim_type))} · confidence ${Math.round(Number(s.confidence||0)*100)}%${s.scryfall_id?' · Scryfall resolved':''}${scoutMatch(s)?' · Scout match':''}</small><p>${esc(s.summary||'')}</p>${s.catalyst?`<em>Catalyst: ${esc(s.catalyst)}</em>`:''}</div></label>`).join(''):'<div class="cx-empty">No actionable MTG signals found.</div>'}</div>`;
+  const source=result.__source_meta?.source_name||result.author||'Unknown source';
+  box.innerHTML=`<div class="cx-rendered-result-head"><div><strong>${esc(result.title||'Rendered source')}</strong><small>${esc(source)} · full rendered-text analysis</small></div><button type="button" class="cx-primary" id="cxSaveRendered" ${signals.length?'':'disabled'}>Save selected</button></div>${result.source_summary?`<p>${esc(result.source_summary)}</p>`:''}<div class="cx-signal-proposals">${signals.length?signals.map((s,i)=>`<label class="cx-signal-proposal"><input type="checkbox" data-rendered-proposal="${i}" ${s.signal_stage==='noise'?'':'checked'}><div><div class="cx-signal-proposal-top"><strong>${esc(s.entity_name)}</strong><span class="cx-signal-stage ${stageClass(s.signal_stage)}">${esc(pretty(s.signal_stage))}</span><span class="cx-signal-direction ${esc(s.direction)}">${esc(pretty(s.direction))}</span></div><small>${esc(pretty(s.claim_type))} · confidence ${Math.round(Number(s.confidence||0)*100)}%${s.scryfall_id?' · Scryfall resolved':''}${scoutMatch(s)?' · Scout match':''}</small><p>${esc(s.summary||'')}</p>${s.catalyst?`<em>Catalyst: ${esc(s.catalyst)}</em>`:''}</div></label>`).join(''):'<div class="cx-empty">No actionable MTG signals found.</div>'}</div>`;
   document.getElementById('cxSaveRendered')?.addEventListener('click',save);
 }
 
@@ -56,7 +59,8 @@ async function save(){
   if(!selectedIndexes.length){if(msg)msg.textContent='Select at least one signal.';return}
   btn.disabled=true;if(msg)msg.textContent=`Saving ${selectedIndexes.length} signal${selectedIndexes.length===1?'':'s'}…`;
   try{
-    const saved=await callFunction('market-intel-ingest',{url:normalizeUrl(result.url),analysis:result,selected_indexes:selectedIndexes});
+    const meta=result.__source_meta||{};
+    const saved=await callFunction('market-intel-ingest',{url:normalizeUrl(result.url),analysis:result,selected_indexes:selectedIndexes,source_type:meta.source_type||undefined,source_name:meta.source_name||undefined});
     result=null;renderResult();document.getElementById('cxRenderedText').value='';document.getElementById('cxRenderedTitle').value='';
     if(msg)msg.textContent=`Saved ${saved.saved||0} signal${saved.saved===1?'':'s'}${saved.duplicates?` · skipped ${saved.duplicates} duplicate${saved.duplicates===1?'':'s'}`:''}.`;
     document.dispatchEvent(new CustomEvent('collectish:intel-changed',{detail:{source:'market-intel-ingest',saved:saved.saved||0,duplicates:saved.duplicates||0}}));document.getElementById('cxSignalsRefresh')?.click();
