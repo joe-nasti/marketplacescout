@@ -11,6 +11,7 @@ const expected=[
   'ask.css',
   'base.css',
   'index.css',
+  'mobile-quality.css',
   'scout-compact.css',
   'scout-detail-compact.css',
   'scout.css',

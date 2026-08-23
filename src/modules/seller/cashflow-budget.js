@@ -1,7 +1,6 @@
 import { rest } from '../../core/rest.js';
 
 let row=null,loading=null,lastLoadedAt=0,error='';
-let observer=null,reattachTimer=null;
 const CACHE_MS=60*1000;
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const money=v=>v==null?'—':Number(v).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
@@ -35,9 +34,9 @@ async function load({force=false}={}){
   if(!force&&lastLoadedAt&&Date.now()-lastLoadedAt<CACHE_MS){render();return row}
   error='';loading=rest('rpc/seller_monthly_buying_budget',{method:'POST',body:{p_month_start:monthKey()}}).then(data=>{row=Array.isArray(data)?data[0]||null:data||null;lastLoadedAt=Date.now();if(row)document.dispatchEvent(new CustomEvent('collectish:seller-cashflow-changed',{detail:{safeBudget:Number(row.safe_additional_buy_budget||0),inputStatus:row.input_status||null}}));return row}).catch(e=>{row=null;error=String(e?.message||e||'Request failed');return null}).finally(()=>{loading=null;render()});render();return loading;
 }
-function watchSeller(){const h=host();if(!h)return;if(observer)observer.disconnect();observer=new MutationObserver(()=>{if(document.getElementById('cxSellerCashflowBudget'))return;clearTimeout(reattachTimer);reattachTimer=setTimeout(()=>render(),20)});observer.observe(h,{childList:true})}
-function ensure(){if(!host())return;watchSeller();render();void load()}
+function ensure(){if(!host())return;render();void load()}
 document.addEventListener('collectish:buyer-orders-changed',()=>{lastLoadedAt=0;void load({force:true})});
+document.addEventListener('collectish:seller-rendered',()=>setTimeout(ensure,0));
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='seller')setTimeout(ensure,80)});
 document.addEventListener('collectish:ready',()=>setTimeout(ensure,120));
 setTimeout(ensure,200);
