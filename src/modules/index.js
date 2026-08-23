@@ -21,6 +21,7 @@ const scoutPostRender=[
 const scoutIntelligence=[
   ()=>import('./signals/scout-badges.js'),
   ()=>import('./signals/scout-intelligence-bridge.js'),
+  ()=>import('./signals/entity-semantic-labels.js'),
   ()=>import('./signals/rendered-capture.js'),
   ()=>import('./signals/source-collectors.js'),
   ()=>import('./signals/share-handoff.js'),
