@@ -34,46 +34,10 @@ function captureNavigation(){
 function observePerformance(){
   captureNavigation();
   if(typeof PerformanceObserver!=='function')return;
-
-  try{
-    new PerformanceObserver(list=>{
-      for(const entry of list.getEntries()){
-        if(entry.name==='first-contentful-paint')writeMetrics({browser_fcp_ms:Math.round(entry.startTime)});
-      }
-    }).observe({type:'paint',buffered:true});
-  }catch{}
-
-  try{
-    new PerformanceObserver(list=>{
-      const entries=list.getEntries();
-      const last=entries[entries.length-1];
-      if(last)writeMetrics({browser_lcp_ms:Math.round(last.startTime)});
-    }).observe({type:'largest-contentful-paint',buffered:true});
-  }catch{}
-
-  try{
-    new PerformanceObserver(list=>{
-      for(const entry of list.getEntries())if(!entry.hadRecentInput)clsTotal+=Number(entry.value||0);
-      writeMetrics({browser_cls:Number(clsTotal.toFixed(4))});
-    }).observe({type:'layout-shift',buffered:true});
-  }catch{}
-
-  try{
-    new PerformanceObserver(list=>{
-      for(const entry of list.getEntries()){
-        const duration=Number(entry.duration||0);
-        longTaskCount+=1;
-        longTaskTotal+=duration;
-        longTaskMax=Math.max(longTaskMax,duration);
-      }
-      writeMetrics({
-        browser_long_task_count:longTaskCount,
-        browser_long_task_total_ms:Math.round(longTaskTotal),
-        browser_long_task_max_ms:Math.round(longTaskMax)
-      });
-    }).observe({type:'longtask',buffered:true});
-  }catch{}
-
+  try{new PerformanceObserver(list=>{for(const entry of list.getEntries())if(entry.name==='first-contentful-paint')writeMetrics({browser_fcp_ms:Math.round(entry.startTime)})}).observe({type:'paint',buffered:true})}catch{}
+  try{new PerformanceObserver(list=>{const entries=list.getEntries(),last=entries[entries.length-1];if(last)writeMetrics({browser_lcp_ms:Math.round(last.startTime)})}).observe({type:'largest-contentful-paint',buffered:true})}catch{}
+  try{new PerformanceObserver(list=>{for(const entry of list.getEntries())if(!entry.hadRecentInput)clsTotal+=Number(entry.value||0);writeMetrics({browser_cls:Number(clsTotal.toFixed(4))})}).observe({type:'layout-shift',buffered:true})}catch{}
+  try{new PerformanceObserver(list=>{for(const entry of list.getEntries()){const duration=Number(entry.duration||0);longTaskCount+=1;longTaskTotal+=duration;longTaskMax=Math.max(longTaskMax,duration)}writeMetrics({browser_long_task_count:longTaskCount,browser_long_task_total_ms:Math.round(longTaskTotal),browser_long_task_max_ms:Math.round(longTaskMax)})}).observe({type:'longtask',buffered:true})}catch{}
   addEventListener('load',()=>setTimeout(captureNavigation,0),{once:true});
 }
 
@@ -81,23 +45,14 @@ export function renderRuntimeHealth(){
   const host=document.getElementById('cxAdmin');
   if(!host)return;
   let box=host.querySelector('.cx-runtime-health');
-  if(!box){
-    box=document.createElement('div');
-    box.className='cx-card cx-span-12 cx-runtime-health';
-    (host.querySelector('.cx-grid')||host).append(box);
-  }
+  if(!box){box=document.createElement('div');box.className='cx-card cx-span-12 cx-runtime-health';(host.querySelector('.cx-grid')||host).append(box)}
   const metrics=readMetrics();
-  const retries=Number(metrics.statement_timeout_retries||0);
-  const recoveries=Number(metrics.statement_timeout_recoveries||0);
-  const failures=Number(metrics.statement_timeout_failures||0);
-  const cache=metrics.scout_cache_used===true
-    ?`Used · ${fmtMs(metrics.scout_cache_read_ms)}`
-    :metrics.scout_cache_fallback
-      ?`Fallback · ${fmtMs(metrics.scout_cache_read_ms)}`
-      :'—';
-
+  const retries=Number(metrics.statement_timeout_retries||0),recoveries=Number(metrics.statement_timeout_recoveries||0),failures=Number(metrics.statement_timeout_failures||0);
+  const cache=metrics.scout_cache_used===true?`Used · ${fmtMs(metrics.scout_cache_read_ms)}`:metrics.scout_cache_fallback?`Fallback · ${fmtMs(metrics.scout_cache_read_ms)}`:'—';
   box.innerHTML=`<div class="cx-section-title">Runtime health</div><div class="cx-detail-list">
     <div class="cx-detail-stat"><span>Scout first load</span><strong>${fmtMs(metrics.scout_first_load_ms)}</strong></div>
+    <div class="cx-detail-stat"><span>Startup cache hydration</span><strong>${fmtMs(metrics.startup_cache_hydration_ms)}</strong></div>
+    <div class="cx-detail-stat"><span>Startup Scout modules</span><strong>${fmtMs(metrics.startup_scout_modules_ms)}</strong></div>
     <div class="cx-detail-stat"><span>Scout ranking cache</span><strong>${cache}</strong></div>
     <div class="cx-detail-stat"><span>TTFB</span><strong>${fmtMs(metrics.browser_ttfb_ms)}</strong></div>
     <div class="cx-detail-stat"><span>First contentful paint</span><strong>${fmtMs(metrics.browser_fcp_ms)}</strong></div>
@@ -117,23 +72,10 @@ export function renderRuntimeHealth(){
 
 export function installRuntimeHealth(){
   observePerformance();
-  document.addEventListener('collectish:scout-v5-ready',()=>{
-    const metrics=readMetrics();
-    if(metrics.scout_first_load_ms==null){
-      writeMetrics({scout_first_load_ms:Math.round(performance.now()-started),scout_ready_at:new Date().toISOString()});
-    }
-  });
-  document.addEventListener('collectish:lazy-page-loaded',event=>{
-    writeMetrics({last_lazy_page:event.detail?.page||null,last_lazy_page_ms:event.detail?.ms??null});
-    if(document.getElementById('cxAdmin')?.classList.contains('active'))renderRuntimeHealth();
-  });
-  document.addEventListener('collectish:runtime-health',()=>{
-    if(document.getElementById('cxAdmin')?.classList.contains('active'))renderRuntimeHealth();
-  });
-  document.addEventListener('click',event=>{
-    if(event.target?.closest?.('[data-cx-page="admin"]'))setTimeout(renderRuntimeHealth,120);
-  },true);
-
+  document.addEventListener('collectish:scout-v5-ready',()=>{const metrics=readMetrics();if(metrics.scout_first_load_ms==null)writeMetrics({scout_first_load_ms:Math.round(performance.now()-started),scout_ready_at:new Date().toISOString()})});
+  document.addEventListener('collectish:lazy-page-loaded',event=>{writeMetrics({last_lazy_page:event.detail?.page||null,last_lazy_page_ms:event.detail?.ms??null});if(document.getElementById('cxAdmin')?.classList.contains('active'))renderRuntimeHealth()});
+  document.addEventListener('collectish:runtime-health',()=>{if(document.getElementById('cxAdmin')?.classList.contains('active'))renderRuntimeHealth()});
+  document.addEventListener('click',event=>{if(event.target?.closest?.('[data-cx-page="admin"]'))setTimeout(renderRuntimeHealth,120)},true);
   window.CollectishRuntimeHealthCard={render:renderRuntimeHealth,get:readMetrics};
 }
 
