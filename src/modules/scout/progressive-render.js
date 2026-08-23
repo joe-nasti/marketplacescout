@@ -58,6 +58,13 @@ function ensureSentinel(h){
 function compact(){
   compactQueued=false;
   const h=host();if(!h)return;
+  // While the current progressive session is still connected, preserve its
+  // sentinel and detached-card pool. Decorators and viewport work can emit
+  // additional list-render events; rebuilding here would detach the visible
+  // "Show more" control underneath an in-progress pointer/click interaction.
+  // A true list replacement disconnects the old sentinel, so the next render
+  // still falls through and establishes a fresh progressive session.
+  if(sentinel?.isConnected&&pool.length)return;
   cleanup();
   const cards=[...h.querySelectorAll(':scope > .cx-scout-card')];
   const limit=initialLimit();
