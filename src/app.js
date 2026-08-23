@@ -16,10 +16,31 @@ import { installScoutCacheBridge } from './modules/scout/cache-read.js';
 import { installModules } from './modules/index.js';
 
 const STARTUP_PRIME=[
-  {key:'sealed.rows',scope:'user',maxStale:7*24*60*60*1000},
-  {key:'sealed.setTypes',scope:'user',maxStale:30*24*60*60*1000},
   {key:'scout.rows',scope:'user',maxStale:24*60*60*1000}
 ];
+const IDLE_PRIME=[
+  {key:'sealed.rows',scope:'user',maxStale:7*24*60*60*1000},
+  {key:'sealed.setTypes',scope:'user',maxStale:30*24*60*60*1000}
+];
+const HEALTH_KEY='collectishRuntimeHealth';
+function recordTiming(key,ms){
+  try{
+    const current=JSON.parse(sessionStorage.getItem(HEALTH_KEY)||'{}');
+    current[key]=Math.round(ms);
+    current.last_event_at=new Date().toISOString();
+    sessionStorage.setItem(HEALTH_KEY,JSON.stringify(current));
+    document.dispatchEvent(new CustomEvent('collectish:runtime-health',{detail:{...current,event:key}}));
+  }catch{}
+}
+function scheduleIdlePrime(){
+  const run=async()=>{
+    const started=performance.now();
+    await primeResources(IDLE_PRIME).catch(()=>0);
+    recordTiming('idle_cache_hydration_ms',performance.now()-started);
+  };
+  if('requestIdleCallback' in window)requestIdleCallback(()=>void run(),{timeout:3000});
+  else setTimeout(()=>void run(),1500);
+}
 
 export function startCollectish(){
   store.update('runtime',{phase:'starting'});
@@ -29,10 +50,16 @@ export function startCollectish(){
   installActivityBar();
   installScoutCacheBridge();
   startShell({beforeReady:async()=>{
+    const cacheStarted=performance.now();
     store.update('runtime',{phase:'hydrating-cache'});
     await primeResources(STARTUP_PRIME).catch(()=>0);
+    recordTiming('startup_cache_hydration_ms',performance.now()-cacheStarted);
+
+    const modulesStarted=performance.now();
     store.update('runtime',{phase:'loading-modules'});
     await installModules();
+    recordTiming('startup_scout_modules_ms',performance.now()-modulesStarted);
     store.update('runtime',{phase:'ready'});
+    scheduleIdlePrime();
   }});
 }

@@ -7,7 +7,9 @@ const pageLoaders={
   signals:async()=>{const m=await import('../modules/signals/index.js');await m.install()},
   sealed:async()=>{const m=await import('../modules/sealed/index.js');await m.install()},
   seller:async()=>{const m=await import('../modules/seller/index.js');await m.install()},
-  syp:async()=>{const m=await import('../modules/seller/syp.js');await m.install()}
+  syp:async()=>{const m=await import('../modules/seller/syp.js');await m.install()},
+  inventory:async()=>{const m=await import('../modules/seller/inventory-index.js');await m.install()},
+  admin:async()=>{const m=await import('../modules/admin/index.js');await m.install()}
 };
 const title=p=>p==='syp'?'SYP':p[0].toUpperCase()+p.slice(1);
 const host=page=>document.getElementById(`cx${page==='syp'?'Syp':page[0].toUpperCase()+page.slice(1)}`);

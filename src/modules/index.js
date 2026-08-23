@@ -1,4 +1,4 @@
-const scoutEnhancers=[
+const scoutCore=[
   ()=>import('./scout/volatility.js'),
   ()=>import('./scout/detail-links.js'),
   ()=>import('./scout/detail-compact-header.js'),
@@ -11,7 +11,10 @@ const scoutEnhancers=[
   ()=>import('./scout/liquidity.js'),
   ()=>import('./scout/quick-turn.js'),
   ()=>import('./scout/position-sizing.js'),
-  ()=>import('./scout/portfolio-allocation.js'),
+  ()=>import('./scout/portfolio-allocation.js')
+];
+
+const scoutIntelligence=[
   ()=>import('./signals/scout-badges.js'),
   ()=>import('./signals/scout-intelligence-bridge.js'),
   ()=>import('./signals/rendered-capture.js'),
@@ -26,29 +29,6 @@ const scoutEnhancers=[
   ()=>import('./signals/actionable-emerging.js')
 ];
 
-const inventoryEnhancers=[
-  ()=>import('./seller/cashflow-budget.js'),
-  ()=>import('./seller/buyer-account.js'),
-  ()=>import('./seller/inventory-progress.js'),
-  ()=>import('./seller/inventory-sync-controller.js'),
-  ()=>import('./seller/inventory-reconciler.js'),
-  ()=>import('./seller/inventory-reconcile-status.js'),
-  ()=>import('./seller/freshness.js'),
-  ()=>import('./seller/refresh-detail-progress.js')
-];
-
-const adminModules=[
-  ()=>import('./admin/alerts.js'),
-  ()=>import('./admin/scans.js'),
-  ()=>import('./admin/fixed-nav.js'),
-  ()=>import('./admin/marketplace-health.js'),
-  ()=>import('./admin/console.js'),
-  ()=>import('./admin/sealed-catalog.js'),
-  ()=>import('./admin/sealed-health.js'),
-  ()=>import('./admin/cardtrader-health.js'),
-  ()=>import('./admin/top.js')
-];
-
 const askEnhancers=[
   ()=>import('./ask/investigate-presentation.js'),
   ()=>import('./ask/concise-view.js'),
@@ -59,23 +39,33 @@ const askEnhancers=[
 
 const loadParallel=loaders=>Promise.all(loaders.map(load=>load()));
 let installPromise=null;
+let idlePromise=null;
+
+function scheduleIdleEnhancers(){
+  if(idlePromise)return idlePromise;
+  const run=()=>{
+    idlePromise=(async()=>{
+      await Promise.all([
+        loadParallel(scoutIntelligence),
+        (async()=>{await import('./ask/main.js');await loadParallel(askEnhancers)})()
+      ]);
+      document.dispatchEvent(new CustomEvent('collectish:idle-modules-ready'));
+    })();
+    return idlePromise;
+  };
+  if('requestIdleCallback' in window)requestIdleCallback(()=>run(),{timeout:2500});
+  else setTimeout(()=>run(),1200);
+  return null;
+}
 
 export function installModules(){
   if(installPromise)return installPromise;
   installPromise=(async()=>{
-    // Preserve the few real ordering dependencies, but fetch/evaluate independent
-    // feature modules in parallel instead of one network roundtrip at a time.
-    await loadParallel(scoutEnhancers);
-
-    await import('./seller/inventory.js');
-    await loadParallel(inventoryEnhancers);
-
-    await loadParallel(adminModules);
-
-    await import('./ask/main.js');
-    await loadParallel(askEnhancers);
-
+    // Keep only the default Scout interaction path on authenticated startup.
+    // Intelligence, Ask, Inventory and Admin are explicitly deferred.
+    await loadParallel(scoutCore);
     document.dispatchEvent(new CustomEvent('collectish:feature-modules-ready'));
+    scheduleIdleEnhancers();
   })();
   return installPromise;
 }
