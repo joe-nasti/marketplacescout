@@ -8,6 +8,7 @@ const scoutEnhancers=[
   ()=>import('./scout/vendor.js'),
   ()=>import('./scout/detail-swipe.js'),
   ()=>import('./scout/compact-mobile.js'),
+  ()=>import('./scout/liquidity.js'),
   ()=>import('./signals/scout-badges.js'),
   ()=>import('./signals/scout-intelligence-bridge.js'),
   ()=>import('./signals/rendered-capture.js'),
@@ -16,6 +17,7 @@ const scoutEnhancers=[
   ()=>import('./signals/source-rollups.js'),
   ()=>import('./signals/source-performance.js'),
   ()=>import('./signals/competitive.js'),
+  ()=>import('./signals/competitive-paper.js'),
   ()=>import('./signals/commander.js'),
   ()=>import('./signals/cross-source.js')
 ];
