@@ -1,4 +1,4 @@
-const scoutEnhancers=[
+const scoutCore=[
   ()=>import('./scout/volatility.js'),
   ()=>import('./scout/detail-links.js'),
   ()=>import('./scout/detail-compact-header.js'),
@@ -11,7 +11,10 @@ const scoutEnhancers=[
   ()=>import('./scout/liquidity.js'),
   ()=>import('./scout/quick-turn.js'),
   ()=>import('./scout/position-sizing.js'),
-  ()=>import('./scout/portfolio-allocation.js'),
+  ()=>import('./scout/portfolio-allocation.js')
+];
+
+const scoutIntelligence=[
   ()=>import('./signals/scout-badges.js'),
   ()=>import('./signals/scout-intelligence-bridge.js'),
   ()=>import('./signals/rendered-capture.js'),
@@ -36,17 +39,19 @@ const askEnhancers=[
 
 const loadParallel=loaders=>Promise.all(loaders.map(load=>load()));
 let installPromise=null;
-let askPromise=null;
+let idlePromise=null;
 
-function scheduleAsk(){
-  if(askPromise)return askPromise;
+function scheduleIdleEnhancers(){
+  if(idlePromise)return idlePromise;
   const run=()=>{
-    askPromise=(async()=>{
-      await import('./ask/main.js');
-      await loadParallel(askEnhancers);
-      document.dispatchEvent(new CustomEvent('collectish:ask-modules-ready'));
+    idlePromise=(async()=>{
+      await Promise.all([
+        loadParallel(scoutIntelligence),
+        (async()=>{await import('./ask/main.js');await loadParallel(askEnhancers)})()
+      ]);
+      document.dispatchEvent(new CustomEvent('collectish:idle-modules-ready'));
     })();
-    return askPromise;
+    return idlePromise;
   };
   if('requestIdleCallback' in window)requestIdleCallback(()=>run(),{timeout:2500});
   else setTimeout(()=>run(),1200);
@@ -56,11 +61,11 @@ function scheduleAsk(){
 export function installModules(){
   if(installPromise)return installPromise;
   installPromise=(async()=>{
-    // Scout is the default page, so only Scout-critical enhancers stay on the
-    // authenticated startup path. Inventory and Admin now load on first visit.
-    await loadParallel(scoutEnhancers);
+    // Keep only the default Scout interaction path on authenticated startup.
+    // Intelligence, Ask, Inventory and Admin are explicitly deferred.
+    await loadParallel(scoutCore);
     document.dispatchEvent(new CustomEvent('collectish:feature-modules-ready'));
-    scheduleAsk();
+    scheduleIdleEnhancers();
   })();
   return installPromise;
 }
