@@ -27,6 +27,7 @@ const scoutEnhancers=[
 ];
 
 const inventoryEnhancers=[
+  ()=>import('./seller/cashflow-budget.js'),
   ()=>import('./seller/inventory-progress.js'),
   ()=>import('./seller/inventory-sync-controller.js'),
   ()=>import('./seller/inventory-reconciler.js'),
