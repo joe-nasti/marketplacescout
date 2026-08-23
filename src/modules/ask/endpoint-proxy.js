@@ -26,7 +26,7 @@
       : await nativeFetch(url,init);
     try{
       const data=await response.clone().json();
-      if(data?.surface_schema==='collectish.ask.surface.v1'&&Array.isArray(data.surfaces)&&data.surfaces.length){
+      if(/^collectish\.ask\.surface\.v\d+$/.test(String(data?.surface_schema||''))&&Array.isArray(data.surfaces)&&data.surfaces.length){
         window.__CollectishAskSurfaceQueue.push({schema:data.surface_schema,surfaces:data.surfaces,conversation_id:data.conversation_id||null});
       }
     }catch{}
