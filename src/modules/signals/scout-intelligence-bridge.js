@@ -79,13 +79,22 @@ function delegatedOpen(event){const blocked=event.target.closest?.('a,button,inp
 function delegatedKey(event){if(event.key!=='Enter'&&event.key!==' ')return;const el=event.target.closest?.('#cxSignalsFeed .cx-signal-card,#cxCompetitiveIntel .cx-detail-stat');if(!el)return;event.preventDefault();if(el.matches('.cx-signal-card')){const target=targetForIntelCard(el);if(target)openScout(target)}else{const name=el.querySelector('strong')?.textContent?.trim()||'';if(name)openScout({card_name:name})}}
 async function load(){
   if(loading)return loading;
+  const shared=store.get().intel||{},sharedRows=Array.isArray(shared.crossSourceRows)?shared.crossSourceRows:[],freshShared=sharedRows.length&&Date.now()-Number(shared.crossSourceLoadedAt||0)<5*60*1000;
   loading=Promise.allSettled([
     rest('rpc/competitive_scout_opportunities',{method:'POST',body:{p_format:null}}),
     rest('rpc/commander_edh_opportunities',{method:'POST',body:{p_limit:150}}),
     rest('rpc/cedh_commander_rollups',{method:'POST',body:{p_days:90,p_min_event_size:16}}),
     rest('rpc/cedh_card_opportunities',{method:'POST',body:{p_days:90}}),
-    rest('rpc/cross_source_market_watches',{method:'POST',body:{p_limit:100}})
-  ]).then(([a,b,c,d,e])=>{competitive=a.status==='fulfilled'&&Array.isArray(a.value)?a.value:[];commander=b.status==='fulfilled'&&Array.isArray(b.value)?b.value:[];cedh=c.status==='fulfilled'&&Array.isArray(c.value)?c.value:[];cedhCards=d.status==='fulfilled'&&Array.isArray(d.value)?d.value:[];corroborated=e.status==='fulfilled'&&Array.isArray(e.value)?e.value:[];decorateScoutList();decorateScoutDetail(store.get().scout?.selectedSku||null);decorateSignalsLinks()}).finally(()=>{loading=null});
+    freshShared?Promise.resolve(sharedRows):rest('rpc/cross_source_market_watches',{method:'POST',body:{p_limit:100}})
+  ]).then(([a,b,c,d,e])=>{
+    competitive=a.status==='fulfilled'&&Array.isArray(a.value)?a.value:[];
+    commander=b.status==='fulfilled'&&Array.isArray(b.value)?b.value:[];
+    cedh=c.status==='fulfilled'&&Array.isArray(c.value)?c.value:[];
+    cedhCards=d.status==='fulfilled'&&Array.isArray(d.value)?d.value:[];
+    corroborated=e.status==='fulfilled'&&Array.isArray(e.value)?e.value:[];
+    if(!freshShared&&corroborated.length)store.update('intel',{crossSourceRows:corroborated,crossSourceLoadedAt:Date.now()});
+    decorateScoutList();decorateScoutDetail(store.get().scout?.selectedSku||null);decorateSignalsLinks();
+  }).finally(()=>{loading=null});
   return loading;
 }
 
@@ -96,7 +105,7 @@ document.addEventListener('collectish:scout-detail-rendered',e=>{if(competitive.
 document.addEventListener('collectish:intel-changed',()=>setTimeout(decorateSignalsLinks,0));
 document.addEventListener('collectish:competitive-changed',()=>{loading=null;void load()});
 document.addEventListener('collectish:commander-intel-changed',()=>{loading=null;void load()});
-document.addEventListener('collectish:cross-source-changed',()=>{loading=null;void load()});
+document.addEventListener('collectish:cross-source-changed',e=>{if(Array.isArray(e.detail?.rows)){corroborated=e.detail.rows;decorateScoutList();decorateScoutDetail(store.get().scout?.selectedSku||null)}});
 document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')setTimeout(decorateSignalsLinks,60)});
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')setTimeout(decorateSignalsLinks,80)});
 document.addEventListener('collectish:open-scout-card',e=>openScout(e.detail||{}));
