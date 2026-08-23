@@ -88,6 +88,48 @@ end $$;
 revoke all on function public.import_tcg_buyer_orders(jsonb) from public,anon;
 grant execute on function public.import_tcg_buyer_orders(jsonb) to authenticated;
 
--- seller_monthly_buying_budget is replaced by the migration so inventory_purchase_spend
--- means automatic TCG buyer spend + the manual/off-platform adjustment stored in
--- seller_cashflow_monthly_inputs.inventory_purchase_spend.
+drop function if exists public.seller_monthly_buying_budget(date);
+create function public.seller_monthly_buying_budget(p_month_start date default current_date)
+returns table(
+  month_start date,posted_marketplace_cash numeric,pending_marketplace_cash numeric,trailing_3mo_avg_cash numeric,benchmark_monthly_cash numeric,
+  tcg_buyer_purchase_spend numeric,manual_purchase_adjustment numeric,inventory_purchase_spend numeric,operating_expense_spend numeric,known_total_spend numeric,
+  reserve_pct numeric,reserve_amount numeric,purchase_target_pct numeric,purchase_target_amount numeric,purchase_room_vs_target numeric,net_cash_after_known_spend numeric,
+  safe_additional_buy_budget numeric,current_inventory_cost_basis numeric,current_inventory_list_value numeric,input_status text,buyer_orders_count bigint,note text
+)
+language sql security invoker set search_path=public as $$
+with params as (select date_trunc('month',coalesce(p_month_start,current_date))::date m),
+current_cash as (
+  select coalesce(sum(payment) filter(where not coalesce(is_pending,false) and arrival_date<=now()),0)::numeric posted,
+         coalesce(sum(payment) filter(where coalesce(is_pending,false) or arrival_date>now()),0)::numeric pending
+  from public.seller_payments p,params x where p.user_id=auth.uid() and p.arrival_date>=x.m and p.arrival_date<x.m+interval '1 month'
+), prior as (
+  select coalesce(avg(month_cash),0)::numeric avg3 from (
+    select date_trunc('month',p.arrival_date) mon,sum(p.payment)::numeric month_cash
+    from public.seller_payments p,params x
+    where p.user_id=auth.uid() and not coalesce(p.is_pending,false) and p.arrival_date<=now() and p.arrival_date>=x.m-interval '3 months' and p.arrival_date<x.m group by 1
+  ) q
+), buyer as (
+  select coalesce(sum(total_amount) filter(where lower(coalesce(status,'')) !~ '(cancel|void|refund(ed)?$)'),0)::numeric buyer_spend,
+         count(*) filter(where lower(coalesce(status,'')) !~ '(cancel|void|refund(ed)?$)')::bigint order_count
+  from public.tcg_buyer_orders o,params x where o.user_id=auth.uid() and o.order_date>=x.m and o.order_date<x.m+interval '1 month'
+), inp as (
+  select coalesce(i.inventory_purchase_spend,0)::numeric manual_adj,coalesce(i.operating_expense_spend,0)::numeric op_spend,
+         coalesce(i.reserve_pct,15)::numeric reserve_pct,coalesce(i.purchase_target_pct,70)::numeric target_pct,i.note,(i.user_id is not null) has_input
+  from params x left join public.seller_cashflow_monthly_inputs i on i.user_id=auth.uid() and i.month_start=x.m
+), inventory as (
+  select coalesce(sum(coalesce(quantity,0)*coalesce(acquisition_cost,0)),0)::numeric cost_basis,coalesce(sum(coalesce(quantity,0)*coalesce(list_price,0)),0)::numeric list_value
+  from public.collectish_inventory_positions where user_id=auth.uid()
+), calc as (
+  select x.m,c.posted,c.pending,p.avg3,b.buyer_spend,b.order_count,i.manual_adj,i.op_spend,i.reserve_pct,i.target_pct,i.note,i.has_input,inv.cost_basis,inv.list_value,
+         greatest(c.posted,p.avg3)::numeric benchmark,(b.buyer_spend+i.manual_adj)::numeric inv_spend,(b.buyer_spend+i.manual_adj+i.op_spend)::numeric known_spend
+  from params x cross join current_cash c cross join prior p cross join buyer b cross join inp i cross join inventory inv
+)
+select m,round(posted,2),round(pending,2),round(avg3,2),round(benchmark,2),round(buyer_spend,2),round(manual_adj,2),round(inv_spend,2),round(op_spend,2),round(known_spend,2),
+       reserve_pct,round(posted*reserve_pct/100.0,2),target_pct,round(benchmark*target_pct/100.0,2),round(greatest(0,benchmark*target_pct/100.0-inv_spend),2),
+       round(posted-known_spend,2),round(greatest(0,least(greatest(0,benchmark*target_pct/100.0-inv_spend),greatest(0,posted-known_spend-(posted*reserve_pct/100.0)))),2),
+       round(cost_basis,2),round(list_value,2),case when has_input and order_count>0 then 'auto_plus_manual' when has_input then 'manual_only' when order_count>0 then 'auto_buyer_only' else 'needs_spend_input' end,
+       order_count,note
+from calc;
+$$;
+revoke all on function public.seller_monthly_buying_budget(date) from public,anon;
+grant execute on function public.seller_monthly_buying_budget(date) to authenticated;
