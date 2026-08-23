@@ -1,0 +1,91 @@
+name: Live Pages performance
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/live-pages-performance.mjs'
+      - '.github/workflows/live-pages-performance.yml'
+  workflow_run:
+    workflows: ['Deploy Collectish web']
+    types: [completed]
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  live-performance:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PAGE_URL: https://joe-nasti.github.io/marketplacescout/
+    steps:
+      - name: Resolve measured SHA
+        id: sha
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = workflow_run ]; then
+            echo "value=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.sha.outputs.value }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Find Chrome
+        id: chrome
+        shell: bash
+        run: |
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$chrome"
+          echo "path=$chrome" >> "$GITHUB_OUTPUT"
+
+      - name: Measure live Pages in Chrome
+        id: perf
+        continue-on-error: true
+        env:
+          CHROME: ${{ steps.chrome.outputs.path }}
+          PERF_OUT: /tmp/live-performance.json
+        run: node tools/live-pages-performance.mjs
+
+      - name: Upload live performance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-pages-performance-${{ steps.sha.outputs.value }}
+          path: /tmp/live-performance.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Publish live performance status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.sha.outputs.value }}
+          RESULT: ${{ steps.perf.outcome }}
+        shell: bash
+        run: |
+          state=success
+          desc='Live Pages Chrome performance budgets passed'
+          if [ "$RESULT" != success ]; then
+            state=failure
+            desc='Live Pages Chrome performance budget failed'
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
+            -f state="$state" \
+            -f context='collectish/live-pages-performance' \
+            -f description="$desc" \
+            -f target_url="$PAGE_URL"
+
+      - name: Enforce live performance gate
+        if: steps.perf.outcome != 'success'
+        run: exit 1
