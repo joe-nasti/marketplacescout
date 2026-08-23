@@ -5,7 +5,7 @@ if(!URL||!KEY)throw new Error('Missing Supabase credentials');
 const H={apikey:KEY,Authorization:`Bearer ${KEY}`,'Content-Type':'application/json'};
 async function sb(path,opt={}){const r=await fetch(`${URL}/rest/v1/${path}`,{...opt,headers:{...H,...(opt.headers||{})}});const t=await r.text();let d;try{d=t?JSON.parse(t):null}catch{d=t}if(!r.ok)throw new Error(`Supabase ${r.status}: ${typeof d==='string'?d:JSON.stringify(d)}`);return d}
 async function rpc(name){return sb(`rpc/${name}`,{method:'POST',body:'{}'})}
-async function state(status,detail,started){const row={feed:'scout_rankings',status,last_started_at:started,detail};if(status==='complete'||status==='failed')row.last_completed_at=new Date().toISOString();await sb('mtgjson_sync_state?on_conflict=feed',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([row])})}
+async function state(status,detail,started,{markCompleted=true}={}){const row={feed:'scout_rankings',status,last_started_at:started,detail};if(markCompleted&&(status==='complete'||status==='failed'))row.last_completed_at=new Date().toISOString();await sb('mtgjson_sync_state?on_conflict=feed',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([row])})}
 const iso=value=>{const ms=Date.parse(value||'');return Number.isFinite(ms)?ms:null};
 async function newest(path,key){const rows=await sb(path);return rows?.[0]?.[key]||null}
 async function refreshDecision(){
@@ -38,7 +38,7 @@ async function timed(label,fn){const t=Date.now();try{return await fn()}finally{
 const decision=await timed('watermark_check',refreshDecision);
 if(!decision.refresh){
   const detail={skipped:true,reason:decision.reason,watermarks:decision.watermarks,newest_input_at:decision.newest_input_at,durations_ms:durations,total_ms:Object.values(durations).reduce((a,b)=>a+b,0),model:'watermark gate -> no-op; hourly full reconciliation remains authoritative'};
-  await state('complete',detail,started);
+  await state('complete',detail,started,{markCompleted:false});
   console.log(JSON.stringify({status:'complete',...detail,at:new Date().toISOString()}));
   process.exit(0);
 }
