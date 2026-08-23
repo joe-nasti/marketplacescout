@@ -5,6 +5,7 @@ let competitive=[];
 let commander=[];
 let cedh=[];
 let cedhCards=[];
+let corroborated=[];
 let loading=null;
 const lower=s=>String(s||'').trim().toLowerCase();
 const baseName=s=>String(s||'').replace(/\s*\([^)]*(foil|showcase|borderless|extended art|serialized|retro frame|etched|alternate art|halo foil|rainbow foil|surge foil|galaxy foil)[^)]*\)\s*/ig,' ').replace(/\s+/g,' ').trim();
@@ -30,17 +31,19 @@ function tryOpenTarget(target){
 }
 function openScout(target){window.CollectishShell?.switchPage?.('scout');const attempts=[0,60,140,280,500,900,1500,2400];let done=false;for(const ms of attempts)setTimeout(()=>{if(!done)done=tryOpenTarget(target)},ms)}
 function detailFor(row){
-  if(!row)return{competitive:[],commander:[],cedh:[],cedhCards:[]};
+  if(!row)return{competitive:[],commander:[],cedh:[],cedhCards:[],crossSource:[]};
   const name=lower(baseName(row.product_name)),pid=String(row.product_id||''),sku=String(row.sku_id||'');
   const match=x=>(sku&&String(x.sku_id||'')===sku)||(pid&&String(x.product_id||'')===pid);
   const comp=competitive.filter(x=>match(x)||lower(baseName(x.card_name))===name);
   const edh=commander.filter(x=>match(x)||lower(baseName(x.card_name))===name);
   const c=cedh.filter(x=>match(x)||lower(baseName(x.commander))===name);
   const cc=cedhCards.filter(x=>match(x)||lower(baseName(x.card_name))===name);
-  return{competitive:comp,commander:edh,cedh:c,cedhCards:cc};
+  const multi=corroborated.filter(x=>match(x)||lower(baseName(x.card_name))===name);
+  return{competitive:comp,commander:edh,cedh:c,cedhCards:cc,crossSource:multi};
 }
 function badgeSummary(ctx){
   const out=[];
+  if(ctx.crossSource.length){const x=ctx.crossSource[0];out.push(Number(x.dynamic_sources||0)>0?'MULTI ↑':`MULTI ${x.evidence_sources||2}`)}
   if(ctx.competitive.length)out.push(`COMP ${Math.max(...ctx.competitive.map(x=>Number(x.deck_count_30d||0)))}`);
   if(ctx.commander.length){const top=ctx.commander[0];out.push(top.watch_class==='edh_breakout'?'EDH ↑':`EDH #${top.edhrec_rank}`)}
   if(ctx.cedhCards.length){const x=ctx.cedhCards[0];out.push(x.watch_class==='cedh_breakout'?'cEDH ↑':x.watch_class==='cedh_recent_card'?'cEDH NEW':`cEDH ${x.deck_count_30d||0}`)}
@@ -53,19 +56,20 @@ function decorateScoutList(){
     card.querySelector('.cx-intelligence-mini')?.remove();
     const row=bySku.get(String(card.dataset.sku)),ctx=detailFor(row),parts=badgeSummary(ctx);if(!parts.length)return;
     const top=card.querySelector('.cx-scout-card-top');if(!top)return;
-    const el=document.createElement('span');el.className='cx-intel-mini cx-intelligence-mini';el.textContent=`◎ ${parts.join(' · ')}`;el.title='Competitive / Commander intelligence context; does not change Scout grade';top.appendChild(el);
+    const el=document.createElement('span');el.className='cx-intel-mini cx-intelligence-mini';el.textContent=`◎ ${parts.join(' · ')}`;el.title='Cross-source / competitive / Commander intelligence context; does not change Scout grade';top.appendChild(el);
   });
 }
 function intelligenceRow(label,value,sub){return `<div class="cx-v5-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong>${sub?`<small>${esc(sub)}</small>`:''}</div>`}
 function decorateScoutDetail(sku){
   const host=document.getElementById('cxParityDetail');if(!host||!sku)return;host.querySelector('.cx-intelligence-detail')?.remove();
-  const row=scoutRows().find(r=>String(r.sku_id)===String(sku)),ctx=detailFor(row);if(!ctx.competitive.length&&!ctx.commander.length&&!ctx.cedh.length&&!ctx.cedhCards.length)return;
+  const row=scoutRows().find(r=>String(r.sku_id)===String(sku)),ctx=detailFor(row);if(!ctx.competitive.length&&!ctx.commander.length&&!ctx.cedh.length&&!ctx.cedhCards.length&&!ctx.crossSource.length)return;
   const pieces=[];
+  if(ctx.crossSource.length){const x=ctx.crossSource[0],dynamic=Number(x.dynamic_sources||0)>0?` · ${x.dynamic_sources} changing/new`:'';pieces.push(intelligenceRow('Cross-source',`${x.evidence_sources||2} evidence families · score ${x.corroboration_score||'—'}`,`${x.watch_reason||'Independent sources align'}${dynamic}`))}
   if(ctx.competitive.length){const x=ctx.competitive[0];pieces.push(intelligenceRow('Competitive',`${x.deck_count_30d||0} decks · ${x.top8_decks_30d||0} Top 8`,`${x.format||'Competitive'} · PLAYED + SCOUT`))}
   if(ctx.commander.length){const x=ctx.commander[0],trend=x.rank_improvement_pct==null?'baseline':`${Number(x.rank_improvement_pct)>=0?'+':''}${Number(x.rank_improvement_pct).toFixed(0)}% rank move`;pieces.push(intelligenceRow('EDHREC',`#${x.edhrec_rank||'—'} · ${trend}`,`${String(x.watch_class||'').replace(/_/g,' ')} · ${x.edhrec_signal||'Commander demand'}`))}
   if(ctx.cedhCards.length){const x=ctx.cedhCards[0],label=x.watch_class==='cedh_breakout'?'BREAKOUT':x.watch_class==='cedh_recent_card'?'NEW / RECENT':'PLAYED + SCOUT';pieces.push(intelligenceRow('cEDH card',`${x.deck_count_30d||0}/${x.structured_decks_30d||'—'} structured lists · ${x.top16_decks_30d||0} Top 16`,`${x.share_30d_pct??'—'}% structured-list adoption · ${label}`))}
   if(ctx.cedh.length){const x=ctx.cedh[0];pieces.push(intelligenceRow('cEDH commander',`${x.entries_30d||x.entries||0} known entries · ${x.top16_entries||0} Top 16`,x.share_30d_pct!=null?`${x.share_30d_pct}% known-commander share`:'Tournament baseline'))}
-  const section=document.createElement('section');section.className='cx-v5-section cx-intelligence-detail';section.innerHTML=`<div class="cx-section-title">Market intelligence <span class="cx-intel-context">context only</span></div><div class="cx-v5-grid">${pieces.join('')}</div><small class="cx-sub">Signals, competitive play, EDHREC and cEDH context do not change the Scout grade yet.</small>`;
+  const section=document.createElement('section');section.className='cx-v5-section cx-intelligence-detail';section.innerHTML=`<div class="cx-section-title">Market intelligence <span class="cx-intel-context">context only</span></div><div class="cx-v5-grid">${pieces.join('')}</div><small class="cx-sub">Cross-source corroboration, Signals, competitive play, EDHREC and cEDH context do not change the Scout grade yet.</small>`;
   const anchor=host.querySelector('.cx-v5-components')||host.firstElementChild;if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor.nextSibling);else host.appendChild(section);
 }
 function targetForIntelCard(card){const id=card?.dataset?.intelId;if(!id)return null;const item=(store.get().intel?.items||[]).find(x=>String(x.intel_id)===String(id));const entities=Array.isArray(item?.market_intel_entities)?item.market_intel_entities:[];for(const e of entities){const target={product_id:e.product_id,scryfall_id:e.scryfall_id,card_name:e.entity_name};if(matchScout(target))return target}const first=entities[0];return first?{product_id:first.product_id,scryfall_id:first.scryfall_id,card_name:first.entity_name}:null}
@@ -79,18 +83,20 @@ async function load(){
     rest('rpc/competitive_scout_opportunities',{method:'POST',body:{p_format:null}}),
     rest('rpc/commander_edh_opportunities',{method:'POST',body:{p_limit:150}}),
     rest('rpc/cedh_commander_rollups',{method:'POST',body:{p_days:90,p_min_event_size:16}}),
-    rest('rpc/cedh_card_opportunities',{method:'POST',body:{p_days:90}})
-  ]).then(([a,b,c,d])=>{competitive=a.status==='fulfilled'&&Array.isArray(a.value)?a.value:[];commander=b.status==='fulfilled'&&Array.isArray(b.value)?b.value:[];cedh=c.status==='fulfilled'&&Array.isArray(c.value)?c.value:[];cedhCards=d.status==='fulfilled'&&Array.isArray(d.value)?d.value:[];decorateScoutList();decorateScoutDetail(store.get().scout?.selectedSku||null);decorateSignalsLinks()}).finally(()=>{loading=null});
+    rest('rpc/cedh_card_opportunities',{method:'POST',body:{p_days:90}}),
+    rest('rpc/cross_source_market_watches',{method:'POST',body:{p_limit:100}})
+  ]).then(([a,b,c,d,e])=>{competitive=a.status==='fulfilled'&&Array.isArray(a.value)?a.value:[];commander=b.status==='fulfilled'&&Array.isArray(b.value)?b.value:[];cedh=c.status==='fulfilled'&&Array.isArray(c.value)?c.value:[];cedhCards=d.status==='fulfilled'&&Array.isArray(d.value)?d.value:[];corroborated=e.status==='fulfilled'&&Array.isArray(e.value)?e.value:[];decorateScoutList();decorateScoutDetail(store.get().scout?.selectedSku||null);decorateSignalsLinks()}).finally(()=>{loading=null});
   return loading;
 }
 
 document.addEventListener('click',delegatedOpen,true);
 document.addEventListener('keydown',delegatedKey,true);
-document.addEventListener('collectish:scout-list-rendered',()=>{if(competitive.length||commander.length||cedh.length||cedhCards.length)decorateScoutList();else void load()});
-document.addEventListener('collectish:scout-detail-rendered',e=>{if(competitive.length||commander.length||cedh.length||cedhCards.length)decorateScoutDetail(e.detail?.sku);else void load()});
+document.addEventListener('collectish:scout-list-rendered',()=>{if(competitive.length||commander.length||cedh.length||cedhCards.length||corroborated.length)decorateScoutList();else void load()});
+document.addEventListener('collectish:scout-detail-rendered',e=>{if(competitive.length||commander.length||cedh.length||cedhCards.length||corroborated.length)decorateScoutDetail(e.detail?.sku);else void load()});
 document.addEventListener('collectish:intel-changed',()=>setTimeout(decorateSignalsLinks,0));
 document.addEventListener('collectish:competitive-changed',()=>{loading=null;void load()});
 document.addEventListener('collectish:commander-intel-changed',()=>{loading=null;void load()});
+document.addEventListener('collectish:cross-source-changed',()=>{loading=null;void load()});
 document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')setTimeout(decorateSignalsLinks,60)});
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')setTimeout(decorateSignalsLinks,80)});
 document.addEventListener('collectish:open-scout-card',e=>openScout(e.detail||{}));
