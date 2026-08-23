@@ -20,10 +20,12 @@ const scoutEnhancers=[
   ()=>import('./signals/competitive.js'),
   ()=>import('./signals/competitive-paper.js'),
   ()=>import('./signals/commander.js'),
-  ()=>import('./signals/cross-source.js')
+  ()=>import('./signals/cross-source.js'),
+  ()=>import('./signals/actionable-emerging.js')
 ];
 
 const inventoryEnhancers=[
+  ()=>import('./seller/inventory.js'),
   ()=>import('./seller/inventory-progress.js'),
   ()=>import('./seller/inventory-sync-controller.js'),
   ()=>import('./seller/inventory-reconciler.js'),
@@ -62,7 +64,6 @@ export function installModules(){
     // feature modules in parallel instead of one network roundtrip at a time.
     await loadParallel(scoutEnhancers);
 
-    await import('./seller/inventory.js');
     await loadParallel(inventoryEnhancers);
 
     await loadParallel(adminModules);
