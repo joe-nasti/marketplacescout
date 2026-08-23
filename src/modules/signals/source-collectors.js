@@ -10,9 +10,7 @@ function host(){return document.getElementById('cxSignals')}
 function message(text){const el=document.getElementById('cxCollectorMsg');if(el)el.textContent=text||''}
 
 async function loadFeeds(){
-  try{
-    feeds=await rest('source_captures?select=capture_id,source,source_key,payload_json,captured_at&capture_type=eq.feed_subscription&order=captured_at.asc&limit=50')||[];
-  }catch{feeds=[]}
+  try{feeds=await rest('source_captures?select=capture_id,source,source_key,payload_json,captured_at&capture_type=eq.feed_subscription&order=captured_at.asc&limit=50')||[]}catch{feeds=[]}
   renderFeeds();
 }
 
@@ -30,7 +28,8 @@ async function addFeed(){
   const source=name||new URL(url).hostname.replace(/^www\./,'');
   const btn=document.getElementById('cxCollectorAdd');btn.disabled=true;message('Adding feed…');
   try{
-    await rest('source_captures?on_conflict=user_id,source,capture_type,source_key',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:{source,capture_type:'feed_subscription',source_key:url,content_type:'application/feed+subscription',payload_json:{feed_url:url,enabled:true,max_items:5},metadata_json:{kind:'market_intel_feed'}}});
+    const session=await validSession();if(!session?.user?.id)throw new Error('Sign in required');
+    await rest('source_captures?on_conflict=user_id,source,capture_type,source_key',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:{user_id:session.user.id,source,capture_type:'feed_subscription',source_key:url,content_type:'application/feed+subscription',payload_json:{feed_url:url,enabled:true,max_items:5},metadata_json:{kind:'market_intel_feed'}}});
     document.getElementById('cxCollectorName').value='';document.getElementById('cxCollectorUrl').value='';
     message(`Added ${source}.`);await loadFeeds();
   }catch(e){message(e?.message||'Could not add feed.')}finally{btn.disabled=false}
