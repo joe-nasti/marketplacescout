@@ -21,6 +21,7 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SCOUT_RANKINGS_STALE_MINUTES: "105"
       SCOUT_FORCE_FULL: "1"
+      SCOUT_RANKINGS_SOURCE: "hourly_reconciliation"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
