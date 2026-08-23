@@ -1,3 +1,4 @@
+import store from '../../state/store.js';
 import { rest } from '../../core/rest.js';
 
 let rows=[];
@@ -11,6 +12,8 @@ const host=()=>document.getElementById('cxSignals');
 const ready=()=>host()?.dataset.cxLazyReady==='1';
 const emerging=()=>rows.filter(r=>Number(r.dynamic_sources||0)>0).slice(0,8);
 const broad=()=>rows.filter(r=>Number(r.dynamic_sources||0)===0).slice(0,8);
+function shared(){const intel=store.get().intel||{},data=Array.isArray(intel.crossSourceRows)?intel.crossSourceRows:[],at=Number(intel.crossSourceLoadedAt||0);return{data,at}}
+function saveShared(data,at=Date.now()){store.update('intel',{crossSourceRows:data,crossSourceLoadedAt:at})}
 
 function evidenceLine(r){
   const bits=[];
@@ -42,9 +45,11 @@ function render(){
 }
 async function load({force=false}={}){
   if(loading)return loading;
+  const cached=shared();
+  if(!force&&cached.data.length&&Date.now()-cached.at<CACHE_MS){rows=cached.data;loadedAt=cached.at;render();return rows}
   if(!force&&loadedAt&&Date.now()-loadedAt<CACHE_MS){render();return rows}
   error='';
-  loading=rest('rpc/cross_source_market_watches',{method:'POST',body:{p_limit:80}}).then(data=>{rows=Array.isArray(data)?data:[];loadedAt=Date.now();document.dispatchEvent(new CustomEvent('collectish:cross-source-changed',{detail:{count:rows.length}}));return rows}).catch(e=>{rows=[];error=String(e?.message||e||'Request failed');return rows}).finally(()=>{loading=null;render()});
+  loading=rest('rpc/cross_source_market_watches',{method:'POST',body:{p_limit:80}}).then(data=>{rows=Array.isArray(data)?data:[];loadedAt=Date.now();saveShared(rows,loadedAt);document.dispatchEvent(new CustomEvent('collectish:cross-source-changed',{detail:{count:rows.length,rows,loadedAt}}));return rows}).catch(e=>{rows=[];error=String(e?.message||e||'Request failed');return rows}).finally(()=>{loading=null;render()});
   render();return loading;
 }
 function openScout(el){document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{sku_id:el.dataset.sku||null,product_id:el.dataset.product||null,card_name:el.dataset.card||null}}))}
