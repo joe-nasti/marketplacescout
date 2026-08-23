@@ -3,6 +3,7 @@ import { validSession, refreshSession, isJwtProblem } from './session.js';
 import store from '../state/store.js';
 
 const METRIC_KEY='collectishRuntimeHealth';
+const ENDPOINT_STAT_LIMIT=24;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 function readMetrics(){try{return JSON.parse(sessionStorage.getItem(METRIC_KEY)||'{}')}catch{return {}}}
@@ -10,10 +11,33 @@ function bump(key,extra={}){const m=readMetrics();m[key]=Number(m[key]||0)+1;m.l
 function headers(token,prefer){return {apikey:collectishConfig.publishableKey,Authorization:`Bearer ${token||collectishConfig.publishableKey}`,'Content-Type':'application/json',...(prefer?{Prefer:prefer}:{})}}
 function resourceKey(path){return `supabase:${String(path)}`}
 function writeResource(path,patch){const key=resourceKey(path),resources=store.get().resources||{},current=resources[key]||{};store.update('resources',{[key]:{...current,...patch}})}
+function endpointKey(path){const base=String(path||'').split('?')[0].replace(/^\/+/, '');if(!base)return'unknown';return base.startsWith('rpc/')?base:base.split('/')[0]}
+function responseBytes(response,text){const header=Number(response?.headers?.get?.('content-length')||0);if(Number.isFinite(header)&&header>0)return header;try{return new TextEncoder().encode(text||'').byteLength}catch{return String(text||'').length}}
+function recordEndpoint(path,{elapsedMs,status,bytes,method,error=false}){
+  const m=readMetrics(),key=endpointKey(path),stats={...(m.rest_endpoint_stats||{})},old=stats[key]||{};
+  const count=Number(old.count||0)+1,totalMs=Number(old.totalMs||0)+Number(elapsedMs||0),errors=Number(old.errors||0)+(error?1:0),totalBytes=Number(old.bytes||0)+Number(bytes||0);
+  stats[key]={count,totalMs:Math.round(totalMs),maxMs:Math.max(Number(old.maxMs||0),Number(elapsedMs||0)),lastMs:Math.round(Number(elapsedMs||0)),errors,bytes:Math.round(totalBytes),lastStatus:Number(status||0),lastMethod:String(method||'GET'),lastAt:new Date().toISOString()};
+  const ordered=Object.entries(stats).sort((a,b)=>Number(b[1]?.totalMs||0)-Number(a[1]?.totalMs||0)).slice(0,ENDPOINT_STAT_LIMIT);
+  m.rest_endpoint_stats=Object.fromEntries(ordered);
+  m.rest_request_count=Number(m.rest_request_count||0)+1;
+  m.rest_transfer_bytes=Number(m.rest_transfer_bytes||0)+Number(bytes||0);
+  if(error)m.rest_error_count=Number(m.rest_error_count||0)+1;
+  m.last_rest_endpoint=key;m.last_rest_ms=Math.round(Number(elapsedMs||0));m.last_event_at=new Date().toISOString();
+  try{sessionStorage.setItem(METRIC_KEY,JSON.stringify(m))}catch{}
+  document.dispatchEvent(new CustomEvent('collectish:runtime-health',{detail:{event:'rest-endpoint',endpoint:key,elapsedMs:Math.round(Number(elapsedMs||0)),status:Number(status||0)}}));
+}
 
 async function request(path,options,token){
-  const r=await fetch(`${collectishConfig.supabaseUrl}/rest/v1/${path}`,{method:options.method||'GET',headers:headers(token,options.prefer),body:options.body===undefined?undefined:JSON.stringify(options.body)});
-  const text=await r.text();let data;try{data=text?JSON.parse(text):null}catch{data=text};return {r,text,data};
+  const method=String(options.method||'GET').toUpperCase(),started=performance.now();
+  try{
+    const r=await fetch(`${collectishConfig.supabaseUrl}/rest/v1/${path}`,{method,headers:headers(token,options.prefer),body:options.body===undefined?undefined:JSON.stringify(options.body)});
+    const text=await r.text();let data;try{data=text?JSON.parse(text):null}catch{data=text};
+    recordEndpoint(path,{elapsedMs:performance.now()-started,status:r.status,bytes:responseBytes(r,text),method,error:!r.ok});
+    return {r,text,data};
+  }catch(error){
+    recordEndpoint(path,{elapsedMs:performance.now()-started,status:0,bytes:0,method,error:true});
+    throw error;
+  }
 }
 
 async function baseRest(path,options={}){
