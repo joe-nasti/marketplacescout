@@ -38,6 +38,7 @@ function appendBatch(){
   updateSentinel();
   refreshDecorators();
   expansionEvent=true;
+  h.dataset.progressiveRemaining=String(pool.length);
   document.dispatchEvent(new CustomEvent('collectish:scout-list-rendered',{detail:{count:h.querySelectorAll('.cx-scout-card').length,expanded:true,remaining:pool.length}}));
   queueMicrotask(()=>{expansionEvent=false});
 }
@@ -58,10 +59,21 @@ function ensureSentinel(h){
 function compact(){
   compactQueued=false;
   const h=host();if(!h)return;
+
+  // Multiple lifecycle/decorator events can request compaction for the same list.
+  // If our sentinel is still mounted, the current pool is authoritative; rebuilding
+  // here would throw away the detached remainder. Recompact only after the renderer
+  // has replaced the list DOM (which disconnects the old sentinel).
+  if(sentinel?.isConnected&&sentinel.parentElement===h)return;
+
   cleanup();
   const cards=[...h.querySelectorAll(':scope > .cx-scout-card')];
   const limit=initialLimit();
-  if(cards.length<=limit)return;
+  if(cards.length<=limit){
+    h.dataset.progressiveRendered=String(cards.length);
+    h.dataset.progressiveRemaining='0';
+    return;
+  }
   pool=cards.slice(limit);
   for(const card of pool)card.remove();
   ensureSentinel(h);
