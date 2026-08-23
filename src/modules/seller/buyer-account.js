@@ -3,8 +3,6 @@ import { rest } from '../../core/rest.js';
 let parsedOrders=[];
 let parseMeta=null;
 let importing=false;
-let observer=null;
-let reattachTimer=null;
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const money=v=>v==null?'—':Number(v).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
 const host=()=>document.getElementById('cxSeller');
@@ -26,8 +24,8 @@ function summaryHtml(){if(!parseMeta)return '<div class="cx-empty">Choose a HAR 
 function render(){const p=ensurePanel();if(!p)return;p.innerHTML=`<div class="cx-page-head"><div><div class="cx-section-title">TCGplayer buyer account</div><p class="cx-sub">Import buyer-order history from a HAR without storing the HAR itself. Only normalized order and item fields are sent to MarketplaceScout.</p></div></div><div class="cx-scout-toolbar"><label class="cx-refresh" for="cxBuyerHarFile">Choose HAR</label><input id="cxBuyerHarFile" type="file" accept=".har,.json,application/json" style="display:none"><button type="button" class="cx-primary" id="cxBuyerImport" ${parsedOrders.length&&!importing?'':'disabled'}>${importing?'Importing…':`Import ${parsedOrders.length||''} order${parsedOrders.length===1?'':'s'}`}</button></div>${summaryHtml()}<small class="cx-sub">Security: MarketplaceScout does not upload request headers, cookies, authorization tokens, or raw HAR response bodies. Importing the same order again updates it instead of duplicating spend.</small>`;document.getElementById('cxBuyerHarFile')?.addEventListener('change',onFile);document.getElementById('cxBuyerImport')?.addEventListener('click',importOrders)}
 async function onFile(e){const file=e.target.files?.[0];if(!file)return;parsedOrders=[];parseMeta=null;render();try{if(file.size>100*1024*1024)throw new Error('HAR is larger than 100 MB. Capture just the buyer order-history session if possible.');const text=await file.text();const har=JSON.parse(text);const result=parseHar(har);parsedOrders=result.orders;parseMeta=result.meta;render()}catch(err){parseMeta={recognized_orders:0,recognized_items:0};render();const p=ensurePanel();p?.insertAdjacentHTML('beforeend',`<div class="cx-empty">${esc(err?.message||'Could not parse HAR.')}</div>`)}}
 async function importOrders(){if(importing||!parsedOrders.length)return;importing=true;render();try{const data=await rest('rpc/import_tcg_buyer_orders',{method:'POST',body:{p_orders:parsedOrders}});const r=Array.isArray(data)?data[0]:data;document.dispatchEvent(new CustomEvent('collectish:buyer-orders-changed',{detail:{orders:Number(r?.imported_orders||parsedOrders.length),items:Number(r?.imported_items||0)}}));const p=ensurePanel();p?.insertAdjacentHTML('beforeend',`<div class="cx-empty">Imported ${esc(r?.imported_orders??parsedOrders.length)} orders and ${esc(r?.imported_items??0)} items. Monthly buying budget will refresh automatically.</div>`)}catch(err){const p=ensurePanel();p?.insertAdjacentHTML('beforeend',`<div class="cx-empty">Import failed: ${esc(err?.message||'Request failed')}</div>`)}finally{importing=false;render()}}
-function watchSeller(){const h=host();if(!h)return;observer?.disconnect();observer=new MutationObserver(()=>{if(document.getElementById('cxBuyerAccountImport'))return;clearTimeout(reattachTimer);reattachTimer=setTimeout(render,25)});observer.observe(h,{childList:true})}
-function ensure(){if(!host())return;watchSeller();render()}
+function ensure(){if(!host())return;render()}
+document.addEventListener('collectish:seller-rendered',()=>setTimeout(ensure,0));
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='seller')setTimeout(ensure,100)});
 document.addEventListener('collectish:ready',()=>setTimeout(ensure,180));
 setTimeout(ensure,250);
