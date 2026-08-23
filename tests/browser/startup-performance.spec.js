@@ -37,11 +37,11 @@ test('authenticated Scout startup stays lean and defers noncritical pages',async
   expect(startup.inventoryReady).toBe(false);
   expect(startup.jsResources).toBeLessThan(45);
 
-  await page.locator('[data-cx-page="inventory"]').first().click();
+  await page.evaluate(()=>window.CollectishShell.switchPage('inventory',{scroll:false}));
   await page.waitForFunction(()=>window.__collectishPerf?.inventoryReady===true);
   expect(await page.evaluate(()=>window.__collectishPerf.adminReady)).toBe(false);
 
-  await page.locator('[data-cx-page="admin"]').first().click();
+  await page.evaluate(()=>window.CollectishShell.switchPage('admin',{scroll:false}));
   await page.waitForFunction(()=>window.__collectishPerf?.adminReady===true);
   const lazyPages=await page.evaluate(()=>window.__collectishPerf.lazy.map(x=>x.page));
   expect(lazyPages).toContain('inventory');
