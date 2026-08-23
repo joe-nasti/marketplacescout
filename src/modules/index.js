@@ -1,15 +1,18 @@
 const scoutCore=[
-  ()=>import('./scout/volatility.js'),
   ()=>import('./scout/detail-links.js'),
   ()=>import('./scout/detail-compact-header.js'),
   ()=>import('./scout/images.js'),
   ()=>import('./scout/progressive-render.js'),
-  ()=>import('./scout/noise-filter.js'),
   ()=>import('./scout/search.js'),
   ()=>import('./scout/vendor.js'),
   ()=>import('./scout/detail-swipe.js'),
   ()=>import('./scout/compact-mobile.js'),
-  ()=>import('./scout/liquidity.js'),
+  ()=>import('./scout/liquidity.js')
+];
+
+const scoutPostRender=[
+  ()=>import('./scout/volatility.js'),
+  ()=>import('./scout/noise-filter.js'),
   ()=>import('./scout/quick-turn.js'),
   ()=>import('./scout/position-sizing.js'),
   ()=>import('./scout/portfolio-allocation.js')
@@ -40,12 +43,34 @@ const askEnhancers=[
 ];
 
 const loadParallel=loaders=>Promise.all(loaders.map(load=>load()));
+const idle=(fn,{timeout=2500,delay=0}={})=>{
+  const run=()=>{
+    if('requestIdleCallback' in window)requestIdleCallback(()=>fn(),{timeout});
+    else setTimeout(()=>fn(),Math.min(timeout,1200));
+  };
+  if(delay>0)setTimeout(run,delay);else run();
+};
 let installPromise=null;
+let postRenderPromise=null;
 let idlePromise=null;
+let postRenderScheduled=false;
+
+function schedulePostRenderEnhancers(){
+  if(postRenderScheduled||postRenderPromise)return;
+  postRenderScheduled=true;
+  idle(()=>{
+    if(postRenderPromise)return;
+    const started=performance.now();
+    postRenderPromise=loadParallel(scoutPostRender).then(()=>{
+      document.dispatchEvent(new CustomEvent('collectish:scout-post-render-modules-ready',{detail:{ms:Math.round(performance.now()-started)}}));
+    });
+  },{timeout:2200,delay:350});
+}
 
 function scheduleIdleEnhancers(){
   if(idlePromise)return idlePromise;
-  const run=()=>{
+  idle(()=>{
+    if(idlePromise)return;
     idlePromise=(async()=>{
       await Promise.all([
         loadParallel(scoutIntelligence),
@@ -53,21 +78,26 @@ function scheduleIdleEnhancers(){
       ]);
       document.dispatchEvent(new CustomEvent('collectish:idle-modules-ready'));
     })();
-    return idlePromise;
-  };
-  if('requestIdleCallback' in window)requestIdleCallback(()=>run(),{timeout:2500});
-  else setTimeout(()=>run(),1200);
+  },{timeout:4500,delay:1500});
   return null;
 }
+
+function onScoutReady(){
+  schedulePostRenderEnhancers();
+  scheduleIdleEnhancers();
+}
+
+document.addEventListener('collectish:scout-v5-ready',onScoutReady,{once:true});
 
 export function installModules(){
   if(installPromise)return installPromise;
   installPromise=(async()=>{
-    // Keep only the default Scout interaction path on authenticated startup.
-    // Intelligence, Ask, Inventory and Admin are explicitly deferred.
+    // Keep first-paint Scout interaction code on the authenticated startup path.
+    // RPC-producing overlays wait until after the ranked list is rendered and the
+    // browser has an idle slice; intelligence and Ask start in a later idle wave.
     await loadParallel(scoutCore);
     document.dispatchEvent(new CustomEvent('collectish:feature-modules-ready'));
-    scheduleIdleEnhancers();
+    if(document.getElementById('cxScout')?.dataset.scoutV5==='promoted')onScoutReady();
   })();
   return installPromise;
 }
