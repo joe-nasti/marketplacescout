@@ -24,20 +24,38 @@ function persistentKey(){
   return `user:${userId}:scout.rows`;
 }
 
+function freshRows(record){
+  const age=record?Date.now()-Number(record.fetchedAt||0):Infinity;
+  return Array.isArray(record?.data)&&record.data.length&&age<=PERSISTED_FRESH_MS?{rows:record.data,age}:null;
+}
+
 async function readRecentPersisted(){
   if(persistedChecked)return null;
   persistedChecked=true;
   const started=performance.now();
+
+  const primed=freshRows(store.get()?.resources?.['scout.rows']);
+  if(primed){
+    health({
+      scout_persisted_used:true,
+      scout_persisted_source:'primed-store',
+      scout_persisted_age_ms:Math.round(primed.age),
+      scout_persisted_read_ms:Math.round(performance.now()-started)
+    });
+    return primed.rows;
+  }
+
   try{
     const record=await readPersistentResource(persistentKey());
-    const age=record?Date.now()-Number(record.fetchedAt||0):Infinity;
-    if(Array.isArray(record?.data)&&record.data.length&&age<=PERSISTED_FRESH_MS){
+    const cached=freshRows(record);
+    if(cached){
       health({
         scout_persisted_used:true,
-        scout_persisted_age_ms:Math.round(age),
+        scout_persisted_source:'indexeddb',
+        scout_persisted_age_ms:Math.round(cached.age),
         scout_persisted_read_ms:Math.round(performance.now()-started)
       });
-      return record.data;
+      return cached.rows;
     }
   }catch{}
   health({scout_persisted_used:false,scout_persisted_read_ms:Math.round(performance.now()-started)});
