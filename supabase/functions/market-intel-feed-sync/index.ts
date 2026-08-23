@@ -44,33 +44,40 @@ Deno.serve(async(req:Request)=>{
   let user:any;try{user=await auth(t)}catch{return J({error:'Authentication required'},401)}
   let b:any;try{b=await req.json()}catch{b={}}
   try{
-    const feeds=await subscriptions(t,b),report:any[]=[];let totalProcessed=0,totalSaved=0,totalDuplicates=0,totalFailed=0;
-    const maxTotal=Math.max(1,Math.min(Number(b?.max_total)||12,30));
+    const feeds=await subscriptions(t,b),report:any[]=[];
+    let attempted=0,totalSaved=0,totalDuplicates=0,totalFailed=0,totalScanned=0,skippedSaved=0,morePending=false;
+    // Analysis/ingest commonly takes 20–40s per item. Keep each Edge invocation to a
+    // deliberately small resumable batch so it stays far below the platform wall-clock limit.
+    const maxNew=Math.max(1,Math.min(Number(b?.max_new)||Number(b?.max_total)||1,2));
+    let stop=false;
     for(const f of feeds){
-      if(totalProcessed>=maxTotal)break;
+      if(stop)break;
       const feedUrl=safeUrl(String(f.source_key)),sourceName=trim(f.source,120)||new URL(feedUrl).hostname,maxItems=Math.max(1,Math.min(Number(f?.payload_json?.max_items)||5,10));
-      const out:any={source:sourceName,feed_url:feedUrl,seen:0,saved:0,duplicates:0,failed:0,errors:[]};
+      const out:any={source:sourceName,feed_url:feedUrl,scanned:0,attempted:0,saved:0,duplicates:0,skipped_saved:0,failed:0,errors:[]};
       try{
         const xml=await getFeed(feedUrl),items=parseFeed(xml,feedUrl).slice(0,maxItems);
         for(const item of items){
-          if(totalProcessed>=maxTotal)break;out.seen++;totalProcessed++;
+          out.scanned++;totalScanned++;
           const key=item.url;
           const existing=await rest(t,`source_captures?select=capture_id,metadata_json&source=eq.${encodeURIComponent(sourceName)}&capture_type=eq.feed_item&source_key=eq.${encodeURIComponent(key)}&limit=1`).catch(()=>[]);
           const row=existing?.[0];
-          if(row?.metadata_json?.status==='saved'){out.duplicates++;totalDuplicates++;continue}
+          if(row?.metadata_json?.status==='saved'){out.skipped_saved++;skippedSaved++;continue}
+          if(attempted>=maxNew){morePending=true;stop=true;break}
+          attempted++;out.attempted++;
           let captureId=row?.capture_id||null;
           if(!captureId){
             const inserted=await rest(t,'source_captures',{method:'POST',prefer:'return=representation',body:{user_id:user.id,source:sourceName,capture_type:'feed_item',source_key:key,content_type:'application/feed+item',payload_json:{title:item.title,published_at:item.published_at,author:item.author,feed_url:feedUrl},payload_text:item.summary||null,content_hash:await sha(`${item.url}|${item.title}|${item.summary}`),metadata_json:{status:'pending',feed_url:feedUrl}}});
             captureId=(Array.isArray(inserted)?inserted[0]:inserted)?.capture_id||null;
           }
           try{
-            const result=await ingest(t,item,sourceName);out.saved+=Number(result?.saved||0);out.duplicates+=Number(result?.duplicates||0);totalSaved+=Number(result?.saved||0);totalDuplicates+=Number(result?.duplicates||0);
-            if(captureId)await rest(t,`source_captures?capture_id=eq.${encodeURIComponent(captureId)}`,{method:'PATCH',prefer:'return=minimal',body:{metadata_json:{status:'saved',feed_url:feedUrl,ingested_at:new Date().toISOString(),saved:Number(result?.saved||0),duplicates:Number(result?.duplicates||0)}}});
+            const result=await ingest(t,item,sourceName);const saved=Number(result?.saved||0),dupes=Number(result?.duplicates||0);
+            out.saved+=saved;out.duplicates+=dupes;totalSaved+=saved;totalDuplicates+=dupes;
+            if(captureId)await rest(t,`source_captures?capture_id=eq.${encodeURIComponent(captureId)}`,{method:'PATCH',prefer:'return=minimal',body:{metadata_json:{status:'saved',feed_url:feedUrl,ingested_at:new Date().toISOString(),saved,duplicates:dupes}}});
           }catch(e){out.failed++;totalFailed++;out.errors.push(`${item.title}: ${(e as Error).message}`);if(captureId)await rest(t,`source_captures?capture_id=eq.${encodeURIComponent(captureId)}`,{method:'PATCH',prefer:'return=minimal',body:{metadata_json:{status:'failed',feed_url:feedUrl,last_error:(e as Error).message,last_attempt_at:new Date().toISOString()}}}).catch(()=>null)}
         }
       }catch(e){out.failed++;totalFailed++;out.errors.push((e as Error).message)}
       report.push(out);
     }
-    return J({ok:true,feeds:report.length,processed:totalProcessed,saved:totalSaved,duplicates:totalDuplicates,failed:totalFailed,report});
+    return J({ok:true,feeds:report.length,scanned:totalScanned,attempted,saved:totalSaved,duplicates:totalDuplicates,skipped_saved:skippedSaved,failed:totalFailed,more_pending:morePending,report});
   }catch(e){return J({error:(e as Error).message},502)}
 });

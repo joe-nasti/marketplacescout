@@ -60,14 +60,30 @@ async function removeFeed(id){
   try{await rest(`source_captures?capture_id=eq.${encodeURIComponent(id)}`,{method:'DELETE',prefer:'return=minimal'});message('Feed removed.');await loadFeeds()}catch(e){message(e?.message||'Could not remove feed.')}
 }
 
+async function runSyncBatch(session){
+  const r=await fetch(`${collectishConfig.supabaseUrl}/functions/v1/market-intel-feed-sync`,{method:'POST',headers:{apikey:collectishConfig.publishableKey,Authorization:`Bearer ${session.token}`,'Content-Type':'application/json'},body:JSON.stringify({max_new:1})});
+  const raw=await r.text();let data;try{data=raw?JSON.parse(raw):{}}catch{data={error:raw}};if(!r.ok)throw new Error(data?.error||`Feed sync HTTP ${r.status}`);return data;
+}
+
 async function syncFeeds(){
-  const btn=document.getElementById('cxCollectorSync');btn.disabled=true;message('Checking feeds and ingesting new items…');
+  const btn=document.getElementById('cxCollectorSync');btn.disabled=true;message('Checking feeds…');
   try{
     const session=await validSession();if(!session)throw new Error('Sign in required');
-    const r=await fetch(`${collectishConfig.supabaseUrl}/functions/v1/market-intel-feed-sync`,{method:'POST',headers:{apikey:collectishConfig.publishableKey,Authorization:`Bearer ${session.token}`,'Content-Type':'application/json'},body:JSON.stringify({max_total:12})});
-    const raw=await r.text();let data;try{data=raw?JSON.parse(raw):{}}catch{data={error:raw}};if(!r.ok)throw new Error(data?.error||`Feed sync HTTP ${r.status}`);
-    message(`Checked ${data.feeds||0} feed${data.feeds===1?'':'s'} · ${data.saved||0} new signal${data.saved===1?'':'s'} · ${data.duplicates||0} duplicate${data.duplicates===1?'':'s'}${data.failed?` · ${data.failed} failed`:''}.`);
-    if(data.saved)document.dispatchEvent(new CustomEvent('collectish:intel-changed',{detail:{source:'feed-sync',saved:data.saved}}));
+    const total={feeds:0,attempted:0,saved:0,duplicates:0,skipped_saved:0,failed:0};
+    let more=true,round=0;
+    // Keep each Edge request small. Step through a few one-item batches from the browser
+    // so long-running model analysis cannot hit the Edge function wall-clock limit.
+    while(more&&round<4){
+      round++;
+      message(`Syncing feed item ${round}…`);
+      const data=await runSyncBatch(session);
+      for(const k of Object.keys(total))total[k]+=Number(data?.[k]||0);
+      more=!!data?.more_pending&&Number(data?.failed||0)===0;
+      if(!data?.attempted&&!data?.more_pending)break;
+    }
+    const remaining=more?' · more items remain; sync again to continue':'';
+    message(`Processed ${total.attempted} new item${total.attempted===1?'':'s'} · ${total.saved} new signal${total.saved===1?'':'s'} · ${total.duplicates} duplicate${total.duplicates===1?'':'s'}${total.failed?` · ${total.failed} failed`:''}${remaining}.`);
+    if(total.saved)document.dispatchEvent(new CustomEvent('collectish:intel-changed',{detail:{source:'feed-sync',saved:total.saved}}));
     document.getElementById('cxSignalsRefresh')?.click();
   }catch(e){message(e?.message||'Could not sync feeds.')}finally{btn.disabled=false}
 }
