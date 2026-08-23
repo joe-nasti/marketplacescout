@@ -1,0 +1,25 @@
+/* Mobile quality overrides: keep these last in the style graph. */
+.cx-primary{min-height:46px}
+.cx-auth{min-height:100vh;min-height:100dvh;padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom))}
+
+@media(max-width:700px){
+  #collectishUxShell{min-height:100vh;min-height:100dvh;padding-bottom:calc(68px + env(safe-area-inset-bottom))}
+  .cx-main{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+  .cx-mobile-nav{
+    grid-template-columns:repeat(7,minmax(0,1fr));
+    padding-left:max(4px,env(safe-area-inset-left));
+    padding-right:max(4px,env(safe-area-inset-right));
+  }
+  .cx-mobile-nav button{min-height:44px;padding:6px 1px;line-height:1.1}
+  .cx-page-head{min-width:0}
+  .cx-page-head>div{min-width:0}
+  .cx-page-head h2,.cx-page-head p{overflow-wrap:anywhere}
+  .cx-filters>*{min-width:0;max-width:100%}
+  img,svg,canvas{max-width:100%}
+}
+
+@media(max-width:380px){
+  .cx-main{padding-left:10px;padding-right:10px}
+  .cx-mobile-nav button{font-size:9.5px}
+  .cx-card{padding:12px}
+}
