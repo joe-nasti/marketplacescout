@@ -20,7 +20,8 @@ const scoutEnhancers=[
   ()=>import('./signals/competitive.js'),
   ()=>import('./signals/competitive-paper.js'),
   ()=>import('./signals/commander.js'),
-  ()=>import('./signals/cross-source.js')
+  ()=>import('./signals/cross-source.js'),
+  ()=>import('./signals/actionable-emerging.js')
 ];
 
 const inventoryEnhancers=[
