@@ -13,6 +13,22 @@ const pageLoaders={
 };
 const title=p=>p==='syp'?'SYP':p[0].toUpperCase()+p.slice(1);
 const host=page=>document.getElementById(`cx${page==='syp'?'Syp':page[0].toUpperCase()+page.slice(1)}`);
+const buildId=()=>document.querySelector('meta[name="collectish-build"]')?.content?.trim()||'unknown';
+const dynamicImportFailure=err=>/failed to fetch dynamically imported module|importing a module script failed|error loading dynamically imported module/i.test(String(err?.message||err||''));
+
+function recoverStaleModule(page,err){
+  if(!dynamicImportFailure(err))return false;
+  const key=`collectishLazyRecover:${buildId()}:${page}`;
+  try{
+    if(sessionStorage.getItem(key)==='1')return false;
+    sessionStorage.setItem(key,'1');
+  }catch{}
+  store.update('runtime',{lazyPage:page,lazyStatus:'recovering',lazyError:String(err?.message||err)});
+  const next=new URL(location.href);
+  next.searchParams.set('_lazy_recover',Date.now().toString());
+  location.replace(next.toString());
+  return true;
+}
 
 function showLoading(page){const h=host(page);if(!h||h.dataset.cxLazyReady==='1')return;h.innerHTML=`<div class="cx-page-head"><div><h2>${title(page)}</h2><p>Loading ${title(page)}…</p></div></div><div class="cx-card"><div class="cx-empty">Preparing ${title(page)} data…</div></div>`}
 function showError(page,err){const h=host(page);if(!h)return;h.innerHTML=`<div class="cx-page-head"><div><h2>${title(page)}</h2></div></div><div class="cx-card"><div class="cx-empty">Could not load ${title(page)}${err?`: ${String(err.message||err)}`:''}. Reopen the tab to retry.</div></div>`}
@@ -31,6 +47,7 @@ export async function loadPage(page){
     document.dispatchEvent(new CustomEvent('collectish:lazy-page-loaded',{detail:{page,ms:Math.round(performance.now()-started)}}));
   }).catch(err=>{
     loaded.delete(page);
+    if(recoverStaleModule(page,err))return;
     store.update('runtime',{lazyPage:page,lazyStatus:'error',lazyError:String(err?.message||err)});
     showError(page,err);
     throw err;
