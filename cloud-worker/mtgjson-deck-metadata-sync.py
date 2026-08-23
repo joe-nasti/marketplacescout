@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import hashlib,json,os,time,urllib.request,urllib.error
+from datetime import datetime,timezone
 import pyarrow.parquet as pq
 
 SUPABASE_URL=os.environ.get('SUPABASE_URL','').rstrip('/')
@@ -7,6 +8,8 @@ SERVICE_KEY=os.environ.get('SUPABASE_SERVICE_ROLE_KEY','')
 BASE=os.environ.get('MTGJSON_PARQUET_BASE_URL','https://mtgjson.com/api/v5/parquet').rstrip('/')
 BATCH=300
 if not SUPABASE_URL or not SERVICE_KEY: raise RuntimeError('Supabase credentials required')
+
+def now(): return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
 
 def sb(path,method='GET',body=None,prefer=None):
     data=None if body is None else json.dumps(body,separators=(',',':')).encode()
@@ -40,32 +43,42 @@ def deck_key(r):
     return hashlib.sha1(raw.encode()).hexdigest()
 
 def decode_list(v):
-    # MTGJSON parquet list columns can arrive as nested JSON strings, e.g.
-    # ['["uuid"]'] or even ['["[\\"uuid\\"]"]']. Peel those layers until
-    # we have the actual scalar values, then flatten them into one clean list.
     if v is None:return []
     if isinstance(v,str):
         s=v.strip()
         if not s:return []
-        try:
-            x=json.loads(s)
-        except Exception:
-            return [v]
+        try:x=json.loads(s)
+        except Exception:return [v]
         if x==v:return [v]
         return decode_list(x)
     if isinstance(v,(list,tuple)):
         out=[]
-        for x in v:
-            out.extend(decode_list(x))
+        for x in v:out.extend(decode_list(x))
         return out
     return [v]
 
 def main():
-    rows=pq.read_table(download()).to_pylist();out=[]
+    started=now();rows=pq.read_table(download()).to_pylist();out=[];skipped=0
     for d in rows:
-        out.append({'deck_key':deck_key(d),'sealed_product_uuids':decode_list(d.get('sealedProductUuids'))})
+        name=str(d.get('name') or '').strip()
+        if not name:
+            skipped+=1;continue
+        out.append({
+            'deck_key':deck_key(d),
+            'code':str(d.get('code') or '') or None,
+            'name':name,
+            'deck_type':str(d.get('type') or '') or None,
+            'release_date':str(d.get('releaseDate') or '') or None,
+            'sealed_product_uuids':decode_list(d.get('sealedProductUuids')),
+            'source_updated_at':started
+        })
     for i in range(0,len(out),BATCH):
         sb('mtgjson_decks?on_conflict=deck_key','POST',out[i:i+BATCH],'resolution=merge-duplicates,return=minimal')
-    print(json.dumps({'decks':len(out),'sample':out[0] if out else None}))
+    sb('mtgjson_sync_state?on_conflict=feed','POST',[{
+        'feed':'deck_metadata','status':'complete','row_count':len(out),
+        'last_started_at':started,'last_completed_at':now(),
+        'detail':{'source':'setDecks.parquet','decks':len(out),'skippedMissingName':skipped}
+    }],'resolution=merge-duplicates,return=minimal')
+    print(json.dumps({'decks':len(out),'skippedMissingName':skipped,'sample':out[0] if out else None}))
 
 if __name__=='__main__':main()
