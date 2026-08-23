@@ -17,6 +17,13 @@ async function rest(t:string,path:string,opt:any={}){const r=await fetch(`${U}/r
 async function rpc(t:string,name:string,args:any={}){return rest(t,`rpc/${name}`,{method:'POST',body:args})}
 async function analyze(t:string,b:any){const r=await fetch(`${U}/functions/v1/market-intel-analyze`,{method:'POST',headers:H(t),body:JSON.stringify({url:b.url,rendered_text:b.rendered_text,rendered_title:b.rendered_title,published_at:b.published_at,author:b.author})});const text=await r.text();let d:any;try{d=text?JSON.parse(text):{}}catch{d={error:text}}if(!r.ok)throw Error(d?.error||`Analyzer ${r.status}`);return d}
 
+function normName(value:string){return String(value||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ')}
+function editDistance(a:string,b:string){const x=normName(a),y=normName(b);if(x===y)return 0;if(!x.length)return y.length;if(!y.length)return x.length;let prev=Array.from({length:y.length+1},(_,i)=>i);for(let i=1;i<=x.length;i++){const cur=[i];for(let j=1;j<=y.length;j++)cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(x[i-1]===y[j-1]?0:1));prev=cur}return prev[y.length]}
+function acceptableFuzzy(input:string,resolved:string){const a=normName(input),b=normName(resolved);if(!a||!b)return false;if(a===b)return true;const max=Math.max(a.length,b.length);const d=editDistance(a,b);return d<=2||d/max<=0.16}
+async function scryfallNamed(name:string,mode:'exact'|'fuzzy'){try{const r=await fetch(`https://api.scryfall.com/cards/named?${mode}=${encodeURIComponent(name)}`,{headers:{'User-Agent':'MarketplaceScout/0.4 (+market intelligence entity resolver)'}});if(!r.ok)return null;const c=await r.json();return c?.id?{name:String(c.name||name),scryfall_id:String(c.id),set_code:c.set?String(c.set):null}:null}catch{return null}}
+async function resolveCard(name:string){const exact=await scryfallNamed(name,'exact');if(exact)return exact;const fuzzy=await scryfallNamed(name,'fuzzy');return fuzzy&&acceptableFuzzy(name,fuzzy.name)?fuzzy:null}
+async function normalizeEntity(s:any){const requested=trim(s?.entity_type,40)||'other',name=trim(s?.entity_name,300);if(requested!=='card')return{entity_type:requested,entity_name:name,scryfall_id:s?.scryfall_id||null,set_code:trim(s?.set_code,20)||null,confidence:clamp(s?.confidence),card_resolution:'not_applicable'};const resolved=await resolveCard(name);if(resolved)return{entity_type:'card',entity_name:resolved.name,scryfall_id:resolved.scryfall_id,set_code:resolved.set_code,confidence:0.99,card_resolution:normName(name)===normName(resolved.name)?'exact':'fuzzy'};return{entity_type:'other',entity_name:name,scryfall_id:null,set_code:null,confidence:Math.min(clamp(s?.confidence),0.5),card_resolution:'rejected'} }
+
 Deno.serve(async(req:Request)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:C});
   if(req.method!=='POST')return J({error:'POST required'},405);
@@ -28,19 +35,21 @@ Deno.serve(async(req:Request)=>{
     const analysis=b?.analysis&&Array.isArray(b.analysis.signals)?b.analysis:await analyze(t,b);
     const all=Array.isArray(analysis?.signals)?analysis.signals.slice(0,20):[];
     const selected=Array.isArray(b?.selected_indexes)?b.selected_indexes.map(Number).filter((n:number)=>Number.isInteger(n)&&n>=0&&n<all.length).map((n:number)=>all[n]):all.filter((s:any)=>s?.signal_stage!=='noise');
-    if(!selected.length)return J({ok:true,url,analysis,saved:0,duplicates:0,intel_ids:[]});
+    if(!selected.length)return J({ok:true,url,analysis,saved:0,duplicates:0,intel_ids:[],rejected_cards:0});
 
     const existing=await rest(t,`market_intel_items?select=intel_id,claim_type,direction,summary,market_intel_entities(entity_name)&source_url=eq.${encodeURIComponent(url)}&limit=200`).catch(()=>[]);
     const seen=new Set((existing||[]).map((x:any)=>`${trim(x.claim_type,40).toLowerCase()}|${trim(x.direction,20).toLowerCase()}|${trim(x.market_intel_entities?.[0]?.entity_name,300).toLowerCase()}|${trim(x.summary,450).toLowerCase()}`));
-    const ids:string[]=[];let duplicates=0;
+    const ids:string[]=[];let duplicates=0,rejectedCards=0,fuzzyCards=0;
     for(const s of selected){
-      if(seen.has(canonical(s))){duplicates++;continue}
-      const inserted=await rest(t,'market_intel_items',{method:'POST',prefer:'return=representation',body:{user_id:user.id,source_type:sourceType(url,b.source_type),source_name:sourceName(url,b.source_name),source_url:url,title:trim(analysis?.title||s?.entity_name,500)||null,author:trim(analysis?.author||b?.author,250)||null,summary:trim(s?.summary,1200)||null,claim_type:trim(s?.claim_type,40)||'other',direction:trim(s?.direction,20)||'neutral',signal_stage:trim(s?.signal_stage,30)||'unclassified',confidence:clamp(s?.confidence),published_at:analysis?.published_at||b?.published_at||null}});
+      const entity=await normalizeEntity(s);if(entity.card_resolution==='rejected')rejectedCards++;if(entity.card_resolution==='fuzzy')fuzzyCards++;
+      const normalized={...s,entity_name:entity.entity_name,entity_type:entity.entity_type};
+      if(seen.has(canonical(normalized))){duplicates++;continue}
+      const inserted=await rest(t,'market_intel_items',{method:'POST',prefer:'return=representation',body:{user_id:user.id,source_type:sourceType(url,b.source_type),source_name:sourceName(url,b.source_name),source_url:url,title:trim(analysis?.title||entity.entity_name,500)||null,author:trim(analysis?.author||b?.author,250)||null,summary:trim(s?.summary,1200)||null,claim_type:trim(s?.claim_type,40)||'other',direction:trim(s?.direction,20)||'neutral',signal_stage:trim(s?.signal_stage,30)||'unclassified',confidence:clamp(s?.confidence),published_at:analysis?.published_at||b?.published_at||null}});
       const item=Array.isArray(inserted)?inserted[0]:inserted;if(!item?.intel_id)continue;
-      await rest(t,'market_intel_entities',{method:'POST',prefer:'return=minimal',body:{intel_id:item.intel_id,user_id:user.id,entity_type:trim(s?.entity_type,40)||'other',entity_name:trim(s?.entity_name,300),scryfall_id:s?.scryfall_id||null,set_code:trim(s?.set_code,20)||null,confidence:s?.scryfall_id?0.99:clamp(s?.confidence)}});
-      ids.push(item.intel_id);seen.add(canonical(s));
+      await rest(t,'market_intel_entities',{method:'POST',prefer:'return=minimal',body:{intel_id:item.intel_id,user_id:user.id,entity_type:entity.entity_type,entity_name:entity.entity_name,scryfall_id:entity.scryfall_id,set_code:entity.set_code,confidence:entity.confidence}});
+      ids.push(item.intel_id);seen.add(canonical(normalized));
     }
     if(ids.length){await rpc(t,'refresh_market_intel_entity_links',{}).catch(()=>null);await rpc(t,'refresh_market_intel_evaluations',{}).catch(()=>null)}
-    return J({ok:true,url,analysis,saved:ids.length,duplicates,intel_ids:ids,source_type:sourceType(url,b.source_type),source_name:sourceName(url,b.source_name)});
+    return J({ok:true,url,analysis,saved:ids.length,duplicates,intel_ids:ids,rejected_cards:rejectedCards,fuzzy_cards:fuzzyCards,source_type:sourceType(url,b.source_type),source_name:sourceName(url,b.source_name)});
   }catch(e){return J({error:(e as Error).message},502)}
 });
