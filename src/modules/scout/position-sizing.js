@@ -38,16 +38,17 @@ function decorateScoutDetail(sku){
   const action=h.querySelector('.cx-actionable-detail'),liq=h.querySelector('.cx-liquidity-section');if(action)action.insertAdjacentElement('afterend',section);else if(liq)liq.insertAdjacentElement('afterend',section);else h.appendChild(section);
 }
 function decorate(){decorateExecutionPanels();decorateScoutList();decorateScoutDetail(store.get().scout?.selectedSku)}
+function decorateSoon(){for(const ms of [0,120,400])setTimeout(decorate,ms)}
 async function load({force=false}={}){
   if(loading)return loading;
-  if(!force&&loadedAt&&Date.now()-loadedAt<CACHE_MS){decorate();return rows}
-  loading=rest('rpc/scout_position_sizing',{method:'POST',body:{p_limit:150}}).then(data=>{rows=Array.isArray(data)?data:[];loadedAt=Date.now();store.update('positionSizing',{rows,loadedAt,error:null});document.dispatchEvent(new CustomEvent('collectish:position-sizing-changed',{detail:{count:rows.length}}));return rows}).catch(e=>{rows=[];store.update('positionSizing',{rows:[],loadedAt:Date.now(),error:String(e?.message||e)});return rows}).finally(()=>{loading=null;decorate()});
+  if(!force&&loadedAt&&Date.now()-loadedAt<CACHE_MS){decorateSoon();return rows}
+  loading=rest('rpc/scout_position_sizing',{method:'POST',body:{p_limit:150}}).then(data=>{rows=Array.isArray(data)?data:[];loadedAt=Date.now();store.update('positionSizing',{rows,loadedAt,error:null});document.dispatchEvent(new CustomEvent('collectish:position-sizing-changed',{detail:{count:rows.length}}));return rows}).catch(e=>{rows=[];store.update('positionSizing',{rows:[],loadedAt:Date.now(),error:String(e?.message||e)});return rows}).finally(()=>{loading=null;decorateSoon()});
   return loading;
 }
-document.addEventListener('collectish:scout-list-rendered',()=>{if(rows.length)decorateScoutList();else void load()});
-document.addEventListener('collectish:scout-detail-rendered',e=>{if(rows.length)decorateScoutDetail(e.detail?.sku);else void load()});
+document.addEventListener('collectish:scout-list-rendered',()=>{if(rows.length)decorateSoon();else void load()});
+document.addEventListener('collectish:scout-detail-rendered',e=>{if(rows.length){decorateScoutDetail(e.detail?.sku);setTimeout(()=>decorateScoutDetail(e.detail?.sku),120)}else void load()});
 document.addEventListener('collectish:actionable-emerging-changed',()=>{loadedAt=0;void load({force:true})});
-document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout'||e.detail?.page==='signals')setTimeout(()=>{decorate();void load()},100)});
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout'||e.detail?.page==='signals')setTimeout(()=>{decorateSoon();void load()},100)});
 document.addEventListener('collectish:ready',()=>void load());
 void load();
 export {load as loadPositionSizing};
