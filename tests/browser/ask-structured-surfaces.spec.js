@@ -1,9 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+
+const rendererSource=await readFile(new URL('../../src/modules/ask/structured-surfaces.js',import.meta.url),'utf8');
 
 test('Ask renders typed market-intelligence surfaces without model-formatted UI',async({page})=>{
   await page.goto('/');
-  await page.evaluate(async()=>{
-    await import('/src/modules/ask/structured-surfaces.js');
+  await page.addScriptTag({content:rendererSource});
+  await page.evaluate(()=>{
     const msg=document.createElement('div');msg.className='cx-ask-msg cx-ask-assistant';
     const body=document.createElement('div');body.className='cx-ask-msg-body';body.textContent='Grounded answer.';msg.append(body);document.body.append(msg);
     window.__CollectishAskSurfaceQueue=[{schema:'collectish.ask.surface.v3',surfaces:[
