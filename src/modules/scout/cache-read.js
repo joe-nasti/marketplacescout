@@ -1,11 +1,14 @@
 import { rest as baseRest } from '../../core/rest.js';
+import store from '../../state/store.js';
+import { readPersistentResource, writePersistentResource } from '../../state/persistent-cache.js';
 
 export const SCOUT_LIVE_PATH='scout_opportunities_v5?select=*&order=promoted_score.desc,observation_count.desc&limit=500';
 export const SCOUT_CACHE_PATH='scout_opportunities_v5_cache?select=*&order=promoted_score.desc,observation_count.desc&limit=500';
 
 const KEY='collectishRuntimeHealth';
 const REUSE_MS=4000;
-let inFlight=null,lastRows=null,lastAt=0;
+const PERSISTED_FRESH_MS=5*60*1000;
+let inFlight=null,lastRows=null,lastAt=0,persistedChecked=false;
 
 function health(patch){
   window.COLLECTISH_RUNTIME_HEALTH={...(window.COLLECTISH_RUNTIME_HEALTH||{}),...patch};
@@ -14,6 +17,36 @@ function health(patch){
     sessionStorage.setItem(KEY,JSON.stringify({...old,...patch}));
   }catch{}
   document.dispatchEvent(new CustomEvent('collectish:runtime-health',{detail:patch}));
+}
+
+function persistentKey(){
+  const userId=store.get()?.session?.user?.id||'anonymous';
+  return `user:${userId}:scout.rows`;
+}
+
+async function readRecentPersisted(){
+  if(persistedChecked)return null;
+  persistedChecked=true;
+  const started=performance.now();
+  try{
+    const record=await readPersistentResource(persistentKey());
+    const age=record?Date.now()-Number(record.fetchedAt||0):Infinity;
+    if(Array.isArray(record?.data)&&record.data.length&&age<=PERSISTED_FRESH_MS){
+      health({
+        scout_persisted_used:true,
+        scout_persisted_age_ms:Math.round(age),
+        scout_persisted_read_ms:Math.round(performance.now()-started)
+      });
+      return record.data;
+    }
+  }catch{}
+  health({scout_persisted_used:false,scout_persisted_read_ms:Math.round(performance.now()-started)});
+  return null;
+}
+
+function persistRows(rows){
+  if(!Array.isArray(rows)||!rows.length)return;
+  void writePersistentResource(persistentKey(),rows,{fetchedAt:Date.now()}).catch(()=>{});
 }
 
 export async function readScoutRankings(options={}){
@@ -26,17 +59,27 @@ export async function readScoutRankings(options={}){
     health({scout_read_coalesced:Number(window.COLLECTISH_RUNTIME_HEALTH?.scout_read_coalesced||0)+1});
     return inFlight;
   }
+
+  const persisted=await readRecentPersisted();
+  if(persisted){
+    lastRows=persisted;
+    lastAt=performance.now();
+    return persisted;
+  }
+
   inFlight=(async()=>{
     const t0=performance.now();
     try{
       const rows=await baseRest(SCOUT_CACHE_PATH,options);
       if(Array.isArray(rows)&&rows.length){
         health({scout_cache_used:true,scout_cache_fallback:false,scout_cache_read_ms:Math.round(performance.now()-t0)});
+        persistRows(rows);
         return rows;
       }
     }catch{}
     const rows=await baseRest(SCOUT_LIVE_PATH,options);
     health({scout_cache_used:false,scout_cache_fallback:true,scout_cache_read_ms:Math.round(performance.now()-t0)});
+    persistRows(rows);
     return rows;
   })().then(rows=>{
     lastRows=rows;
