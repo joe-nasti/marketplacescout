@@ -16,9 +16,11 @@ import { installScoutCacheBridge } from './modules/scout/cache-read.js';
 import { installModules } from './modules/index.js';
 
 const STARTUP_PRIME=[
-  {key:'sealed.rows',scope:'user',maxStale:7*24*60*60*1000},
-  {key:'sealed.setTypes',scope:'user',maxStale:30*24*60*60*1000},
   {key:'scout.rows',scope:'user',maxStale:24*60*60*1000}
+];
+const IDLE_PRIME=[
+  {key:'sealed.rows',scope:'user',maxStale:7*24*60*60*1000},
+  {key:'sealed.setTypes',scope:'user',maxStale:30*24*60*60*1000}
 ];
 const HEALTH_KEY='collectishRuntimeHealth';
 function recordTiming(key,ms){
@@ -29,6 +31,15 @@ function recordTiming(key,ms){
     sessionStorage.setItem(HEALTH_KEY,JSON.stringify(current));
     document.dispatchEvent(new CustomEvent('collectish:runtime-health',{detail:{...current,event:key}}));
   }catch{}
+}
+function scheduleIdlePrime(){
+  const run=async()=>{
+    const started=performance.now();
+    await primeResources(IDLE_PRIME).catch(()=>0);
+    recordTiming('idle_cache_hydration_ms',performance.now()-started);
+  };
+  if('requestIdleCallback' in window)requestIdleCallback(()=>void run(),{timeout:3000});
+  else setTimeout(()=>void run(),1500);
 }
 
 export function startCollectish(){
@@ -49,5 +60,6 @@ export function startCollectish(){
     await installModules();
     recordTiming('startup_scout_modules_ms',performance.now()-modulesStarted);
     store.update('runtime',{phase:'ready'});
+    scheduleIdlePrime();
   }});
 }
