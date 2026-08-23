@@ -20,13 +20,13 @@ function rows(){return store.get().scout?.rows||[]}
 function bySku(){return new Map(rows().map(r=>[String(r.sku_id),r]))}
 function addFilter(){
   const bar=document.querySelector('#cxScout .cx-scout-toolbar');if(!bar||document.getElementById('cxLiquidityFilter'))return;
-  const s=document.createElement('select');s.id='cxLiquidityFilter';s.innerHTML='<option value="">All liquidity</option><option value="very">Very liquid</option><option value="liquid">Liquid+</option><option value="normal">Normal+</option><option value="slow">Slow / all</option>';bar.appendChild(s);s.addEventListener('change',applyFilter);
+  const s=document.createElement('select');s.id='cxLiquidityFilter';s.innerHTML='<option value="">All liquidity</option><option value="very">Very liquid</option><option value="liquid">Liquid+</option><option value="normal">Normal+</option><option value="slow">Slow only</option>';bar.appendChild(s);s.addEventListener('change',applyFilter);
 }
 function applyFilter(){
   const v=document.getElementById('cxLiquidityFilter')?.value||'',map=bySku();let first=null;
   document.querySelectorAll('#cxParityCards .cx-scout-card').forEach(card=>{
     const r=map.get(String(card.dataset.sku)),m=liquidity(r);let show=true;
-    if(v==='very')show=m.score>=85;else if(v==='liquid')show=m.score>=70;else if(v==='normal')show=m.score>=55;else if(v==='slow')show=true;
+    if(v==='very')show=m.score>=85;else if(v==='liquid')show=m.score>=70;else if(v==='normal')show=m.score>=55;else if(v==='slow')show=m.score<40;
     card.style.display=show?'':'none';if(show&&!first)first=card;
   });
   if(first&&document.querySelector('#cxParityCards .cx-scout-card.selected')?.style.display==='none')first.click();
