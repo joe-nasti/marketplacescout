@@ -152,3 +152,31 @@ Representative database timing:
 - after: ~190 ms
 
 That is roughly a 3x improvement, with no temporary spill in the post-change plan. The function remains service-role-only; neither `anon` nor `authenticated` can execute it.
+
+## 2026-08-23 Ranking refresh watermark gate
+
+### Why gate instead of incremental scoring
+
+The Marketplace cloud worker runs every five minutes and invokes the ranking worker after its scan/enrichment pass. A separate ranking workflow also runs hourly. With the optimized database functions, a full ranking cycle is much cheaper than before, but repeatedly rebuilding all ~29k 24h rows, the V5 shadow, and the promoted cache every five minutes is still unnecessary when none of the ranking inputs changed.
+
+The five-minute path now checks four input watermarks before rebuilding:
+
+- newest Marketplace scan `captured_at`
+- newest `commander_enriched_at`
+- newest `edhrec_observed_at`
+- newest Scout current-vendor-cache `refreshed_at`
+
+If all four are at or before the last successful `scout_rankings` completion, the worker records a skipped pass and exits without changing `last_completed_at`. Any missing/erroring watermark fails open and performs a full refresh.
+
+The dedicated hourly ranking workflow sets `SCOUT_FORCE_FULL=1`, bypassing the gate. That full reconciliation remains the correctness backstop for rolling 24h medians/trends even when no new data arrives.
+
+### Watermark lookup indexes
+
+The first Commander watermark benchmark exposed a full raw-scan-table read (~3.2 s), and the EDHREC watermark was ~467 ms. Migration `index_scout_refresh_watermarks` added partial descending timestamp indexes:
+
+- `marketplace_scan_rows_commander_enriched_fresh_idx`
+- `marketplace_scan_rows_edhrec_observed_fresh_idx`
+
+Representative post-index database timings are approximately 0.13 ms for Commander and 0.05 ms for EDHREC, both using index-only scans.
+
+At the sampled production state, all input watermarks were older than the last successful ranking completion, demonstrating a pass that can safely skip the full ranking rebuild. This architecture reduces redundant five-minute computation without changing ranking/scoring semantics or removing the hourly full-reconciliation safety net.
