@@ -3,6 +3,7 @@ const scoutCore=[
   ()=>import('./scout/detail-links.js'),
   ()=>import('./scout/detail-compact-header.js'),
   ()=>import('./scout/images.js'),
+  ()=>import('./scout/progressive-render.js'),
   ()=>import('./scout/noise-filter.js'),
   ()=>import('./scout/search.js'),
   ()=>import('./scout/vendor.js'),
