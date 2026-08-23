@@ -8,10 +8,12 @@ on:
     branches: [main]
     paths:
       - "cloud-worker/collectish-alerts.mjs"
+      - "cloud-worker/seller-orchestrator-watchdog.mjs"
       - ".github/workflows/collectish-alerts.yml"
   pull_request:
     paths:
       - "cloud-worker/collectish-alerts.mjs"
+      - "cloud-worker/seller-orchestrator-watchdog.mjs"
       - ".github/workflows/collectish-alerts.yml"
 
 permissions:
@@ -33,11 +35,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Validate alert worker
-        run: node --check cloud-worker/collectish-alerts.mjs
+      - name: Validate alert workers
+        run: |
+          node --check cloud-worker/collectish-alerts.mjs
+          node --check cloud-worker/seller-orchestrator-watchdog.mjs
       - name: Validate alert secret
         if: github.event_name != 'pull_request'
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
       - name: Evaluate Collectish alerts
         if: github.event_name != 'pull_request'
         run: node cloud-worker/collectish-alerts.mjs
+      - name: Evaluate Seller orchestration backlog
+        if: github.event_name != 'pull_request'
+        run: node cloud-worker/seller-orchestrator-watchdog.mjs
