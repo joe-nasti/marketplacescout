@@ -2,6 +2,14 @@ import { rest as baseRest } from '../../core/rest.js';
 import store from '../../state/store.js';
 import { readPersistentResource, writePersistentResource } from '../../state/persistent-cache.js';
 
+export const SCOUT_LIST_FIELDS=[
+  'sku_id','product_id','product_name','set_name','set_code','collector_number','scryfall_id',
+  'printing','condition','language','promoted_score','promoted_grade','v5_shadow_score','v5_shadow_grade',
+  'opportunity_score','tcg_low','sku_market_price','direct_low','ck_buylist','direct_backed','near_direct_backed',
+  'buylist_backed','source_verify','observation_count','v5_computed_at','computed_at','sales_rank','avg_daily_qty_sold'
+].join(',');
+export const SCOUT_LIST_CACHE_PATH=`scout_opportunities_v5_cache?select=${SCOUT_LIST_FIELDS}&order=promoted_score.desc,observation_count.desc&limit=500`;
+export const SCOUT_LIST_LIVE_PATH=`scout_opportunities_v5?select=${SCOUT_LIST_FIELDS}&order=promoted_score.desc,observation_count.desc&limit=500`;
 export const SCOUT_LIVE_PATH='scout_opportunities_v5?select=*&order=promoted_score.desc,observation_count.desc&limit=500';
 export const SCOUT_CACHE_PATH='scout_opportunities_v5_cache?select=*&order=promoted_score.desc,observation_count.desc&limit=500';
 
@@ -9,6 +17,8 @@ const KEY='collectishRuntimeHealth';
 const REUSE_MS=4000;
 const PERSISTED_FRESH_MS=5*60*1000;
 let inFlight=null,lastRows=null,lastAt=0,persistedChecked=false;
+const detailCache=new Map();
+const detailInflight=new Map();
 
 function health(patch){
   window.COLLECTISH_RUNTIME_HEALTH={...(window.COLLECTISH_RUNTIME_HEALTH||{}),...patch};
@@ -36,12 +46,7 @@ async function readRecentPersisted(){
 
   const primed=freshRows(store.get()?.resources?.['scout.rows']);
   if(primed){
-    health({
-      scout_persisted_used:true,
-      scout_persisted_source:'primed-store',
-      scout_persisted_age_ms:Math.round(primed.age),
-      scout_persisted_read_ms:Math.round(performance.now()-started)
-    });
+    health({scout_persisted_used:true,scout_persisted_source:'primed-store',scout_persisted_age_ms:Math.round(primed.age),scout_persisted_read_ms:Math.round(performance.now()-started)});
     return primed.rows;
   }
 
@@ -49,12 +54,7 @@ async function readRecentPersisted(){
     const record=await readPersistentResource(persistentKey());
     const cached=freshRows(record);
     if(cached){
-      health({
-        scout_persisted_used:true,
-        scout_persisted_source:'indexeddb',
-        scout_persisted_age_ms:Math.round(cached.age),
-        scout_persisted_read_ms:Math.round(performance.now()-started)
-      });
+      health({scout_persisted_used:true,scout_persisted_source:'indexeddb',scout_persisted_age_ms:Math.round(cached.age),scout_persisted_read_ms:Math.round(performance.now()-started)});
       return cached.rows;
     }
   }catch{}
@@ -79,43 +79,56 @@ export async function readScoutRankings(options={}){
   }
 
   const persisted=await readRecentPersisted();
-  if(persisted){
-    lastRows=persisted;
-    lastAt=performance.now();
-    return persisted;
-  }
+  if(persisted){lastRows=persisted;lastAt=performance.now();return persisted}
 
   inFlight=(async()=>{
     const t0=performance.now();
     try{
-      const rows=await baseRest(SCOUT_CACHE_PATH,options);
+      const rows=await baseRest(SCOUT_LIST_CACHE_PATH,options);
       if(Array.isArray(rows)&&rows.length){
-        health({scout_cache_used:true,scout_cache_fallback:false,scout_cache_read_ms:Math.round(performance.now()-t0)});
-        persistRows(rows);
-        return rows;
+        health({scout_cache_used:true,scout_cache_fallback:false,scout_cache_read_ms:Math.round(performance.now()-t0),scout_list_rows:rows.length});
+        persistRows(rows);return rows;
       }
     }catch{}
-    const rows=await baseRest(SCOUT_LIVE_PATH,options);
-    health({scout_cache_used:false,scout_cache_fallback:true,scout_cache_read_ms:Math.round(performance.now()-t0)});
-    persistRows(rows);
-    return rows;
-  })().then(rows=>{
-    lastRows=rows;
-    lastAt=performance.now();
-    return rows;
-  }).finally(()=>{inFlight=null});
+    const rows=await baseRest(SCOUT_LIST_LIVE_PATH,options);
+    health({scout_cache_used:false,scout_cache_fallback:true,scout_cache_read_ms:Math.round(performance.now()-t0),scout_list_rows:Array.isArray(rows)?rows.length:0});
+    persistRows(rows);return rows;
+  })().then(rows=>{lastRows=rows;lastAt=performance.now();return rows}).finally(()=>{inFlight=null});
   return inFlight;
+}
+
+function detailKey(row){return String(row?.sku_id||row?.product_id||'')}
+function detailPath(table,row){
+  const sku=String(row?.sku_id||'');
+  if(sku)return `${table}?select=*&sku_id=eq.${encodeURIComponent(sku)}&limit=1`;
+  return `${table}?select=*&product_id=eq.${encodeURIComponent(row?.product_id||'')}&limit=1`;
+}
+
+export async function readScoutDetail(row){
+  const key=detailKey(row);if(!key)return row||null;
+  if(detailCache.has(key))return detailCache.get(key);
+  if(detailInflight.has(key))return detailInflight.get(key);
+  const started=performance.now();
+  const job=(async()=>{
+    let detail=null;
+    try{const x=await baseRest(detailPath('scout_opportunities_v5_cache',row));detail=Array.isArray(x)?x[0]||null:null}catch{}
+    if(!detail){const x=await baseRest(detailPath('scout_opportunities_v5',row));detail=Array.isArray(x)?x[0]||null:null}
+    const merged={...(row||{}),...(detail||{})};
+    detailCache.set(key,merged);
+    health({scout_detail_read_ms:Math.round(performance.now()-started),scout_detail_reads:Number(window.COLLECTISH_RUNTIME_HEALTH?.scout_detail_reads||0)+1});
+    return merged;
+  })().finally(()=>detailInflight.delete(key));
+  detailInflight.set(key,job);return job;
 }
 
 export async function scoutAwareRest(path,options={}){
   const method=String(options?.method||'GET').toUpperCase();
-  if(method==='GET'&&path===SCOUT_LIVE_PATH)return readScoutRankings(options);
+  if(method==='GET'&&(path===SCOUT_LIVE_PATH||path===SCOUT_LIST_LIVE_PATH))return readScoutRankings(options);
   return baseRest(path,options);
 }
 
 export function installScoutCacheBridge(){
-  scoutAwareRest.__cxScoutCache=true;
-  scoutAwareRest.__cxBase=baseRest;
+  scoutAwareRest.__cxScoutCache=true;scoutAwareRest.__cxBase=baseRest;
   window.rest=scoutAwareRest;
-  window.CollectishScoutData={readRankings:readScoutRankings,rest:scoutAwareRest};
+  window.CollectishScoutData={readRankings:readScoutRankings,readDetail:readScoutDetail,rest:scoutAwareRest,listPath:SCOUT_LIST_LIVE_PATH};
 }
