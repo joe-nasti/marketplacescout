@@ -36,6 +36,7 @@ const scoutIntelligence=[
 const askEnhancers=[
   ()=>import('./ask/investigate-presentation.js'),
   ()=>import('./ask/concise-view.js'),
+  ()=>import('./ask/structured-surfaces.js'),
   ()=>import('./ask/rich-surfaces.js'),
   ()=>import('./ask/investigate.js'),
   ()=>import('./ask/actions.js'),
@@ -74,7 +75,7 @@ function scheduleIdleEnhancers(){
     idlePromise=(async()=>{
       await Promise.all([
         loadParallel(scoutIntelligence),
-        (async()=>{await import('./ask/main.js');await loadParallel(askEnhancers)})()
+        (async()=>{await import('./ask/endpoint-proxy.js');await import('./ask/main.js');await loadParallel(askEnhancers)})()
       ]);
       document.dispatchEvent(new CustomEvent('collectish:idle-modules-ready'));
     })();
