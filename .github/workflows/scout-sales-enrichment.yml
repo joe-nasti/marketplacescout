@@ -20,7 +20,7 @@ permissions:
 
 concurrency:
   group: collectish-scout-sales-enrichment
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   enrich:
@@ -41,5 +41,8 @@ jobs:
         run: |
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
           node --check cloud-worker/scout-sales-enrichment.mjs
-      - name: Enrich prioritized Scout products and refresh scores
+          grep -q "refresh_scout_v5_shadow" cloud-worker/scout-sales-enrichment.mjs
+          grep -q "refresh_scout_opportunities_v5_cache" cloud-worker/scout-sales-enrichment.mjs
+          ! grep -q "recalculate_scout_base_v4_batch" cloud-worker/scout-sales-enrichment.mjs
+      - name: Enrich prioritized Scout products and refresh v5 scores
         run: node cloud-worker/scout-sales-enrichment.mjs
