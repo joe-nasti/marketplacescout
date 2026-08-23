@@ -5,7 +5,7 @@ const pretty=s=>String(s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase
 const stageClass=s=>['leading','confirming','lagging','noise','neutral'].includes(s)?s:'unclassified';
 const labelFor=e=>e?.entity_type==='card'&&(e?.scryfall_id||e?.product_id)?'Card':({format:'Format',set:'Set',sealed_product:'Product',retailer:'Retailer',card:'Unverified',other:'Context'}[e?.entity_type]||'Context');
 
-function groupKey(item){return `${String(item?.source_url||'').trim()}|${String(item?.title||'').trim()}`||String(item?.intel_id||'')}
+function groupKey(item){const url=String(item?.source_url||'').trim(),title=String(item?.title||'').trim();return url||title?`${url}|${title}`:String(item?.intel_id||'')}
 function groupsFor(rows){
   const map=new Map();
   for(const row of rows){const key=groupKey(row);if(!map.has(key))map.set(key,[]);map.get(key).push(row)}
