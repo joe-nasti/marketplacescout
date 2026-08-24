@@ -29,7 +29,7 @@ function classify(r,m){
   const cap=Math.max(0,Number(r.current_max_quantity||0));
   const velocity=Math.max(0,Number(m?.avg_daily_qty_sold||0));
   const directAvail=m?.direct_available==null?null:Math.max(0,Number(m.direct_available));
-  const market=Number(r.market_price??m?.sku_market_price||0);
+  const market=Number((r.market_price??m?.sku_market_price)??0);
   const direct=Number(m?.direct_low||0);
   const premium=market>0&&direct>0?(direct-market)/market:null;
   if(directAvail!=null&&directAvail<=5&&premium!=null&&premium>=0.10)return {kind:'scarce',label:'Direct scarce',reason:`Direct ${directAvail} · ${(premium*100).toFixed(0)}% premium`};
