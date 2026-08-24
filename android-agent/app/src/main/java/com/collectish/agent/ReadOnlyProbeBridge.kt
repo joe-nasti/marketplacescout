@@ -2,14 +2,17 @@ package com.collectish.agent
 
 import android.app.Activity
 import android.graphics.Color
+import android.os.Build
 import android.view.Gravity
 import android.view.View
+import android.view.WindowInsets
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import org.json.JSONArray
@@ -32,7 +35,7 @@ class ReadOnlyProbeBridge(
     private val buyerLoginUrl = "https://www.tcgplayer.com/login?returnUrl=/myaccount/orderhistory"
     private val buyerProfileSupported = WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)
     private var buyer: WebView? = null
-    private var buyerReturn: Button? = null
+    private var buyerHost: FrameLayout? = null
     private val callback = ProbeCallback()
 
     inner class ProbeCallback {
@@ -49,9 +52,41 @@ class ReadOnlyProbeBridge(
         seller.addJavascriptInterface(callback, "CollectishReadOnlyNative")
     }
 
+    private fun dp(value: Int) = (value * activity.resources.displayMetrics.density).toInt()
+
+    private fun installSafeInsets(view: View) {
+        view.setOnApplyWindowInsetsListener { v, insets ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val safe = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+                v.setPadding(safe.left, safe.top, safe.right, safe.bottom)
+            } else {
+                @Suppress("DEPRECATION")
+                v.setPadding(
+                    insets.systemWindowInsetLeft,
+                    insets.systemWindowInsetTop,
+                    insets.systemWindowInsetRight,
+                    insets.systemWindowInsetBottom
+                )
+            }
+            insets
+        }
+        view.requestApplyInsets()
+    }
+
+    private fun hideBuyerSession() {
+        buyerHost?.visibility = View.GONE
+    }
+
     private fun ensureBuyerWebView(): WebView? {
         if (!buyerProfileSupported) return null
         buyer?.let { return it }
+
+        val host = FrameLayout(activity).apply {
+            setBackgroundColor(Color.WHITE)
+            visibility = View.GONE
+        }
+        installSafeInsets(host)
+
         val view = WebView(activity)
         WebViewCompat.setProfile(view, "collectish-buyer")
         view.settings.javaScriptEnabled = true
@@ -69,24 +104,39 @@ class ReadOnlyProbeBridge(
         }
         view.addJavascriptInterface(callback, "CollectishReadOnlyNative")
         view.setBackgroundColor(Color.WHITE)
-        view.visibility = View.GONE
-        activity.addContentView(view, FrameLayout.LayoutParams(-1, -1))
-        buyer = view
-        val button = Button(activity).apply {
-            text = "← Collectish"
+
+        val toolbar = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(Color.rgb(245, 248, 252))
+        }
+        val browserBack = Button(activity).apply {
+            text = "← Back"
             isAllCaps = false
             textSize = 14f
-            visibility = View.GONE
             setOnClickListener {
-                buyer?.visibility = View.GONE
-                visibility = View.GONE
+                if (view.canGoBack()) view.goBack() else hideBuyerSession()
             }
         }
-        activity.addContentView(button, FrameLayout.LayoutParams(-2, 48, Gravity.TOP or Gravity.START).apply {
-            leftMargin = 12
-            topMargin = 12
+        val spacer = View(activity)
+        val returnButton = Button(activity).apply {
+            text = "Return to Collectish"
+            isAllCaps = false
+            textSize = 14f
+            setOnClickListener { hideBuyerSession() }
+        }
+        toolbar.addView(browserBack, LinearLayout.LayoutParams(-2, -1))
+        toolbar.addView(spacer, LinearLayout.LayoutParams(0, 1, 1f))
+        toolbar.addView(returnButton, LinearLayout.LayoutParams(-2, -1))
+
+        host.addView(view, FrameLayout.LayoutParams(-1, -1).apply {
+            topMargin = dp(56)
         })
-        buyerReturn = button
+        host.addView(toolbar, FrameLayout.LayoutParams(-1, dp(56), Gravity.TOP))
+        activity.addContentView(host, FrameLayout.LayoutParams(-1, -1))
+
+        buyerHost = host
+        buyer = view
         return view
     }
 
@@ -103,9 +153,10 @@ class ReadOnlyProbeBridge(
                 fail("This Android WebView does not support isolated buyer profiles")
                 return@runOnUiThread
             }
-            view.visibility = View.VISIBLE
-            buyerReturn?.visibility = View.VISIBLE
-            view.loadUrl(buyerLoginUrl)
+            buyerHost?.visibility = View.VISIBLE
+            if (view.url.isNullOrBlank() || buyerSessionState == "signed_out") {
+                view.loadUrl(buyerLoginUrl)
+            }
         }
     }
 
