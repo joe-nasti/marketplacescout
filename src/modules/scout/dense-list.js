@@ -20,6 +20,7 @@ function decorate(){
   const host=document.getElementById('cxParityCards');if(!host)return;
   const bySku=new Map(rows().map(r=>[String(r.sku_id||''),r]));
   for(const card of host.querySelectorAll(':scope > .cx-scout-card')){
+    if(card.classList.contains('cx-scout-dense-row'))continue;
     const r=bySku.get(String(card.dataset.sku||''));if(!r)continue;
     const p=premium(r),velocity=Math.max(0,Number(r.avg_daily_qty_sold||0));
     card.classList.remove('cx-scout-compact-card');
