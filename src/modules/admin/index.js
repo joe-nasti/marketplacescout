@@ -6,9 +6,7 @@ const loaders=[
   ()=>import('./sealed-catalog.js'),
   ()=>import('./sealed-health.js'),
   ()=>import('./cardtrader-health.js'),
-  ()=>import('./top.js'),
-  ()=>import('./proper-pass.js'),
-  ()=>import('./ia-followup.js')
+  ()=>import('./top.js')
 ];
 let installPromise=null;
 export function install(){
