@@ -3,7 +3,6 @@ import './core/health.js';
 import './core/theme.js';
 import './modules/scout/health.js';
 import './modules/scout/bootstrap.js';
-import './modules/seller/readonly-agent.js';
 import './core/lazy-pages.js';
 import store from './state/store.js';
 import { startShell } from './core/shell.js';
@@ -41,6 +40,10 @@ function scheduleIdlePrime(){
   if('requestIdleCallback' in window)requestIdleCallback(()=>void run(),{timeout:3000});
   else setTimeout(()=>void run(),1500);
 }
+function loadNativeSellerAgent(){
+  if(!window.CollectishAndroid||!window.CollectishReadOnly)return;
+  import('./modules/seller/readonly-agent.js').catch(()=>{});
+}
 
 export function startCollectish(){
   store.update('runtime',{phase:'starting'});
@@ -49,6 +52,7 @@ export function startCollectish(){
   installScryfallCache();
   installActivityBar();
   installScoutCacheBridge();
+  loadNativeSellerAgent();
   startShell({beforeReady:async()=>{
     const cacheStarted=performance.now();
     store.update('runtime',{phase:'hydrating-cache'});

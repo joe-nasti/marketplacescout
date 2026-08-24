@@ -30,11 +30,13 @@ test('authenticated Scout startup stays lean and defers noncritical pages',async
     readyMs:window.__collectishPerf.readyAt-window.__collectishPerf.navigationStart,
     adminReady:window.__collectishPerf.adminReady,
     inventoryReady:window.__collectishPerf.inventoryReady,
+    sellerAgentLoaded:!!window.CollectishSellerAgent,
     jsResources:performance.getEntriesByType('resource').filter(r=>/\.js(?:$|\?)/.test(r.name)).length
   }));
   expect(startup.readyMs).toBeLessThan(3000);
   expect(startup.adminReady).toBe(false);
   expect(startup.inventoryReady).toBe(false);
+  expect(startup.sellerAgentLoaded).toBe(false);
   expect(startup.jsResources).toBeLessThan(45);
 
   await page.evaluate(()=>window.CollectishShell.switchPage('inventory',{scroll:false}));
