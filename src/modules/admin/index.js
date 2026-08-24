@@ -1,14 +1,13 @@
 const loaders=[
   ()=>import('./alerts.js'),
   ()=>import('./scans.js'),
-  ()=>import('./fixed-nav.js'),
   ()=>import('./marketplace-health.js'),
   ()=>import('./console.js'),
   ()=>import('./sealed-catalog.js'),
   ()=>import('./sealed-health.js'),
   ()=>import('./cardtrader-health.js'),
   ()=>import('./top.js'),
-  ()=>import('./overview-vnext.js')
+  ()=>import('./proper-pass.js')
 ];
 let installPromise=null;
 export function install(){
