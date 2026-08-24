@@ -8,30 +8,33 @@ export function installScoutFirstPaintGuard(){
   if(installed)return;
   const host=document.getElementById('cxScout');
   if(!host||!hasUsefulScoutContent(host))return;
+  const descriptor=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+  if(!descriptor?.get||!descriptor?.set)return;
   installed=true;
 
-  const preserved=[...host.childNodes];
   let released=false;
   const release=()=>{
     if(released)return;
     released=true;
-    observer.disconnect();
+    delete host.innerHTML;
     document.removeEventListener('collectish:scout-v5-ready',release);
     clearTimeout(timeout);
   };
 
-  const observer=new MutationObserver(()=>{
-    if(released||!host.isConnected)return;
-    const text=host.textContent||'';
-    const destructiveLoading=text.includes('Loading Scout v5')||text.includes('Finding the strongest buying and speculation opportunities');
-    const hasCurrentCards=Boolean(host.querySelector('.cx-scout-card, #cxParityCards'));
-    if(destructiveLoading&&!hasCurrentCards){
-      host.replaceChildren(...preserved);
-      host.dataset.scoutFirstPaintHeld='true';
+  Object.defineProperty(host,'innerHTML',{
+    configurable:true,
+    get(){return descriptor.get.call(this)},
+    set(value){
+      const html=String(value??'');
+      const destructiveLoading=html.includes('Loading Scout v5')||html.includes('Finding the strongest buying and speculation opportunities');
+      if(!released&&destructiveLoading&&hasUsefulScoutContent(this)){
+        this.dataset.scoutFirstPaintHeld='true';
+        return;
+      }
+      descriptor.set.call(this,value);
     }
   });
 
-  observer.observe(host,{childList:true,subtree:true});
   document.addEventListener('collectish:scout-v5-ready',release,{once:true});
   const timeout=setTimeout(release,15000);
 }
