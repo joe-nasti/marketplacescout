@@ -17,20 +17,20 @@ test('Inventory vNext keeps a late legacy workspace render hidden while Scan own
   });
   const ownershipSource=await readFile(ownershipPath,'utf8');
   await page.addScriptTag({content:ownershipSource});
-  await expect(page.locator('#cxInventoryWorkspace')).toBeHidden();
+  await expect.poll(()=>page.$eval('#cxInventoryWorkspace',el=>el.hidden)).toBe(true);
 
   await page.evaluate(()=>{
     const workspace=document.getElementById('cxInventoryWorkspace');
     workspace.hidden=false;
     document.dispatchEvent(new CustomEvent('collectish:inventory-workspace-rendered'));
   });
-  await expect(page.locator('#cxInventoryWorkspace')).toBeHidden();
+  await expect.poll(()=>page.$eval('#cxInventoryWorkspace',el=>el.hidden)).toBe(true);
 
   await page.evaluate(()=>{
     document.getElementById('cxInventory').classList.remove('cx-iv-scan-mode');
     document.dispatchEvent(new CustomEvent('collectish:inventory-workspace-rendered'));
   });
-  await expect(page.locator('#cxInventoryWorkspace')).toBeVisible();
+  await expect.poll(()=>page.$eval('#cxInventoryWorkspace',el=>el.hidden)).toBe(false);
 });
 
 test('legacy Inventory renderer writes only inside its dedicated workspace root',async()=>{
