@@ -7,6 +7,7 @@ const scoutCore=[
   ()=>import('./scout/vendor.js'),
   ()=>import('./scout/detail-swipe.js'),
   ()=>import('./scout/compact-mobile.js'),
+  ()=>import('./scout/dense-list.js'),
   ()=>import('./scout/liquidity.js')
 ];
 
