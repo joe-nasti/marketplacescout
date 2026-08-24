@@ -89,8 +89,8 @@ test('recent persisted Scout rankings provide a warm list without Scout list RES
   counts={list:0,detail:0,listUrls:[],detailUrls:[]};
   await page.reload();
   await expect(page.locator('.cx-scout-card')).toContainText('Performance Test Card');
-  expect(counts.list).toBe(0);
   const metrics=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('collectishRuntimeHealth')||'{}'));
+  expect(counts.list,JSON.stringify({listUrls:counts.listUrls,scoutPersistedUsed:metrics.scout_persisted_used,scoutPersistedSource:metrics.scout_persisted_source,scoutPersistedAgeMs:metrics.scout_persisted_age_ms,scoutCacheUsed:metrics.scout_cache_used,scoutCacheFallback:metrics.scout_cache_fallback})).toBe(0);
   expect(metrics.scout_persisted_used).toBe(true);
 });
 
