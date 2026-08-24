@@ -7,7 +7,8 @@ const enhancers=[
   ()=>import('./inventory-reconcile-status.js'),
   ()=>import('./freshness.js'),
   ()=>import('./refresh-detail-progress.js'),
-  ()=>import('./inventory-dense-vnext.js')
+  ()=>import('./inventory-dense-vnext.js'),
+  ()=>import('./inventory-vnext-ownership.js')
 ];
 let installPromise=null;
 export function install(){
