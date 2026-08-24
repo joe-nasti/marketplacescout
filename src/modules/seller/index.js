@@ -12,6 +12,7 @@ export async function install(){
     import('./filters.js'),
     import('./drilldowns.js'),
     import('./detail-polish.js'),
-    import('./dashboard-vnext.js')
+    import('./dashboard-vnext.js'),
+    import('./reports-vnext.js')
   ]);
 }
