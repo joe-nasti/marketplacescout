@@ -31,8 +31,9 @@ class ReadOnlyProbeBridge(
     private val buyerHistoryPrimeUrl = "https://store.tcgplayer.com/myaccount/orderhistory"
     private val buyerLoginUrl = "https://www.tcgplayer.com/login?returnUrl=/myaccount/orderhistory"
     private val buyerProfileSupported = WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)
-    private val buyer: WebView? = if (buyerProfileSupported) createBuyerWebView() else null
-    private val buyerReturn: Button? = if (buyerProfileSupported) createBuyerReturnButton() else null
+    private var buyer: WebView? = null
+    private var buyerReturn: Button? = null
+    private val callback = ProbeCallback()
 
     inner class ProbeCallback {
         @JavascriptInterface
@@ -45,12 +46,12 @@ class ReadOnlyProbeBridge(
     }
 
     init {
-        val callback = ProbeCallback()
         seller.addJavascriptInterface(callback, "CollectishReadOnlyNative")
-        buyer?.addJavascriptInterface(callback, "CollectishReadOnlyNative")
     }
 
-    private fun createBuyerWebView(): WebView {
+    private fun ensureBuyerWebView(): WebView? {
+        if (!buyerProfileSupported) return null
+        buyer?.let { return it }
         val view = WebView(activity)
         WebViewCompat.setProfile(view, "collectish-buyer")
         view.settings.javaScriptEnabled = true
@@ -66,13 +67,11 @@ class ReadOnlyProbeBridge(
                     else "unknown"
             }
         }
+        view.addJavascriptInterface(callback, "CollectishReadOnlyNative")
         view.setBackgroundColor(Color.WHITE)
         view.visibility = View.GONE
         activity.addContentView(view, FrameLayout.LayoutParams(-1, -1))
-        return view
-    }
-
-    private fun createBuyerReturnButton(): Button {
+        buyer = view
         val button = Button(activity).apply {
             text = "← Collectish"
             isAllCaps = false
@@ -87,7 +86,8 @@ class ReadOnlyProbeBridge(
             leftMargin = 12
             topMargin = 12
         })
-        return button
+        buyerReturn = button
+        return view
     }
 
     @JavascriptInterface fun getReadOnlyProbeState(): String = state
@@ -98,13 +98,14 @@ class ReadOnlyProbeBridge(
     @JavascriptInterface
     fun showBuyerSession() {
         activity.runOnUiThread {
-            if (!buyerProfileSupported || buyer == null) {
+            val view = ensureBuyerWebView()
+            if (view == null) {
                 fail("This Android WebView does not support isolated buyer profiles")
                 return@runOnUiThread
             }
-            buyer.visibility = View.VISIBLE
+            view.visibility = View.VISIBLE
             buyerReturn?.visibility = View.VISIBLE
-            buyer.loadUrl(buyerLoginUrl)
+            view.loadUrl(buyerLoginUrl)
         }
     }
 
@@ -122,7 +123,7 @@ class ReadOnlyProbeBridge(
                 } else ""
                 if (mode !in ReadOnlyProbePolicy.allowedModes) { fail("Probe mode is not allowlisted"); return@runOnUiThread }
                 if (!ReadOnlyProbePolicy.isAllowedRequest(url, method)) { fail("Request is not allowlisted"); return@runOnUiThread }
-                if (ReadOnlyProbePolicy.isBuyerAccountRequest(url) && !buyerProfileSupported) { fail("Isolated buyer WebView profile is not supported on this device"); return@runOnUiThread }
+                if (ReadOnlyProbePolicy.isBuyerAccountRequest(url) && ensureBuyerWebView() == null) { fail("Isolated buyer WebView profile is not supported on this device"); return@runOnUiThread }
                 if (method == "POST" && body.isBlank()) { fail("Allowlisted POST requires a JSON body"); return@runOnUiThread }
                 activeToken = UUID.randomUUID().toString(); state = "running"; result = "{}"
                 when (mode) {
@@ -134,7 +135,7 @@ class ReadOnlyProbeBridge(
         }
     }
 
-    private fun targetFor(url: String): WebView? = if (ReadOnlyProbePolicy.isBuyerAccountRequest(url)) buyer else seller
+    private fun targetFor(url: String): WebView? = if (ReadOnlyProbePolicy.isBuyerAccountRequest(url)) ensureBuyerWebView() else seller
 
     /** Seller and buyer requests never share a WebView. Buyer reads are routed
      * through the isolated collectish-buyer profile, while seller reads stay on
