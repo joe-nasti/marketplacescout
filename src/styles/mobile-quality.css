@@ -1,6 +1,7 @@
 /* Mobile quality overrides: keep these last in the style graph. */
 .cx-primary{min-height:46px}
 .cx-auth{min-height:100vh;min-height:100dvh;padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom))}
+#cxParityCards>.cx-scout-card[data-cx-advanced-match="0"]{display:none!important}
 
 @media(max-width:700px){
   #collectishUxShell{min-height:100vh;min-height:100dvh;padding-bottom:calc(68px + env(safe-area-inset-bottom))}
