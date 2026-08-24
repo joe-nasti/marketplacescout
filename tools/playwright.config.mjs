@@ -21,6 +21,7 @@ export default defineConfig({
   projects:[
     {name:'desktop-chromium',use:{...devices['Desktop Chrome']}},
     {name:'pixel-mobile',use:{...devices['Pixel 7']}},
+    {name:'pixel-10-pro',use:{viewport:{width:412,height:915},deviceScaleFactor:3,isMobile:true,hasTouch:true}},
     {name:'narrow-mobile',use:{viewport:{width:360,height:800},deviceScaleFactor:3,isMobile:true,hasTouch:true}}
   ]
 });
