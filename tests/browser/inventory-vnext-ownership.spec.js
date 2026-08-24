@@ -5,7 +5,8 @@ import path from 'node:path';
 const ownershipPath=path.join(process.cwd(),'src/modules/seller/inventory-vnext-ownership.js');
 const rendererPath=path.join(process.cwd(),'src/modules/seller/inventory.js');
 
-test('Inventory vNext keeps a late legacy workspace render hidden while Scan owns the page',async({page})=>{
+test('Inventory vNext keeps a late legacy workspace render hidden while Scan owns the page',async({page},testInfo)=>{
+  test.skip(testInfo.project.name!=='desktop-chromium','synthetic ownership fixture is viewport-independent');
   await page.goto('/');
   await page.evaluate(()=>{
     const host=document.createElement('section');
