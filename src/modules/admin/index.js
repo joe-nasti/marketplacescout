@@ -7,7 +7,8 @@ const loaders=[
   ()=>import('./sealed-health.js'),
   ()=>import('./cardtrader-health.js'),
   ()=>import('./top.js'),
-  ()=>import('./proper-pass.js')
+  ()=>import('./proper-pass.js'),
+  ()=>import('./ia-followup.js')
 ];
 let installPromise=null;
 export function install(){
