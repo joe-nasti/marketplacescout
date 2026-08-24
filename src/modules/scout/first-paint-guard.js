@@ -3,22 +3,48 @@ let installed=false;
 function hasUsefulScoutContent(host){
   return Boolean(host?.querySelector('.cx-scout-card, #cxParityCards, .cx-scout-layout, [data-scout-saved]'));
 }
+function finalMobileSurfaceReady(host){
+  return Boolean(host?.querySelector('#cxScoutIa')&&host?.querySelector('#cxScoutFilterSheet')&&host?.querySelector('#cxParityCards.cx-scout-dense-list'));
+}
 
 export function installScoutFirstPaintGuard(){
   if(installed)return;
   const host=document.getElementById('cxScout');
-  if(!host||!hasUsefulScoutContent(host))return;
-  const descriptor=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
-  if(!descriptor?.get||!descriptor?.set)return;
+  if(!host)return;
   installed=true;
 
+  const mobile=matchMedia('(max-width:700px)').matches;
+  let paintReleased=!mobile;
+  let paintTimeout=0;
+  const releasePaint=()=>{
+    if(paintReleased)return;
+    paintReleased=true;
+    host.classList.remove('cx-scout-preparing');
+    if(paintTimeout)clearTimeout(paintTimeout);
+  };
+  if(mobile){
+    host.classList.add('cx-scout-preparing');
+    const started=performance.now();
+    const waitForFinal=()=>{
+      if(paintReleased)return;
+      if(finalMobileSurfaceReady(host)){releasePaint();return}
+      if(performance.now()-started<3000)requestAnimationFrame(waitForFinal);
+    };
+    requestAnimationFrame(waitForFinal);
+    paintTimeout=setTimeout(releasePaint,3200);
+  }
+
+  if(!hasUsefulScoutContent(host))return;
+  const descriptor=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+  if(!descriptor?.get||!descriptor?.set)return;
   let released=false;
-  const release=()=>{
+  let timeout=0;
+  const releaseInnerGuard=()=>{
     if(released)return;
     released=true;
     delete host.innerHTML;
-    document.removeEventListener('collectish:scout-v5-ready',release);
-    clearTimeout(timeout);
+    document.removeEventListener('collectish:scout-v5-ready',releaseInnerGuard);
+    if(timeout)clearTimeout(timeout);
   };
 
   Object.defineProperty(host,'innerHTML',{
@@ -35,8 +61,8 @@ export function installScoutFirstPaintGuard(){
     }
   });
 
-  document.addEventListener('collectish:scout-v5-ready',release,{once:true});
-  const timeout=setTimeout(release,15000);
+  document.addEventListener('collectish:scout-v5-ready',releaseInnerGuard,{once:true});
+  timeout=setTimeout(releaseInnerGuard,15000);
 }
 
 installScoutFirstPaintGuard();
