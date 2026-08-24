@@ -1,14 +1,16 @@
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 const THEMES=['light','dark'];
 const DENSE_SOURCES=[
-  '/src/modules/signals/dense-vnext.js',
-  '/src/modules/seller/inventory-dense-vnext.js',
-  '/src/modules/seller/syp-dense-vnext.js',
-  '/src/modules/scout/dense-list.js',
-  '/src/modules/seller/dashboard-vnext.js',
-  '/src/modules/sealed/dense-list.js',
-  '/src/modules/admin/overview-vnext.js'
+  'src/modules/signals/dense-vnext.js',
+  'src/modules/seller/inventory-dense-vnext.js',
+  'src/modules/seller/syp-dense-vnext.js',
+  'src/modules/scout/dense-list.js',
+  'src/modules/seller/dashboard-vnext.js',
+  'src/modules/sealed/dense-list.js',
+  'src/modules/admin/overview-vnext.js'
 ];
 
 function channel(v){v/=255;return v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4)}
@@ -65,11 +67,10 @@ for(const theme of THEMES){
   });
 }
 
-test('all vNext dense surfaces stay theme-token driven',async({page})=>{
-  for(const path of DENSE_SOURCES){
-    const response=await page.request.get(path);
-    expect(response.ok(),`${path} should be served`).toBeTruthy();
-    const source=await response.text();
-    expect(source,`${path} must not hard-code CSS foreground/background colors`).not.toMatch(/(?:^|[;{])\s*(?:color|background(?:-color)?|border-color)\s*:\s*#[0-9a-f]{3,8}\b/i);
+test('all vNext dense surfaces stay theme-token driven',async({},testInfo)=>{
+  test.skip(testInfo.project.name!=='desktop-chromium','source guard only needs one project');
+  for(const sourcePath of DENSE_SOURCES){
+    const source=await readFile(path.join(process.cwd(),sourcePath),'utf8');
+    expect(source,`${sourcePath} must not hard-code CSS foreground/background colors`).not.toMatch(/(?:^|[;{])\s*(?:color|background(?:-color)?|border-color)\s*:\s*#[0-9a-f]{3,8}\b/i);
   }
 });
