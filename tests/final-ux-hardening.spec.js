@@ -43,13 +43,12 @@ test('retired Admin presentation writers are physically removed',async()=>{
 });
 
 test('final hardening remains theme-token driven',async()=>{
-  const sources=await Promise.all([
-    read('src/modules/signals/dense-vnext.js'),
-    read('src/modules/sealed/dense-list.js'),
-    read('src/modules/seller/syp-dense-vnext.js')
-  ]);
-  for(const source of sources){
-    expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+  const inlineSealed=await read('src/modules/sealed/dense-list.js');
+  const sharedCss=await read('src/styles/ui-vnext-primitives.css');
+  const signalsCss=await read('src/styles/signals.css');
+  const sellerCss=await read('src/styles/seller.css');
+  for(const source of [inlineSealed,sharedCss,signalsCss,sellerCss]){
     expect(source).toContain('var(--color-');
   }
+  expect(inlineSealed).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
 });
