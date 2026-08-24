@@ -19,7 +19,7 @@ function ensureChrome(){
   let ia=h.querySelector('#cxScoutIa');
   if(!ia){
     ia=document.createElement('section');ia.id='cxScoutIa';ia.className='cx-scout-ia';
-    ia.innerHTML=`<div class="cx-scout-ia-row"><div class="cx-scout-saved-views"><button data-scout-saved="top">Top</button><button data-scout-saved="quick">Quick turns</button><button data-scout-saved="buylist">Buylist backed</button><button data-scout-saved="velocity">High velocity</button></div><button type="button" class="cx-refresh cx-scout-filter-trigger" data-scout-filters>Filters <span>0</span></button></div><button type="button" id="cxScoutBudgetStrip" class="cx-scout-budget-strip" data-scout-view="allocate"><span>Budget</span><strong>Open allocation</strong><small>Position-sized buying plan →</small></button>`;
+    ia.innerHTML=`<div class="cx-scout-ia-row"><div class="cx-scout-saved-views"><button data-scout-saved="top">Top</button><button data-scout-saved="quick">Quick turns</button><button data-scout-saved="buylist">Buylist backed</button><button data-scout-saved="velocity">High velocity</button></div></div><button type="button" id="cxScoutBudgetStrip" class="cx-scout-budget-strip" data-scout-view="allocate"><span>Budget</span><strong>Open allocation</strong><small>Position-sized buying plan →</small></button>`;
     const head=h.querySelector('.cx-page-head');if(head)head.insertAdjacentElement('afterend',ia);else h.prepend(ia);
   }
   let sheet=h.querySelector('#cxScoutFilterSheet');
@@ -32,7 +32,7 @@ function syncControls(){
   if(search&&!search.closest('.cx-scout-search-row')){const row=document.createElement('div');row.className='cx-scout-search-row';toolbar.insertBefore(row,toolbar.firstChild);row.append(search);const b=document.createElement('button');b.type='button';b.className='cx-refresh';b.dataset.scoutFilters='1';b.innerHTML=`Filters <span>${activeFilterCount()}</span>`;row.append(b)}
   [...toolbar.children].forEach(el=>{if(el.classList?.contains('cx-scout-search-row')||el.id==='cxParitySearch')return;sheet.appendChild(el)});
   const compact=sheet.querySelector('[data-cx-compact-filters]');if(compact)compact.classList.add('cx-scout-filter-grid');
-  const n=activeFilterCount();h.querySelectorAll('[data-scout-filters] span,.cx-scout-filter-trigger span').forEach(x=>x.textContent=String(n));
+  const n=activeFilterCount();h.querySelectorAll('[data-scout-filters] span').forEach(x=>x.textContent=String(n));
 }
 function allocationText(){const panel=document.getElementById('cxPortfolioAllocation');if(!panel)return null;const stats=[...panel.querySelectorAll('.cx-v5-stat')];const get=label=>{const s=stats.find(x=>x.querySelector('span')?.textContent?.trim()===label);return s?.querySelector('strong')?.textContent?.trim()||''};return {budget:get('Budget'),deployed:get('Deployed'),cash:get('Cash left')}}
 function syncBudgetStrip(){const strip=document.getElementById('cxScoutBudgetStrip'),a=allocationText();if(!strip)return;if(!a){strip.innerHTML='<span>Budget</span><strong>Open allocation</strong><small>Position-sized buying plan →</small>';return}strip.innerHTML=`<span>Budget ${esc(a.budget||'')}</span><strong>${esc(a.deployed||'—')} deployed</strong><small>${esc(a.cash||'—')} cash left · Allocate →</small>`}
