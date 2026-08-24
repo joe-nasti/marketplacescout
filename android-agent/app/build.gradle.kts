@@ -22,8 +22,8 @@ android {
         applicationId = "com.collectish.agent"
         minSdk = 28
         targetSdk = 35
-        versionCode = 39
-        versionName = "0.2.19"
+        versionCode = 40
+        versionName = "0.2.20"
     }
 
     signingConfigs {
@@ -45,6 +45,10 @@ android {
             isMinifyEnabled = false
         }
     }
+}
+
+dependencies {
+    implementation("androidx.webkit:webkit:1.15.0")
 }
 
 kotlin { jvmToolchain(17) }
