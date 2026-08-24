@@ -39,15 +39,30 @@ export function cycleTheme(){
   applyTheme(next);
 }
 
+function ensureTopUtilities(){
+  const app=document.getElementById('app');
+  if(!app)return null;
+  let bar=document.getElementById('cxTopUtilities');
+  if(!bar){bar=document.createElement('div');bar.id='cxTopUtilities';bar.className='cx-top-utilities';app.prepend(bar)}
+  const badge=document.querySelector('.cx-top-version');
+  if(badge&&badge.parentElement!==bar)bar.appendChild(badge);
+  return bar;
+}
+
 export function ensureThemeToggle(){
-  if(!document.body||document.querySelector('[data-cx-theme-toggle]'))return;
+  if(!document.body)return;
   if(!document.getElementById('collectishUxShell'))return;
-  const button=document.createElement('button');
-  button.type='button';
-  button.className='cx-theme-toggle';
-  button.dataset.cxThemeToggle='1';
-  button.addEventListener('click',cycleTheme);
-  document.body.append(button);
+  const bar=ensureTopUtilities();
+  let button=document.querySelector('[data-cx-theme-toggle]');
+  if(!button){
+    button=document.createElement('button');
+    button.type='button';
+    button.className='cx-theme-toggle';
+    button.dataset.cxThemeToggle='1';
+    button.addEventListener('click',cycleTheme);
+  }
+  if(bar&&button.parentElement!==bar)bar.appendChild(button);
+  else if(!bar&&!button.isConnected)document.body.append(button);
   applyTheme();
 }
 

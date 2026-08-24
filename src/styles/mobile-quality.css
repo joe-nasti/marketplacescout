@@ -17,11 +17,20 @@
   .cx-filters>*{min-width:0;max-width:100%}
   img,svg,canvas{max-width:100%}
 
-  /* Utility controls belong to the top of the document, not the viewport.
-     They remain available after scrolling back to the top without narrowing
-     or obscuring the working surface while the user scans content. */
-  .cx-top-version{position:absolute;right:9px;top:max(10px,env(safe-area-inset-top))}
-  .cx-theme-toggle{position:absolute;right:9px;top:max(42px,calc(env(safe-area-inset-top) + 38px));width:36px;height:36px;font-size:17px}
+  /* Mobile utility controls live in their own document-flow strip. */
+  #app>.cx-top-utilities{display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:max(6px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 4px max(12px,env(safe-area-inset-left));background:var(--color-bg-primary)}
+  #app>.cx-top-utilities .cx-top-version,#app>.cx-top-utilities .cx-theme-toggle{position:static!important;right:auto!important;top:auto!important;margin:0;box-shadow:none}
+  #app>.cx-top-utilities .cx-theme-toggle{width:34px;height:34px;font-size:16px}
+
+  /* Never expose Scout's intermediate legacy/wide render on mobile. */
+  #cxScout.cx-scout-preparing #cxScoutIa,#cxScout.cx-scout-preparing .cx-scout-toolbar,#cxScout.cx-scout-preparing .cx-scout-layout{display:none!important}
+  #cxScout.cx-scout-preparing::after{content:'Preparing Scout…';display:block;padding:18px 4px;color:var(--color-text-secondary);font-size:12px}
+  #cxScout,#cxScout .cx-scout-layout,#cxParityCards{min-width:0;max-width:100%}
+  #cxParityCards.cx-scout-dense-list{overflow-x:hidden}
+}
+
+@media(min-width:701px){
+  #app>.cx-top-utilities{display:contents}
 }
 
 @media(max-width:380px){

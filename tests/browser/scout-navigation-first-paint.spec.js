@@ -15,7 +15,9 @@ test('Scout preserves first useful paint while renderer refreshes',async({},test
   expect(guard).toContain("html.includes('Loading Scout v5')");
   expect(guard).toContain("if(!released&&destructiveLoading&&hasUsefulScoutContent(this))");
   expect(guard).toContain('delete host.innerHTML');
-  expect(guard).toContain("document.addEventListener('collectish:scout-v5-ready',release,{once:true})");
+  expect(guard).toContain("document.addEventListener('collectish:scout-v5-ready',releaseInnerGuard,{once:true})");
+  expect(guard).toContain("host.classList.add('cx-scout-preparing')");
+  expect(guard).toContain("#cxParityCards.cx-scout-dense-list");
   expect(guard).not.toContain('MutationObserver');
 });
 
