@@ -1,4 +1,5 @@
 const loaders=[
+  ()=>import('./single-owner-style.js'),
   ()=>import('./alerts.js'),
   ()=>import('./scans.js'),
   ()=>import('./marketplace-health.js'),
