@@ -8,7 +8,7 @@ const loaders=[
   ()=>import('./sealed-health.js'),
   ()=>import('./cardtrader-health.js'),
   ()=>import('./top.js'),
-  ()=>import('./overview-vnext.js')
+  ()=>import('./admin-vnext.js')
 ];
 let installPromise=null;
 export function install(){
