@@ -4,8 +4,8 @@ export async function install(){
   if(installed)return;
   installed=true;
 
-  // Kick off independent Seller feature imports together to avoid serial network
-  // roundtrips in mobile WebView. These modules self-register/render on evaluation.
+  // Seller remains a lazy page. Keep all Seller-only enhancers here so they load
+  // when the Seller tab opens without adding work to the Scout startup path.
   await Promise.all([
     import('./orders.js'),
     import('./order-meta.js'),
@@ -13,6 +13,8 @@ export async function install(){
     import('./drilldowns.js'),
     import('./detail-polish.js'),
     import('./dashboard-vnext.js'),
-    import('./reports-vnext.js')
+    import('./reports-vnext.js'),
+    import('./cashflow-budget.js'),
+    import('./buyer-account.js')
   ]);
 }
