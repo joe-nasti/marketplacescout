@@ -20,10 +20,10 @@ function buildRows(){
       key:keyFor(r),sku_id:r.sku_id||null,product_id:r.product_id||null,scryfall_id:r.scryfall_id||null,
       card_name:r.card_name||r.product_name||'Unknown card',set_name:r.set_name||'',printing:r.printing||'',
       kind:actionKind(r),signal:signalLabel(r),primary_signal:r.primary_signal||'Changing market signal',
-      sources:Number(r.signal_families||0),confidence:Math.max(0,Math.min(100,Number(r.actionability_score||0))),
+      evidence:Number(r.signal_families||0),confidence:Math.max(0,Math.min(100,Number(r.actionability_score||0))),
       scout:Number(r.adjusted_scout_score??r.base_scout_score??0),roi:r.direct_roi_pct==null?null:Number(r.direct_roi_pct),
       buy:r.cheapest_buy==null?null:Number(r.cheapest_buy),direct_net:r.direct_net_est==null?null:Number(r.direct_net_est),
-      liquidity:r.liquidity_label||'',updated_at:new Date().toISOString(),direction:'bullish',stage:r.action_class==='action_now'?'leading':'confirming'
+      liquidity:r.liquidity_label||'',updated_at:null,direction:'bullish',stage:r.action_class==='action_now'?'leading':'confirming'
     };
     map.set(row.key,row);
   }
@@ -34,7 +34,7 @@ function buildRows(){
       const key=keyFor({product_id:e.product_id,scryfall_id:e.scryfall_id,card_name:e.entity_name});
       const existing=map.get(key);
       if(existing){
-        existing.sources=Math.max(existing.sources,1);
+        existing.evidence=Math.max(existing.evidence,1);
         existing.intel_count=(existing.intel_count||0)+1;
         if(item.observed_at&&(!existing.updated_at||new Date(item.observed_at)>new Date(existing.updated_at)))existing.updated_at=item.observed_at;
         continue;
@@ -42,7 +42,7 @@ function buildRows(){
       map.set(key,{
         key,sku_id:null,product_id:e.product_id||null,scryfall_id:e.scryfall_id||null,card_name:e.entity_name||'Unknown card',set_name:e.set_code||'',printing:'',
         kind:'watch',signal:item.signal_stage==='leading'?'Leading':item.signal_stage==='confirming'?'Confirming':'Watch',
-        primary_signal:item.summary||item.title||'External market intelligence',sources:1,
+        primary_signal:item.summary||item.title||'External market intelligence',evidence:1,
         confidence:Math.round(Math.max(0,Math.min(1,Number(item.confidence??e.confidence??0.5)))*100),scout:null,roi:null,buy:null,direct_net:null,
         liquidity:'',updated_at:item.observed_at||item.published_at||item.created_at||null,direction:item.direction||'neutral',stage:item.signal_stage||'unclassified',intel_count:1
       });
@@ -51,7 +51,7 @@ function buildRows(){
   const rows=[...map.values()];
   const counts=new Map();
   for(const item of intelItems())for(const e of Array.isArray(item.market_intel_entities)?item.market_intel_entities:[]){if(e.entity_type==='card'&&(e.scryfall_id||e.product_id)){const k=keyFor({product_id:e.product_id,scryfall_id:e.scryfall_id,card_name:e.entity_name});counts.set(k,(counts.get(k)||0)+1)}}
-  for(const r of rows)r.sources=Math.max(r.sources||0,counts.get(r.key)||0);
+  for(const r of rows)r.evidence=Math.max(r.evidence||0,counts.get(r.key)||0);
   return rows.sort((a,b)=>{
     const rank={action:3,emerging:2,watch:1};
     return (rank[b.kind]-rank[a.kind])||(b.confidence-a.confidence)||((b.scout||0)-(a.scout||0));
@@ -68,12 +68,12 @@ function direction(r){return r.direction==='bearish'?'↓':r.direction==='bullis
 function rowHtml(r){
   const edge=r.roi==null?'—':pct(r.roi);
   const price=r.buy==null?'—':money(r.buy);
-  const sourceText=r.sources?String(r.sources):'1';
+  const evidenceText=r.evidence?String(r.evidence):'1';
   const scout=r.scout==null?'—':Math.round(r.scout);
   return `<button type="button" class="cx-sv-row" data-sv-open data-sku="${esc(r.sku_id||'')}" data-product="${esc(r.product_id||'')}" data-scryfall="${esc(r.scryfall_id||'')}" data-card="${esc(r.card_name)}">
     <span class="cx-sv-card"><strong>${esc(r.card_name)}</strong><small>${esc([r.set_name,r.printing].filter(Boolean).join(' · '))}</small></span>
     <span class="cx-sv-signal">${stageChip(r)}<small>${esc(r.primary_signal)}</small></span>
-    <span class="cx-sv-num"><strong>${esc(sourceText)}</strong><small>src</small></span>
+    <span class="cx-sv-num"><strong>${esc(evidenceText)}</strong><small>evd</small></span>
     <span class="cx-sv-num"><strong>${esc(String(r.confidence))}</strong><small>conf</small></span>
     <span class="cx-sv-num"><strong>${esc(String(scout))}</strong><small>Scout</small></span>
     <span class="cx-sv-price"><strong>${esc(price)}</strong><small>${esc(edge)} edge</small></span>
@@ -87,7 +87,7 @@ function renderScan(){
   return `<div class="cx-sv-scan">
     <div class="cx-sv-metrics">${metric('Action now',action,'trade-ready')}${metric('Emerging',emerging,'changing')}${metric('Watch',watch,'verified cards')}${metric('Sources',sources,'current intel')}</div>
     <div class="cx-sv-toolbar"><div class="cx-sv-filters">${[['all','All'],['action','Action'],['emerging','Emerging'],['watch','Watch']].map(([v,l])=>`<button type="button" data-sv-filter="${v}" class="${filter===v?'active':''}">${l}</button>`).join('')}</div><input id="cxSvSearch" type="search" value="${esc(query)}" placeholder="Search cards or signals"><button type="button" data-sv-more>More filters</button></div>
-    <div class="cx-sv-head"><span>Card</span><span>Signal</span><span>Src</span><span>Conf</span><span>Scout</span><span>Buy / edge</span><span>Move</span></div>
+    <div class="cx-sv-head"><span>Card</span><span>Signal</span><span>Evd</span><span>Conf</span><span>Scout</span><span>Buy / edge</span><span>Move</span></div>
     <div class="cx-sv-list">${rows.length?rows.slice(0,80).map(rowHtml).join(''):'<div class="cx-empty">No signals match this view.</div>'}</div>
   </div>`;
 }
