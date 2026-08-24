@@ -10,7 +10,11 @@ const DENSE_SOURCES=[
   'src/modules/scout/dense-list.js',
   'src/modules/seller/dashboard-vnext.js',
   'src/modules/sealed/dense-list.js',
-  'src/modules/admin/overview-vnext.js'
+  'src/modules/admin/overview-vnext.js',
+  'src/styles/signals.css',
+  'src/styles/seller-progress.css',
+  'src/styles/scout.css',
+  'src/styles/sealed.css'
 ];
 
 function channel(v){v/=255;return v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4)}
