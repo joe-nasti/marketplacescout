@@ -2,6 +2,7 @@
 .cx-primary{min-height:46px}
 .cx-auth{min-height:100vh;min-height:100dvh;padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom))}
 #cxParityCards>.cx-scout-card[data-cx-advanced-match="0"]{display:none!important}
+.cx-scout-mobile-metrics{display:none}
 
 @media(max-width:700px){
   #collectishUxShell{min-height:100vh;min-height:100dvh;padding-bottom:calc(68px + env(safe-area-inset-bottom))}
@@ -28,6 +29,21 @@
   #cxScout.cx-scout-preparing::after{content:'Preparing Scout…';display:block;padding:18px 4px;color:var(--color-text-secondary);font-size:12px}
   #cxScout,#cxScout .cx-scout-layout,#cxParityCards{min-width:0;max-width:100%}
   #cxParityCards.cx-scout-dense-list{overflow-x:hidden}
+
+  /* Phone Scout rows are a native summary, not a squeezed desktop table. */
+  #cxParityCards>.cx-scout-dense-row{display:block!important;min-height:0;padding:7px 8px!important}
+  #cxParityCards>.cx-scout-dense-row>.cx-scout-dense-card{display:grid;width:100%;grid-template-columns:28px minmax(0,1fr);gap:7px;align-items:start}
+  #cxParityCards>.cx-scout-dense-row>.cx-scout-dense-score,
+  #cxParityCards>.cx-scout-dense-row>.cx-scout-dense-num,
+  #cxParityCards>.cx-scout-dense-row>.cx-scout-dense-floor,
+  #cxParityCards>.cx-scout-dense-row>.cx-scout-dense-signal{display:none!important}
+  #cxParityCards .cx-scout-mobile-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px 8px;margin-top:4px;padding-top:4px;border-top:1px solid color-mix(in srgb,var(--color-border) 72%,transparent)}
+  #cxParityCards .cx-scout-mobile-metrics>span{display:block;min-width:0}
+  #cxParityCards .cx-scout-mobile-metrics small{display:block;font-size:7.5px;line-height:1;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+  #cxParityCards .cx-scout-mobile-metrics b{display:block;margin-top:1px;font-size:9.5px;line-height:1.1;color:var(--color-text-primary);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #cxParityCards .cx-scout-mobile-metrics .positive b{color:var(--color-success)}
+  #cxParityCards .cx-scout-dense-card>.cx-scout-thumb{width:26px;height:36px}
+  #cxParityCards .cx-scout-dense-name>strong{font-size:10.5px}
 }
 
 @media(min-width:701px){
@@ -38,4 +54,6 @@
   .cx-main{padding-left:10px;padding-right:10px}
   .cx-mobile-nav button{font-size:9.5px}
   .cx-card{padding:12px}
+  #cxParityCards .cx-scout-mobile-metrics{gap:3px 5px}
+  #cxParityCards .cx-scout-mobile-metrics b{font-size:9px}
 }
