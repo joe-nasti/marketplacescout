@@ -7,7 +7,8 @@ const loaders=[
   ()=>import('./sealed-catalog.js'),
   ()=>import('./sealed-health.js'),
   ()=>import('./cardtrader-health.js'),
-  ()=>import('./top.js')
+  ()=>import('./top.js'),
+  ()=>import('./overview-vnext.js')
 ];
 let installPromise=null;
 export function install(){
