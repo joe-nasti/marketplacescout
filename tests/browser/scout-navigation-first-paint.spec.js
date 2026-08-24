@@ -11,10 +11,12 @@ test('Scout preserves first useful paint while renderer refreshes',async({},test
     readFile(scoutPath('first-paint-guard.js'),'utf8')
   ]);
   expect(index.indexOf("import('./first-paint-guard.js')")).toBeLessThan(index.indexOf("import('./renderer.js')"));
-  expect(guard).toContain("const preserved=[...host.childNodes]");
-  expect(guard).toContain("text.includes('Loading Scout v5')");
-  expect(guard).toContain('host.replaceChildren(...preserved)');
+  expect(guard).toContain("Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML')");
+  expect(guard).toContain("html.includes('Loading Scout v5')");
+  expect(guard).toContain("if(!released&&destructiveLoading&&hasUsefulScoutContent(this))");
+  expect(guard).toContain('delete host.innerHTML');
   expect(guard).toContain("document.addEventListener('collectish:scout-v5-ready',release,{once:true})");
+  expect(guard).not.toContain('MutationObserver');
 });
 
 test('Scout card opening is centralized across ranked and quick-turn surfaces',async({},testInfo)=>{
