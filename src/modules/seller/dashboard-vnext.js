@@ -6,6 +6,7 @@ const money=n=>n==null||n===''||!Number.isFinite(Number(n))?'—':Number(n).toLo
 const num=n=>Number(n||0).toLocaleString();
 const age=t=>{if(!t)return'—';const ms=Date.now()-new Date(t).getTime();if(!Number.isFinite(ms))return'—';const h=Math.max(0,Math.round(ms/3600000));if(h<1)return'now';if(h<24)return`${h}h`;return`${Math.round(h/24)}d`};
 const host=()=>document.getElementById('cxSeller');
+const persistentSellerIds=new Set(['cxSellerCashflowBudget','cxBuyerAccountImport']);
 let mode='dashboard',products=[],productsLoading=null;
 
 function seller(){return store.get().seller||{}}
@@ -39,8 +40,8 @@ function dashboard(){
   const s=summary(),gross=Number(s.gross_sales||0),fees=Number(s.total_fees||0),refunds=Number(s.order_refund_total||0),net=Number(s.net_after_refunds||0),feePct=gross>0?`${(fees/gross*100).toFixed(1)}%`:'—',exceptions=attention(),recent=orders().slice(0,14);
   return `<div class="cx-sellv-dashboard"><div class="cx-sellv-metrics">${metric('Orders',num(s.order_count),`${num(s.missing_detail_count)} details pending`)}${metric('Gross',money(gross),'loaded history')}${metric('Net',money(net),'after refunds')}${metric('Fees',money(fees),feePct)}${metric('Refunds',money(refunds),`${num(s.refund_record_count)} records`)}${metric('Reviews',s.average_rating?`${Number(s.average_rating).toFixed(2)}★`:'—',`${num(s.review_count)} reviews`)}</div><div class="cx-sellv-grid"><section class="cx-sellv-panel"><div class="cx-sellv-panel-head"><div><strong>Needs attention</strong><small>${exceptions.length?`${exceptions.reduce((n,x)=>n+x.count,0)} flagged records`:'No current exceptions'}</small></div><button type="button" data-sellv-reports>Open reports</button></div><div class="cx-sellv-attention">${exceptions.length?exceptions.map(x=>`<button type="button" data-sellv-tab="${esc(x.tab)}"><span><strong>${esc(x.label)}</strong><small>${esc(x.sub)}</small></span><b>${num(x.count)}</b></button>`).join(''):'<div class="cx-empty">No summary exceptions are currently flagged.</div>'}</div><div class="cx-sellv-section-title">Recent orders</div><div class="cx-sellv-orders-head"><span>Order</span><span>Gross</span><span>Fees</span><span>Refund</span><span>Net</span><span>Status</span></div><div class="cx-sellv-orders">${recent.length?recent.map(orderRow).join(''):'<div class="cx-empty">No recent orders loaded.</div>'}</div></section><aside class="cx-sellv-panel"><div class="cx-sellv-panel-head"><div><strong>Top products</strong><small>ranked by loaded sales revenue</small></div><button type="button" data-sellv-tab="products">All products</button></div><div class="cx-sellv-products">${productsLoading&&!products.length?'<div class="cx-empty">Loading product activity…</div>':products.length?products.map(productRow).join(''):'<div class="cx-empty">No product summary available.</div>'}</div></aside></div></div>`;
 }
-function legacy(){const h=host();if(!h)return[];return [...h.children].filter(el=>el.id!=='cxSellerVnext'&&!el.classList.contains('cx-page-head'))}
-function applyMode(){for(const el of legacy())el.hidden=mode==='dashboard';host()?.classList.toggle('cx-sellv-dashboard-mode',mode==='dashboard')}
+function legacy(){const h=host();if(!h)return[];return [...h.children].filter(el=>el.id!=='cxSellerVnext'&&!el.classList.contains('cx-page-head')&&!persistentSellerIds.has(el.id))}
+function applyMode(){for(const el of legacy())el.hidden=mode==='dashboard';for(const id of persistentSellerIds){const el=document.getElementById(id);if(el)el.hidden=false}host()?.classList.toggle('cx-sellv-dashboard-mode',mode==='dashboard')}
 function render(){
   const h=host();if(!h)return;
   let shell=document.getElementById('cxSellerVnext');
