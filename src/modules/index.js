@@ -98,6 +98,9 @@ document.addEventListener('collectish:scout-v5-ready',onScoutReady,{once:true});
 export function installModules(){
   if(installPromise)return installPromise;
   installPromise=(async()=>{
+    // Shared presentation primitives load on the startup path so later feature
+    // modules can adopt them without each shipping another copy of shell CSS.
+    await import('../core/ui-adoption.js');
     // Keep first-paint Scout interaction code on the authenticated startup path.
     // RPC-producing overlays wait until after the ranked list is rendered and the
     // browser has an idle slice; intelligence and Ask start in a later idle wave.
