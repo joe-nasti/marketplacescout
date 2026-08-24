@@ -14,9 +14,10 @@ export async function install(){
     import('./cardtrader-links.js'),
     import('./url-state.js'),
     import('./mobile-economics.js'),
+    import('./dense-list.js'),
     import('./renderer.js')
   ]);
-  const urlState=modules[5],renderer=modules[7];
+  const urlState=modules[5],renderer=modules[8];
   urlState.installSealedUrlState();
   await renderer.install();
 }
