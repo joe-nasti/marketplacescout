@@ -18,6 +18,7 @@ class ReadOnlyProbeBridge(
 
     private val storeOrigin = "https://store.tcgplayer.com/"
     private val storeOriginPrimeUrl = "https://store.tcgplayer.com/admin/direct/GetLastUpdated?categoryId=1"
+    private val buyerHistoryPrimeUrl = "https://store.tcgplayer.com/myaccount/orderhistory"
 
     inner class SellerCallback {
         @JavascriptInterface
@@ -40,8 +41,6 @@ class ReadOnlyProbeBridge(
     fun startReadOnlyProbe(configJson: String) {
         activity.runOnUiThread {
             try {
-                // Do not pre-reject from the coarse Seller Portal state.
-                // The request itself verifies the authenticated Store origin.
                 val config = JSONObject(configJson)
                 val mode = config.optString("mode", "fetch_json")
                 val url = config.optString("url", "")
@@ -63,9 +62,10 @@ class ReadOnlyProbeBridge(
         }
     }
 
-    /** Store endpoints recovered from the authenticated Store UI are same-origin
-     * requests. Prime the authenticated WebView onto Store before executing any
-     * allowlisted Store fetch so cookies/origin behavior matches the captured UI.
+    /** Store endpoints recovered from authenticated TCGplayer UIs are same-origin
+     * requests. Prime the WebView onto the matching Store surface before fetch so
+     * cookies/origin behavior matches the browser session. Buyer history gets its
+     * own prime URL because it does not depend on Seller Portal authentication.
      */
     private fun runFetchWithOriginGuard(url: String, method: String, body: String, mode: String, token: String) {
         val needsStoreOrigin = url.startsWith(storeOrigin) && !seller.url.orEmpty().startsWith(storeOrigin)
@@ -73,11 +73,15 @@ class ReadOnlyProbeBridge(
             runFetch(url, method, body, mode, token)
             return
         }
-        seller.loadUrl(storeOriginPrimeUrl)
+        val primeUrl = if (ReadOnlyProbePolicy.isBuyerHistoryRequest(url)) buyerHistoryPrimeUrl else storeOriginPrimeUrl
+        seller.loadUrl(primeUrl)
         seller.postDelayed({
             if (token != activeToken || state != "running") return@postDelayed
             if (!seller.url.orEmpty().startsWith(storeOrigin)) {
-                fail("TCGplayer Store session is not authenticated (Store origin redirected away before request)")
+                fail(if (ReadOnlyProbePolicy.isBuyerHistoryRequest(url))
+                    "TCGplayer buyer session is not authenticated"
+                else
+                    "TCGplayer Store session is not authenticated (Store origin redirected away before request)")
                 return@postDelayed
             }
             runFetch(url, method, body, mode, token)
