@@ -7,7 +7,7 @@ const rendererPath=path.join(process.cwd(),'src/modules/seller/inventory.js');
 
 test('Inventory vNext keeps a late legacy workspace render hidden while Scan owns the page',async({page},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','synthetic ownership fixture is viewport-independent');
-  await page.goto('/');
+  await page.setContent('<!doctype html><html><body></body></html>');
   await page.evaluate(()=>{
     const host=document.createElement('section');
     host.id='cxInventory';
