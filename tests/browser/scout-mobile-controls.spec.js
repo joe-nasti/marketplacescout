@@ -16,9 +16,13 @@ test('Scout saved views do not include a redundant Filters trigger',async()=>{
   expect(source).toContain("b.dataset.scoutFilters='1'");
 });
 
-test('mobile build badge and theme toggle scroll with the document',async()=>{
-  const source=await read('src/styles/mobile-quality.css');
-  expect(source).toContain('.cx-top-version{position:absolute');
-  expect(source).toContain('.cx-theme-toggle{position:absolute');
-  expect(source).not.toMatch(/\.cx-top-version\{position:fixed/);
+test('mobile build badge and theme toggle live in the scrolling document utility strip',async()=>{
+  const [css,theme]=await Promise.all([read('src/styles/mobile-quality.css'),read('src/core/theme.js')]);
+  expect(theme).toContain("bar.id='cxTopUtilities'");
+  expect(theme).toContain('app.prepend(bar)');
+  expect(theme).toContain('bar.appendChild(badge)');
+  expect(theme).toContain('bar.appendChild(button)');
+  expect(css).toContain('#app>.cx-top-utilities');
+  expect(css).toContain('position:static!important');
+  expect(css).not.toMatch(/#app>\.cx-top-utilities[^}]*position:fixed/);
 });
