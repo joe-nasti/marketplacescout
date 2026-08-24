@@ -1,8 +1,17 @@
 package com.collectish.agent
 
 import android.app.Activity
+import android.graphics.Color
+import android.view.Gravity
+import android.view.View
 import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
 import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.Button
+import android.widget.FrameLayout
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -15,12 +24,17 @@ class ReadOnlyProbeBridge(
     @Volatile private var state: String = "idle"
     @Volatile private var result: String = "{}"
     @Volatile private var activeToken: String = ""
+    @Volatile private var buyerSessionState: String = "unknown"
 
     private val storeOrigin = "https://store.tcgplayer.com/"
     private val storeOriginPrimeUrl = "https://store.tcgplayer.com/admin/direct/GetLastUpdated?categoryId=1"
     private val buyerHistoryPrimeUrl = "https://store.tcgplayer.com/myaccount/orderhistory"
+    private val buyerLoginUrl = "https://www.tcgplayer.com/login?returnUrl=/myaccount/orderhistory"
+    private val buyerProfileSupported = WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)
+    private val buyer: WebView? = if (buyerProfileSupported) createBuyerWebView() else null
+    private val buyerReturn: Button? = if (buyerProfileSupported) createBuyerReturnButton() else null
 
-    inner class SellerCallback {
+    inner class ProbeCallback {
         @JavascriptInterface
         fun complete(token: String, payload: String) {
             if (token != activeToken || token.isBlank()) return
@@ -31,11 +45,68 @@ class ReadOnlyProbeBridge(
     }
 
     init {
-        seller.addJavascriptInterface(SellerCallback(), "CollectishReadOnlyNative")
+        val callback = ProbeCallback()
+        seller.addJavascriptInterface(callback, "CollectishReadOnlyNative")
+        buyer?.addJavascriptInterface(callback, "CollectishReadOnlyNative")
+    }
+
+    private fun createBuyerWebView(): WebView {
+        val view = WebView(activity)
+        WebViewCompat.setProfile(view, "collectish-buyer")
+        view.settings.javaScriptEnabled = true
+        view.settings.domStorageEnabled = true
+        view.settings.databaseEnabled = true
+        view.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+        view.webChromeClient = WebChromeClient()
+        view.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(v: WebView, url: String) {
+                val lower = url.lowercase()
+                buyerSessionState = if (lower.contains("/login") || lower.contains("signin")) "signed_out"
+                    else if (lower.contains("tcgplayer.com") && lower.contains("/myaccount")) "authenticated"
+                    else "unknown"
+            }
+        }
+        view.setBackgroundColor(Color.WHITE)
+        view.visibility = View.GONE
+        activity.addContentView(view, FrameLayout.LayoutParams(-1, -1))
+        return view
+    }
+
+    private fun createBuyerReturnButton(): Button {
+        val button = Button(activity).apply {
+            text = "← Collectish"
+            isAllCaps = false
+            textSize = 14f
+            visibility = View.GONE
+            setOnClickListener {
+                buyer?.visibility = View.GONE
+                visibility = View.GONE
+            }
+        }
+        activity.addContentView(button, FrameLayout.LayoutParams(-2, 48, Gravity.TOP or Gravity.START).apply {
+            leftMargin = 12
+            topMargin = 12
+        })
+        return button
     }
 
     @JavascriptInterface fun getReadOnlyProbeState(): String = state
     @JavascriptInterface fun getReadOnlyProbeResult(): String = result
+    @JavascriptInterface fun getBuyerSessionState(): String = if (!buyerProfileSupported) "unsupported" else buyerSessionState
+    @JavascriptInterface fun isBuyerProfileIsolated(): Boolean = buyerProfileSupported
+
+    @JavascriptInterface
+    fun showBuyerSession() {
+        activity.runOnUiThread {
+            if (!buyerProfileSupported || buyer == null) {
+                fail("This Android WebView does not support isolated buyer profiles")
+                return@runOnUiThread
+            }
+            buyer.visibility = View.VISIBLE
+            buyerReturn?.visibility = View.VISIBLE
+            buyer.loadUrl(buyerLoginUrl)
+        }
+    }
 
     @JavascriptInterface
     fun startReadOnlyProbe(configJson: String) {
@@ -51,6 +122,7 @@ class ReadOnlyProbeBridge(
                 } else ""
                 if (mode !in ReadOnlyProbePolicy.allowedModes) { fail("Probe mode is not allowlisted"); return@runOnUiThread }
                 if (!ReadOnlyProbePolicy.isAllowedRequest(url, method)) { fail("Request is not allowlisted"); return@runOnUiThread }
+                if (ReadOnlyProbePolicy.isBuyerAccountRequest(url) && !buyerProfileSupported) { fail("Isolated buyer WebView profile is not supported on this device"); return@runOnUiThread }
                 if (method == "POST" && body.isBlank()) { fail("Allowlisted POST requires a JSON body"); return@runOnUiThread }
                 activeToken = UUID.randomUUID().toString(); state = "running"; result = "{}"
                 when (mode) {
@@ -62,33 +134,36 @@ class ReadOnlyProbeBridge(
         }
     }
 
-    /** Store endpoints recovered from authenticated TCGplayer UIs are same-origin
-     * requests. Prime the WebView onto the matching Store surface before fetch so
-     * cookies/origin behavior matches the browser session. Buyer history gets its
-     * own prime URL because it does not depend on Seller Portal authentication.
+    private fun targetFor(url: String): WebView? = if (ReadOnlyProbePolicy.isBuyerAccountRequest(url)) buyer else seller
+
+    /** Seller and buyer requests never share a WebView. Buyer reads are routed
+     * through the isolated collectish-buyer profile, while seller reads stay on
+     * the existing Seller Portal WebView/default profile.
      */
     private fun runFetchWithOriginGuard(url: String, method: String, body: String, mode: String, token: String) {
-        val needsStoreOrigin = url.startsWith(storeOrigin) && !seller.url.orEmpty().startsWith(storeOrigin)
+        val target = targetFor(url) ?: run { fail("Buyer WebView is unavailable"); return }
+        val buyerRequest = ReadOnlyProbePolicy.isBuyerAccountRequest(url)
+        val needsStoreOrigin = url.startsWith(storeOrigin) && !target.url.orEmpty().startsWith(storeOrigin)
         if (!needsStoreOrigin) {
-            runFetch(url, method, body, mode, token)
+            runFetch(target, url, method, body, mode, token)
             return
         }
-        val primeUrl = if (ReadOnlyProbePolicy.isBuyerHistoryRequest(url)) buyerHistoryPrimeUrl else storeOriginPrimeUrl
-        seller.loadUrl(primeUrl)
-        seller.postDelayed({
+        val primeUrl = if (buyerRequest) buyerHistoryPrimeUrl else storeOriginPrimeUrl
+        target.loadUrl(primeUrl)
+        target.postDelayed({
             if (token != activeToken || state != "running") return@postDelayed
-            if (!seller.url.orEmpty().startsWith(storeOrigin)) {
-                fail(if (ReadOnlyProbePolicy.isBuyerHistoryRequest(url))
+            if (!target.url.orEmpty().startsWith(storeOrigin)) {
+                fail(if (buyerRequest)
                     "TCGplayer buyer session is not authenticated"
                 else
                     "TCGplayer Store session is not authenticated (Store origin redirected away before request)")
                 return@postDelayed
             }
-            runFetch(url, method, body, mode, token)
+            runFetch(target, url, method, body, mode, token)
         }, 1800L)
     }
 
-    private fun runFetch(url: String, method: String, body: String, mode: String, token: String) {
+    private fun runFetch(target: WebView, url: String, method: String, body: String, mode: String, token: String) {
         val qUrl=JSONObject.quote(url); val qMethod=JSONObject.quote(method); val qBody=JSONObject.quote(body); val qMode=JSONObject.quote(mode); val qToken=JSONObject.quote(token)
         val script="""
             (function(){
@@ -119,17 +194,18 @@ class ReadOnlyProbeBridge(
               })(); return 'started';
             })();
         """.trimIndent()
-        seller.evaluateJavascript(script,null)
+        target.evaluateJavascript(script,null)
     }
 
     private fun runNavigationCapture(url:String,waitMs:Long){
-        seller.loadUrl(url); seller.postDelayed({
+        val target = targetFor(url) ?: run { fail("Buyer WebView is unavailable"); return }
+        target.loadUrl(url); target.postDelayed({
             val script="""(function(){try{const clean=s=>(s||'').replace(/\s+/g,' ').trim();const tables=[...document.querySelectorAll('table')].slice(0,8).map((table,ti)=>({index:ti,headers:[...table.querySelectorAll('thead th')].map(x=>clean(x.innerText||x.textContent)).filter(Boolean),rows:[...table.querySelectorAll('tbody tr,tr')].slice(0,120).map(tr=>[...tr.querySelectorAll('th,td')].map(td=>clean(td.innerText||td.textContent).slice(0,500))).filter(r=>r.length)}));const resources=performance.getEntriesByType('resource').map(r=>r.name).filter(u=>/tcgplayer/i.test(u)).slice(-${ReadOnlyProbePolicy.maxNetworkRequests});const links=[...document.querySelectorAll('a[href]')].slice(0,160).map(a=>({text:clean(a.innerText||a.textContent).slice(0,160),href:a.href}));return JSON.stringify({title:document.title||'',url:location.href,path:location.pathname||'/',tables,links,resources,bodyText:clean(document.body?.innerText||'').slice(0,${ReadOnlyProbePolicy.maxBodyChars}),checkedAt:new Date().toISOString()})}catch(e){return JSON.stringify({error:String(e),checkedAt:new Date().toISOString()})}})();""".trimIndent()
-            seller.evaluateJavascript(script){raw->finishFromJavascript(raw)}
+            target.evaluateJavascript(script){raw->finishFromJavascript(raw)}
         },waitMs)
     }
 
-    private fun finishFromJavascript(raw:String?){val decoded=decodeJsString(raw.orEmpty()).ifBlank{"{}"};result=decoded;state=if(decoded.contains("\"error\":"))"error" else "ready"}
+    private fun finishFromJavascript(raw:String?){val decoded=decodeJsString(raw.orEmpty()).ifBlank{"{}"};result=decoded;state=if(decoded.contains("\"error\":"))"error" else"ready"}
     private fun fail(message:String){state="error";result=JSONObject().put("error",message).toString()}
     private fun decodeJsString(raw:String):String{if(raw.isBlank()||raw=="null")return "";return try{JSONArray("[$raw]").getString(0)}catch(_:Exception){raw.replace("\\\"","\"").replace("\\n","\n").replace("\\\\","\\").trim('"')}}
 }
