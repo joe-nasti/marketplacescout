@@ -33,7 +33,8 @@ const scoutIntelligence=[
   ()=>import('./signals/competitive-paper.js'),
   ()=>import('./signals/commander.js'),
   ()=>import('./signals/cross-source.js'),
-  ()=>import('./signals/actionable-emerging.js')
+  ()=>import('./signals/actionable-emerging.js'),
+  ()=>import('./signals/dense-vnext.js')
 ];
 
 const askEnhancers=[
