@@ -1,31 +1,29 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+const root=process.cwd();const read=p=>readFile(path.join(root,p),'utf8');
 
-const adminIndex=path.join(process.cwd(),'src/modules/admin/index.js');
-const properPass=path.join(process.cwd(),'src/modules/admin/proper-pass.js');
-
-test('Admin vNext has one Overview owner and no floating Singles navigator',async()=>{
-  const source=await readFile(adminIndex,'utf8');
-  expect(source).toContain("import('./proper-pass.js')");
-  expect(source).not.toContain("import('./overview-vnext.js')");
-  expect(source).not.toContain("import('./fixed-nav.js')");
+test('Admin has one presentation owner',async()=>{
+  const index=await read('src/modules/admin/index.js'),consoleSource=await read('src/modules/admin/console.js');
+  expect(index).toContain("import('./console.js')");
+  expect(index).toContain("import('./single-owner-style.js')");
+  expect(index).not.toContain('proper-pass');expect(index).not.toContain('ia-followup');
+  expect(consoleSource).toContain('function applySection');
+  expect(consoleSource).toContain('if(changed&&emit)document.dispatchEvent');
+  expect(consoleSource).not.toContain('document.dispatchEvent(new CustomEvent(\'collectish:admin-section-change\',{detail:{section:active}}));\n    if(refresh)');
 });
 
-test('Admin recent operations refreshes in place after first load',async()=>{
-  const source=await readFile(properPass,'utf8');
-  expect(source).toContain('if(jobsCache)renderJobs(jobsCache)');
-  expect(source).toContain('else if(!jobsInflight)host.innerHTML');
-  expect(source).toContain('Date.now()-jobsFetchedAt<60000');
-  expect(source).toContain('cx-admin-health-disclosure');
-  expect(source).toContain("classList.add('cx-ui-metric')");
+test('Admin Sealed refresh updates a dedicated base slot instead of destroying child health modules',async()=>{
+  const source=await read('src/modules/admin/console.js');
+  expect(source).toContain('id="cxAdminSealedBaseSources"');
+  expect(source).toContain("shell.querySelector('#cxAdminSealedBaseSources')");
+  expect(source).not.toContain("shell.querySelector('#cxAdminSealedSources').innerHTML");
 });
 
-test('Admin proper-pass styling stays theme-token driven',async()=>{
-  const source=await readFile(properPass,'utf8');
+test('Admin single-owner styling stays theme-token driven',async()=>{
+  const source=await read('src/modules/admin/single-owner-style.js');
   expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   expect(source).toContain('var(--color-bg-surface)');
   expect(source).toContain('var(--color-text-secondary)');
-  expect(source).toContain('var(--color-success)');
-  expect(source).toContain('var(--color-danger)');
+  expect(source).toContain('var(--color-accent)');
 });

@@ -1,4 +1,5 @@
 const loaders=[
+  ()=>import('./single-owner-style.js'),
   ()=>import('./alerts.js'),
   ()=>import('./scans.js'),
   ()=>import('./marketplace-health.js'),
@@ -6,9 +7,7 @@ const loaders=[
   ()=>import('./sealed-catalog.js'),
   ()=>import('./sealed-health.js'),
   ()=>import('./cardtrader-health.js'),
-  ()=>import('./top.js'),
-  ()=>import('./proper-pass.js'),
-  ()=>import('./ia-followup.js')
+  ()=>import('./top.js')
 ];
 let installPromise=null;
 export function install(){
