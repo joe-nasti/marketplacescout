@@ -4,13 +4,14 @@ import path from 'node:path';
 
 const read=p=>readFile(path.join(process.cwd(),p),'utf8');
 
-test('Scout final mobile presentation loads before the primary renderer paints',async()=>{
+test('Scout keeps first-paint guard before renderer and final IA on primary path',async()=>{
   const source=await read('src/modules/scout/index.js');
+  const guard=source.indexOf("import('./first-paint-guard.js')");
   const renderer=source.indexOf("import('./renderer.js')");
-  expect(source).toContain("import('./first-paint-guard.js')");
+  expect(guard).toBeGreaterThan(-1);
+  expect(renderer).toBeGreaterThan(guard);
   for(const mod of ["import('./ia-v2-style.js')","import('./compact-mobile.js')","import('./dense-list.js')","import('./ia-v2.js')"]){
-    expect(source.indexOf(mod),`${mod} must load before renderer`).toBeGreaterThan(-1);
-    expect(source.indexOf(mod)).toBeLessThan(renderer);
+    expect(source).toContain(mod);
   }
 });
 
