@@ -5,9 +5,9 @@ import android.net.Uri
 /**
  * Safety policy for remotely-described read-only Seller Portal / Store probes.
  *
- * Inventory support is intentionally narrow: only the authenticated Store
- * catalog/quantity/manage reads recovered from the HAR are allowed here.
- * Inventory writes are NOT part of this policy.
+ * Inventory and buyer-account support are intentionally narrow: only known
+ * authenticated read paths are allowed. Inventory writes and buyer-account
+ * mutations are NOT part of this policy.
  */
 object ReadOnlyProbePolicy {
     val allowedHosts = setOf(
@@ -42,10 +42,24 @@ object ReadOnlyProbePolicy {
         "/admin/direct/ExportSYPList"
     )
 
+    private val buyerHistoryGetPaths = setOf(
+        "/myaccount/orderhistory",
+        "/MyAccount/OrderHistory"
+    )
+
     fun isAllowedUrl(raw: String): Boolean = try {
         val uri = Uri.parse(raw)
         uri.scheme.equals("https", ignoreCase = true) &&
             uri.host?.lowercase() in allowedHosts
+    } catch (_: Exception) {
+        false
+    }
+
+    fun isBuyerHistoryRequest(rawUrl: String): Boolean = try {
+        val uri = Uri.parse(rawUrl)
+        uri.scheme.equals("https", ignoreCase = true) &&
+            uri.host.equals("store.tcgplayer.com", ignoreCase = true) &&
+            buyerHistoryGetPaths.any { uri.path.orEmpty().equals(it, ignoreCase = true) }
     } catch (_: Exception) {
         false
     }
@@ -69,6 +83,7 @@ object ReadOnlyProbePolicy {
                 "sellerportal.tcgplayer.com" -> path == "/orders" || path.startsWith("/orders/")
                 "store.tcgplayer.com" ->
                     allowedSypGetPaths.contains(path) ||
+                    buyerHistoryGetPaths.any { path.equals(it, ignoreCase = true) } ||
                     allowedLegacyPrefixes.any { path.startsWith(it) } ||
                     path.startsWith("/admin/product/manage/")
                 else -> false
