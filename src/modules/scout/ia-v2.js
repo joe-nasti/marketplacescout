@@ -48,15 +48,32 @@ function setSaved(next){if(next==='quick'){view='quick';savedView='quick'}else{v
 function setView(next){view=next||'ranked';if(view==='ranked'&&savedView==='quick')savedView='top';syncSurface()}
 function openFilters(open=true){filterOpen=Boolean(open);host()?.classList.toggle('cx-scout-filters-open',filterOpen);document.body.classList.toggle('cx-scout-filter-lock',filterOpen)}
 function resetFilters(){const ids=['cxParityGrade','cxParitySet','cxScoutMin','cxScoutMax','cxScoutSpread','cxScoutFoil','cxLiquidityFilter'];ids.forEach(id=>{const el=document.getElementById(id);if(!el)return;el.value='';el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))});syncControls()}
+function sectionTitle(el){return el?.querySelector?.('.cx-section-title')?.textContent?.trim()||''}
 function compressDetail(){
-  const h=document.getElementById('cxParityDetail');if(!h||h.dataset.cxIa==='1')return;const best=[...h.querySelectorAll('.cx-v5-section')].find(x=>x.querySelector('.cx-section-title')?.textContent?.trim()==='Best trade');if(!best)return;h.dataset.cxIa='1';
+  const h=document.getElementById('cxParityDetail');if(!h)return;
+  const best=[...h.querySelectorAll('.cx-v5-section')].find(x=>sectionTitle(x)==='Best trade');if(!best)return;
   const call=best.querySelector('.cx-v5-callout');const values=call?[...call.querySelectorAll(':scope > div')].map(x=>({label:x.querySelector('span')?.textContent?.trim(),value:x.querySelector('strong')?.textContent?.trim()})):[];const get=label=>values.find(x=>x.label===label)?.value||'—';
-  const decision=document.createElement('section');decision.className='cx-scout-decision';decision.innerHTML=`<small>Decision</small><strong>Buy ${esc(get('Best observed US buy'))} → ${esc(get('Est. Direct net'))}</strong><span>${esc(get('Est. Direct profit'))}</span>`;const title=h.querySelector('.cx-v5-title');(title||h.firstElementChild)?.insertAdjacentElement('afterend',decision);best.classList.add('cx-scout-execution-primary');
-  const cash=[...h.querySelectorAll('.cx-v5-section')].find(x=>x.querySelector('.cx-section-title')?.textContent?.trim()==='Cash floor');if(cash)cash.classList.add('cx-scout-why-buy');
-  const evidenceTitles=new Set(['Market pricing','Demand & supply','Liquidity & margin']);const evidence=[...h.querySelectorAll('.cx-v5-section')].filter(x=>evidenceTitles.has(x.querySelector('.cx-section-title')?.textContent?.trim()));if(evidence.length){const d=document.createElement('details');d.className='cx-v5-details cx-scout-evidence';d.innerHTML='<summary>Evidence & pricing</summary><div class="cx-scout-evidence-body"></div>';const body=d.querySelector('.cx-scout-evidence-body');evidence[0].insertAdjacentElement('beforebegin',d);evidence.forEach(x=>body.appendChild(x))}
+
+  const decisions=[...h.querySelectorAll(':scope > .cx-scout-decision')];let decision=decisions.shift();decisions.forEach(x=>x.remove());
+  if(!decision){decision=document.createElement('section');decision.className='cx-scout-decision';const title=h.querySelector('.cx-v5-title');(title||h.firstElementChild)?.insertAdjacentElement('afterend',decision)}
+  decision.innerHTML=`<small>Decision</small><strong>Buy ${esc(get('Best observed US buy'))} → ${esc(get('Est. Direct net'))}</strong><span>${esc(get('Est. Direct profit'))}</span>`;
+  best.classList.add('cx-scout-execution-primary');
+
+  const cash=[...h.querySelectorAll('.cx-v5-section')].find(x=>sectionTitle(x)==='Cash floor');if(cash)cash.classList.add('cx-scout-why-buy');
+
+  const wrappers=[...h.querySelectorAll(':scope > .cx-scout-evidence')];let wrapper=wrappers.shift();
+  if(!wrapper){wrapper=document.createElement('details');wrapper.className='cx-v5-details cx-scout-evidence';wrapper.innerHTML='<summary>Evidence & pricing</summary><div class="cx-scout-evidence-body"></div>'}
+  const body=wrapper.querySelector('.cx-scout-evidence-body');
+  for(const extra of wrappers){const extraBody=extra.querySelector('.cx-scout-evidence-body');if(extraBody)while(extraBody.firstChild)body.appendChild(extraBody.firstChild);extra.remove()}
+  const evidenceTitles=new Set(['Market pricing','Demand & supply','Liquidity & margin']);
+  const evidence=[...h.querySelectorAll('.cx-v5-section')].filter(x=>evidenceTitles.has(sectionTitle(x))&&!x.closest('.cx-scout-evidence'));
+  if(!wrapper.isConnected&&evidence.length)evidence[0].insertAdjacentElement('beforebegin',wrapper);
+  evidence.forEach(x=>body.appendChild(x));
+  if(wrapper.isConnected&&!body.children.length)wrapper.remove();
+
   const pos=h.querySelector('.cx-position-sizing');if(pos)pos.classList.add('cx-scout-execution-secondary');
 }
-function scheduleDetail(){for(const ms of [0,120,420])setTimeout(()=>{const h=document.getElementById('cxParityDetail');if(h)delete h.dataset.cxIa;compressDetail()},ms)}
+function scheduleDetail(){for(const ms of [0,120,420])setTimeout(compressDetail,ms)}
 function ensure(){if(!host())return;ensureChrome();syncControls();syncSurface()}
 function click(e){const saved=e.target.closest?.('[data-scout-saved]');if(saved){e.preventDefault();setSaved(saved.dataset.scoutSaved);return}if(e.target.closest?.('[data-scout-filters]')){e.preventDefault();openFilters(true);return}if(e.target.closest?.('[data-scout-filter-close]')){e.preventDefault();openFilters(false);return}if(e.target.closest?.('[data-scout-filter-reset]')){e.preventDefault();resetFilters();return}const v=e.target.closest?.('[data-scout-view]');if(v){e.preventDefault();setView(v.dataset.scoutView)}}
 function input(e){if(['cxParityGrade','cxParitySet','cxScoutMin','cxScoutMax','cxScoutSpread','cxScoutFoil','cxLiquidityFilter'].includes(e.target?.id))setTimeout(()=>{syncControls();applySavedView()},0)}
@@ -64,4 +81,4 @@ export function installScoutIaV2(){
   if(installed)return;installed=true;document.addEventListener('click',click,true);document.addEventListener('input',input,true);document.addEventListener('change',input,true);
   document.addEventListener('collectish:scout-v5-ready',()=>setTimeout(ensure,0));document.addEventListener('collectish:scout-list-rendered',()=>setTimeout(()=>{ensure();applySavedView()},0));document.addEventListener('collectish:scout-post-render-modules-ready',()=>setTimeout(ensure,0));document.addEventListener('collectish:idle-modules-ready',()=>setTimeout(ensure,0));document.addEventListener('collectish:position-sizing-changed',()=>{ensure();scheduleDetail()});document.addEventListener('collectish:scout-detail-rendered',scheduleDetail);document.addEventListener('collectish:seller-cashflow-changed',()=>setTimeout(ensure,0));document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout')setTimeout(ensure,60)});document.addEventListener('collectish:ready',()=>setTimeout(ensure,100));queueMicrotask(ensure)
 }
-installScoutIaV2();window.CollectishScoutIaV2={ensure,setView,setSaved,openFilters};
+installScoutIaV2();window.CollectishScoutIaV2={ensure,setView,setSaved,openFilters,compressDetail};
