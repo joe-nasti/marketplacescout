@@ -34,10 +34,9 @@ object ReadOnlyProbePolicy {
     fun isBuyerAccountRequest(rawUrl: String): Boolean = try {
         val uri = Uri.parse(rawUrl)
         val host = uri.host?.lowercase().orEmpty()
-        val path = uri.path.orEmpty().lowercase()
         uri.scheme.equals("https", ignoreCase = true) &&
             host in setOf("store.tcgplayer.com", "www.tcgplayer.com") &&
-            (path == "/myaccount" || path.startsWith("/myaccount/"))
+            uri.path.orEmpty().lowercase().let { it == "/myaccount" || it.startsWith("/myaccount/") }
     } catch (_: Exception) { false }
 
     fun isBuyerHistoryRequest(rawUrl: String): Boolean = isBuyerAccountRequest(rawUrl)
@@ -58,7 +57,7 @@ object ReadOnlyProbePolicy {
                 "seller-settings-api.tcgplayer.com" -> path.startsWith("/v1/settings")
                 "sellerportal.tcgplayer.com" -> path == "/orders" || path.startsWith("/orders/")
                 "store.tcgplayer.com" ->
-                    isBuyerAccountRequest(rawUrl) || allowedSypGetPaths.contains(path) || allowedLegacyPrefixes.any { path.startsWith(it) } || path.startsWith("/admin/product/manage/")
+                    isBuyerHistoryRequest(rawUrl) || allowedSypGetPaths.contains(path) || allowedLegacyPrefixes.any { path.startsWith(it) } || path.startsWith("/admin/product/manage/")
                 "www.tcgplayer.com" -> isBuyerAccountRequest(rawUrl)
                 else -> false
             }
