@@ -16,6 +16,22 @@ async function seedSession(page){
   await page.addInitScript(({key,value})=>localStorage.setItem(key,JSON.stringify(value)),{key:SESSION_KEY,value:session});
 }
 
+async function waitForPersistedScoutCache(page){
+  await expect.poll(()=>page.evaluate(()=>new Promise(resolve=>{
+    const request=indexedDB.open('collectish-cache',1);
+    request.onerror=()=>resolve(false);
+    request.onblocked=()=>resolve(false);
+    request.onsuccess=()=>{
+      const db=request.result;
+      if(!db.objectStoreNames.contains('resources')){db.close();resolve(false);return}
+      const tx=db.transaction('resources','readonly');
+      const get=tx.objectStore('resources').get('user:cache-perf-user:scout.rows');
+      get.onerror=()=>{db.close();resolve(false)};
+      get.onsuccess=()=>{const ready=Array.isArray(get.result?.data)&&get.result.data.length>0;db.close();resolve(ready)};
+    };
+  })),{timeout:5000}).toBe(true);
+}
+
 function scoutRequest(url){
   const u=new URL(url);const table=u.pathname.split('/').pop();
   return {u,table,select:u.searchParams.get('select')||'',sku:u.searchParams.get('sku_id')||''};
@@ -68,7 +84,7 @@ test('recent persisted Scout rankings provide a warm list without Scout list RES
   await page.goto('/');
   await expect(page.locator('.cx-scout-card')).toContainText('Performance Test Card');
   expect(counts.list).toBeGreaterThan(0);
-  await page.waitForTimeout(250);
+  await waitForPersistedScoutCache(page);
 
   counts={list:0,detail:0,listUrls:[],detailUrls:[]};
   await page.reload();
