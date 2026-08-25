@@ -19,9 +19,11 @@ test('Signals card tagger has deterministic exact-name fallbacks for confirmed M
   const src=await read('supabase/functions/market-intel-card-tag/index.ts');
   expect(src).toContain('function listCandidates');
   expect(src).toContain('async function exactListCards');
-  expect(src).toContain("method='exact_list_fallback'");
+  expect(src).toContain("'exact_list_fallback'");
+  expect(src).toContain("'model_error_exact_list_fallback'");
   expect(src).toContain("method='signal_entity_fallback'");
   expect(src).toContain("await named(n,'exact')");
+  expect(src).toContain("replace(/^[#•*");
 });
 
 test('Signals card tagger prefers MTGStocks card taxonomy and validates names through Scryfall',async({},testInfo)=>{
