@@ -1,4 +1,5 @@
-const injectedAskStreamUrl=String(window.COLLECTISH_ASK_STREAM_URL||document.querySelector('meta[name="collectish-ask-stream-url"]')?.content||'').trim();
+const buildAskStreamUrl=String(import.meta.env?.VITE_COLLECTISH_ASK_STREAM_URL||'').trim();
+const injectedAskStreamUrl=String(window.COLLECTISH_ASK_STREAM_URL||document.querySelector('meta[name="collectish-ask-stream-url"]')?.content||buildAskStreamUrl||'').trim();
 
 const askPrefetchHost=String(window.location?.hostname||'').toLowerCase();
 const askPrefetchRestrictedHost=askPrefetchHost==='localhost'||askPrefetchHost==='127.0.0.1'||askPrefetchHost==='::1'||askPrefetchHost.endsWith('.github.io');
