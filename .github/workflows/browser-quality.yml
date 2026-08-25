@@ -45,7 +45,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SIGNALS_RETAG_DAYS: '14'
           SIGNALS_RETAG_LIMIT: '40'
-          SIGNALS_RETAG_CONCURRENCY: '3'
+          SIGNALS_RETAG_CONCURRENCY: '2'
         run: node cloud-worker/retag-recent-signals.mjs
       - name: Upload browser report on failure
         if: failure()
