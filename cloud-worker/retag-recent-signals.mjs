@@ -1,4 +1,5 @@
 // Bounded recent Signals retag worker. Safe to rerun: mention writes are upserts.
+// Targeted acceptance reruns use SIGNALS_RETAG_MATCH to limit source URLs.
 const U=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const K=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 const DAYS=Math.max(1,Math.min(Number(process.env.SIGNALS_RETAG_DAYS||14),60));
