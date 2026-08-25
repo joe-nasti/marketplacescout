@@ -12,6 +12,8 @@ on:
     # TCGCSV refreshes around 20:00 UTC; give the upstream build time to finish.
     - cron: "30 20 * * *"
   push:
+    branches:
+      - main
     paths:
       - "cloud-worker/tcgcsv-sync.mjs"
       - "cloud-worker/tcgcsv-schema.sql"
@@ -37,7 +39,6 @@ jobs:
       - run: node --check cloud-worker/tcgcsv-sync.mjs cloud-worker/refresh-precon-ev.mjs
 
   sync:
-    if: github.event_name != 'push'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -48,7 +49,7 @@ jobs:
       TCGCSV_CATEGORY_ID: "1"
       TCGCSV_REQUEST_DELAY_MS: "100"
       TCGCSV_USER_AGENT: "Collectish-MarketplaceScout/1.0 (+https://github.com/joe-nasti/marketplacescout)"
-      TCGCSV_FORCE: ${{ inputs.force && '1' || '0' }}
+      TCGCSV_FORCE: ${{ github.event_name == 'push' && '1' || (inputs.force && '1' || '0') }}
       PRECON_RELEASE_FROM: "2025-01-01"
     steps:
       - uses: actions/checkout@v4
