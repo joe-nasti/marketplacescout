@@ -20,6 +20,7 @@ const scoutPostRender=[
 ];
 
 const scoutIntelligence=[
+  ()=>import('./signals/scout-open-navigation-guard.js'),
   ()=>import('./signals/scout-badges.js'),
   ()=>import('./signals/scout-intelligence-bridge.js'),
   ()=>import('./signals/entity-semantic-labels.js'),
