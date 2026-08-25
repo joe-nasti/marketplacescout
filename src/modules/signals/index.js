@@ -22,7 +22,7 @@ function age(value){if(!value)return'';const ms=Date.now()-new Date(value).getTi
 function stageClass(stage){return ['leading','confirming','lagging','noise','neutral'].includes(stage)?stage:'unclassified'}
 
 async function load(){
-  const data=await rest('market_intel_items?select=*,market_intel_entities(*)&order=observed_at.desc&limit=200');
+  const data=await rest('market_intel_items?select=*,market_intel_entities(*),market_intel_card_mentions(*)&order=observed_at.desc&limit=200');
   items=Array.isArray(data)?data:[];
   store.update('intel',{status:'ready',items,error:null,loadedAt:Date.now()});
   renderFeed();
@@ -32,8 +32,12 @@ async function load(){
 
 function feedItem(item){
   const entities=Array.isArray(item.market_intel_entities)?item.market_intel_entities:[];
+  const primaryNames=new Set(entities.filter(e=>e.entity_type==='card').map(e=>lower(e.entity_name)));
+  const mentions=(Array.isArray(item.market_intel_card_mentions)?item.market_intel_card_mentions:[]).filter(m=>!primaryNames.has(lower(m.card_name)));
   const source=item.source_name||sourceFromUrl(item.source_url)||pretty(item.source_type);
-  return `<article class="cx-signal-card" data-intel-id="${esc(item.intel_id)}"><div class="cx-signal-card-head"><span class="cx-signal-stage ${stageClass(item.signal_stage)}">${esc(pretty(item.signal_stage))}</span><span class="cx-signal-direction ${esc(item.direction)}">${esc(pretty(item.direction))}</span><span class="cx-signal-age">${esc(age(item.observed_at))}</span></div><h3>${esc(item.title||source||'Market signal')}</h3><div class="cx-signal-meta">${esc(source)} · ${esc(pretty(item.claim_type))}${item.author?` · ${esc(item.author)}`:''}</div>${item.summary?`<p>${esc(item.summary)}</p>`:''}${entities.length?`<div class="cx-signal-entities">${entities.map(e=>`<span>${esc(e.entity_name)}${e.scryfall_id?' ✓':''}</span>`).join('')}</div>`:''}<div class="cx-signal-actions"><a href="${esc(item.source_url)}" target="_blank" rel="noopener">Open source ↗</a><button type="button" data-delete-intel="${esc(item.intel_id)}">Remove</button></div></article>`;
+  const primary=entities.length?`<div class="cx-signal-entities">${entities.map(e=>`<span>${esc(e.entity_name)}${e.scryfall_id?' ✓':''}</span>`).join('')}</div>`:'';
+  const mentionTags=mentions.length?`<div class="cx-signal-entities cx-signal-card-mentions" title="Cards mentioned in the source"><small>Also mentions</small>${mentions.slice(0,10).map(m=>`<span>${esc(m.card_name)}${m.scryfall_id?' ✓':''}</span>`).join('')}${mentions.length>10?`<span>+${mentions.length-10} more</span>`:''}</div>`:'';
+  return `<article class="cx-signal-card" data-intel-id="${esc(item.intel_id)}"><div class="cx-signal-card-head"><span class="cx-signal-stage ${stageClass(item.signal_stage)}">${esc(pretty(item.signal_stage))}</span><span class="cx-signal-direction ${esc(item.direction)}">${esc(pretty(item.direction))}</span><span class="cx-signal-age">${esc(age(item.observed_at))}</span></div><h3>${esc(item.title||source||'Market signal')}</h3><div class="cx-signal-meta">${esc(source)} · ${esc(pretty(item.claim_type))}${item.author?` · ${esc(item.author)}`:''}</div>${item.summary?`<p>${esc(item.summary)}</p>`:''}${primary}${mentionTags}<div class="cx-signal-actions"><a href="${esc(item.source_url)}" target="_blank" rel="noopener">Open source ↗</a><button type="button" data-delete-intel="${esc(item.intel_id)}">Remove</button></div></article>`;
 }
 function renderFeed(){const box=document.getElementById('cxSignalsFeed');if(!box)return;const filtered=activeStage==='all'?items:items.filter(x=>x.signal_stage===activeStage);box.innerHTML=filtered.length?filtered.map(feedItem).join(''):'<div class="cx-empty">No signals match this view yet.</div>';document.querySelectorAll('[data-signal-stage]').forEach(b=>b.classList.toggle('active',b.dataset.signalStage===activeStage))}
 
@@ -57,7 +61,7 @@ async function analyzeUrl(){
     const r=await fetch(`${collectishConfig.supabaseUrl}/functions/v1/market-intel-analyze`,{method:'POST',headers:{apikey:collectishConfig.publishableKey,Authorization:`Bearer ${session.token}`,'Content-Type':'application/json'},body:JSON.stringify({url})});
     const text=await r.text();let data;try{data=text?JSON.parse(text):{}}catch{data={error:text}}
     if(!r.ok)throw new Error(data?.error||`Analyzer HTTP ${r.status}`);
-    analysis=data;store.update('intel',{analysis});renderAnalysis();if(msg)msg.textContent=`Found ${(data.signals||[]).length} proposed signal${(data.signals||[]).length===1?'':'s'}. Review before saving.`;
+    analysis=data;store.update('intel',{analysis});renderAnalysis();if(msg)msg.textContent=`Found ${(data.signals||[]).length} proposed signal${(data.signals||[]).length===1?'':'s'}. Card mentions will be tagged separately when saved.`;
   }catch(error){if(msg)msg.textContent=error?.message||'Could not analyze source.'}
   finally{if(button)button.disabled=false}
 }
@@ -65,17 +69,15 @@ async function analyzeUrl(){
 async function saveAnalyzed(){
   if(!analysis)return;
   const url=normalizeUrl(analysis.url),msg=document.getElementById('cxSignalMsg'),button=document.getElementById('cxSaveAnalyzed');
-  const selected=[...document.querySelectorAll('[data-proposal-index]:checked')].map(x=>analysis.signals[Number(x.dataset.proposalIndex)]).filter(Boolean);
-  if(!selected.length){if(msg)msg.textContent='Select at least one proposed signal.';return}
-  if(button)button.disabled=true;if(msg)msg.textContent=`Saving ${selected.length} signal${selected.length===1?'':'s'}…`;
+  const selectedIndexes=[...document.querySelectorAll('[data-proposal-index]:checked')].map(x=>Number(x.dataset.proposalIndex)).filter(Number.isInteger);
+  if(!selectedIndexes.length){if(msg)msg.textContent='Select at least one proposed signal.';return}
+  if(button)button.disabled=true;if(msg)msg.textContent=`Saving ${selectedIndexes.length} signal${selectedIndexes.length===1?'':'s'} and tagging mentioned cards…`;
   try{
-    for(const s of selected){
-      const match=scoutMatch(s);
-      const payload={source_type:sourceTypeFromUrl(url),source_name:sourceFromUrl(url),source_url:url,title:analysis.title||s.entity_name||null,author:analysis.author||null,summary:s.summary||null,claim_type:s.claim_type||'other',signal_stage:s.signal_stage||'unclassified',direction:s.direction||'neutral',confidence:Number(s.confidence||0.5),published_at:analysis.published_at||null};
-      const inserted=await rest('market_intel_items',{method:'POST',prefer:'return=representation',body:payload}),item=Array.isArray(inserted)?inserted[0]:inserted;
-      if(item?.intel_id)await rest('market_intel_entities',{method:'POST',prefer:'return=minimal',body:{intel_id:item.intel_id,entity_type:s.entity_type||'other',entity_name:match?.product_name||s.entity_name,scryfall_id:s.scryfall_id||match?.scryfall_id||null,product_id:match?.product_id||null,set_code:s.set_code||match?.set_code||null,confidence:s.scryfall_id||match?0.99:Number(s.confidence||0.6)}});
-    }
-    analysis=null;store.update('intel',{analysis:null});renderAnalysis();if(msg)msg.textContent=`Saved ${selected.length} analyzed signal${selected.length===1?'':'s'}.`;await load();
+    const session=await validSession();if(!session)throw new Error('Sign in required');
+    const r=await fetch(`${collectishConfig.supabaseUrl}/functions/v1/market-intel-ingest`,{method:'POST',headers:{apikey:collectishConfig.publishableKey,Authorization:`Bearer ${session.token}`,'Content-Type':'application/json'},body:JSON.stringify({url,analysis,selected_indexes:selectedIndexes,source_type:sourceTypeFromUrl(url),source_name:sourceFromUrl(url)})});
+    const text=await r.text();let data;try{data=text?JSON.parse(text):{}}catch{data={error:text}}if(!r.ok)throw new Error(data?.error||`Ingest HTTP ${r.status}`);
+    const mentionCount=Number(data?.card_mentions?.cards?.length||0);
+    analysis=null;store.update('intel',{analysis:null});renderAnalysis();if(msg)msg.textContent=`Saved ${Number(data?.saved||0)} signal${Number(data?.saved||0)===1?'':'s'}${mentionCount?` and resolved ${mentionCount} mentioned card${mentionCount===1?'':'s'}`:''}.`;await load();
   }catch(error){if(msg)msg.textContent=error?.message||'Could not save analyzed signals.'}
   finally{if(button)button.disabled=false}
 }
