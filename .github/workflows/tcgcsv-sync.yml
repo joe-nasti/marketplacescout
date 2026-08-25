@@ -1,0 +1,73 @@
+name: Collectish TCGCSV pricing sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Force sync even if TCGCSV timestamp is unchanged
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    # TCGCSV refreshes around 20:00 UTC; give the upstream build time to finish.
+    - cron: "30 20 * * *"
+  push:
+    paths:
+      - "cloud-worker/tcgcsv-sync.mjs"
+      - "cloud-worker/tcgcsv-schema.sql"
+      - "cloud-worker/tcgcsv-consumers.sql"
+      - "cloud-worker/refresh-precon-ev.mjs"
+      - ".github/workflows/tcgcsv-sync.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-tcgcsv-sync
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: node --check cloud-worker/tcgcsv-sync.mjs cloud-worker/refresh-precon-ev.mjs
+
+  sync:
+    if: github.event_name != 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      TCGCSV_BASE_URL: https://tcgcsv.com
+      TCGCSV_CATEGORY_ID: "1"
+      TCGCSV_REQUEST_DELAY_MS: "100"
+      TCGCSV_USER_AGENT: "Collectish-MarketplaceScout/1.0 (+https://github.com/joe-nasti/marketplacescout)"
+      TCGCSV_FORCE: ${{ inputs.force && '1' || '0' }}
+      PRECON_RELEASE_FROM: "2025-01-01"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Require service role key
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Sync TCGplayer prices from TCGCSV
+        run: node cloud-worker/tcgcsv-sync.mjs
+      - name: Refresh Scout preferred-price cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/refresh_scout_vendor_price_current_cache" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
+      - name: Recalculate current precon EV with preferred TCGplayer prices
+        run: node cloud-worker/refresh-precon-ev.mjs
