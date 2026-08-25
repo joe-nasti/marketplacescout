@@ -1,0 +1,78 @@
+const BUYER_HISTORY='https://store.tcgplayer.com/myaccount/orderhistory';
+const RANGE_KEY='collectishBuyerSyncRange';
+let loading=false;
+let lastSignature='';
+
+const bridge=()=>window.CollectishReadOnly||null;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+async function fetchBuyerHistoryHtml(){
+  const b=bridge();
+  if(!b?.startReadOnlyProbe||loading)return null;
+  if(b.isBuyerProfileIsolated&&!b.isBuyerProfileIsolated())return null;
+  loading=true;
+  try{
+    b.startReadOnlyProbe(JSON.stringify({mode:'fetch_html',method:'GET',url:BUYER_HISTORY,waitMs:5000}));
+    const deadline=Date.now()+35000;
+    while(Date.now()<deadline){
+      await sleep(250);
+      const state=String(b.getReadOnlyProbeState?.()||'');
+      if(state==='idle'||state==='running')continue;
+      let result={};
+      try{result=JSON.parse(String(b.getReadOnlyProbeResult?.()||'{}'))}catch{}
+      if(state==='ready'&&result.ok&&typeof result.body==='string')return result.body;
+      return null;
+    }
+    return null;
+  }finally{loading=false;}
+}
+
+function rangesFromHtml(html){
+  if(!html)return [];
+  const d=new DOMParser().parseFromString(html,'text/html');
+  return [...d.querySelectorAll('select[name="DateRange"] option')]
+    .map(o=>(o.textContent||'').replace(/\s+/g,' ').trim())
+    .filter(Boolean);
+}
+
+function labelFor(value){
+  if(value==='Last 30 Days')return 'Last 30 days';
+  if(value==='Last 90 Days')return 'Last 90 days';
+  if(value==='Last 120 Days')return 'Last 120 days';
+  return value;
+}
+
+function installOptions(ranges){
+  const select=document.getElementById('cxBuyerSyncRange');
+  if(!select||!ranges.length)return false;
+  const signature=ranges.join('|');
+  if(signature===lastSignature&&select.dataset.liveRanges==='1')return true;
+  const current=localStorage.getItem(RANGE_KEY)||select.value||'Last 90 Days';
+  const options=[...ranges];
+  if(!options.includes('all'))options.push('all');
+  select.innerHTML=options.map(value=>`<option value="${String(value).replace(/"/g,'&quot;')}">${value==='all'?'All available history':labelFor(value)}</option>`).join('');
+  select.dataset.liveRanges='1';
+  if(options.includes(current))select.value=current;
+  else if(options.includes('Last 90 Days'))select.value='Last 90 Days';
+  else select.value=options[0];
+  select.dispatchEvent(new Event('change',{bubbles:true}));
+  lastSignature=signature;
+  return true;
+}
+
+async function refreshRanges(){
+  const b=bridge();
+  if(!b)return;
+  const session=b.getBuyerSessionState?String(b.getBuyerSessionState()||'unknown'):'unknown';
+  if(session!=='authenticated')return;
+  const html=await fetchBuyerHistoryHtml();
+  const ranges=rangesFromHtml(html);
+  if(ranges.length)installOptions(ranges);
+}
+
+function schedule(){setTimeout(refreshRanges,250);}
+document.addEventListener('collectish:seller-rendered',schedule);
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='seller')schedule()});
+document.addEventListener('collectish:ready',()=>setTimeout(refreshRanges,900));
+document.addEventListener('collectish:buyer-orders-changed',schedule);
+setTimeout(refreshRanges,700);
