@@ -16,6 +16,7 @@ export async function install(){
     import('./reports-vnext.js'),
     import('./cashflow-budget.js'),
     import('./buyer-account.js'),
-    import('./buyer-history.js')
+    import('./buyer-history.js'),
+    import('./buyer-range-options.js')
   ]);
 }
