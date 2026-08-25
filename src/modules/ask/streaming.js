@@ -1,3 +1,5 @@
+import { beginAskLatencySample } from './latency.js';
+
 // Progressive SSE transport for Ask Collectish chat responses.
 // Uses an explicit COLLECTISH_CONFIG.askStreamUrl when provided. On a custom
 // Collectish origin it can also use the canonical same-origin /api route. The
@@ -83,23 +85,26 @@
     const bubble=assistantBubble();if(!bubble)return;
     const renderer=window.CollectishMarkdown?.createStream?.(bubble.b,'');
     if(!renderer)throw Error('Streaming Markdown renderer unavailable');
+    const context=currentContext(),latency=beginAskLatencySample({screen:context.screen});
     active={controller,bubble,text};status('Streaming…');
     let meta=null;
     try{
-      const response=await fetch(STREAM_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json','Accept':'text/event-stream'},body:JSON.stringify({message:text,context:currentContext()}),signal:controller.signal});
+      const response=await fetch(STREAM_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json','Accept':'text/event-stream'},body:JSON.stringify({message:text,context}),signal:controller.signal});
+      latency.headers();
       if(!response.ok)throw Error(`Ask Collectish HTTP ${response.status}`);
       const type=response.headers.get('content-type')||'';if(!type.includes('text/event-stream'))throw Error('Ask endpoint did not return an SSE stream');
       await readSse(response,({event,data})=>{
-        if(event==='meta'){meta=data||{};status(meta.cached?'Cached answer':'Streaming…',meta.cached?'ok':'')}
-        else if(event==='delta'&&data?.text)renderer.append(data.text);
+        if(event==='meta'){meta=data||{};latency.meta(meta);status(meta.cached?'Cached answer':'Streaming…',meta.cached?'ok':'')}
+        else if(event==='delta'&&data?.text){latency.delta();renderer.append(data.text)}
         else if(event==='error')throw Error(data?.message||'Ask stream failed');
       },controller.signal);
       renderer.close();bubble.w.classList.remove('cx-ask-streaming');
-      status(meta?.cached?'Cached · complete':'Complete','ok');
+      const sample=latency.finish();
+      status(meta?.cached?`Cached · ${sample?.ttftMs??'—'}ms TTFT`:`Complete · ${sample?.ttftMs??'—'}ms TTFT`,'ok');
     }catch(error){
       renderer.close();bubble.w.classList.remove('cx-ask-streaming');
-      if(error?.name==='AbortError'){status('Stopped');return}
-      status('Stream interrupted','bad');
+      if(error?.name==='AbortError'){latency.finish({aborted:true});status('Stopped');return}
+      latency.finish({error:true});status('Stream interrupted','bad');
       retryChip(bubble.w,()=>streamAsk(text).catch(()=>{}));
       const note=document.createElement('small');note.className='cx-ask-stream-error';note.textContent=error?.message||String(error);if(!bubble.w.querySelector('.cx-ask-stream-error'))bubble.w.append(note);
       throw error;
