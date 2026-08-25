@@ -20,6 +20,7 @@ const expected=[
   'sealed.css',
   'seller-progress.css',
   'seller.css',
+  'signals-mobile-polish.css',
   'signals-rendered.css',
   'signals.css',
   'tokens.css'
