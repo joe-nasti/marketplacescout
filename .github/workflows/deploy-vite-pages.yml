@@ -31,6 +31,7 @@ jobs:
     timeout-minutes: 15
     env:
       COLLECTISH_WEB_REVISION: r${{ github.run_number }}
+      VITE_COLLECTISH_ASK_STREAM_URL: ${{ vars.COLLECTISH_ASK_STREAM_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
