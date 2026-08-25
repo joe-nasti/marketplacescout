@@ -16,21 +16,21 @@ test('Signals card tagger preserves confirmed MTG sources and subject-card preci
   expect(src).toContain("method='article_model_retry'");
 });
 
-test('Signals card tagger has deterministic exact-name fallbacks without splitting card punctuation',async({},testInfo)=>{
+test('Signals explicit-list fallback preserves punctuation and narrowly corrects source typos',async({},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const src=await read('supabase/functions/market-intel-card-tag/index.ts');
   expect(src).toContain('function listCandidates');
-  expect(src).toContain('async function exactListCards');
-  expect(src).toContain("'exact_list_fallback'");
-  expect(src).toContain("'model_error_exact_list_fallback'");
+  expect(src).toContain('async function explicitListCards');
+  expect(src).toContain("'explicit_list_fallback'");
+  expect(src).toContain("'model_error_explicit_list_fallback'");
   expect(src).toContain("method='signal_entity_fallback'");
-  expect(src).toContain("await named(n,'exact')");
+  expect(src).toContain('r:await resolve(n)');
   expect(src).toContain("replace(/^[#•*");
   expect(src).toContain("line.split(/\\s*(?:\\+|;)\\s*/)");
   expect(src).not.toContain("(?:,|;|&|\\band\\b)");
 });
 
-test('Signals list normalization handles quantities aliases HTML smart quotes and longer explicit lists',async({},testInfo)=>{
+test('Signals list normalization handles quantities aliases HTML smart quotes and explicit title limits',async({},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const src=await read('supabase/functions/market-intel-card-tag/index.ts');
   expect(src).toContain("replace(/^\\s*\\d+x\\s+/i,'')");
@@ -39,7 +39,8 @@ test('Signals list normalization handles quantities aliases HTML smart quotes an
   expect(src).toContain('double sided');
   expect(src).toContain('(?:ldquo|rdquo)');
   expect(src).toContain('(?:lsquo|rsquo)');
-  expect(src).toContain("const maxCards=method.includes('exact_list_fallback')?40:25");
+  expect(src).toContain('function titleListLimit');
+  expect(src).toContain("const maxCards=method.includes('explicit_list_fallback')?(explicitLimit||40):25");
   expect(src).not.toContain('tricolor lands|command tower');
 });
 
