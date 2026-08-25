@@ -81,4 +81,4 @@ console.log(JSON.stringify({
   scoringVersion:'scout-v5',
   limit:LIMIT
 },null,2));
-if(failed)process.exitCode=1;
+if(candidates.length>0&&fetched===0&&failed>0)process.exitCode=1;
