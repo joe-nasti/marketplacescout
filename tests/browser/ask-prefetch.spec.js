@@ -5,34 +5,57 @@ async function source(path){return fs.readFile(path,'utf8')}
 
 test('Ask speculative prefetch is explicit opt-in and disabled when flag is false',async()=>{
   const config=await source('src/core/config.js');
-  const prefetch=await source('src/modules/scout/ask-prefetch.js');
+  const core=await source('src/modules/ask/prefetch.js');
   expect(config).toContain("localStorage.getItem('COLLECTISH_ASK_PREFETCH')==='true'");
   expect(config).toContain("askPrefetchHost.endsWith('.github.io')");
-  expect(prefetch).toContain("if(!ASK_PREFETCH_CONFIG.enabled)return {skipped:'disabled'}");
-  expect(prefetch.indexOf("if(!ASK_PREFETCH_CONFIG.enabled)return {skipped:'disabled'}")).toBeLessThan(prefetch.indexOf('fetch(url'));
+  expect(core).toContain("if(!ASK_PREFETCH_CONFIG.enabled)return {skipped:'disabled'}");
+  expect(core.indexOf("if(!ASK_PREFETCH_CONFIG.enabled)return {skipped:'disabled'}")).toBeLessThan(core.indexOf('fetch(url'));
 });
 
-test('Scout detail opener primes compact Ask context only when enabled',async()=>{
+test('Scout detail opener primes compact Ask context through canonical core',async()=>{
   const nav=await source('src/modules/scout/detail-navigation.js');
-  const prefetch=await source('src/modules/scout/ask-prefetch.js');
+  const adapter=await source('src/modules/scout/ask-prefetch.js');
+  const core=await source('src/modules/ask/prefetch.js');
   expect(nav).toContain("import { prefetchAskCardContext } from './ask-prefetch.js'");
   expect(nav).toContain('void prefetchAskCardContext(summary)');
-  expect(prefetch).toContain('name:row.name??row.product_name');
-  expect(prefetch).toContain('low:num(');
-  expect(prefetch).toContain('direct:num(');
-  expect(prefetch).toContain('spread:num(');
-  expect(prefetch).toContain('ckBuylist:num(');
-  expect(prefetch).toContain("questionType:'prefetch-context'");
-  expect(prefetch).toContain('ttlMs');
+  expect(adapter).toContain("import { prefetchAskContext, abortAskPrefetch } from '../ask/prefetch.js'");
+  expect(adapter).toContain('name:row.name??row.product_name');
+  expect(adapter).toContain('low:num(');
+  expect(adapter).toContain('direct:num(');
+  expect(adapter).toContain('spread:num(');
+  expect(adapter).toContain('ckBuylist:num(');
+  expect(adapter).toContain("scope:'scout'");
+  expect(core).toContain("questionType:'prefetch-context'");
+  expect(core).toContain('ASK_PREFETCH_CONFIG.ttlMs');
 });
 
-test('closing card detail aborts an in-flight speculative request',async()=>{
-  const prefetch=await source('src/modules/scout/ask-prefetch.js');
-  expect(prefetch).toContain('const controller=new AbortController()');
-  expect(prefetch).toContain('function abortActive(){if(active){active.abort();active=null}}');
-  expect(prefetch).toContain("'[data-detail-close],.cx-detail-close,.cx-modal-close,.cx-detail-backdrop,[data-ask-close]'");
-  expect(prefetch).toContain("if(e.key==='Escape')abortActive()");
-  expect(prefetch).toContain("document.addEventListener('collectish:page-changed',onPage)");
+test('canonical prefetch core owns AbortController cancellation',async()=>{
+  const core=await source('src/modules/ask/prefetch.js');
+  expect(core).toContain('const controller=new AbortController()');
+  expect(core).toContain('active.abort();active=null');
+  expect(core).toContain('export function abortAskPrefetch()');
+});
+
+test('Sealed detail open primes expected compact snapshot when enabled',async()=>{
+  const sealed=await source('src/modules/sealed/detail-focus.js');
+  expect(sealed).toContain("import { prefetchAskContext, abortAskPrefetch } from '../ask/prefetch.js'");
+  expect(sealed).toContain('if(!ASK_PREFETCH_CONFIG.enabled)return;');
+  expect(sealed).toContain('name:product.name??product.product_name??null');
+  expect(sealed).toContain('acquisition:num(product.sealedBuy??product.sealed_acquisition_price??product.price)');
+  expect(sealed).toContain('marketEV:num(product.marketEV??product.tcg_market_ev)');
+  expect(sealed).toContain('spread:num(product.marketSpread??product.market_spread??product.spreadPercent)');
+  expect(sealed).toContain('ckBuylistFloor:num(product.ckBuylistFloor??product.cardkingdom_buylist_ev??product.ckBuylist)');
+  expect(sealed).toContain("scope:'sealed'");
+  expect(sealed).toContain("context:{screen:'sealed'");
+  expect(sealed).toContain("const product=event.detail?.row||{};prefetch(product)");
+});
+
+test('Sealed detail dismissal, product switches, Escape and page leave abort prefetch',async()=>{
+  const sealed=await source('src/modules/sealed/detail-focus.js');
+  expect(sealed).toContain('function close(){abortAskPrefetch();');
+  expect(sealed).toContain("if(event.target.closest?.('#cxSealedRows [data-deck]')){abortAskPrefetch();pendingOpen=true}");
+  expect(sealed).toContain("function onKey(event){if(event.key==='Escape')close()}");
+  expect(sealed).toContain("onPage(page){if(page!=='sealed')close()}");
 });
 
 test('Admin diagnostics exposes persistent AI speculative prefetch toggle',async()=>{
