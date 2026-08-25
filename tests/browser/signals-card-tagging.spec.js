@@ -8,13 +8,15 @@ test('Signals card tagger preserves confirmed MTG sources and subject-card preci
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const src=await read('supabase/functions/market-intel-card-tag/index.ts');
   expect(src).toContain('const knownMagic=titleLooksMagic(title)');
+  expect(src).toContain('sourceLooksMagic(url)');
+  expect(src).toContain("p.includes('/magic-the-gathering/')");
   expect(src).toContain('This source is already CONFIRMED to be about Magic: The Gathering');
   expect(src).toContain('actual entries in a card list');
   expect(src).toContain('EXCLUDE incidental examples, comparison cards, generic staples');
   expect(src).toContain("method='article_model_retry'");
 });
 
-test('Signals card tagger has deterministic exact-name fallbacks for confirmed MTG lists',async({},testInfo)=>{
+test('Signals card tagger has deterministic exact-name fallbacks without splitting card punctuation',async({},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const src=await read('supabase/functions/market-intel-card-tag/index.ts');
   expect(src).toContain('function listCandidates');
@@ -24,6 +26,16 @@ test('Signals card tagger has deterministic exact-name fallbacks for confirmed M
   expect(src).toContain("method='signal_entity_fallback'");
   expect(src).toContain("await named(n,'exact')");
   expect(src).toContain("replace(/^[#•*");
+  expect(src).toContain("line.split(/\\s*(?:\\+|;)\\s*/)");
+  expect(src).not.toContain("(?:,|;|&|\\band\\b)");
+});
+
+test('Signals retag replaces prior mention rows so stale false positives disappear',async({},testInfo)=>{
+  test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
+  const src=await read('supabase/functions/market-intel-card-tag/index.ts');
+  expect(src).toContain("market_intel_card_mentions?intel_id=in.(${ids.join(',')})");
+  expect(src).toContain("{method:'DELETE'}");
+  expect(src).toContain('resolution=merge-duplicates');
 });
 
 test('Signals card tagger prefers MTGStocks card taxonomy and validates names through Scryfall',async({},testInfo)=>{
