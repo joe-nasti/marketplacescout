@@ -24,7 +24,7 @@ permissions:
 jobs:
   browser-regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,6 +36,14 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run browser regressions
         run: npm run test:browser
+      - name: One-shot recent Signals retag backfill
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Run Signals retag backfill now'
+        env:
+          SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SIGNALS_RETAG_DAYS: '14'
+          SIGNALS_RETAG_LIMIT: '40'
+        run: node cloud-worker/retag-recent-signals.mjs
       - name: Upload browser report on failure
         if: failure()
         uses: actions/upload-artifact@v4
