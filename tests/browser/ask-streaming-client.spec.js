@@ -32,10 +32,31 @@ test('Ask streaming transport is loaded after the core Ask module',async()=>{
   expect(stream).toBeGreaterThan(main);
 });
 
-test('GitHub Pages requires an explicit Ask stream URL instead of unsafe same-origin api fallback',async()=>{
+test('GitHub Pages requires an explicit Ask stream URL and production build can inject it',async()=>{
   const js=await source('src/modules/ask/streaming.js');
   const config=await source('src/core/config.js');
+  const workflow=await source('.github/workflows/deploy-vite-pages.yml');
   expect(js).toContain("!location.hostname.endsWith('github.io')");
   expect(config).toContain('COLLECTISH_ASK_STREAM_URL');
   expect(config).toContain('collectish-ask-stream-url');
+  expect(config).toContain('VITE_COLLECTISH_ASK_STREAM_URL');
+  expect(workflow).toContain('VITE_COLLECTISH_ASK_STREAM_URL: ${{ vars.COLLECTISH_ASK_STREAM_URL }}');
+});
+
+test('Ask streaming records request headers TTFT total and cache metadata',async()=>{
+  const stream=await source('src/modules/ask/streaming.js');
+  const latency=await source('src/modules/ask/latency.js');
+  const admin=await source('src/modules/ask/admin.js');
+  expect(stream).toContain('beginAskLatencySample');
+  expect(stream).toContain('latency.headers()');
+  expect(stream).toContain('latency.meta(meta)');
+  expect(stream).toContain('latency.delta()');
+  expect(stream).toContain('latency.finish()');
+  expect(latency).toContain('ttftMs');
+  expect(latency).toContain("COLLECTISH_ASK_LATENCY_V1");
+  expect(latency).toContain('cached');
+  expect(latency).toContain('prefetched');
+  expect(admin).toContain('Streaming latency');
+  expect(admin).toContain('Avg TTFT');
+  expect(admin).toContain('Clear samples');
 });
