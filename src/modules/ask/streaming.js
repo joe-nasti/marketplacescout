@@ -1,16 +1,17 @@
 // Progressive SSE transport for Ask Collectish chat responses.
-// Activates when COLLECTISH_CONFIG.askStreamUrl is configured. The existing
-// Supabase Ask flow remains untouched as the fallback for health, diagnostics,
+// Uses an explicit COLLECTISH_CONFIG.askStreamUrl when provided. On a custom
+// Collectish origin it can also use the canonical same-origin /api route. The
+// existing Supabase Ask flow remains the fallback for health, diagnostics,
 // investigate, tools and rich surfaces.
 (() => {
   if(window.__collectishAskStreamingInstalled)return;
   window.__collectishAskStreamingInstalled=true;
   const cfg=window.COLLECTISH_CONFIG||{};
-  const STREAM_ENDPOINT=String(cfg.askStreamUrl||'').trim();
+  const sameOriginEligible=location.protocol==='https:'&&!location.hostname.endsWith('github.io');
+  const STREAM_ENDPOINT=String(cfg.askStreamUrl||(sameOriginEligible?new URL('/api/ask-collectish',location.origin).href:'')).trim();
   if(!STREAM_ENDPOINT)return;
 
   let active=null;
-  const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   function session(){try{return JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{return null}}
   function messages(){return document.getElementById('cxAskMessages')}
   function status(text,kind=''){const el=document.getElementById('cxAskStatus');if(el){el.textContent=text;el.dataset.kind=kind}}
@@ -75,13 +76,12 @@
       if(!doneEvent)throw Error('Ask stream ended before done');
     }finally{try{await reader.cancel()}catch{}reader.releaseLock()}
   }
-  async function streamAsk(text,{reuse=null}={}){
+  async function streamAsk(text){
     const token=session()?.token;if(!token)throw Error('Sign in required');
     active?.controller.abort();
     const controller=new AbortController();
-    const bubble=reuse||assistantBubble();if(!bubble)return;
-    bubble.w.classList.add('cx-ask-streaming');
-    const renderer=window.CollectishMarkdown?.createStream?.(bubble.b,bubble.b.dataset.streamText||'');
+    const bubble=assistantBubble();if(!bubble)return;
+    const renderer=window.CollectishMarkdown?.createStream?.(bubble.b,'');
     if(!renderer)throw Error('Streaming Markdown renderer unavailable');
     active={controller,bubble,text};status('Streaming…');
     let meta=null;
@@ -91,15 +91,16 @@
       const type=response.headers.get('content-type')||'';if(!type.includes('text/event-stream'))throw Error('Ask endpoint did not return an SSE stream');
       await readSse(response,({event,data})=>{
         if(event==='meta'){meta=data||{};status(meta.cached?'Cached answer':'Streaming…',meta.cached?'ok':'')}
-        else if(event==='delta'&&data?.text){renderer.append(data.text);bubble.b.dataset.streamText=renderer.text()}
+        else if(event==='delta'&&data?.text)renderer.append(data.text);
         else if(event==='error')throw Error(data?.message||'Ask stream failed');
       },controller.signal);
-      const final=renderer.close();bubble.b.dataset.streamText=final;bubble.w.classList.remove('cx-ask-streaming');
+      renderer.close();bubble.w.classList.remove('cx-ask-streaming');
       status(meta?.cached?'Cached · complete':'Complete','ok');
     }catch(error){
-      const final=renderer.close();bubble.b.dataset.streamText=final;bubble.w.classList.remove('cx-ask-streaming');
+      renderer.close();bubble.w.classList.remove('cx-ask-streaming');
       if(error?.name==='AbortError'){status('Stopped');return}
-      status('Stream interrupted','bad');retryChip(bubble.w,()=>streamAsk(text,{reuse:bubble}).catch(()=>{}));
+      status('Stream interrupted','bad');
+      retryChip(bubble.w,()=>streamAsk(text).catch(()=>{}));
       const note=document.createElement('small');note.className='cx-ask-stream-error';note.textContent=error?.message||String(error);if(!bubble.w.querySelector('.cx-ask-stream-error'))bubble.w.append(note);
       throw error;
     }finally{if(active?.controller===controller)active=null}
