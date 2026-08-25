@@ -1,0 +1,93 @@
+name: Deploy Ask Collectish Worker
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'cloud-worker/ask-collectish-http-worker.mjs'
+      - 'wrangler.ask.toml'
+      - '.github/workflows/deploy-ask-worker.yml'
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: collectish-ask-worker
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Validate deployment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$OPENAI_API_KEY"
+
+      - name: Validate Worker source
+        run: node --check cloud-worker/ask-collectish-http-worker.mjs
+
+      - name: Install Wrangler
+        run: npm install --no-save --no-audit --no-fund wrangler@4
+
+      - name: Deploy Worker
+        run: npx wrangler deploy --config wrangler.ask.toml
+
+      - name: Provision OpenAI secret
+        shell: bash
+        run: printf '%s' "$OPENAI_API_KEY" | npx wrangler secret put OPENAI_API_KEY --config wrangler.ask.toml
+
+      - name: Resolve workers.dev endpoint
+        id: endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          subdomain="$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s);if(!j.success||!j.result?.subdomain)process.exit(1);process.stdout.write(j.result.subdomain)})")"
+          url="https://collectish-ask.${subdomain}.workers.dev/api/ask-collectish"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Ask endpoint: $url"
+
+      - name: Verify Worker route
+        shell: bash
+        env:
+          ASK_URL: ${{ steps.endpoint.outputs.url }}
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o /tmp/ask-worker-check.txt -w '%{http_code}' "$ASK_URL")"
+          test "$code" = "405"
+
+      - name: Publish production Ask endpoint variable
+        shell: bash
+        env:
+          ASK_URL: ${{ steps.endpoint.outputs.url }}
+        run: |
+          set -euo pipefail
+          if gh api --method PATCH "repos/$GITHUB_REPOSITORY/actions/variables/COLLECTISH_ASK_STREAM_URL" \
+            -f name='COLLECTISH_ASK_STREAM_URL' -f value="$ASK_URL" >/dev/null 2>&1; then
+            echo 'Updated COLLECTISH_ASK_STREAM_URL'
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/actions/variables" \
+              -f name='COLLECTISH_ASK_STREAM_URL' -f value="$ASK_URL" >/dev/null
+            echo 'Created COLLECTISH_ASK_STREAM_URL'
+          fi
+
+      - name: Trigger web deployment with streaming endpoint
+        run: gh workflow run deploy-vite-pages.yml --repo "$GITHUB_REPOSITORY"
