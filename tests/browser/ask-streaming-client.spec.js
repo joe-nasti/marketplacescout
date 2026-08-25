@@ -32,15 +32,25 @@ test('Ask streaming transport is loaded after the core Ask module',async()=>{
   expect(stream).toBeGreaterThan(main);
 });
 
-test('GitHub Pages requires an explicit Ask stream URL and production build can inject it',async()=>{
+test('Scout fast streaming defaults to existing Supabase project without Cloudflare dependency',async()=>{
   const js=await source('src/modules/ask/streaming.js');
-  const config=await source('src/core/config.js');
-  const workflow=await source('.github/workflows/deploy-vite-pages.yml');
-  expect(js).toContain("!location.hostname.endsWith('github.io')");
-  expect(config).toContain('COLLECTISH_ASK_STREAM_URL');
-  expect(config).toContain('collectish-ask-stream-url');
-  expect(config).toContain('VITE_COLLECTISH_ASK_STREAM_URL');
-  expect(workflow).toContain('VITE_COLLECTISH_ASK_STREAM_URL: ${{ vars.COLLECTISH_ASK_STREAM_URL }}');
+  const fn=await source('supabase/functions/ask-collectish-stream/index.ts');
+  expect(js).toContain("/functions/v1/ask-collectish-stream");
+  expect(js).toContain('shouldUseFastStream');
+  expect(js).toContain("context.screen!=='scout'");
+  expect(js).toContain('investigate|purchase list|portfolio');
+  expect(fn).toContain("model:'gpt-5-mini'");
+  expect(fn).toContain('stream:true');
+  expect(fn).toContain('max_completion_tokens:350');
+  expect(fn).toContain("reasoning_effort:'minimal'");
+  expect(fn).toContain("question");
+});
+
+test('Deep and historical requests remain on the canonical V3 tool path',async()=>{
+  const js=await source('src/modules/ask/streaming.js');
+  expect(js).toContain('investigate|purchase list|portfolio|allocate|rebalance|restock|reprice');
+  expect(js).toContain('show me|filter|sort|history|trend');
+  expect(js).toContain('what changed|changed since');
 });
 
 test('Ask streaming records request headers TTFT total and cache metadata',async()=>{
@@ -54,9 +64,8 @@ test('Ask streaming records request headers TTFT total and cache metadata',async
   expect(stream).toContain('latency.finish()');
   expect(latency).toContain('ttftMs');
   expect(latency).toContain("COLLECTISH_ASK_LATENCY_V1");
-  expect(latency).toContain('cached');
-  expect(latency).toContain('prefetched');
+  expect(admin).toContain('Streaming transport:');
+  expect(admin).toContain('Supabase fast path');
   expect(admin).toContain('Streaming latency');
   expect(admin).toContain('Avg TTFT');
-  expect(admin).toContain('Clear samples');
 });
