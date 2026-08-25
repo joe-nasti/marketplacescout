@@ -73,7 +73,7 @@ async function refreshRanges(){
   if(ranges.length){liveRanges=ranges;installOptions(liveRanges);}
 }
 
-function schedule(){setTimeout(()=>{installOptions();refreshRanges();},100);}
+function schedule(){setTimeout(()=>{installOptions();void refreshRanges();},100);}
 
 const observer=new MutationObserver(()=>{
   if(applying)return;
@@ -82,8 +82,10 @@ const observer=new MutationObserver(()=>{
 });
 observer.observe(document.documentElement,{subtree:true,childList:true});
 
+setInterval(()=>installOptions(),750);
+
 document.addEventListener('collectish:seller-rendered',schedule);
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='seller')schedule()});
-document.addEventListener('collectish:ready',()=>setTimeout(refreshRanges,500));
+document.addEventListener('collectish:ready',()=>setTimeout(()=>void refreshRanges(),500));
 document.addEventListener('collectish:buyer-orders-changed',schedule);
-setTimeout(()=>{installOptions();refreshRanges();},300);
+setTimeout(()=>{installOptions();void refreshRanges();},300);
