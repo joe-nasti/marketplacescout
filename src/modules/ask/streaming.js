@@ -1,16 +1,14 @@
 import { beginAskLatencySample } from './latency.js';
 
-// Progressive SSE transport for Ask Collectish chat responses.
-// Uses an explicit COLLECTISH_CONFIG.askStreamUrl when provided. On a custom
-// Collectish origin it can also use the canonical same-origin /api route. The
-// existing Supabase Ask flow remains the fallback for health, diagnostics,
-// investigate, tools and rich surfaces.
+// Progressive SSE transport for low-latency Scout card questions. The fast
+// path lives in the existing Supabase project; explicit Investigate/tool-heavy
+// requests continue through the canonical Ask V3 JSON/tool loop.
 (() => {
   if(window.__collectishAskStreamingInstalled)return;
   window.__collectishAskStreamingInstalled=true;
   const cfg=window.COLLECTISH_CONFIG||{};
-  const sameOriginEligible=location.protocol==='https:'&&!location.hostname.endsWith('github.io');
-  const STREAM_ENDPOINT=String(cfg.askStreamUrl||(sameOriginEligible?new URL('/api/ask-collectish',location.origin).href:'')).trim();
+  const supabaseStream=cfg.supabaseUrl?`${String(cfg.supabaseUrl).replace(/\/$/,'')}/functions/v1/ask-collectish-stream`:'';
+  const STREAM_ENDPOINT=String(cfg.askStreamUrl||supabaseStream).trim();
   if(!STREAM_ENDPOINT)return;
 
   let active=null;
@@ -29,6 +27,13 @@ import { beginAskLatencySample } from './latency.js';
     }
     const selected=document.querySelector(`#cx${screen[0]?.toUpperCase()||''}${screen.slice(1)} [data-sku].cx-ai-selected`);
     return {screen,sku_id:selected?.dataset?.sku||null,product_id:selected?.dataset?.product||null};
+  }
+  function shouldUseFastStream(text,context=currentContext()){
+    if(context.screen!=='scout'||!(context.product_id||context.sku_id))return false;
+    const q=String(text||'').toLowerCase();
+    if(/\b(investigate|purchase list|portfolio|allocate|rebalance|restock|reprice|sync|refresh|seller|order|syp|inventory)\b/.test(q))return false;
+    if(/\b(show me|filter|sort|history|trend)\b|what changed|changed since/.test(q))return false;
+    return true;
   }
   function userBubble(text){
     const host=messages();if(!host)return;
@@ -85,8 +90,8 @@ import { beginAskLatencySample } from './latency.js';
     const bubble=assistantBubble();if(!bubble)return;
     const renderer=window.CollectishMarkdown?.createStream?.(bubble.b,'');
     if(!renderer)throw Error('Streaming Markdown renderer unavailable');
-    const context=currentContext(),latency=beginAskLatencySample({screen:context.screen});
-    active={controller,bubble,text};status('Streaming…');
+    const context=currentContext(),latency=beginAskLatencySample({screen:context.screen,transport:'supabase-fast'});
+    active={controller,bubble,text};status('Streaming · gpt-5-mini…');
     let meta=null;
     try{
       const response=await fetch(STREAM_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json','Accept':'text/event-stream'},body:JSON.stringify({message:text,context}),signal:controller.signal});
@@ -94,13 +99,13 @@ import { beginAskLatencySample } from './latency.js';
       if(!response.ok)throw Error(`Ask Collectish HTTP ${response.status}`);
       const type=response.headers.get('content-type')||'';if(!type.includes('text/event-stream'))throw Error('Ask endpoint did not return an SSE stream');
       await readSse(response,({event,data})=>{
-        if(event==='meta'){meta=data||{};latency.meta(meta);status(meta.cached?'Cached answer':'Streaming…',meta.cached?'ok':'')}
+        if(event==='meta'){meta=data||{};latency.meta(meta);status(meta.cached?'Cached answer':'Streaming · gpt-5-mini…',meta.cached?'ok':'')}
         else if(event==='delta'&&data?.text){latency.delta();renderer.append(data.text)}
         else if(event==='error')throw Error(data?.message||'Ask stream failed');
       },controller.signal);
       renderer.close();bubble.w.classList.remove('cx-ask-streaming');
       const sample=latency.finish();
-      status(meta?.cached?`Cached · ${sample?.ttftMs??'—'}ms TTFT`:`Complete · ${sample?.ttftMs??'—'}ms TTFT`,'ok');
+      status(meta?.cached?`Cached · ${sample?.ttftMs??'—'}ms TTFT`:`gpt-5-mini · ${sample?.ttftMs??'—'}ms TTFT`,'ok');
     }catch(error){
       renderer.close();bubble.w.classList.remove('cx-ask-streaming');
       if(error?.name==='AbortError'){latency.finish({aborted:true});status('Stopped');return}
@@ -117,7 +122,7 @@ import { beginAskLatencySample } from './latency.js';
   }
   document.addEventListener('submit',e=>{
     if(!e.target?.matches?.('#cxAskForm'))return;
-    const text=interceptText(e.target);if(!text)return;
+    const text=interceptText(e.target),context=currentContext();if(!text||!shouldUseFastStream(text,context))return;
     e.preventDefault();e.stopImmediatePropagation();
     const input=document.getElementById('cxAskInput');if(input){input.value='';input.style.height='auto'}
     userBubble(text);streamAsk(text).catch(()=>{});
@@ -125,9 +130,11 @@ import { beginAskLatencySample } from './latency.js';
   document.addEventListener('click',e=>{
     const starter=e.target?.closest?.('.cx-ask-starter');
     if(starter&&!starter.classList.contains('cx-ask-stream-retry')){
-      const text=interceptText(starter);if(text){e.preventDefault();e.stopImmediatePropagation();userBubble(text);streamAsk(text).catch(()=>{});return}
+      const text=interceptText(starter),context=currentContext();
+      if(text&&shouldUseFastStream(text,context)){e.preventDefault();e.stopImmediatePropagation();userBubble(text);streamAsk(text).catch(()=>{});return}
     }
     if(e.target?.closest?.('[data-ask-close],.cx-ask-close'))active?.controller.abort();
   },true);
   document.addEventListener('keydown',e=>{if(e.key==='Escape')active?.controller.abort()},true);
+  window.CollectishAskStreaming={endpoint:STREAM_ENDPOINT,shouldUseFastStream};
 })();
