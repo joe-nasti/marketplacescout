@@ -1,5 +1,6 @@
 name: Signals card-tag backfill
 
+# Push-triggered runs intentionally exercise a small acceptance set; manual runs can retag broader history.
 on:
   workflow_dispatch:
     inputs:
