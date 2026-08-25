@@ -11,11 +11,16 @@ on:
         description: Maximum distinct source URLs
         required: false
         default: "40"
+      match:
+        description: Optional pipe-delimited URL substrings to retag
+        required: false
+        default: ""
   push:
     branches: [main]
     paths:
       - ".github/workflows/signals-retag-backfill.yml"
       - "cloud-worker/retag-recent-signals.mjs"
+      - "supabase/functions/market-intel-card-tag/**"
 
 permissions:
   contents: read
@@ -29,6 +34,8 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SIGNALS_RETAG_DAYS: ${{ github.event.inputs.days || '14' }}
       SIGNALS_RETAG_LIMIT: ${{ github.event.inputs.limit || '40' }}
+      SIGNALS_RETAG_CONCURRENCY: "2"
+      SIGNALS_RETAG_MATCH: ${{ github.event_name == 'push' && 'best-mardu-lands-for-commander|mtg-underrated-mardu-commanders|mtg-illusion|full-contents-of-the-most-powerful-superdrop' || github.event.inputs.match || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
