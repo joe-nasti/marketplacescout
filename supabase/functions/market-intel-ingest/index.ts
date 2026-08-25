@@ -15,7 +15,7 @@ function sourceName(url:string,requested:any){const r=trim(requested,120);if(r)r
 async function auth(t:string){const r=await fetch(`${U}/auth/v1/user`,{headers:{apikey:A,Authorization:`Bearer ${t}`}});if(!r.ok)throw Error('Unauthorized');const u=await r.json();if(!u?.id)throw Error('Unauthorized');return u}
 async function rest(t:string,path:string,opt:any={}){const r=await fetch(`${U}/rest/v1/${path}`,{method:opt.method||'GET',headers:{...H(t),...(opt.prefer?{Prefer:opt.prefer}:{})},body:opt.body===undefined?undefined:JSON.stringify(opt.body)});const text=await r.text();let d:any;try{d=text?JSON.parse(text):null}catch{d=text}if(!r.ok)throw Error(d?.message||`REST ${r.status}`);return d}
 async function rpc(t:string,name:string,args:any={}){return rest(t,`rpc/${name}`,{method:'POST',body:args})}
-async function analyze(t:string,b:any){const r=await fetch(`${U}/functions/v1/market-intel-analyze`,{method:'POST',headers:H(t),body:JSON.stringify({url:b.url,rendered_text:b.rendered_text,rendered_title:b.rendered_title,published_at:b.published_at,author:b.author})});const text=await r.text();let d:any;try{d=text?JSON.parse(text):{}}catch{d={error:text}}if(!r.ok)throw Error(d?.error||`Analyzer ${r.status}`);return d}
+async function analyze(t:string,b:any){const r=await fetch(`${U}/functions/v1/market-intel-analyze`,{method:'POST',headers:H(t),body:JSON.stringify({url:b.url,rendered_text:b.rendered_text,rendered_title:b.rendered_title,published_at:b.published_at,author:b.author,source_profile:b.source_profile,source_subtype:b.source_subtype})});const text=await r.text();let d:any;try{d=text?JSON.parse(text):{}}catch{d={error:text}}if(!r.ok)throw Error(d?.error||`Analyzer ${r.status}`);return d}
 
 function normName(value:string){return String(value||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ')}
 function editDistance(a:string,b:string){const x=normName(a),y=normName(b);if(x===y)return 0;if(!x.length)return y.length;if(!y.length)return x.length;let prev=Array.from({length:y.length+1},(_,i)=>i);for(let i=1;i<=x.length;i++){const cur=[i];for(let j=1;j<=y.length;j++)cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(x[i-1]===y[j-1]?0:1));prev=cur}return prev[y.length]}
@@ -50,6 +50,6 @@ Deno.serve(async(req:Request)=>{
       ids.push(item.intel_id);seen.add(canonical(normalized));
     }
     if(ids.length){await rpc(t,'refresh_market_intel_entity_links',{}).catch(()=>null);await rpc(t,'refresh_market_intel_evaluations',{}).catch(()=>null)}
-    return J({ok:true,url,analysis,saved:ids.length,duplicates,intel_ids:ids,rejected_cards:rejectedCards,fuzzy_cards:fuzzyCards,source_type:sourceType(url,b.source_type),source_name:sourceName(url,b.source_name)});
+    return J({ok:true,url,analysis,saved:ids.length,duplicates,intel_ids:ids,rejected_cards:rejectedCards,fuzzy_cards:fuzzyCards,source_type:sourceType(url,b.source_type),source_name:sourceName(url,b.source_name),source_profile:trim(b.source_profile,60)||null,source_subtype:trim(b.source_subtype,60)||null});
   }catch(e){return J({error:(e as Error).message},502)}
 });
