@@ -36,9 +36,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$CLOUDFLARE_API_TOKEN"
-          test -n "$CLOUDFLARE_ACCOUNT_ID"
-          test -n "$OPENAI_API_KEY"
+          missing=()
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing+=(CLOUDFLARE_API_TOKEN)
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing+=(CLOUDFLARE_ACCOUNT_ID)
+          [ -n "$OPENAI_API_KEY" ] || missing+=(OPENAI_API_KEY)
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Missing required GitHub Actions secrets: %s\n' "${missing[*]}"
+            exit 1
+          fi
+          echo 'All Ask Worker deployment secrets are available.'
 
       - name: Validate Worker source
         run: node --check cloud-worker/ask-collectish-http-worker.mjs
