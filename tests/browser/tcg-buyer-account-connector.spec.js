@@ -10,18 +10,20 @@ test('buyer account uses authenticated connector instead of HAR workflow',async(
   expect(src).toContain('Sync buyer account');
   expect(src).toContain('store credit');
   expect(src).toContain('messages');
-  expect(src).toContain('AUTO_SYNC_MS');
+  expect(src).toContain("const AUTO_KEY='collectishBuyerAutoSyncHours'");
+  expect(src).toContain('autoHours');
   expect(src).toContain('rpc/import_tcg_buyer_account');
   expect(src).not.toContain('type="file"');
   expect(src).not.toContain('HAR fallback');
 });
 
-test('Android read-only policy allows only GET buyer-account surfaces',async()=>{
+test('Android read-only policy permits only the authenticated buyer history filter POST',async()=>{
   const src=await read('android-agent/app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt');
   expect(src).toContain('it == "/myaccount" || it.startsWith("/myaccount/")');
   expect(src).toContain('isBuyerHistoryRequest(rawUrl)');
   expect(src).toContain('if (method == "GET")');
-  expect(src).not.toMatch(/store\.tcgplayer\.com" -> path in .*buyer/i);
+  expect(src).toContain('"store.tcgplayer.com" -> path in storeInventoryReadOnlyPostPaths || isBuyerHistoryRequest(rawUrl)');
+  expect(src).not.toMatch(/"www\.tcgplayer\.com"\s*->[^\n]*POST/i);
 });
 
 test('monthly cashflow surfaces synced refunds and store credit',async()=>{
