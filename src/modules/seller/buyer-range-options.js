@@ -74,15 +74,9 @@ async function refreshRanges(){
 }
 
 function schedule(){setTimeout(()=>{installOptions();void refreshRanges();},100);}
+function reapply(){if(!applying)queueMicrotask(()=>installOptions());}
 
-const observer=new MutationObserver(()=>{
-  if(applying)return;
-  if(document.getElementById('cxBuyerSyncRange'))setTimeout(()=>installOptions(),0);
-});
-observer.observe(document.documentElement,{subtree:true,childList:true});
-
-setInterval(()=>installOptions(),750);
-
+document.addEventListener('collectish:buyer-account-rendered',reapply);
 document.addEventListener('collectish:seller-rendered',schedule);
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='seller')schedule()});
 document.addEventListener('collectish:ready',()=>setTimeout(()=>void refreshRanges(),500));
