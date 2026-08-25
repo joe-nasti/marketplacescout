@@ -30,6 +30,15 @@ test('Signals card tagger has deterministic exact-name fallbacks without splitti
   expect(src).not.toContain("(?:,|;|&|\\band\\b)");
 });
 
+test('Signals list normalization strips quantities and reskin aliases before exact Scryfall matching',async({},testInfo)=>{
+  test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
+  const src=await read('supabase/functions/market-intel-card-tag/index.ts');
+  expect(src).toContain("replace(/^\\s*\\d+x\\s+/i,'')");
+  expect(src).toContain("replace(/\\s+as\\s+");
+  expect(src).toContain('full art');
+  expect(src).toContain('double sided');
+});
+
 test('Signals retag replaces prior mention rows so stale false positives disappear',async({},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const src=await read('supabase/functions/market-intel-card-tag/index.ts');
