@@ -53,9 +53,7 @@ class ReadOnlyProbeBridge(
         }
     }
 
-    init {
-        seller.addJavascriptInterface(callback, "CollectishReadOnlyNative")
-    }
+    init { seller.addJavascriptInterface(callback, "CollectishReadOnlyNative") }
 
     private fun dp(value: Int) = (value * activity.resources.displayMetrics.density).toInt()
 
@@ -66,22 +64,14 @@ class ReadOnlyProbeBridge(
                 v.setPadding(safe.left, safe.top, safe.right, safe.bottom)
             } else {
                 @Suppress("DEPRECATION")
-                v.setPadding(
-                    insets.systemWindowInsetLeft,
-                    insets.systemWindowInsetTop,
-                    insets.systemWindowInsetRight,
-                    insets.systemWindowInsetBottom
-                )
+                v.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop, insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
             }
             insets
         }
         view.requestApplyInsets()
     }
 
-    private fun hideBuyerSession() {
-        buyerHost?.visibility = View.GONE
-    }
-
+    private fun hideBuyerSession() { buyerHost?.visibility = View.GONE }
     private fun clearBuyerRenderedCapture() {
         buyerRenderedToken = ""
         buyerRenderedRequestedUrl = ""
@@ -92,13 +82,8 @@ class ReadOnlyProbeBridge(
     private fun ensureBuyerWebView(): WebView? {
         if (!buyerProfileSupported) return null
         buyer?.let { return it }
-
-        val host = FrameLayout(activity).apply {
-            setBackgroundColor(Color.WHITE)
-            visibility = View.GONE
-        }
+        val host = FrameLayout(activity).apply { setBackgroundColor(Color.WHITE); visibility = View.GONE }
         installSafeInsets(host)
-
         val view = WebView(activity)
         WebViewCompat.setProfile(view, "collectish-buyer")
         view.settings.javaScriptEnabled = true
@@ -118,36 +103,22 @@ class ReadOnlyProbeBridge(
         view.addJavascriptInterface(callback, "CollectishReadOnlyNative")
         view.setBackgroundColor(Color.WHITE)
 
-        val toolbar = LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.rgb(245, 248, 252))
-        }
+        val toolbar = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setBackgroundColor(Color.rgb(245, 248, 252)) }
         val browserBack = Button(activity).apply {
-            text = "← Back"
-            isAllCaps = false
-            textSize = 14f
-            setOnClickListener {
-                if (view.canGoBack()) view.goBack() else hideBuyerSession()
-            }
+            text = "← Back"; isAllCaps = false; textSize = 14f
+            setOnClickListener { if (view.canGoBack()) view.goBack() else hideBuyerSession() }
         }
         val spacer = View(activity)
         val returnButton = Button(activity).apply {
-            text = "Return to Collectish"
-            isAllCaps = false
-            textSize = 14f
+            text = "Return to Collectish"; isAllCaps = false; textSize = 14f
             setOnClickListener { hideBuyerSession() }
         }
         toolbar.addView(browserBack, LinearLayout.LayoutParams(-2, -1))
         toolbar.addView(spacer, LinearLayout.LayoutParams(0, 1, 1f))
         toolbar.addView(returnButton, LinearLayout.LayoutParams(-2, -1))
-
-        host.addView(view, FrameLayout.LayoutParams(-1, -1).apply {
-            topMargin = dp(56)
-        })
+        host.addView(view, FrameLayout.LayoutParams(-1, -1).apply { topMargin = dp(56) })
         host.addView(toolbar, FrameLayout.LayoutParams(-1, dp(56), Gravity.TOP))
         activity.addContentView(host, FrameLayout.LayoutParams(-1, -1))
-
         buyerHost = host
         buyer = view
         return view
@@ -162,14 +133,9 @@ class ReadOnlyProbeBridge(
     fun showBuyerSession() {
         activity.runOnUiThread {
             val view = ensureBuyerWebView()
-            if (view == null) {
-                fail("This Android WebView does not support isolated buyer profiles")
-                return@runOnUiThread
-            }
+            if (view == null) { fail("This Android WebView does not support isolated buyer profiles"); return@runOnUiThread }
             buyerHost?.visibility = View.VISIBLE
-            if (view.url.isNullOrBlank() || buyerSessionState == "signed_out") {
-                view.loadUrl(buyerLoginUrl)
-            }
+            if (view.url.isNullOrBlank() || buyerSessionState == "signed_out") view.loadUrl(buyerLoginUrl)
         }
     }
 
@@ -182,19 +148,22 @@ class ReadOnlyProbeBridge(
                 val url = config.optString("url", "")
                 val method = config.optString("method", "GET").uppercase()
                 val waitMs = ReadOnlyProbePolicy.boundedWaitMs(config.optLong("waitMs", 1500L))
+                val contentType = config.optString("contentType", "application/json").take(120)
                 val body = if (config.has("body") && !config.isNull("body")) {
                     val value=config.get("body"); ReadOnlyProbePolicy.boundedBody(if(value is JSONObject)value.toString() else value.toString())
                 } else ""
                 if (mode !in ReadOnlyProbePolicy.allowedModes) { fail("Probe mode is not allowlisted"); return@runOnUiThread }
                 if (!ReadOnlyProbePolicy.isAllowedRequest(url, method)) { fail("Request is not allowlisted"); return@runOnUiThread }
                 if (ReadOnlyProbePolicy.isBuyerAccountRequest(url) && ensureBuyerWebView() == null) { fail("Isolated buyer WebView profile is not supported on this device"); return@runOnUiThread }
-                if (method == "POST" && body.isBlank()) { fail("Allowlisted POST requires a JSON body"); return@runOnUiThread }
+                if (method == "POST" && body.isBlank()) { fail("Allowlisted POST requires a body"); return@runOnUiThread }
+                if (ReadOnlyProbePolicy.isBuyerHistoryRequest(url) && method == "POST" && !contentType.startsWith("application/x-www-form-urlencoded")) {
+                    fail("Buyer Order History POST must be form-encoded"); return@runOnUiThread
+                }
                 activeToken = UUID.randomUUID().toString(); state = "running"; result = "{}"
                 when {
-                    ReadOnlyProbePolicy.isBuyerAccountRequest(url) && mode == "fetch_html" && method == "GET" ->
-                        runBuyerRenderedHtml(url, waitMs, activeToken)
+                    ReadOnlyProbePolicy.isBuyerAccountRequest(url) && mode == "fetch_html" && method == "GET" -> runBuyerRenderedHtml(url, waitMs, activeToken)
                     mode == "navigate_capture" -> runNavigationCapture(url, waitMs)
-                    mode in setOf("fetch_json", "fetch_text", "fetch_html") -> runFetchWithOriginGuard(url, method, body, mode, activeToken)
+                    mode in setOf("fetch_json", "fetch_text", "fetch_html") -> runFetchWithOriginGuard(url, method, body, mode, activeToken, contentType)
                     else -> fail("Unsupported probe mode")
                 }
             } catch (e: Exception) { fail(e.message ?: e.javaClass.simpleName) }
@@ -205,10 +174,7 @@ class ReadOnlyProbeBridge(
 
     private fun runBuyerRenderedHtml(url: String, waitMs: Long, token: String) {
         val target = ensureBuyerWebView() ?: run { fail("Buyer WebView is unavailable"); return }
-        buyerRenderedToken = token
-        buyerRenderedRequestedUrl = url
-        buyerRenderedWaitMs = waitMs
-        buyerRenderedStartedToken = ""
+        buyerRenderedToken = token; buyerRenderedRequestedUrl = url; buyerRenderedWaitMs = waitMs; buyerRenderedStartedToken = ""
         target.loadUrl(url)
     }
 
@@ -216,15 +182,9 @@ class ReadOnlyProbeBridge(
         val token = buyerRenderedToken
         if (token.isBlank() || token != activeToken || state != "running") return
         val lower = finalUrl.lowercase()
-        if (lower.contains("/login") || lower.contains("signin")) {
-            clearBuyerRenderedCapture()
-            fail("TCGplayer buyer session is not authenticated")
-            return
-        }
-        if (!ReadOnlyProbePolicy.isBuyerAccountRequest(finalUrl)) return
-        if (buyerRenderedStartedToken == token) return
+        if (lower.contains("/login") || lower.contains("signin")) { clearBuyerRenderedCapture(); fail("TCGplayer buyer session is not authenticated"); return }
+        if (!ReadOnlyProbePolicy.isBuyerAccountRequest(finalUrl) || buyerRenderedStartedToken == token) return
         buyerRenderedStartedToken = token
-
         val qToken = JSONObject.quote(token)
         val qRequested = JSONObject.quote(buyerRenderedRequestedUrl)
         val settleMs = buyerRenderedWaitMs.coerceAtLeast(5000L).coerceAtMost(10_000L)
@@ -233,65 +193,49 @@ class ReadOnlyProbeBridge(
               const token=$qToken,requestedUrl=$qRequested,maxWait=${settleMs};
               const started=Date.now(); let lastSig='',stable=0;
               const send=o=>{try{CollectishReadOnlyNative.complete(token,JSON.stringify(o));}catch(e){}};
-              const tick=()=>{
-                try{
-                  const href=location.href||'';
-                  if(/login|signin|account\/login/i.test(href)){
-                    send({error:'TCGplayer login appears to be required',url:href,requestedUrl,checkedAt:new Date().toISOString()});return;
-                  }
-                  const html=document.documentElement?.outerHTML||'';
-                  const bodyText=document.body?.innerText||'';
-                  const sig=[document.readyState,html.length,bodyText.length,document.querySelectorAll('.orderWrap').length,document.querySelectorAll('table').length].join(':');
-                  if(sig===lastSig)stable++;else stable=0;lastSig=sig;
-                  const ready=document.readyState==='complete';
-                  const meaningful=html.length>1000||bodyText.length>250;
-                  if((ready&&meaningful&&stable>=3)||Date.now()-started>=maxWait){
-                    if(!meaningful){send({error:'TCGplayer buyer page rendered without usable content',url:href,requestedUrl,checkedAt:new Date().toISOString()});return;}
-                    let u={host:'',path:''};try{const x=new URL(href);u={host:x.host,path:x.pathname}}catch(e){}
-                    send({ok:true,status:200,statusText:'Rendered',url:href,requestedUrl,finalHost:u.host,finalPath:u.path,loginByUrl:false,loginByBody:false,method:'GET',contentType:'text/html; rendered=javascript',elapsedMs:Date.now()-started,attempt:1,rendered:true,javascriptEnabled:true,body:html.slice(0,${ReadOnlyProbePolicy.maxResponseChars}),checkedAt:new Date().toISOString()});return;
-                  }
-                  setTimeout(tick,350);
-                }catch(e){send({error:String(e),url:location.href||'',requestedUrl,checkedAt:new Date().toISOString()});}
-              };
+              const tick=()=>{try{
+                const href=location.href||'';
+                if(/login|signin|account\/login/i.test(href)){send({error:'TCGplayer login appears to be required',url:href,requestedUrl,checkedAt:new Date().toISOString()});return;}
+                const html=document.documentElement?.outerHTML||'',bodyText=document.body?.innerText||'';
+                const sig=[document.readyState,html.length,bodyText.length,document.querySelectorAll('.orderWrap').length,document.querySelectorAll('table').length].join(':');
+                if(sig===lastSig)stable++;else stable=0;lastSig=sig;
+                const meaningful=html.length>1000||bodyText.length>250;
+                if((document.readyState==='complete'&&meaningful&&stable>=3)||Date.now()-started>=maxWait){
+                  if(!meaningful){send({error:'TCGplayer buyer page rendered without usable content',url:href,requestedUrl,checkedAt:new Date().toISOString()});return;}
+                  let u={host:'',path:''};try{const x=new URL(href);u={host:x.host,path:x.pathname}}catch(e){}
+                  send({ok:true,status:200,statusText:'Rendered',url:href,requestedUrl,finalHost:u.host,finalPath:u.path,method:'GET',contentType:'text/html; rendered=javascript',elapsedMs:Date.now()-started,attempt:1,rendered:true,javascriptEnabled:true,body:html.slice(0,${ReadOnlyProbePolicy.maxResponseChars}),checkedAt:new Date().toISOString()});return;
+                }
+                setTimeout(tick,350);
+              }catch(e){send({error:String(e),url:location.href||'',requestedUrl,checkedAt:new Date().toISOString()});}};
               setTimeout(tick,250); return 'started';
             })();
         """.trimIndent()
         target.evaluateJavascript(script, null)
     }
 
-    /** Seller reads continue using same-origin fetches. Buyer HTML reads use the
-     * navigation-driven rendered path above so JavaScript/XHR-populated account
-     * pages are captured only after the isolated buyer WebView finishes loading.
-     */
-    private fun runFetchWithOriginGuard(url: String, method: String, body: String, mode: String, token: String) {
+    private fun runFetchWithOriginGuard(url: String, method: String, body: String, mode: String, token: String, contentType: String) {
         val target = targetFor(url) ?: run { fail("Buyer WebView is unavailable"); return }
         val buyerRequest = ReadOnlyProbePolicy.isBuyerAccountRequest(url)
         val needsStoreOrigin = url.startsWith(storeOrigin) && !target.url.orEmpty().startsWith(storeOrigin)
-        if (!needsStoreOrigin) {
-            runFetch(target, url, method, body, mode, token)
-            return
-        }
+        if (!needsStoreOrigin) { runFetch(target, url, method, body, mode, token, contentType); return }
         val primeUrl = if (buyerRequest) buyerHistoryPrimeUrl else storeOriginPrimeUrl
         target.loadUrl(primeUrl)
         target.postDelayed({
             if (token != activeToken || state != "running") return@postDelayed
             if (!target.url.orEmpty().startsWith(storeOrigin)) {
-                fail(if (buyerRequest)
-                    "TCGplayer buyer session is not authenticated"
-                else
-                    "TCGplayer Store session is not authenticated (Store origin redirected away before request)")
+                fail(if (buyerRequest) "TCGplayer buyer session is not authenticated" else "TCGplayer Store session is not authenticated (Store origin redirected away before request)")
                 return@postDelayed
             }
-            runFetch(target, url, method, body, mode, token)
+            runFetch(target, url, method, body, mode, token, contentType)
         }, 1800L)
     }
 
-    private fun runFetch(target: WebView, url: String, method: String, body: String, mode: String, token: String) {
-        val qUrl=JSONObject.quote(url); val qMethod=JSONObject.quote(method); val qBody=JSONObject.quote(body); val qMode=JSONObject.quote(mode); val qToken=JSONObject.quote(token)
+    private fun runFetch(target: WebView, url: String, method: String, body: String, mode: String, token: String, contentType: String) {
+        val qUrl=JSONObject.quote(url); val qMethod=JSONObject.quote(method); val qBody=JSONObject.quote(body); val qMode=JSONObject.quote(mode); val qToken=JSONObject.quote(token); val qContentType=JSONObject.quote(contentType)
         val script="""
             (function(){
               const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-              const url=$qUrl,method=$qMethod,rawBody=$qBody,mode=$qMode,token=$qToken;
+              const url=$qUrl,method=$qMethod,rawBody=$qBody,mode=$qMode,token=$qToken,contentType=$qContentType;
               const send=o=>{try{CollectishReadOnlyNative.complete(token,JSON.stringify(o));}catch(e){}};
               (async function(){
                 const maxAttempts=4;
@@ -299,21 +243,17 @@ class ReadOnlyProbeBridge(
                   try{
                     const acceptsHtml=mode==='fetch_html';
                     const opts={method,credentials:'include',cache:'no-store',headers:{'Accept':acceptsHtml?'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8':'application/json, text/plain, */*'}};
-                    if(method==='POST'){opts.headers['Content-Type']='application/json';opts.body=rawBody;}
-                    const started=Date.now(); const response=await fetch(url,opts); const text=(await response.text()).slice(0,${ReadOnlyProbePolicy.maxResponseChars});
-                    const html=/<!doctype html|<html/i.test(text.slice(0,700));
-                    const finalUrl=response.url||url;let finalHost='',finalPath='';try{const u=new URL(finalUrl);finalHost=u.host;finalPath=u.pathname}catch(e){}
-                    const loginByUrl=/login|signin|account\/login/i.test(finalUrl);
-                    const loginByBody=html&&/sign[ -]?in|log[ -]?in|forgot password|account\/login/i.test(text.slice(0,12000));
-                    const loginHtml=loginByUrl||loginByBody;
-                    if(response.ok&&!loginHtml){let parsed=null;if(mode==='fetch_json'){try{parsed=JSON.parse(text)}catch(e){}}send({ok:true,status:response.status,statusText:response.statusText,url:finalUrl,requestedUrl:url,finalHost,finalPath,loginByUrl:false,loginByBody:false,method,contentType:response.headers.get('content-type')||'',elapsedMs:Date.now()-started,attempt,body:parsed===null?text:parsed,checkedAt:new Date().toISOString()});return;}
-                    if(loginHtml){send({error:'TCGplayer login appears to be required',status:response.status,statusText:response.statusText,url:finalUrl,requestedUrl:url,finalHost,finalPath,loginByUrl,loginByBody,method,contentType:response.headers.get('content-type')||'',htmlDetected:html,bodyPreview:text.slice(0,500),checkedAt:new Date().toISOString()});return;}
+                    if(method==='POST'){opts.headers['Content-Type']=contentType||'application/json';opts.body=rawBody;}
+                    const started=Date.now(),response=await fetch(url,opts),text=(await response.text()).slice(0,${ReadOnlyProbePolicy.maxResponseChars});
+                    const html=/<!doctype html|<html/i.test(text.slice(0,700)),finalUrl=response.url||url;let finalHost='',finalPath='';try{const u=new URL(finalUrl);finalHost=u.host;finalPath=u.pathname}catch(e){}
+                    const loginByUrl=/login|signin|account\/login/i.test(finalUrl),loginByBody=html&&/sign[ -]?in|log[ -]?in|forgot password|account\/login/i.test(text.slice(0,12000));
+                    if(response.ok&&!loginByUrl&&!loginByBody){let parsed=null;if(mode==='fetch_json'){try{parsed=JSON.parse(text)}catch(e){}}send({ok:true,status:response.status,statusText:response.statusText,url:finalUrl,requestedUrl:url,finalHost,finalPath,method,contentType:response.headers.get('content-type')||'',elapsedMs:Date.now()-started,attempt,body:parsed===null?text:parsed,checkedAt:new Date().toISOString()});return;}
+                    if(loginByUrl||loginByBody){send({error:'TCGplayer login appears to be required',status:response.status,url:finalUrl,requestedUrl:url,loginByUrl,loginByBody,checkedAt:new Date().toISOString()});return;}
                     const transient=response.status===408||response.status===425||response.status===429||response.status>=500;
-                    if(!transient||attempt>=maxAttempts){send({error:'TCGplayer returned HTTP '+response.status+': '+text.slice(0,250),status:response.status,url:response.url||url,method,checkedAt:new Date().toISOString()});return;}
-                    const retryRaw=response.headers.get('retry-after'),retrySeconds=retryRaw&&Number(retryRaw);const backoff=Number.isFinite(retrySeconds)?Math.max(0,retrySeconds*1000):Math.min(8000,750*(2**(attempt-1)));await sleep(backoff+Math.floor(Math.random()*250));
-                  }catch(e){if(attempt>=maxAttempts){send({error:String(e),url,method,checkedAt:new Date().toISOString()});return;}const backoff=Math.min(8000,750*(2**(attempt-1)));await sleep(backoff+Math.floor(Math.random()*250));}
+                    if(!transient||attempt>=maxAttempts){send({error:'TCGplayer returned HTTP '+response.status+': '+text.slice(0,250),status:response.status,url:finalUrl,method,checkedAt:new Date().toISOString()});return;}
+                    const retryRaw=response.headers.get('retry-after'),retrySeconds=retryRaw&&Number(retryRaw),backoff=Number.isFinite(retrySeconds)?Math.max(0,retrySeconds*1000):Math.min(8000,750*(2**(attempt-1)));await sleep(backoff+Math.floor(Math.random()*250));
+                  }catch(e){if(attempt>=maxAttempts){send({error:String(e),url,method,checkedAt:new Date().toISOString()});return;}await sleep(Math.min(8000,750*(2**(attempt-1)))+Math.floor(Math.random()*250));}
                 }
-                send({error:'TCGplayer request failed',url,method,checkedAt:new Date().toISOString()});
               })(); return 'started';
             })();
         """.trimIndent()
