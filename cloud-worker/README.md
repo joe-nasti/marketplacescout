@@ -2,6 +2,26 @@
 
 This directory contains the server-side workers for Collectish cloud pipelines and the shared `collector_jobs` queue.
 
+## Ask Collectish HTTP streaming
+
+`ask-collectish-http-worker.mjs` is the canonical Cloudflare HTTP worker for `POST /api/ask-collectish`.
+
+It streams Server-Sent Events (`meta`, `delta`, `done`), caps GPT-5 mini completion output at 350 tokens, uses minimal reasoning effort, compacts card pricing context, drops large raw listing arrays, and sends at most the final two conversation entries upstream.
+
+Required Cloudflare secret:
+
+`OPENAI_API_KEY`
+
+Recommended optional KV binding:
+
+`ASK_CACHE`
+
+When `ASK_CACHE` is not bound, the worker uses an isolate-local in-memory cache. Cache entries expire after 30 minutes. Keys are SHA-256 hashes scoped by user, card identity, and question type so cached responses do not require an OpenAI request.
+
+The worker intentionally omits `temperature` for `gpt-5-mini`. Current OpenAI GPT-5 compatibility guidance states that older GPT-5 family models such as `gpt-5-mini` reject `temperature` when reasoning is enabled. Minimal reasoning is the latency control for this endpoint.
+
+This repository does not currently include a Wrangler deployment manifest for the Ask HTTP worker. Bind the worker route and secrets/KV in the Cloudflare deployment that owns `/api/ask-collectish`; do not put the OpenAI key in source, the browser app, or Android.
+
 ## Marketplace execution
 
 Marketplace scanning is cloud-primary and cloud-only. Normal Marketplace jobs target `preferred_executor=cloud_worker` with `required_capability=marketplace_public_api`.
