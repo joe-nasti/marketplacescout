@@ -5,8 +5,8 @@ plugins {
 
 val collectishKeystore = System.getenv("COLLECTISH_KEYSTORE_FILE")
 val collectishStorePassword = System.getenv("COLLECTISH_KEYSTORE_PASSWORD")
-val collectishKeyAlias = System.getenv("COLLECTISH_KEY_ALIAS")
-val collectishKeyPassword = System.getenv("COLLECTISH_KEY_PASSWORD")
+val collectishKeyAlias = System.getenv("COLLECTISH_ANDROID_KEY_ALIAS") ?: System.getenv("COLLECTISH_KEY_ALIAS")
+val collectishKeyPassword = System.getenv("COLLECTISH_ANDROID_KEY_PASSWORD") ?: System.getenv("COLLECTISH_KEY_PASSWORD")
 val hasCollectishSigning = listOf(
     collectishKeystore,
     collectishStorePassword,
@@ -22,8 +22,8 @@ android {
         applicationId = "com.collectish.agent"
         minSdk = 28
         targetSdk = 35
-        versionCode = 44
-        versionName = "0.2.24"
+        versionCode = 45
+        versionName = "0.2.25"
     }
 
     signingConfigs {
