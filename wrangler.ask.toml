@@ -1,7 +1,0 @@
-name = "collectish-ask"
-main = "cloud-worker/ask-collectish-http-worker.mjs"
-compatibility_date = "2026-08-25"
-workers_dev = true
-
-# OPENAI_API_KEY is provisioned with `wrangler secret put` by the deploy workflow.
-# ASK_CACHE is optional; without a KV binding the worker falls back to isolate-local memory.
