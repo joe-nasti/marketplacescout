@@ -38,16 +38,6 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run browser regressions
         run: npm run test:browser
-      - name: One-shot precise Signals retag backfill
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Run precise Signals retag backfill'
-        env:
-          SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SIGNALS_RETAG_DAYS: '14'
-          SIGNALS_RETAG_LIMIT: '10'
-          SIGNALS_RETAG_CONCURRENCY: '2'
-          SIGNALS_RETAG_MATCH: 'best-mardu-lands-for-commander|mtg-illusion|mtg-underrated-mardu-commanders|4-new-mtg-standard-decks-featuring-the-hobbit|the-top-10-god-cards-in-commander'
-        run: node cloud-worker/retag-recent-signals.mjs
       - name: Upload browser report on failure
         if: failure()
         uses: actions/upload-artifact@v4
