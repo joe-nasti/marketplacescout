@@ -46,6 +46,12 @@ async function fulfillScout(route,counts){
       counts.detailUrls.push(route.request().url());
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([detailRow])});
     }
+    // A selected-SKU component query supports the score explanation and is not a ranking-list read.
+    if(req.sku&&req.select.includes('thesis_points')){
+      counts.components=(counts.components||0)+1;
+      counts.componentUrls=(counts.componentUrls||[]).concat(route.request().url());
+      return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([detailRow])});
+    }
     counts.list++;
     counts.listUrls.push(route.request().url());
     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([scoutRow])});
@@ -90,7 +96,7 @@ test('recent persisted Scout rankings provide a warm list without Scout list RES
   await page.reload();
   await expect(page.locator('.cx-scout-card')).toContainText('Performance Test Card');
   const metrics=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('collectishRuntimeHealth')||'{}'));
-  expect(counts.list,JSON.stringify({listUrls:counts.listUrls,scoutPersistedUsed:metrics.scout_persisted_used,scoutPersistedSource:metrics.scout_persisted_source,scoutPersistedAgeMs:metrics.scout_persisted_age_ms,scoutCacheUsed:metrics.scout_cache_used,scoutCacheFallback:metrics.scout_cache_fallback})).toBe(0);
+  expect(counts.list,JSON.stringify({listUrls:counts.listUrls,componentUrls:counts.componentUrls,scoutPersistedUsed:metrics.scout_persisted_used,scoutPersistedSource:metrics.scout_persisted_source,scoutPersistedAgeMs:metrics.scout_persisted_age_ms,scoutCacheUsed:metrics.scout_cache_used,scoutCacheFallback:metrics.scout_cache_fallback})).toBe(0);
   expect(metrics.scout_persisted_used).toBe(true);
 });
 
