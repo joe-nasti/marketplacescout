@@ -6,6 +6,7 @@ import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
+import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -71,7 +72,15 @@ class ReadOnlyProbeBridge(
         view.requestApplyInsets()
     }
 
-    private fun hideBuyerSession() { buyerHost?.visibility = View.GONE }
+    private fun persistBuyerSession() {
+        runCatching { CookieManager.getInstance().flush() }
+    }
+
+    private fun hideBuyerSession() {
+        persistBuyerSession()
+        buyerHost?.visibility = View.GONE
+    }
+
     private fun clearBuyerRenderedCapture() {
         buyerRenderedToken = ""
         buyerRenderedRequestedUrl = ""
@@ -86,10 +95,14 @@ class ReadOnlyProbeBridge(
         installSafeInsets(host)
         val view = WebView(activity)
         WebViewCompat.setProfile(view, "collectish-buyer")
+        CookieManager.getInstance().setAcceptCookie(true)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(view, true)
         view.settings.javaScriptEnabled = true
         view.settings.domStorageEnabled = true
         view.settings.databaseEnabled = true
-        view.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+        // Keep the isolated profile's normal persistent browser storage. Hosted Collectish
+        // refreshes must not be coupled to TCGplayer buyer authentication state.
+        view.settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
         view.webChromeClient = WebChromeClient()
         view.webViewClient = object : WebViewClient() {
             override fun onPageFinished(v: WebView, url: String) {
@@ -97,6 +110,7 @@ class ReadOnlyProbeBridge(
                 buyerSessionState = if (lower.contains("/login") || lower.contains("signin")) "signed_out"
                     else if (lower.contains("tcgplayer.com") && lower.contains("/myaccount")) "authenticated"
                     else "unknown"
+                persistBuyerSession()
                 handleBuyerRenderedPageFinished(v, url)
             }
         }
@@ -128,6 +142,7 @@ class ReadOnlyProbeBridge(
     @JavascriptInterface fun getReadOnlyProbeResult(): String = result
     @JavascriptInterface fun getBuyerSessionState(): String = if (!buyerProfileSupported) "unsupported" else buyerSessionState
     @JavascriptInterface fun isBuyerProfileIsolated(): Boolean = buyerProfileSupported
+    @JavascriptInterface fun persistBuyerSessionNow() { persistBuyerSession() }
 
     @JavascriptInterface
     fun showBuyerSession() {
@@ -135,7 +150,10 @@ class ReadOnlyProbeBridge(
             val view = ensureBuyerWebView()
             if (view == null) { fail("This Android WebView does not support isolated buyer profiles"); return@runOnUiThread }
             buyerHost?.visibility = View.VISIBLE
-            if (view.url.isNullOrBlank() || buyerSessionState == "signed_out") view.loadUrl(buyerLoginUrl)
+            when {
+                buyerSessionState == "signed_out" -> view.loadUrl(buyerLoginUrl)
+                view.url.isNullOrBlank() -> view.loadUrl(buyerHistoryPrimeUrl)
+            }
         }
     }
 
