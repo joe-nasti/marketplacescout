@@ -29,10 +29,19 @@ function parseFeed(xml:string,feedUrl:string){
     return {url,title,summary,published_at:published,author};
   }).filter(x=>x.url);
 }
+function profileOf(f:any){return trim(f?.payload_json?.source_profile||'generic_editorial',60).toLowerCase()||'generic_editorial'}
+function sourceSubtype(item:any,profile:string){
+  if(profile!=='retailer_editorial')return profile;
+  const hay=`${item?.title||''} ${item?.summary||''}`.toLowerCase();
+  if(/\b(top|our)\s+\d*\s*(best[- ]?selling|top[- ]?selling)|\bbest[- ]?selling\b|\btop[- ]?selling\b|\bmost in demand\b/.test(hay))return'first_party_sales';
+  if(/\breprint|reprinted|reprints\b/.test(hay))return'retailer_reprint_editorial';
+  if(/\bban(ned|s)?|banned and restricted|b&r\b/.test(hay))return'retailer_news';
+  return'retailer_opinion';
+}
 async function sha(value:string){const bytes=new TextEncoder().encode(value),hash=await crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-async function ingest(t:string,item:any,sourceName:string){const body:any={url:item.url,rendered_title:item.title,author:item.author,published_at:item.published_at,source_type:'article',source_name:sourceName};if(String(item.summary||'').trim().length>=120)body.rendered_text=item.summary;const r=await fetch(`${U}/functions/v1/market-intel-ingest`,{method:'POST',headers:H(t),body:JSON.stringify(body)});const raw=await r.text();let d:any;try{d=raw?JSON.parse(raw):{}}catch{d={error:raw}}if(!r.ok)throw Error(d?.error||`Ingest ${r.status}`);return d}
+async function ingest(t:string,item:any,sourceName:string,profile:string,subtype:string){const body:any={url:item.url,rendered_title:item.title,author:item.author,published_at:item.published_at,source_type:'article',source_name:sourceName,source_profile:profile,source_subtype:subtype};if(profile!=='retailer_editorial'&&String(item.summary||'').trim().length>=120)body.rendered_text=item.summary;const r=await fetch(`${U}/functions/v1/market-intel-ingest`,{method:'POST',headers:H(t),body:JSON.stringify(body)});const raw=await r.text();let d:any;try{d=raw?JSON.parse(raw):{}}catch{d={error:raw}}if(!r.ok)throw Error(d?.error||`Ingest ${r.status}`);return d}
 async function subscriptions(t:string,b:any){
-  if(b?.feed_url){const url=safeUrl(String(b.feed_url));return [{source:trim(b.source_name,120)||new URL(url).hostname,source_key:url,payload_json:{feed_url:url,enabled:true,max_items:Number(b.max_items)||5}}]}
+  if(b?.feed_url){const url=safeUrl(String(b.feed_url));return [{source:trim(b.source_name,120)||new URL(url).hostname,source_key:url,payload_json:{feed_url:url,enabled:true,max_items:Number(b.max_items)||5,source_profile:trim(b.source_profile,60)||'generic_editorial'}}]}
   const rows=await rest(t,"source_captures?select=source,source_key,payload_json&capture_type=eq.feed_subscription&order=captured_at.asc&limit=50");
   return (rows||[]).filter((x:any)=>x?.payload_json?.enabled!==false&&x?.source_key);
 }
@@ -46,19 +55,17 @@ Deno.serve(async(req:Request)=>{
   try{
     const feeds=await subscriptions(t,b),report:any[]=[];
     let attempted=0,totalSaved=0,totalDuplicates=0,totalFailed=0,totalScanned=0,skippedSaved=0,morePending=false;
-    // Analysis/ingest commonly takes 20–40s per item. Keep each Edge invocation to a
-    // deliberately small resumable batch so it stays far below the platform wall-clock limit.
     const maxNew=Math.max(1,Math.min(Number(b?.max_new)||Number(b?.max_total)||1,2));
     let stop=false;
     for(const f of feeds){
       if(stop)break;
-      const feedUrl=safeUrl(String(f.source_key)),sourceName=trim(f.source,120)||new URL(feedUrl).hostname,maxItems=Math.max(1,Math.min(Number(f?.payload_json?.max_items)||5,10));
-      const out:any={source:sourceName,feed_url:feedUrl,scanned:0,attempted:0,saved:0,duplicates:0,skipped_saved:0,failed:0,errors:[]};
+      const feedUrl=safeUrl(String(f.source_key)),sourceName=trim(f.source,120)||new URL(feedUrl).hostname,maxItems=Math.max(1,Math.min(Number(f?.payload_json?.max_items)||5,10)),sourceProfile=profileOf(f);
+      const out:any={source:sourceName,feed_url:feedUrl,source_profile:sourceProfile,scanned:0,attempted:0,saved:0,duplicates:0,skipped_saved:0,failed:0,errors:[]};
       try{
         const xml=await getFeed(feedUrl),items=parseFeed(xml,feedUrl).slice(0,maxItems);
         for(const item of items){
           out.scanned++;totalScanned++;
-          const key=item.url;
+          const key=item.url,subtype=sourceSubtype(item,sourceProfile);
           const existing=await rest(t,`source_captures?select=capture_id,metadata_json&source=eq.${encodeURIComponent(sourceName)}&capture_type=eq.feed_item&source_key=eq.${encodeURIComponent(key)}&limit=1`).catch(()=>[]);
           const row=existing?.[0];
           if(row?.metadata_json?.status==='saved'){out.skipped_saved++;skippedSaved++;continue}
@@ -66,14 +73,14 @@ Deno.serve(async(req:Request)=>{
           attempted++;out.attempted++;
           let captureId=row?.capture_id||null;
           if(!captureId){
-            const inserted=await rest(t,'source_captures',{method:'POST',prefer:'return=representation',body:{user_id:user.id,source:sourceName,capture_type:'feed_item',source_key:key,content_type:'application/feed+item',payload_json:{title:item.title,published_at:item.published_at,author:item.author,feed_url:feedUrl},payload_text:item.summary||null,content_hash:await sha(`${item.url}|${item.title}|${item.summary}`),metadata_json:{status:'pending',feed_url:feedUrl}}});
+            const inserted=await rest(t,'source_captures',{method:'POST',prefer:'return=representation',body:{user_id:user.id,source:sourceName,capture_type:'feed_item',source_key:key,content_type:'application/feed+item',payload_json:{title:item.title,published_at:item.published_at,author:item.author,feed_url:feedUrl,source_profile:sourceProfile,source_subtype:subtype},payload_text:item.summary||null,content_hash:await sha(`${item.url}|${item.title}|${item.summary}`),metadata_json:{status:'pending',feed_url:feedUrl,source_profile:sourceProfile,source_subtype:subtype}}});
             captureId=(Array.isArray(inserted)?inserted[0]:inserted)?.capture_id||null;
           }
           try{
-            const result=await ingest(t,item,sourceName);const saved=Number(result?.saved||0),dupes=Number(result?.duplicates||0);
+            const result=await ingest(t,item,sourceName,sourceProfile,subtype);const saved=Number(result?.saved||0),dupes=Number(result?.duplicates||0);
             out.saved+=saved;out.duplicates+=dupes;totalSaved+=saved;totalDuplicates+=dupes;
-            if(captureId)await rest(t,`source_captures?capture_id=eq.${encodeURIComponent(captureId)}`,{method:'PATCH',prefer:'return=minimal',body:{metadata_json:{status:'saved',feed_url:feedUrl,ingested_at:new Date().toISOString(),saved,duplicates:dupes}}});
-          }catch(e){out.failed++;totalFailed++;out.errors.push(`${item.title}: ${(e as Error).message}`);if(captureId)await rest(t,`source_captures?capture_id=eq.${encodeURIComponent(captureId)}`,{method:'PATCH',prefer:'return=minimal',body:{metadata_json:{status:'failed',feed_url:feedUrl,last_error:(e as Error).message,last_attempt_at:new Date().toISOString()}}}).catch(()=>null)}
+            if(captureId)await rest(t,`source_captures?capture_id=eq.${encodeURIComponent(captureId)}`,{method:'PATCH',prefer:'return=minimal',body:{metadata_json:{status:'saved',feed_url:feedUrl,source_profile:sourceProfile,source_subtype:subtype,ingested_at:new Date().toISOString(),saved,duplicates:dupes}}});
+          }catch(e){out.failed++;totalFailed++;out.errors.push(`${item.title}: ${(e as Error).message}`);if(captureId)await rest(t,`source_captures?capture_id=eq.${encodeURIComponent(captureId)}`,{method:'PATCH',prefer:'return=minimal',body:{metadata_json:{status:'failed',feed_url:feedUrl,source_profile:sourceProfile,source_subtype:subtype,last_error:(e as Error).message,last_attempt_at:new Date().toISOString()}}}).catch(()=>null)}
         }
       }catch(e){out.failed++;totalFailed++;out.errors.push((e as Error).message)}
       report.push(out);
