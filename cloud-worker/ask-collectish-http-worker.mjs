@@ -21,7 +21,7 @@ const RAW_ARRAY_KEYS=new Set([
 ]);
 
 const cleanText=(value,max=1200)=>String(value??'').replace(/\s+/g,' ').trim().slice(0,max);
-const finite=value=>Number.isFinite(Number(value))?Number(value):null;
+const finite=value=>value===null||value===undefined||value===''?null:(Number.isFinite(Number(value))?Number(value):null);
 const pick=(obj,...keys)=>{for(const key of keys){if(obj?.[key]!==undefined&&obj?.[key]!==null)return obj[key]}return null};
 
 export function compactCard(card={}){
@@ -75,7 +75,12 @@ export function compressRequest(body={}){
   return {cards,context,conversation};
 }
 function cardIdentity(body,compressed){
-  return cleanText(pick(body,'cardId','card_id','productId','product_id','skuId','sku_id',body?.context?.cardId,body?.context?.productId)||compressed.cards?.[0]?.name||'general',160);
+  const context=body?.context||{};
+  const id=pick(body,'cardId','card_id','productId','product_id','skuId','sku_id')
+    ??pick(context,'cardId','card_id','productId','product_id','skuId','sku_id')
+    ??compressed.cards?.[0]?.name
+    ??'general';
+  return cleanText(id,160);
 }
 function questionKind(body){
   return cleanText(pick(body,'questionType','question_type','intent','surface')||body?.message||body?.question||'general',240).toLowerCase();
@@ -84,8 +89,8 @@ async function sha256(text){
   const bytes=await crypto.subtle.digest('SHA-256',encoder.encode(text));
   return [...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
-export async function queryCacheKey(body,compressed=compressRequest(body)){
-  const scope=cleanText(pick(body,'userId','user_id')||'shared',120);
+export async function queryCacheKey(body,compressed=compressRequest(body),scopeHint=''){
+  const scope=cleanText(scopeHint||pick(body,'userId','user_id')||'shared',240);
   return `ask:v1:${await sha256(`${scope}|${cardIdentity(body,compressed)}|${questionKind(body)}`)}`;
 }
 function promptContext(compressed){
@@ -114,6 +119,12 @@ function streamCached(text,key){
     controller.enqueue(encoder.encode(sse('meta',{cached:true,key})));
     controller.enqueue(encoder.encode(sse('delta',{text})));
     controller.enqueue(encoder.encode(sse('done',{cached:true})));
+    controller.close();
+  }});
+}
+function streamError(message){
+  return new ReadableStream({start(controller){
+    controller.enqueue(encoder.encode(sse('error',{message:cleanText(message,300)})));
     controller.close();
   }});
 }
@@ -192,13 +203,15 @@ export async function handleAskCollectish(request,env={},ctx={}){
   if(request.method!=='POST')return new Response(JSON.stringify({error:'POST required'}),{status:405,headers:{...JSON_HEADERS,...cors}});
   let body;try{body=await request.json()}catch{return new Response(JSON.stringify({error:'Invalid JSON'}),{status:400,headers:{...JSON_HEADERS,...cors}})}
   const question=cleanText(body?.message||body?.question,2000);if(!question)return new Response(JSON.stringify({error:'message is required'}),{status:400,headers:{...JSON_HEADERS,...cors}});
-  const compressed=compressRequest(body);const key=await queryCacheKey(body,compressed);const cached=await cacheGet(env,key);
+  const compressed=compressRequest(body);
+  const authScope=request.headers.get('Authorization')||'';
+  const key=await queryCacheKey(body,compressed,authScope);
+  const cached=await cacheGet(env,key);
   try{
     const stream=cached!==null?streamCached(cached,key):await openAIStream(body,env,key,ctx);
     return new Response(stream,{status:200,headers:{...SSE_HEADERS,...cors}});
   }catch(error){
-    const stream=streamCached(`Ask Collectish is temporarily unavailable. ${String(error?.message||error).slice(0,180)}`,key);
-    return new Response(stream,{status:502,headers:{...SSE_HEADERS,...cors}});
+    return new Response(streamError(`Ask Collectish is temporarily unavailable. ${String(error?.message||error).slice(0,180)}`),{status:502,headers:{...SSE_HEADERS,...cors}});
   }
 }
 
