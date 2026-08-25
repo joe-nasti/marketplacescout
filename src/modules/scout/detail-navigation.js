@@ -1,4 +1,5 @@
 import store from '../../state/store.js';
+import { prefetchAskCardContext } from './ask-prefetch.js';
 
 let installed=false;
 const skuOf=value=>String(value??'');
@@ -29,6 +30,7 @@ export function openScoutDetail(detail={}){
     card.classList.toggle('selected',skuOf(card.dataset.sku)===sku);
   });
   void renderer.renderDetail(summary,true);
+  void prefetchAskCardContext(summary);
   return true;
 }
 
