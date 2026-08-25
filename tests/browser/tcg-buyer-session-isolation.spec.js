@@ -5,7 +5,7 @@ import path from 'node:path';
 const root=process.cwd();
 const read=p=>readFile(path.join(root,p),'utf8');
 
-test('buyer connector uses a separate isolated WebView profile and login',async()=>{
+test('buyer connector uses a separate persistent isolated WebView profile and login',async()=>{
   const [bridge,policy,buyer,gradle]=await Promise.all([
     read('android-agent/app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt'),
     read('android-agent/app/src/main/java/com/collectish/agent/ReadOnlyProbePolicy.kt'),
@@ -17,7 +17,10 @@ test('buyer connector uses a separate isolated WebView profile and login',async(
   expect(bridge).toContain('isBuyerProfileIsolated');
   expect(bridge).toContain('showBuyerSession');
   expect(bridge).toContain('https://www.tcgplayer.com/login?returnUrl=/myaccount/orderhistory');
-  expect(bridge).not.toContain('CookieManager.getInstance()');
+  expect(bridge).toContain('CookieManager.getInstance().flush()');
+  expect(bridge).toContain('persistBuyerSession');
+  expect(bridge).not.toContain('removeAllCookies');
+  expect(bridge).not.toContain('removeSessionCookies');
   expect(policy).toContain('"www.tcgplayer.com"');
   expect(policy).toContain('fun isBuyerAccountRequest');
   expect(buyer).toContain("const BUYER_LOGIN='https://www.tcgplayer.com/login?returnUrl=/myaccount/orderhistory'");
