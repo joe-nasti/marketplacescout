@@ -64,8 +64,27 @@ export function renderMarkdownElement(el,text=el?.textContent||''){
   return el;
 }
 
+export function createProgressiveMarkdownRenderer(el,initial=''){
+  let text=String(initial||''),queued='',frame=0,closed=false;
+  const flush=()=>{
+    frame=0;
+    if(closed||!el)return;
+    if(queued){text+=queued;queued=''}
+    renderMarkdownElement(el,text);
+    const host=el.closest?.('.cx-ask-messages');if(host)host.scrollTop=host.scrollHeight;
+  };
+  const schedule=()=>{if(!frame&&!closed)frame=requestAnimationFrame(flush)};
+  return {
+    append(delta){if(closed||!delta)return;text+=String(delta);schedule()},
+    replace(next){if(closed)return;text=String(next||'');queued='';schedule()},
+    flush(){if(frame){cancelAnimationFrame(frame);frame=0}flush();return text},
+    close(){if(closed)return text;if(frame){cancelAnimationFrame(frame);frame=0}flush();closed=true;return text},
+    text(){return text}
+  };
+}
+
 // Keep every Ask surface on the same Markdown implementation. The global Ask
 // panel is shared across Scout, Seller, SYP, Inventory, Vendors and Admin; all
 // assistant text must flow through this renderer regardless of active tab.
-window.CollectishMarkdown={render:renderMarkdownElement,toHtml:markdown};
+window.CollectishMarkdown={render:renderMarkdownElement,toHtml:markdown,createStream:createProgressiveMarkdownRenderer};
 window.CollectishRenderMarkdown=renderMarkdownElement;
