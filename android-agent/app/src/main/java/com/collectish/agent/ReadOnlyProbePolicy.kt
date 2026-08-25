@@ -3,10 +3,10 @@ package com.collectish.agent
 import android.net.Uri
 
 /**
- * Safety policy for remotely-described read-only TCGplayer probes.
- * Seller and buyer account reads are deliberately separate. Buyer account
- * support is GET-only under /myaccount on the Store or www account surfaces.
- * No buyer-account mutations are allowlisted here.
+ * Safety policy for remotely-described TCGplayer probes.
+ * Buyer account traffic is isolated in its own WebView profile. Buyer POST support
+ * is limited to the Order History filter/search form captured in the authenticated
+ * HAR; it changes only the server-side history filter and does not mutate account data.
  */
 object ReadOnlyProbePolicy {
     val allowedHosts = setOf(
@@ -39,7 +39,12 @@ object ReadOnlyProbePolicy {
             uri.path.orEmpty().lowercase().let { it == "/myaccount" || it.startsWith("/myaccount/") }
     } catch (_: Exception) { false }
 
-    fun isBuyerHistoryRequest(rawUrl: String): Boolean = isBuyerAccountRequest(rawUrl)
+    fun isBuyerHistoryRequest(rawUrl: String): Boolean = try {
+        val uri = Uri.parse(rawUrl)
+        uri.scheme.equals("https", true) &&
+            uri.host?.lowercase() == "store.tcgplayer.com" &&
+            uri.path.orEmpty().lowercase() == "/myaccount/orderhistory"
+    } catch (_: Exception) { false }
 
     fun isAllowedRequest(rawUrl: String, rawMethod: String): Boolean {
         if (!isAllowedUrl(rawUrl)) return false
@@ -57,7 +62,7 @@ object ReadOnlyProbePolicy {
                 "seller-settings-api.tcgplayer.com" -> path.startsWith("/v1/settings")
                 "sellerportal.tcgplayer.com" -> path == "/orders" || path.startsWith("/orders/")
                 "store.tcgplayer.com" ->
-                    isBuyerHistoryRequest(rawUrl) || allowedSypGetPaths.contains(path) || allowedLegacyPrefixes.any { path.startsWith(it) } || path.startsWith("/admin/product/manage/")
+                    isBuyerAccountRequest(rawUrl) || allowedSypGetPaths.contains(path) || allowedLegacyPrefixes.any { path.startsWith(it) } || path.startsWith("/admin/product/manage/")
                 "www.tcgplayer.com" -> isBuyerAccountRequest(rawUrl)
                 else -> false
             }
@@ -65,7 +70,7 @@ object ReadOnlyProbePolicy {
 
         return when (host) {
             "order-management-api.tcgplayer.com" -> path in orderReadOnlyPostPaths
-            "store.tcgplayer.com" -> path in storeInventoryReadOnlyPostPaths
+            "store.tcgplayer.com" -> path in storeInventoryReadOnlyPostPaths || isBuyerHistoryRequest(rawUrl)
             else -> false
         }
     }
