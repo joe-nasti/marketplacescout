@@ -16,6 +16,8 @@ on:
       - 'tests/browser/**'
       - 'tools/playwright.config.mjs'
       - 'package.json'
+      - 'cloud-worker/retag-recent-signals.mjs'
+      - 'supabase/functions/market-intel-card-tag/**'
       - '.github/workflows/browser-quality.yml'
 
 permissions:
