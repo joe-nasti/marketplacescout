@@ -36,13 +36,14 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run browser regressions
         run: npm run test:browser
-      - name: One-shot recent Signals retag backfill
-        if: github.event_name == 'push' && github.event.head_commit.message == 'Run Signals retag backfill now'
+      - name: One-shot precise Signals retag backfill
+        if: github.event_name == 'push' && github.event.head_commit.message == 'Run precise Signals retag backfill'
         env:
           SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SIGNALS_RETAG_DAYS: '14'
           SIGNALS_RETAG_LIMIT: '40'
+          SIGNALS_RETAG_CONCURRENCY: '3'
         run: node cloud-worker/retag-recent-signals.mjs
       - name: Upload browser report on failure
         if: failure()
