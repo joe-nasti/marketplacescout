@@ -22,8 +22,8 @@ android {
         applicationId = "com.collectish.agent"
         minSdk = 28
         targetSdk = 35
-        versionCode = 41
-        versionName = "0.2.21"
+        versionCode = 42
+        versionName = "0.2.22"
     }
 
     signingConfigs {
