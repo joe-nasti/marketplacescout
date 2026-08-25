@@ -9,9 +9,19 @@ test('Signals card tagger preserves confirmed MTG sources and subject-card preci
   const src=await read('supabase/functions/market-intel-card-tag/index.ts');
   expect(src).toContain('const knownMagic=titleLooksMagic(title)');
   expect(src).toContain('This source is already CONFIRMED to be about Magic: The Gathering');
-  expect(src).toContain('For a list article, capture the actual list entries');
+  expect(src).toContain('actual entries in a card list');
   expect(src).toContain('EXCLUDE incidental examples, comparison cards, generic staples');
   expect(src).toContain("method='article_model_retry'");
+});
+
+test('Signals card tagger has deterministic exact-name fallbacks for confirmed MTG lists',async({},testInfo)=>{
+  test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
+  const src=await read('supabase/functions/market-intel-card-tag/index.ts');
+  expect(src).toContain('function listCandidates');
+  expect(src).toContain('async function exactListCards');
+  expect(src).toContain("method='exact_list_fallback'");
+  expect(src).toContain("method='signal_entity_fallback'");
+  expect(src).toContain("await named(n,'exact')");
 });
 
 test('Signals card tagger prefers MTGStocks card taxonomy and validates names through Scryfall',async({},testInfo)=>{
