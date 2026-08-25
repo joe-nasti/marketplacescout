@@ -3,7 +3,6 @@ const RANGE_KEY='collectishBuyerSyncRange';
 const HAR_FALLBACK_RANGES=['Last 30 Days','Last 90 Days','Last 120 Days','2026','2025','2024','2023','2022','2021','2020','2019','2018','2017','2016'];
 let loading=false;
 let liveRanges=[];
-let applying=false;
 
 const bridge=()=>window.CollectishReadOnly||null;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -55,14 +54,12 @@ function installOptions(ranges=desiredRanges()){
   const current=localStorage.getItem(RANGE_KEY)||select.value||'Last 90 Days';
   const existing=[...select.options].map(o=>o.value);
   if(existing.length===options.length&&existing.every((v,i)=>v===options[i]))return true;
-  applying=true;
   select.innerHTML=options.map(value=>`<option value="${String(value).replace(/"/g,'&quot;')}">${value==='all'?'All available history':labelFor(value)}</option>`).join('');
   select.dataset.liveRanges=liveRanges.length?'1':'fallback';
   if(options.includes(current))select.value=current;
   else if(options.includes('Last 90 Days'))select.value='Last 90 Days';
   else select.value=options[0];
   select.dispatchEvent(new Event('change',{bubbles:true}));
-  applying=false;
   return true;
 }
 
@@ -73,17 +70,10 @@ async function refreshRanges(){
   if(ranges.length){liveRanges=ranges;installOptions(liveRanges);}
 }
 
-function schedule(){setTimeout(()=>{installOptions();refreshRanges();},100);}
-
-const observer=new MutationObserver(()=>{
-  if(applying)return;
-  const select=document.getElementById('cxBuyerSyncRange');
-  if(select)setTimeout(()=>installOptions(),0);
-});
-observer.observe(document.documentElement,{subtree:true,childList:true});
+function schedule(){setTimeout(()=>{installOptions();void refreshRanges();},100);}
 
 document.addEventListener('collectish:seller-rendered',schedule);
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='seller')schedule()});
-document.addEventListener('collectish:ready',()=>setTimeout(refreshRanges,500));
+document.addEventListener('collectish:ready',()=>setTimeout(()=>void refreshRanges(),500));
 document.addEventListener('collectish:buyer-orders-changed',schedule);
-setTimeout(()=>{installOptions();refreshRanges();},300);
+setTimeout(()=>{installOptions();void refreshRanges();},300);
