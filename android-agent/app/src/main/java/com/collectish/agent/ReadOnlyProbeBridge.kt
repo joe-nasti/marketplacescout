@@ -28,6 +28,10 @@ class ReadOnlyProbeBridge(
     @Volatile private var result: String = "{}"
     @Volatile private var activeToken: String = ""
     @Volatile private var buyerSessionState: String = "unknown"
+    @Volatile private var buyerRenderedToken: String = ""
+    @Volatile private var buyerRenderedRequestedUrl: String = ""
+    @Volatile private var buyerRenderedWaitMs: Long = 1500L
+    @Volatile private var buyerRenderedStartedToken: String = ""
 
     private val storeOrigin = "https://store.tcgplayer.com/"
     private val storeOriginPrimeUrl = "https://store.tcgplayer.com/admin/direct/GetLastUpdated?categoryId=1"
@@ -45,6 +49,7 @@ class ReadOnlyProbeBridge(
             val bounded = payload.take(ReadOnlyProbePolicy.maxResponseChars + 20_000)
             result = bounded.ifBlank { "{}" }
             state = if (result.contains("\"error\":")) "error" else "ready"
+            if (token == buyerRenderedToken) clearBuyerRenderedCapture()
         }
     }
 
@@ -77,6 +82,13 @@ class ReadOnlyProbeBridge(
         buyerHost?.visibility = View.GONE
     }
 
+    private fun clearBuyerRenderedCapture() {
+        buyerRenderedToken = ""
+        buyerRenderedRequestedUrl = ""
+        buyerRenderedWaitMs = 1500L
+        buyerRenderedStartedToken = ""
+    }
+
     private fun ensureBuyerWebView(): WebView? {
         if (!buyerProfileSupported) return null
         buyer?.let { return it }
@@ -100,6 +112,7 @@ class ReadOnlyProbeBridge(
                 buyerSessionState = if (lower.contains("/login") || lower.contains("signin")) "signed_out"
                     else if (lower.contains("tcgplayer.com") && lower.contains("/myaccount")) "authenticated"
                     else "unknown"
+                handleBuyerRenderedPageFinished(v, url)
             }
         }
         view.addJavascriptInterface(callback, "CollectishReadOnlyNative")
@@ -177,9 +190,11 @@ class ReadOnlyProbeBridge(
                 if (ReadOnlyProbePolicy.isBuyerAccountRequest(url) && ensureBuyerWebView() == null) { fail("Isolated buyer WebView profile is not supported on this device"); return@runOnUiThread }
                 if (method == "POST" && body.isBlank()) { fail("Allowlisted POST requires a JSON body"); return@runOnUiThread }
                 activeToken = UUID.randomUUID().toString(); state = "running"; result = "{}"
-                when (mode) {
-                    "navigate_capture" -> runNavigationCapture(url, waitMs)
-                    "fetch_json", "fetch_text", "fetch_html" -> runFetchWithOriginGuard(url, method, body, mode, activeToken)
+                when {
+                    ReadOnlyProbePolicy.isBuyerAccountRequest(url) && mode == "fetch_html" && method == "GET" ->
+                        runBuyerRenderedHtml(url, waitMs, activeToken)
+                    mode == "navigate_capture" -> runNavigationCapture(url, waitMs)
+                    mode in setOf("fetch_json", "fetch_text", "fetch_html") -> runFetchWithOriginGuard(url, method, body, mode, activeToken)
                     else -> fail("Unsupported probe mode")
                 }
             } catch (e: Exception) { fail(e.message ?: e.javaClass.simpleName) }
@@ -188,9 +203,65 @@ class ReadOnlyProbeBridge(
 
     private fun targetFor(url: String): WebView? = if (ReadOnlyProbePolicy.isBuyerAccountRequest(url)) ensureBuyerWebView() else seller
 
-    /** Seller and buyer requests never share a WebView. Buyer reads are routed
-     * through the isolated collectish-buyer profile, while seller reads stay on
-     * the existing Seller Portal WebView/default profile.
+    private fun runBuyerRenderedHtml(url: String, waitMs: Long, token: String) {
+        val target = ensureBuyerWebView() ?: run { fail("Buyer WebView is unavailable"); return }
+        buyerRenderedToken = token
+        buyerRenderedRequestedUrl = url
+        buyerRenderedWaitMs = waitMs
+        buyerRenderedStartedToken = ""
+        target.loadUrl(url)
+    }
+
+    private fun handleBuyerRenderedPageFinished(target: WebView, finalUrl: String) {
+        val token = buyerRenderedToken
+        if (token.isBlank() || token != activeToken || state != "running") return
+        val lower = finalUrl.lowercase()
+        if (lower.contains("/login") || lower.contains("signin")) {
+            clearBuyerRenderedCapture()
+            fail("TCGplayer buyer session is not authenticated")
+            return
+        }
+        if (!ReadOnlyProbePolicy.isBuyerAccountRequest(finalUrl)) return
+        if (buyerRenderedStartedToken == token) return
+        buyerRenderedStartedToken = token
+
+        val qToken = JSONObject.quote(token)
+        val qRequested = JSONObject.quote(buyerRenderedRequestedUrl)
+        val settleMs = buyerRenderedWaitMs.coerceAtLeast(5000L).coerceAtMost(10_000L)
+        val script = """
+            (function(){
+              const token=$qToken,requestedUrl=$qRequested,maxWait=${settleMs};
+              const started=Date.now(); let lastSig='',stable=0;
+              const send=o=>{try{CollectishReadOnlyNative.complete(token,JSON.stringify(o));}catch(e){}};
+              const tick=()=>{
+                try{
+                  const href=location.href||'';
+                  if(/login|signin|account\/login/i.test(href)){
+                    send({error:'TCGplayer login appears to be required',url:href,requestedUrl,checkedAt:new Date().toISOString()});return;
+                  }
+                  const html=document.documentElement?.outerHTML||'';
+                  const bodyText=document.body?.innerText||'';
+                  const sig=[document.readyState,html.length,bodyText.length,document.querySelectorAll('.orderWrap').length,document.querySelectorAll('table').length].join(':');
+                  if(sig===lastSig)stable++;else stable=0;lastSig=sig;
+                  const ready=document.readyState==='complete';
+                  const meaningful=html.length>1000||bodyText.length>250;
+                  if((ready&&meaningful&&stable>=3)||Date.now()-started>=maxWait){
+                    if(!meaningful){send({error:'TCGplayer buyer page rendered without usable content',url:href,requestedUrl,checkedAt:new Date().toISOString()});return;}
+                    let u={host:'',path:''};try{const x=new URL(href);u={host:x.host,path:x.pathname}}catch(e){}
+                    send({ok:true,status:200,statusText:'Rendered',url:href,requestedUrl,finalHost:u.host,finalPath:u.path,loginByUrl:false,loginByBody:false,method:'GET',contentType:'text/html; rendered=javascript',elapsedMs:Date.now()-started,attempt:1,rendered:true,javascriptEnabled:true,body:html.slice(0,${ReadOnlyProbePolicy.maxResponseChars}),checkedAt:new Date().toISOString()});return;
+                  }
+                  setTimeout(tick,350);
+                }catch(e){send({error:String(e),url:location.href||'',requestedUrl,checkedAt:new Date().toISOString()});}
+              };
+              setTimeout(tick,250); return 'started';
+            })();
+        """.trimIndent()
+        target.evaluateJavascript(script, null)
+    }
+
+    /** Seller reads continue using same-origin fetches. Buyer HTML reads use the
+     * navigation-driven rendered path above so JavaScript/XHR-populated account
+     * pages are captured only after the isolated buyer WebView finishes loading.
      */
     private fun runFetchWithOriginGuard(url: String, method: String, body: String, mode: String, token: String) {
         val target = targetFor(url) ?: run { fail("Buyer WebView is unavailable"); return }
@@ -258,6 +329,6 @@ class ReadOnlyProbeBridge(
     }
 
     private fun finishFromJavascript(raw:String?){val decoded=decodeJsString(raw.orEmpty()).ifBlank{"{}"};result=decoded;state=if(decoded.contains("\"error\":"))"error" else"ready"}
-    private fun fail(message:String){state="error";result=JSONObject().put("error",message).toString()}
+    private fun fail(message:String){clearBuyerRenderedCapture();state="error";result=JSONObject().put("error",message).toString()}
     private fun decodeJsString(raw:String):String{if(raw.isBlank()||raw=="null")return "";return try{JSONArray("[$raw]").getString(0)}catch(_:Exception){raw.replace("\\\"","\"").replace("\\n","\n").replace("\\\\","\\").trim('"')}}
 }
