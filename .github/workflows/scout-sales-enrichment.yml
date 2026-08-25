@@ -1,4 +1,4 @@
-name: Collectish Scout prioritized sales enrichment
+name: Collectish shared Marketplace sales history
 
 on:
   workflow_dispatch:
@@ -6,30 +6,31 @@ on:
       limit:
         description: Maximum product history calls this run
         required: false
-        default: "150"
+        default: "250"
   schedule:
     - cron: "5 */3 * * *"
   push:
     branches: [main]
     paths:
       - ".github/workflows/scout-sales-enrichment.yml"
+      - "cloud-worker/marketplace-sales-history.mjs"
       - "cloud-worker/scout-sales-enrichment.mjs"
 
 permissions:
   contents: read
 
 concurrency:
-  group: collectish-scout-sales-enrichment
+  group: collectish-marketplace-sales-history
   cancel-in-progress: true
 
 jobs:
   enrich:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      COLLECTISH_SCOUT_SALES_LIMIT: ${{ github.event.inputs.limit || '150' }}
+      COLLECTISH_MARKETPLACE_SALES_LIMIT: ${{ github.event.inputs.limit || '250' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,12 +38,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Validate worker
+      - name: Validate shared worker
         run: |
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          node --check cloud-worker/marketplace-sales-history.mjs
           node --check cloud-worker/scout-sales-enrichment.mjs
-          grep -q "refresh_scout_v5_shadow" cloud-worker/scout-sales-enrichment.mjs
-          grep -q "refresh_scout_opportunities_v5_cache" cloud-worker/scout-sales-enrichment.mjs
-          ! grep -q "recalculate_scout_base_v4_batch" cloud-worker/scout-sales-enrichment.mjs
-      - name: Enrich prioritized Scout products and refresh v5 scores
-        run: node cloud-worker/scout-sales-enrichment.mjs
+          grep -q "get_marketplace_sales_collection_candidates" cloud-worker/marketplace-sales-history.mjs
+          grep -q "apply_marketplace_sales_history" cloud-worker/marketplace-sales-history.mjs
+          grep -q "refresh_scout_v5_shadow" cloud-worker/marketplace-sales-history.mjs
+      - name: Collect shared TCGplayer sales history
+        run: node cloud-worker/marketplace-sales-history.mjs
