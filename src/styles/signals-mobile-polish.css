@@ -1,0 +1,44 @@
+/* Compact mobile treatment for the Signals scanner.
+   Keep evidence semantics without letting marker controls disturb row geometry. */
+#cxSignalsVnext .cx-sv-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+#cxSignalsVnext .cx-sv-num strong{display:flex;align-items:center;gap:2px}
+
+@media(max-width:900px){
+  #cxSignalsVnext .cx-sv-row{
+    grid-template-columns:minmax(0,1fr) 54px 54px 42px;
+    grid-template-areas:
+      'card conf scout move'
+      'signal signal price price';
+    row-gap:5px;
+    column-gap:7px;
+    min-height:62px;
+    padding:7px 9px;
+  }
+  #cxSignalsVnext .cx-sv-num:nth-of-type(3){display:none}
+  #cxSignalsVnext .cx-sv-num:nth-of-type(4){grid-area:conf;justify-items:end}
+  #cxSignalsVnext .cx-sv-num:nth-of-type(5){grid-area:scout;justify-items:end}
+  #cxSignalsVnext .cx-sv-num:nth-of-type(4) strong,
+  #cxSignalsVnext .cx-sv-num:nth-of-type(5) strong{justify-content:flex-end;width:100%}
+  #cxSignalsVnext .cx-sv-num:nth-of-type(4) small,
+  #cxSignalsVnext .cx-sv-num:nth-of-type(5) small{text-align:right;width:100%}
+  #cxSignalsVnext .cx-sv-card{grid-area:card;align-self:start}
+  #cxSignalsVnext .cx-sv-card strong{font-size:12px;line-height:1.15}
+  #cxSignalsVnext .cx-sv-card small{margin-top:2px}
+  #cxSignalsVnext .cx-sv-signal{grid-area:signal;display:flex;align-items:center;gap:6px;min-width:0}
+  #cxSignalsVnext .cx-sv-signal small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #cxSignalsVnext .cx-sv-price{grid-area:price;display:flex;align-items:baseline;justify-content:flex-end;gap:6px;min-width:0}
+  #cxSignalsVnext .cx-sv-price strong{font-size:11px;flex:0 0 auto}
+  #cxSignalsVnext .cx-sv-price small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #cxSignalsVnext .cx-sv-move{grid-area:move;align-self:start;justify-items:end}
+  #cxSignalsVnext .cx-sv-move strong{line-height:1}
+  #cxSignalsVnext .cx-ui-evidence{padding-left:2px;min-width:auto;min-height:auto}
+}
+
+@media(max-width:600px){
+  #cxSignalsVnext .cx-sv-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  #cxSignalsVnext .cx-sv-metric{padding:7px 6px;min-width:0}
+  #cxSignalsVnext .cx-sv-metric span{font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #cxSignalsVnext .cx-sv-metric strong{font-size:14px}
+  #cxSignalsVnext .cx-sv-metric small{font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #cxSignalsVnext .cx-sv-row{min-height:60px;padding:7px 8px}
+}
