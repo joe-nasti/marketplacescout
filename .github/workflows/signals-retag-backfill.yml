@@ -1,0 +1,40 @@
+name: Signals card-tag backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: Days of recent Signals to retag
+        required: false
+        default: "14"
+      limit:
+        description: Maximum distinct source URLs
+        required: false
+        default: "40"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-retag-backfill.yml"
+      - "cloud-worker/retag-recent-signals.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  retag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SIGNALS_RETAG_DAYS: ${{ github.event.inputs.days || '14' }}
+      SIGNALS_RETAG_LIMIT: ${{ github.event.inputs.limit || '40' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate worker
+        run: node --check cloud-worker/retag-recent-signals.mjs
+      - name: Retag recent Signals sources
+        run: node cloud-worker/retag-recent-signals.mjs
