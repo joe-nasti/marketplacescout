@@ -19,6 +19,7 @@ on:
       - "cloud-worker/tcgcsv-schema.sql"
       - "cloud-worker/tcgcsv-consumers.sql"
       - "cloud-worker/refresh-precon-ev.mjs"
+      - "cloud-worker/refresh-scout-rankings.mjs"
       - ".github/workflows/tcgcsv-sync.yml"
 
 permissions:
@@ -36,7 +37,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: node --check cloud-worker/tcgcsv-sync.mjs cloud-worker/refresh-precon-ev.mjs
+      - run: node --check cloud-worker/tcgcsv-sync.mjs cloud-worker/refresh-precon-ev.mjs cloud-worker/refresh-scout-rankings.mjs
 
   sync:
     needs: validate
@@ -49,8 +50,10 @@ jobs:
       TCGCSV_CATEGORY_ID: "1"
       TCGCSV_REQUEST_DELAY_MS: "100"
       TCGCSV_USER_AGENT: "Collectish-MarketplaceScout/1.0 (+https://github.com/joe-nasti/marketplacescout)"
-      TCGCSV_FORCE: ${{ github.event_name == 'push' && '1' || (inputs.force && '1' || '0') }}
+      TCGCSV_FORCE: ${{ inputs.force && '1' || '0' }}
       PRECON_RELEASE_FROM: "2025-01-01"
+      SCOUT_FORCE_FULL: "1"
+      SCOUT_RANKINGS_SOURCE: "tcgcsv_sync"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -60,6 +63,16 @@ jobs:
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
       - name: Sync TCGplayer prices from TCGCSV
         run: node cloud-worker/tcgcsv-sync.mjs
+      - name: Refresh preferred TCGplayer price cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/refresh_tcgplayer_preferred_price_current_cache" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
       - name: Refresh Scout preferred-price cache
         shell: bash
         run: |
@@ -70,5 +83,7 @@ jobs:
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
             -d '{}'
+      - name: Rerun Scout rankings with TCGCSV prices
+        run: node cloud-worker/refresh-scout-rankings.mjs
       - name: Recalculate current precon EV with preferred TCGplayer prices
         run: node cloud-worker/refresh-precon-ev.mjs
