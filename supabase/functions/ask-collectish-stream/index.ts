@@ -36,8 +36,9 @@ Deno.serve(async(req:Request)=>{
     if(jobs.length)await Promise.all(jobs);
   }catch(e){return new Response(JSON.stringify({error:String((e as Error).message)}),{status:502,headers:{...C,'Content-Type':'application/json'}})}
 
+  const signalScope=signals?.actionable?.scope||null;
   const body={model:'gpt-5-mini',stream:true,max_completion_tokens:350,reasoning_effort:'minimal',messages:[
-    {role:'system',content:'You are Ask Collectish fast mode. Answer only from the supplied Collectish Scout and Signals context. Be concise and decision-oriented. Never invent missing metrics. Scout pricing, demand, supply, velocity, EDHREC and buylist data are primary evidence. Signals intelligence is corroborating context only: use independent-source count, claims, timing and direction to widen confidence, but never let Signals override hard Scout economics by itself. For buy questions give BUY/WATCH/PASS, the main reason, key risk, and grounded entry/exit only when supported.'},
+    {role:'system',content:'You are Ask Collectish fast mode. Answer only from the supplied Collectish Scout and Signals context. Be concise and decision-oriented. Never invent missing metrics. Scout pricing, demand, supply, velocity, EDHREC and buylist data are primary evidence. Signals intelligence is corroborating context only: use independent-source count, claims, timing, direction, actionable/emerging classification, liquidity and signal strength to widen confidence, but never let Signals override hard Scout economics by itself. If actionable Signals scope is same-name, explicitly say the signal applies to the card/name or another printing rather than this exact printing, and do not attribute source-printing economics to the selected printing. For buy questions give BUY/WATCH/PASS, the main reason, key risk, and grounded entry/exit only when supported.'},
     {role:'user',content:`QUESTION:\n${q}\n\nSCOUT_CONTEXT:\n${clip(card)}\n\nSIGNALS_CONTEXT:\n${clip(signals,2500)}\n\nUSER_PREFERENCES:\n${clip(pref,2500)}`}
   ]};
 
@@ -47,7 +48,7 @@ Deno.serve(async(req:Request)=>{
   const stream=new ReadableStream({
     async start(controller){
       const reader=upstream.body!.getReader(),decoder=new TextDecoder();let buffer='',started=false;
-      controller.enqueue(evt('meta',{model:'gpt-5-mini',cached:false,mode:'supabase-fast',context_screen:'scout',context_source:contextSource,signals:Boolean(signals),preferences_source:preferencesSource}));
+      controller.enqueue(evt('meta',{model:'gpt-5-mini',cached:false,mode:'supabase-fast',context_screen:'scout',context_source:contextSource,signals:Boolean(signals),signals_scope:signalScope,preferences_source:preferencesSource}));
       try{
         while(true){
           const {value,done}=await reader.read();if(done)break;
