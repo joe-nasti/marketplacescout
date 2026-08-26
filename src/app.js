@@ -1,6 +1,7 @@
 import './core/build-info.js';
 import './core/health.js';
 import './core/theme.js';
+import './core/mobile-utility-origin.js';
 import './modules/scout/health.js';
 import './modules/scout/bootstrap.js';
 import './core/lazy-pages.js';
