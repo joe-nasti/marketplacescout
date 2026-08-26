@@ -29,19 +29,25 @@ Deno.serve(async(req:Request)=>{
   if(!supported(q,ctx))return new Response(JSON.stringify({fallback:true,reason:'tool-loop-required'}),{status:409,headers:{...C,'Content-Type':'application/json'}});
   if(!O)return new Response(JSON.stringify({error:'OPENAI_API_KEY not configured'}),{status:503,headers:{...C,'Content-Type':'application/json'}});
 
-  let card:any=null,pref:any=null;
+  const clientCard=b.cardSnapshot&&typeof b.cardSnapshot==='object'?b.cardSnapshot:null;
+  const signals=b.signalsSnapshot&&typeof b.signalsSnapshot==='object'?b.signalsSnapshot:null;
+  let card:any=clientCard,pref:any=null,contextSource=clientCard?'browser-cache':'server-rpc';
   try{
-    [card,pref]=await Promise.all([
-      rpc(t,'ask_collectish_get_scout_card',{p_product_id:ctx.product_id??null,p_sku_id:ctx.sku_id??null}),
-      rpc(t,'ask_collectish_get_preferences',{}).catch(()=>null)
-    ]);
+    if(clientCard){
+      pref=await rpc(t,'ask_collectish_get_preferences',{}).catch(()=>null);
+    }else{
+      [card,pref]=await Promise.all([
+        rpc(t,'ask_collectish_get_scout_card',{p_product_id:ctx.product_id??null,p_sku_id:ctx.sku_id??null}),
+        rpc(t,'ask_collectish_get_preferences',{}).catch(()=>null)
+      ]);
+    }
   }catch(e){return new Response(JSON.stringify({error:String((e as Error).message)}),{status:502,headers:{...C,'Content-Type':'application/json'}})}
 
   const body={
     model:'gpt-5-mini',stream:true,max_completion_tokens:350,reasoning_effort:'minimal',
     messages:[
-      {role:'system',content:'You are Ask Collectish fast mode. Answer only from the authoritative Collectish card context supplied. Be concise and decision-oriented. Never invent missing metrics. For buy questions give BUY/WATCH/PASS, the main reason, key risk, and a grounded entry/exit only when supported. Mention missing data briefly when it materially changes confidence.'},
-      {role:'user',content:`QUESTION:\n${q}\n\nCARD_CONTEXT:\n${clip(card)}\n\nUSER_PREFERENCES:\n${clip(pref,2500)}`}
+      {role:'system',content:'You are Ask Collectish fast mode. Answer only from the supplied Collectish Scout and Signals context. Be concise and decision-oriented. Never invent missing metrics. Scout pricing, demand, supply, velocity, EDHREC and buylist data are primary evidence. Signals intelligence is corroborating context only: use independent-source count, claims, timing and direction to widen confidence, but never let Signals override hard Scout economics by itself. For buy questions give BUY/WATCH/PASS, the main reason, key risk, and grounded entry/exit only when supported.'},
+      {role:'user',content:`QUESTION:\n${q}\n\nSCOUT_CONTEXT:\n${clip(card)}\n\nSIGNALS_CONTEXT:\n${clip(signals,2500)}\n\nUSER_PREFERENCES:\n${clip(pref,2500)}`}
     ]
   };
 
@@ -51,21 +57,12 @@ Deno.serve(async(req:Request)=>{
   const stream=new ReadableStream({
     async start(controller){
       const reader=upstream.body!.getReader(),decoder=new TextDecoder();let buffer='',started=false;
-      controller.enqueue(evt('meta',{model:'gpt-5-mini',cached:false,mode:'supabase-fast',context_screen:'scout'}));
+      controller.enqueue(evt('meta',{model:'gpt-5-mini',cached:false,mode:'supabase-fast',context_screen:'scout',context_source:contextSource,signals:Boolean(signals)}));
       try{
         while(true){
           const {value,done}=await reader.read();if(done)break;
-          buffer+=decoder.decode(value,{stream:true});
-          let idx;
-          while((idx=buffer.indexOf('\n\n'))>=0){
-            const block=buffer.slice(0,idx);buffer=buffer.slice(idx+2);
-            for(const line of block.split('\n')){
-              if(!line.startsWith('data:'))continue;
-              const raw=line.slice(5).trim();if(!raw||raw==='[DONE]')continue;
-              let j:any;try{j=JSON.parse(raw)}catch{continue}
-              const text=j?.choices?.[0]?.delta?.content;if(text){started=true;controller.enqueue(evt('delta',{text}))}
-            }
-          }
+          buffer+=decoder.decode(value,{stream:true});let idx;
+          while((idx=buffer.indexOf('\n\n'))>=0){const block=buffer.slice(0,idx);buffer=buffer.slice(idx+2);for(const line of block.split('\n')){if(!line.startsWith('data:'))continue;const raw=line.slice(5).trim();if(!raw||raw==='[DONE]')continue;let j:any;try{j=JSON.parse(raw)}catch{continue}const text=j?.choices?.[0]?.delta?.content;if(text){started=true;controller.enqueue(evt('delta',{text}))}}}
         }
         controller.enqueue(evt('done',{ok:true,started}));controller.close();
       }catch(e){controller.enqueue(evt('error',{message:String((e as Error).message)}));controller.close()}
