@@ -11,7 +11,7 @@
     try{
       const u=new URL(raw,location.href);
       if(!u.pathname.endsWith('/functions/v1/ask-collectish'))return null;
-      u.pathname=u.pathname.replace(/\/ask-collectish$/,'/ask-collectish-agent-ui');
+      u.pathname=u.pathname.replace(/\/ask-collectish$/,'/ask-collectish-orchestrator');
       return u.toString();
     }catch{return null}
   }
@@ -30,8 +30,6 @@
   window.fetch=async function(input,init){
     const url=rewritten(input);
     if(!url)return nativeFetch(input,init);
-    // Ask currently uses a URL string + RequestInit. Keep Request inputs intact as a
-    // defensive fallback rather than attempting to clone a consumed request body.
     const nextInit=input instanceof Request?init:withCanonicalContext(init);
     const response=input instanceof Request
       ? await nativeFetch(input,nextInit)
