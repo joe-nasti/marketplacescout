@@ -26,3 +26,28 @@ test('Inventory action queue reuses canonical route data instead of refetching c
   expect(view).not.toContain("from '../../core/rest.js'");
   expect(view).not.toContain('store.get()');
 });
+
+test('Inventory first useful paint does not wait for Scout or Seller cross-source context',async()=>{
+  const source=await read('src/modules/seller/inventory.js');
+  const loadStart=source.indexOf('async function loadStored()');
+  const loadEnd=source.indexOf('\nfunction stat(',loadStart);
+  const load=source.slice(loadStart,loadEnd);
+  expect(load).toContain("contextStatus:'loading'");
+  expect(load).toContain('render();');
+  expect(load).toContain("collectish:inventory-core-rendered");
+  expect(load).toContain('void loadCrossSource(');
+  expect(load).toContain("collectish:inventory-context-ready");
+  expect(load.indexOf('render();')).toBeLessThan(load.indexOf('void loadCrossSource('));
+  expect(load).not.toContain('await loadCrossSource(');
+});
+
+test('Inventory cross-source completion refreshes owned surfaces without rebuilding the route',async()=>{
+  const source=await read('src/modules/seller/inventory.js');
+  const loadStart=source.indexOf('async function loadStored()');
+  const loadEnd=source.indexOf('\nfunction stat(',loadStart);
+  const load=source.slice(loadStart,loadEnd);
+  expect(load).toContain("syncState({contextStatus:'ready'})");
+  expect(load).toContain('renderActions();');
+  expect(load).toContain('if(selectedProductId)renderDetail();');
+  expect(load.match(/render\(\);/g)?.length).toBe(1);
+});
