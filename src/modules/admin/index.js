@@ -7,6 +7,9 @@ export function install(){
     // health/diagnostic modules mount so there is no generic shell -> console
     // replacement after the route becomes visible.
     await import('./console.js');
+    document.querySelectorAll('#cxAdmin [data-cx-lazy-placeholder]').forEach(el=>el.remove());
+    window.CollectishAdminConsole?.render?.();
+
     await Promise.all([
       import('./single-owner-style.js'),
       import('./alerts.js'),
@@ -18,6 +21,7 @@ export function install(){
       import('./top.js')
     ]);
     document.dispatchEvent(new CustomEvent('collectish:admin-modules-ready'));
+    if(document.getElementById('cxAdmin')?.classList.contains('active'))void window.CollectishAdminConsole?.refresh?.();
   })();
   return installPromise;
 }
