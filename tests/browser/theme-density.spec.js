@@ -5,7 +5,7 @@ import path from 'node:path';
 const THEMES=['light','dark'];
 const DENSE_SOURCES=[
   'src/modules/signals/scan-view.js',
-  'src/modules/seller/inventory-dense-vnext.js',
+  'src/modules/seller/inventory-action-view.js',
   'src/modules/seller/syp-scan-view.js',
   'src/modules/seller/dashboard-view.js',
   'src/modules/sealed/dense-list.js',
