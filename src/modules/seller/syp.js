@@ -7,8 +7,7 @@ function scheduleEnhancers(){
     if(enhancersPromise)return;
     enhancersPromise=Promise.all([
       import('./syp-freshness.js'),
-      import('./syp-links.js'),
-      import('./syp-dense-vnext.js')
+      import('./syp-links.js')
     ]).then(()=>document.dispatchEvent(new CustomEvent('collectish:syp-enhancers-ready')));
   };
   if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:1400});
@@ -20,8 +19,8 @@ export async function install(){
   if(installed)return;
   installed=true;
 
-  // The feed is the route renderer and owns first paint. Freshness, link helpers,
-  // and density polish are progressive enhancements and cannot block navigation.
+  // syp-feed owns Scan / Workspace / Changes and first useful paint. Freshness
+  // and link helpers may annotate the stable route without creating a second shell.
   await import('./syp-feed.js');
   document.dispatchEvent(new CustomEvent('collectish:syp-core-ready'));
   scheduleEnhancers();
