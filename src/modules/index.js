@@ -4,6 +4,7 @@ const scoutCore=[
   ()=>import('./scout/images.js'),
   ()=>import('./scout/progressive-render.js'),
   ()=>import('./scout/search.js'),
+  ()=>import('./scout/power-search.js'),
   ()=>import('./scout/vendor.js'),
   ()=>import('./scout/detail-swipe.js'),
   ()=>import('./scout/liquidity.js')
