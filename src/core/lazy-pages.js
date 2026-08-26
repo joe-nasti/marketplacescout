@@ -30,7 +30,7 @@ function recoverStaleModule(page,err){
   return true;
 }
 
-function showLoading(page){const h=host(page);if(!h||h.dataset.cxLazyReady==='1')return;h.innerHTML=`<div class="cx-page-head"><div><h2>${title(page)}</h2><p>Loading ${title(page)}…</p></div></div><div class="cx-card"><div class="cx-empty">Preparing ${title(page)} data…</div></div>`}
+function showLoading(page){const h=host(page);if(!h||h.dataset.cxLazyReady==='1')return;h.innerHTML=`<div data-cx-lazy-placeholder="${page}"><div class="cx-page-head"><div><h2>${title(page)}</h2><p>Loading ${title(page)}…</p></div></div><div class="cx-card"><div class="cx-empty">Preparing ${title(page)} data…</div></div></div>`}
 function showError(page,err){const h=host(page);if(!h)return;h.innerHTML=`<div class="cx-page-head"><div><h2>${title(page)}</h2></div></div><div class="cx-card"><div class="cx-empty">Could not load ${title(page)}${err?`: ${String(err.message||err)}`:''}. Reopen the tab to retry.</div></div>`}
 
 export async function loadPage(page){
