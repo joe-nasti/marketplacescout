@@ -2,42 +2,27 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const ownershipPath=path.join(process.cwd(),'src/modules/seller/inventory-vnext-ownership.js');
-const rendererPath=path.join(process.cwd(),'src/modules/seller/inventory.js');
+const root=process.cwd();
+const read=p=>readFile(path.join(root,p),'utf8');
 
-test('Inventory vNext keeps a late legacy workspace render hidden while Scan owns the page',async({page},testInfo)=>{
-  test.skip(testInfo.project.name!=='desktop-chromium','synthetic ownership fixture is viewport-independent');
-  await page.setContent('<!doctype html><html><body></body></html>');
-  await page.evaluate(()=>{
-    const host=document.createElement('section');
-    host.id='cxInventory';
-    host.className='cx-iv-scan-mode';
-    const vnext=document.createElement('section');vnext.id='cxInventoryVnext';
-    const workspace=document.createElement('section');workspace.id='cxInventoryWorkspace';
-    host.append(vnext,workspace);document.body.append(host);
-  });
-  const ownershipSource=await readFile(ownershipPath,'utf8');
-  await page.addScriptTag({content:ownershipSource});
-  await expect.poll(()=>page.$eval('#cxInventoryWorkspace',el=>el.hidden)).toBe(true);
-
-  await page.evaluate(()=>{
-    const workspace=document.getElementById('cxInventoryWorkspace');
-    workspace.hidden=false;
-    document.dispatchEvent(new CustomEvent('collectish:inventory-workspace-rendered'));
-  });
-  await expect.poll(()=>page.$eval('#cxInventoryWorkspace',el=>el.hidden)).toBe(true);
-
-  await page.evaluate(()=>{
-    document.getElementById('cxInventory').classList.remove('cx-iv-scan-mode');
-    document.dispatchEvent(new CustomEvent('collectish:inventory-workspace-rendered'));
-  });
-  await expect.poll(()=>page.$eval('#cxInventoryWorkspace',el=>el.hidden)).toBe(false);
+test('Inventory route owns Action queue and Workspace without a visibility shim',async()=>{
+  const source=await read('src/modules/seller/inventory.js');
+  expect(source).toContain("actions.id='cxInventoryActions'");
+  expect(source).toContain("workspace.id='cxInventoryWorkspace'");
+  expect(source).toContain('function syncMode()');
+  expect(source).toContain("actions.hidden=mode!=='actions'");
+  expect(source).toContain("workspace.hidden=mode!=='workspace'");
+  expect(source).not.toContain('cxInventoryVnext');
+  const index=await read('src/modules/seller/inventory-index.js');
+  expect(index).not.toContain("import('./inventory-dense-vnext.js')");
+  expect(index).not.toContain("import('./inventory-vnext-ownership.js')");
 });
 
-test('legacy Inventory renderer writes only inside its dedicated workspace root',async()=>{
-  const source=await readFile(rendererPath,'utf8');
-  expect(source).toContain('function ensureInventoryChrome(pageHost)');
-  expect(source).toContain("workspace.id='cxInventoryWorkspace'");
-  expect(source).toContain('workspace.innerHTML=');
-  expect(source).not.toContain('pageHost.innerHTML=');
+test('Inventory action queue reuses canonical route data instead of refetching context',async()=>{
+  const source=await read('src/modules/seller/inventory.js');
+  const view=await read('src/modules/seller/inventory-action-view.js');
+  expect(source).toContain('renderInventoryActions({products:rows,conditions:conditionRows,scoutByProduct,salesByProduct');
+  expect(source).toContain('direct_net_est,avg_daily_qty_sold,latest_scan_at');
+  expect(view).not.toContain("from '../../core/rest.js'");
+  expect(view).not.toContain('store.get()');
 });
