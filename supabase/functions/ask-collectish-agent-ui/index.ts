@@ -7,6 +7,7 @@ const json=(body:any,status=200)=>new Response(JSON.stringify(body),{status,head
 const token=(req:Request)=>{const h=req.headers.get('authorization')||'';return h.toLowerCase().startsWith('bearer ')?h.slice(7):''};
 const headers=(t:string)=>({apikey:A,Authorization:`Bearer ${t}`,'Content-Type':'application/json'});
 async function rpc(t:string,name:string,args:any={}){const r=await fetch(`${U}/rest/v1/rpc/${name}`,{method:'POST',headers:headers(t),body:JSON.stringify(args)});const text=await r.text();let data:any;try{data=text?JSON.parse(text):null}catch{data=text}if(!r.ok)throw Error(data?.message||`${name} failed (${r.status})`);return data}
+async function rest(t:string,path:string){const r=await fetch(`${U}/rest/v1/${path}`,{headers:{apikey:A,Authorization:`Bearer ${t}`,Accept:'application/json'}});const body=await r.text();let data:any;try{data=body?JSON.parse(body):null}catch{data=body}if(!r.ok)throw Error(data?.message||`REST failed (${r.status})`);return data}
 const text=(v:any)=>String(v??'').trim();
 const lower=(v:any)=>text(v).toLowerCase();
 const num=(v:any)=>Number.isFinite(Number(v))?Number(v):null;
@@ -40,9 +41,9 @@ async function releaseAnchoredRange(range:any,q:string,ctx:any){
 }
 function wantsPrice(q:string){const s=lower(q);return /(?:price|market|direct).*(?:history|graph|chart|trend)|(?:history|graph|chart|trend).*(?:price|market|direct)|\bsince release\b|\bsince .+ (?:came out|released|release)\b/.test(s)}
 function wantsSales(q:string){const s=lower(q);return /(?:sale|sold|velocity).*(?:history|graph|chart|trend|recent)|(?:history|graph|chart|trend).*(?:sale|sold|velocity)/.test(s)}
-function dateOf(x:any){for(const k of ['date','day','observed_at','observedAt','captured_at','capturedAt','orderDate','order_date','timestamp','purchaseDate','purchase_date']){const v=x?.[k];if(v&&Number.isFinite(Date.parse(v)))return new Date(v).toISOString()}return null}
+function dateOf(x:any){for(const k of ['date','day','observed_at','observedAt','captured_at','capturedAt','orderDate','order_date','timestamp','purchaseDate','purchase_date','bucket_start_date']){const v=x?.[k];if(v&&Number.isFinite(Date.parse(v)))return new Date(v).toISOString()}return null}
 function salePrice(x:any){for(const k of ['price','unitPrice','unit_price','pricePerUnit','price_per_unit','marketPrice','market_price','soldPrice','sold_price']){const v=num(x?.[k]);if(v!=null)return v}return null}
-function saleQty(x:any){for(const k of ['quantity','qty','units','count']){const v=num(x?.[k]);if(v!=null)return v}return 1}
+function saleQty(x:any){for(const k of ['quantity','qty','units','count','quantity_sold']){const v=num(x?.[k]);if(v!=null)return v}return 1}
 function filterRange(rows:any[],from:string|null,to:string|null){if(!from&&!to)return rows;const a=from?Date.parse(from):-Infinity,b=to?Date.parse(to):Infinity;return rows.filter(x=>{const d=dateOf(x);if(!d)return true;const t=Date.parse(d);return t>=a&&t<=b})}
 function summarizePrices(rows:any[]){const vals=rows.map(x=>num(x?.sku_market_price??x?.market_price??x?.market)).filter((x:any)=>x!=null) as number[];if(!vals.length)return null;const start=vals[0],end=vals[vals.length-1];return {start,end,low:Math.min(...vals),high:Math.max(...vals),change_pct:start?((end-start)/start)*100:null}}
 async function priceSurface(t:string,ctx:any,q:string){
@@ -52,25 +53,32 @@ async function priceSurface(t:string,ctx:any,q:string){
   if(!observations.length)return null;
   return {type:'price_history',domain:'scout',title:'Price history',product_id:String(pid),range,observations,count:observations.length,summary:summarizePrices(observations),freshness:{source:'collectish_history',observed_at:dateOf(observations.at(-1))},actions:[{type:'ask',label:'What caused the move?',prompt:'Explain the important moves in this price history using Collectish evidence.'},{type:'ask',label:'Show sales',prompt:'Show market sales history for this card over the same period.'}]};
 }
-async function marketSalesSurface(ctx:any,q:string){
+async function sharedSalesSurface(t:string,ctx:any,q:string){
+  const pid=text(ctx?.product_id||ctx?.entity?.product_id),sku=text(ctx?.sku_id||ctx?.entity?.sku_id);if(!sku)return null;
+  const range=await releaseAnchoredRange(requestedRange(q),q,ctx),from=range.from?range.from.slice(0,10):null,to=range.to?range.to.slice(0,10):null;
+  let path=`marketplace_sku_sales_buckets?select=bucket_start_date,market_price,low_sale_price,high_sale_price,low_sale_price_with_shipping,high_sale_price_with_shipping,quantity_sold,transaction_count,observed_at,source&sku_id=eq.${encodeURIComponent(sku)}&order=bucket_start_date.asc`;
+  if(from)path+=`&bucket_start_date=gte.${encodeURIComponent(from)}`;if(to)path+=`&bucket_start_date=lte.${encodeURIComponent(to)}`;
+  const buckets=await rest(t,path).catch(()=>[]);if(!Array.isArray(buckets)||!buckets.length)return null;
+  const observations=buckets.map((x:any)=>({date:x.bucket_start_date,sku_market_price:num(x.market_price),market_price:num(x.market_price),low_sale_price:num(x.low_sale_price),high_sale_price:num(x.high_sale_price),low_sale_price_with_shipping:num(x.low_sale_price_with_shipping),high_sale_price_with_shipping:num(x.high_sale_price_with_shipping),quantity:num(x.quantity_sold)||0,transaction_count:num(x.transaction_count)||0}));
+  const totalUnits=observations.reduce((n:number,x:any)=>n+Number(x.quantity||0),0),totalTransactions=observations.reduce((n:number,x:any)=>n+Number(x.transaction_count||0),0),days=range.from?Math.max(1,(Date.parse(range.to)-Date.parse(range.from))/86400000):90;
+  return {type:'price_history',domain:'market_sales',title:'TCG sales history',product_id:pid||null,sku_id:sku,range,observations,count:observations.length,total_units:totalUnits,total_transactions:totalTransactions,summary:{...summarizePrices(observations),average_daily_quantity_sold:totalUnits/days,average_daily_transaction_count:totalTransactions/days},freshness:{source:'shared_tcg_sales',observed_at:buckets.at(-1)?.observed_at||null},evidence:{scope:'exact_sku',direct_identified:false},actions:[{type:'ask',label:'Interpret velocity',prompt:'Interpret this exact SKU market sales velocity and price distribution over this period.'},{type:'ask',label:'Compare price',prompt:'Compare these exact SKU market sales with price history over the same period.'}]};
+}
+async function liveMarketSalesSurface(ctx:any,q:string){
   const pid=ctx?.product_id||ctx?.entity?.product_id;if(!pid)return null;
   const range=await releaseAnchoredRange(requestedRange(q),q,ctx);const months=range.from?Math.max(1,(Date.now()-Date.parse(range.from))/(30.44*86400000)):12;const upstreamRange=months<=3?'quarter':'year';
   const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),12000);
   try{
     const r=await fetch(`https://infinite-api.tcgplayer.com/price/history/${encodeURIComponent(String(pid))}/detailed?range=${upstreamRange}`,{signal:ac.signal,headers:{Accept:'application/json'}});
     if(!r.ok)return null;const d=await r.json();const raw=Array.isArray(d?.result)?d.result:[];const flat:any[]=[];
-    for(const bucket of raw){
-      const nested=Array.isArray(bucket?.sales)?bucket.sales:Array.isArray(bucket?.results)?bucket.results:null;
-      if(nested){for(const sale of nested)flat.push({...sale,sku_id:bucket?.skuId??bucket?.sku_id??sale?.sku_id})}
-      else flat.push(bucket);
-    }
+    for(const bucket of raw){const nested=Array.isArray(bucket?.sales)?bucket.sales:Array.isArray(bucket?.results)?bucket.results:null;if(nested){for(const sale of nested)flat.push({...sale,sku_id:bucket?.skuId??bucket?.sku_id??sale?.sku_id})}else flat.push(bucket)}
     const normalized=flat.map(x=>({date:dateOf(x),sku_market_price:salePrice(x),quantity:saleQty(x),sku_id:x?.sku_id??x?.skuId??null})).filter(x=>x.sku_market_price!=null);
     const filtered=filterRange(normalized,range.from,range.to).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));if(!filtered.length)return null;
     const totalUnits=filtered.reduce((n,x)=>n+Number(x.quantity||1),0);
-    return {type:'price_history',domain:'market_sales',title:'Market sales history',product_id:String(pid),range,observations:filtered,count:filtered.length,total_units:totalUnits,summary:summarizePrices(filtered),freshness:{source:'tcgplayer',observed_at:new Date().toISOString()},actions:[{type:'ask',label:'Interpret velocity',prompt:'Interpret the market sales velocity and price distribution over this period.'},{type:'ask',label:'Compare price',prompt:'Compare these market sales with the price history over the same period.'}]};
+    return {type:'price_history',domain:'market_sales',title:'Market sales history',product_id:String(pid),range,observations:filtered,count:filtered.length,total_units:totalUnits,summary:summarizePrices(filtered),freshness:{source:'tcgplayer_live',observed_at:new Date().toISOString()},evidence:{scope:'product',direct_identified:false},actions:[{type:'ask',label:'Interpret velocity',prompt:'Interpret the market sales velocity and price distribution over this period.'},{type:'ask',label:'Compare price',prompt:'Compare these market sales with the price history over the same period.'}]};
   }catch{return null}finally{clearTimeout(timer)}
 }
-async function historicalSurfaces(t:string,body:any){const q=text(body?.message||body?.question),ctx=body?.context||{},jobs=[] as Promise<any>[];if(wantsPrice(q))jobs.push(priceSurface(t,ctx,q));if(wantsSales(q))jobs.push(marketSalesSurface(ctx,q));const out=await Promise.all(jobs);return out.filter(Boolean)}
+async function marketSalesSurface(t:string,ctx:any,q:string){return await sharedSalesSurface(t,ctx,q)||await liveMarketSalesSurface(ctx,q)}
+async function historicalSurfaces(t:string,body:any){const q=text(body?.message||body?.question),ctx=body?.context||{},jobs=[] as Promise<any>[];if(wantsPrice(q))jobs.push(priceSurface(t,ctx,q));if(wantsSales(q))jobs.push(marketSalesSurface(t,ctx,q));const out=await Promise.all(jobs);return out.filter(Boolean)}
 
 Deno.serve(async(req:Request)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method!=='POST')return json({error:'POST required'},405);
@@ -79,5 +87,5 @@ Deno.serve(async(req:Request)=>{
   if(String(body?.action||'chat')!=='chat')return json(upstream,r.status);
   const historical=await historicalSurfaces(t,body).catch(()=>[]);const existing=Array.isArray(upstream?.surfaces)?upstream.surfaces:[];
   const historicalTypes=new Set(historical.map((x:any)=>`${x.type}:${x.domain||''}`));const surfaces=[...historical,...existing.filter((x:any)=>!historicalTypes.has(`${x?.type}:${x?.domain||''}`))].slice(0,6);
-  return json({...upstream,surface_schema:'collectish.ask.surface.v4',surfaces,orchestration:{mode:historical.length?'deterministic+agent':'agent',historical_tools:historical.map((x:any)=>x.domain==='market_sales'?'market_sales_history':x.type)}},r.status);
+  return json({...upstream,surface_schema:'collectish.ask.surface.v4',surfaces,orchestration:{mode:historical.length?'deterministic+agent':'agent',historical_tools:historical.map((x:any)=>x.domain==='market_sales'?'shared_market_sales_history':x.type)}},r.status);
 });
