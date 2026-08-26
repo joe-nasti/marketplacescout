@@ -6,7 +6,7 @@ const THEMES=['light','dark'];
 const DENSE_SOURCES=[
   'src/modules/signals/scan-view.js',
   'src/modules/seller/inventory-dense-vnext.js',
-  'src/modules/seller/syp-dense-vnext.js',
+  'src/modules/seller/syp-scan-view.js',
   'src/modules/seller/dashboard-view.js',
   'src/modules/sealed/dense-list.js',
   'src/modules/admin/single-owner-style.js',
