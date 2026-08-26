@@ -14,6 +14,7 @@ import { beginAskLatencySample } from './latency.js';
 
   let active=null;
   const num=v=>v==null||v===''?null:Number(v);
+  const externalResearch=/search (?:the )?web|research externally|look online|external research|latest (?:news|articles|discussion)|web research|search online|find (?:recent )?(?:news|articles|discussion)/i;
   function session(){try{return JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{return null}}
   function messages(){return document.getElementById('cxAskMessages')}
   function status(text,kind=''){const el=document.getElementById('cxAskStatus');if(el){el.textContent=text;el.dataset.kind=kind}}
@@ -71,6 +72,7 @@ import { beginAskLatencySample } from './latency.js';
   function shouldUseFastStream(text,context=currentContext()){
     if(context.screen!=='scout'||!(context.product_id||context.sku_id))return false;
     const q=String(text||'').toLowerCase();
+    if(externalResearch.test(q))return false;
     if(/\b(investigate|purchase list|portfolio|allocate|rebalance|restock|reprice|sync|refresh|seller|order|syp|inventory)\b/.test(q))return false;
     if(/\b(show me|filter|sort|history|trend)\b|what changed|changed since/.test(q))return false;
     return true;
