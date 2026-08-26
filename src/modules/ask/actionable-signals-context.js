@@ -14,6 +14,13 @@ import store from '../../state/store.js';
     while(s&&s!==prev){prev=s;s=s.replace(TREATMENT_SUFFIX,'').trim()}
     return lower(s);
   }
+  const printingClass=v=>{
+    const s=lower(v);
+    if(!s)return'';
+    if(s.includes('nonfoil')||s.includes('normal'))return'normal';
+    if(s.includes('foil'))return'foil';
+    return s;
+  };
 
   function matchActionable(body={}){
     const rows=store.get().actionableEmerging?.rows||[];
@@ -21,12 +28,24 @@ import store from '../../state/store.js';
     const sku=String(card.skuId||body.context?.sku_id||'');
     const product=String(card.productId||body.context?.product_id||'');
     const name=canonicalName(card.name||body.context?.product_name_hint);
+    const setName=lower(card.set);
+    const printing=printingClass(card.printing);
     const exact=rows.find(r=>(sku&&String(r.sku_id||'')===sku)||(product&&String(r.product_id||'')===product));
-    if(exact)return {row:exact,scope:'exact-printing'};
-    const sameName=rows
-      .filter(r=>name&&canonicalName(r.card_name)===name)
-      .sort((a,b)=>Number(b.actionability_score||0)-Number(a.actionability_score||0))[0]||null;
-    return sameName?{row:sameName,scope:'same-name'}:null;
+    if(exact)return {row:exact,scope:'exact-printing',matchQuality:'exact-id'};
+
+    const candidates=rows.filter(r=>name&&canonicalName(r.card_name)===name);
+    if(!candidates.length)return null;
+    candidates.sort((a,b)=>{
+      const score=r=>
+        (setName&&lower(r.set_name)===setName?1000:0)+
+        (printing&&printingClass(r.printing)===printing?500:0)+
+        Number(r.actionability_score||0);
+      return score(b)-score(a);
+    });
+    const sameName=candidates[0];
+    const sameSet=Boolean(setName&&lower(sameName.set_name)===setName);
+    const samePrinting=Boolean(printing&&printingClass(sameName.printing)===printing);
+    return {row:sameName,scope:'same-name',matchQuality:sameSet&&samePrinting?'same-set-printing':samePrinting?'same-printing':sameSet?'same-set':'card-name'};
   }
 
   function compact(match){
@@ -35,7 +54,9 @@ import store from '../../state/store.js';
     return {
       source:'actionable_emerging',
       scope:match.scope,
+      matchQuality:match.matchQuality||null,
       sourceCardName:r.card_name||null,
+      sourceSet:r.set_name||null,
       sourceProductId:r.product_id||null,
       sourceSkuId:r.sku_id||null,
       sourcePrinting:r.printing||null,
