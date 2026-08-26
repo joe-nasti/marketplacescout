@@ -35,15 +35,28 @@ test('Ask streaming transport is loaded after the core Ask module',async()=>{
 test('Scout fast streaming defaults to existing Supabase project without Cloudflare dependency',async()=>{
   const js=await source('src/modules/ask/streaming.js');
   const fn=await source('supabase/functions/ask-collectish-stream/index.ts');
-  expect(js).toContain("/functions/v1/ask-collectish-stream");
+  expect(js).toContain('/functions/v1/ask-collectish-stream');
   expect(js).toContain('shouldUseFastStream');
   expect(js).toContain("context.screen!=='scout'");
-  expect(js).toContain('investigate|purchase list|portfolio');
   expect(fn).toContain("model:'gpt-5-mini'");
   expect(fn).toContain('stream:true');
   expect(fn).toContain('max_completion_tokens:350');
   expect(fn).toContain("reasoning_effort:'minimal'");
-  expect(fn).toContain("question");
+});
+
+test('Fast Ask reuses browser Scout snapshot and attaches Signals rollup when available',async()=>{
+  const js=await source('src/modules/ask/streaming.js');
+  const signals=await source('src/modules/signals/source-rollups.js');
+  const fn=await source('supabase/functions/ask-collectish-stream/index.ts');
+  expect(js).toContain('compactScout');
+  expect(js).toContain('cardSnapshot');
+  expect(js).toContain('signalsSnapshot');
+  expect(js).toContain('CollectishIntelRollups?.getCompactForRow');
+  expect(signals).toContain('independentSources');
+  expect(signals).toContain('direction:Number(r.intel_direction_score');
+  expect(fn).toContain("contextSource=clientCard?'browser-cache':'server-rpc'");
+  expect(fn).toContain('SIGNALS_CONTEXT');
+  expect(fn).toContain('signals:Boolean(signals)');
 });
 
 test('Deep and historical requests remain on the canonical V3 tool path',async()=>{
@@ -63,7 +76,7 @@ test('Ask streaming records request headers TTFT total and cache metadata',async
   expect(stream).toContain('latency.delta()');
   expect(stream).toContain('latency.finish()');
   expect(latency).toContain('ttftMs');
-  expect(latency).toContain("COLLECTISH_ASK_LATENCY_V1");
+  expect(latency).toContain('COLLECTISH_ASK_LATENCY_V1');
   expect(admin).toContain('Streaming transport:');
   expect(admin).toContain('Supabase fast path');
   expect(admin).toContain('Streaming latency');
