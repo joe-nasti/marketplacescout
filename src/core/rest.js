@@ -1,8 +1,8 @@
 import { collectishConfig } from './config.js';
 import { validSession, refreshSession, isJwtProblem } from './session.js';
 import store from '../state/store.js';
-import { loadResource } from '../state/resources.js';
-import { resourceContractForPath } from '../state/route-data-contracts.js';
+import { loadResource, getResource } from '../state/resources.js';
+import { resourceContractForRequest } from '../state/route-data-contracts.js';
 
 const METRIC_KEY='collectishRuntimeHealth';
 const ENDPOINT_STAT_LIMIT=24;
@@ -79,20 +79,29 @@ async function baseRestLarge(path,options,requestedLimit){
 
 export async function rest(path,options={}){
   const method=String(options?.method||'GET').toUpperCase();
-  const contract=method==='GET'&&!options.__routeResource?resourceContractForPath(path):null;
+  const contract=!options.__routeResource?resourceContractForRequest(path,options):null;
   if(contract){
     const nested={...options,__routeResource:true};
     delete nested.force;
     const seen=contractReads.has(contract.key);
     contractReads.add(contract.key);
-    return loadResource(contract.key,()=>rest(path,nested),{
-      force:Boolean(options.force)||seen,
-      ttl:Number(contract.ttl??30000),
-      persistent:true,
-      scope:'user',
-      staleWhileRevalidate:true,
-      maxStale:Number(contract.maxStale??7*24*60*60*1000)
-    });
+    try{
+      return await loadResource(contract.key,()=>rest(path,nested),{
+        force:Boolean(options.force)||seen,
+        ttl:Number(contract.ttl??30000),
+        persistent:true,
+        scope:'user',
+        staleWhileRevalidate:contract.staleWhileRevalidate!==false,
+        maxStale:Number(contract.maxStale??7*24*60*60*1000)
+      });
+    }catch(error){
+      const stale=getResource(contract.key);
+      if(contract.fallbackToStaleOnError&&stale?.data!=null){
+        bump('route_data_stale_fallbacks',{last_route_data_fallback:contract.key});
+        return stale.data;
+      }
+      throw error;
+    }
   }
   const requestedLimit=method==='GET'?largeLimit(path):0;
   const started=performance.now();
