@@ -4,7 +4,7 @@ import { readUrlState, writeUrlState, onUrlStateChange } from './url-state.js';
 import store from '../state/store.js';
 import lifecycle from './lifecycle.js';
 
-export const WEB_VERSION='0.10.5';
+export const WEB_VERSION='0.10.6';
 window.COLLECTISH_WEB_VERSION=WEB_VERSION;
 
 const ROUTES={
