@@ -85,7 +85,7 @@ function scheduleIdleEnhancers(){
     idlePromise=(async()=>{
       await Promise.all([
         loadParallel(scoutIntelligence),
-        (async()=>{await import('./ask/context.js');await import('./ask/endpoint-proxy.js');await import('./ask/main.js');await import('./ask/streaming.js');await import('./ask/sales-history-surface.js');await import('./ask/history-action-routing.js');await loadParallel(askEnhancers)})()
+        (async()=>{await import('./ask/context.js');await import('./ask/endpoint-proxy.js');await import('./ask/main.js');await import('./ask/streaming.js');await import('./ask/sales-history-surface.js');await import('./ask/market-investigation-surface.js');await import('./ask/history-action-routing.js');await loadParallel(askEnhancers)})()
       ]);
       document.dispatchEvent(new CustomEvent('collectish:idle-modules-ready'));
     })();
