@@ -6,6 +6,7 @@ const scoutCore=[
   ()=>import('./scout/search.js'),
   ()=>import('./scout/search-autocomplete-handoff.js'),
   ()=>import('./scout/power-search.js'),
+  ()=>import('./scout/power-search-layout.js'),
   ()=>import('./scout/search-detail-navigation.js'),
   ()=>import('./scout/vendor.js'),
   ()=>import('./scout/detail-swipe.js'),
