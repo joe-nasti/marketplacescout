@@ -10,6 +10,7 @@ async function rpc(t:string,name:string,args:any={}){const r=await fetch(`${U}/r
 const text=(v:any)=>String(v??'').trim();
 const lower=(v:any)=>text(v).toLowerCase();
 const num=(v:any)=>Number.isFinite(Number(v))?Number(v):null;
+const norm=(v:any)=>lower(v).replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
 
 function requestedRange(q:string){
   const s=lower(q),now=new Date(),to=now.toISOString();let from:Date|null=null,label='All available';
@@ -18,9 +19,26 @@ function requestedRange(q:string){
   else if(/\b6m\b|six months|6 months/.test(s)){from=new Date(now);from.setUTCMonth(from.getUTCMonth()-6);label='Last 6 months'}
   else if(/\b3m\b|three months|3 months|quarter/.test(s)){from=new Date(now);from.setUTCMonth(from.getUTCMonth()-3);label='Last 3 months'}
   else if(/\b1y\b|one year|12 months|1 year/.test(s)){from=new Date(now);from.setUTCFullYear(from.getUTCFullYear()-1);label='Last year'}
-  return {from:from?.toISOString()||null,to,label};
+  return {from:from?.toISOString()||null,to,label,anchor:null as any};
 }
-function wantsPrice(q:string){const s=lower(q);return /(?:price|market|direct).*(?:history|graph|chart|trend)|(?:history|graph|chart|trend).*(?:price|market|direct)|\bsince release\b/.test(s)}
+function releaseQuery(q:string,ctx:any){
+  const s=text(q);if(!/\bsince\b/i.test(s))return null;
+  if(/\bsince\s+(?:this\s+)?(?:set\s+)?release\b/i.test(s))return text(ctx?.set_name||ctx?.entity?.set_name)||null;
+  const m=s.match(/\bsince\s+(.+?)(?:\s+set)?\s+(?:came\s+out|released|release\b)/i);if(m?.[1])return m[1].trim();
+  return null;
+}
+async function releaseAnchoredRange(range:any,q:string,ctx:any){
+  const query=releaseQuery(q,ctx);if(!query)return range;
+  try{
+    const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),5000);let d:any;
+    try{const r=await fetch('https://api.scryfall.com/sets',{signal:ac.signal,headers:{Accept:'application/json','User-Agent':'collectish-market-research/1.0'}});if(!r.ok)return range;d=await r.json()}finally{clearTimeout(timer)}
+    const needle=norm(query),sets=Array.isArray(d?.data)?d.data:[];
+    const scored=sets.map((x:any)=>{const n=norm(x?.name);let score=0;if(n===needle)score=100;else if(n.includes(needle))score=80;else if(needle.includes(n))score=60;else{const words=needle.split(' ').filter((w:string)=>w.length>2);score=words.filter((w:string)=>n.includes(w)).length}return {x,score}}).sort((a:any,b:any)=>b.score-a.score);
+    const best=scored[0];if(!best?.x?.released_at||best.score<=0)return range;
+    return {...range,from:new Date(`${best.x.released_at}T00:00:00Z`).toISOString(),label:`Since ${best.x.name} release`,anchor:{type:'set_release',set_name:best.x.name,set_code:best.x.code,release_date:best.x.released_at}};
+  }catch{return range}
+}
+function wantsPrice(q:string){const s=lower(q);return /(?:price|market|direct).*(?:history|graph|chart|trend)|(?:history|graph|chart|trend).*(?:price|market|direct)|\bsince release\b|\bsince .+ (?:came out|released|release)\b/.test(s)}
 function wantsSales(q:string){const s=lower(q);return /(?:sale|sold|velocity).*(?:history|graph|chart|trend|recent)|(?:history|graph|chart|trend).*(?:sale|sold|velocity)/.test(s)}
 function dateOf(x:any){for(const k of ['date','day','observed_at','observedAt','captured_at','capturedAt','orderDate','order_date','timestamp','purchaseDate','purchase_date']){const v=x?.[k];if(v&&Number.isFinite(Date.parse(v)))return new Date(v).toISOString()}return null}
 function salePrice(x:any){for(const k of ['price','unitPrice','unit_price','pricePerUnit','price_per_unit','marketPrice','market_price','soldPrice','sold_price']){const v=num(x?.[k]);if(v!=null)return v}return null}
@@ -30,13 +48,13 @@ function summarizePrices(rows:any[]){const vals=rows.map(x=>num(x?.sku_market_pr
 async function priceSurface(t:string,ctx:any,q:string){
   const pid=ctx?.product_id||ctx?.entity?.product_id;if(!pid)return null;
   const d=await rpc(t,'ask_collectish_get_price_history',{p_product_id:String(pid)});let observations=Array.isArray(d?.observations)?d.observations:[];
-  const range=requestedRange(q);observations=filterRange(observations,range.from,range.to);
+  const range=await releaseAnchoredRange(requestedRange(q),q,ctx);observations=filterRange(observations,range.from,range.to);
   if(!observations.length)return null;
   return {type:'price_history',domain:'scout',title:'Price history',product_id:String(pid),range,observations,count:observations.length,summary:summarizePrices(observations),freshness:{source:'collectish_history',observed_at:dateOf(observations.at(-1))},actions:[{type:'ask',label:'What caused the move?',prompt:'Explain the important moves in this price history using Collectish evidence.'},{type:'ask',label:'Show sales',prompt:'Show market sales history for this card over the same period.'}]};
 }
 async function marketSalesSurface(ctx:any,q:string){
   const pid=ctx?.product_id||ctx?.entity?.product_id;if(!pid)return null;
-  const range=requestedRange(q);const months=range.from?Math.max(1,(Date.now()-Date.parse(range.from))/(30.44*86400000)):12;const upstreamRange=months<=3?'quarter':'year';
+  const range=await releaseAnchoredRange(requestedRange(q),q,ctx);const months=range.from?Math.max(1,(Date.now()-Date.parse(range.from))/(30.44*86400000)):12;const upstreamRange=months<=3?'quarter':'year';
   const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),12000);
   try{
     const r=await fetch(`https://infinite-api.tcgplayer.com/price/history/${encodeURIComponent(String(pid))}/detailed?range=${upstreamRange}`,{signal:ac.signal,headers:{Accept:'application/json'}});
