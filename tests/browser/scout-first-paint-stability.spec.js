@@ -4,31 +4,36 @@ import path from 'node:path';
 
 const read=p=>readFile(path.join(process.cwd(),p),'utf8');
 
-test('Scout keeps first-paint guard before renderer and final IA on primary path',async()=>{
+test('Scout keeps first-paint guard before the route-owned renderer',async()=>{
   const source=await read('src/modules/scout/index.js');
   const guard=source.indexOf("import('./first-paint-guard.js')");
   const renderer=source.indexOf("import('./renderer.js')");
   expect(guard).toBeGreaterThan(-1);
   expect(renderer).toBeGreaterThan(guard);
-  for(const mod of ["import('./ia-v2-style.js')","import('./compact-mobile.js')","import('./dense-list.js')","import('./ia-v2.js')"]){
-    expect(source).toContain(mod);
-  }
+  expect(source).toContain("import('./ia-v2-style.js')");
+  expect(source).not.toContain("import('./compact-mobile.js')");
+  expect(source).not.toContain("import('./dense-list.js')");
+  expect(source).not.toContain("import('./ia-v2.js')");
 });
 
-test('Scout compact mobile controller filters in place and never replaces list DOM',async()=>{
-  const compact=await read('src/modules/scout/compact-mobile.js');
-  expect(compact).toContain('dataset.cxAdvancedMatch');
-  expect(compact).not.toContain('host.innerHTML=rows.map');
-  expect(compact).not.toContain('cx-scout-compact-card');
+test('Scout renderer owns filters without a second mobile controller',async()=>{
+  const renderer=await read('src/modules/scout/renderer.js');
+  expect(renderer).toContain('cxScoutFilterSheet');
+  expect(renderer).toContain('cxLiquidityFilter');
+  expect(renderer).toContain('function rowMatches(r)');
+  expect(renderer).toContain('function applyFilters()');
+  expect(renderer).not.toContain('dataset.cxAdvancedMatch');
 });
 
-test('Scout dense list decorates before paint instead of two animation frames later',async()=>{
-  const dense=await read('src/modules/scout/dense-list.js');
-  expect(dense).toContain('queueMicrotask(decorate)');
-  expect(dense).not.toContain('requestAnimationFrame(()=>requestAnimationFrame(decorate))');
+test('Scout renderer emits dense rows directly before enhancer decoration',async()=>{
+  const renderer=await read('src/modules/scout/renderer.js');
+  expect(renderer).toContain('cx-scout-dense-row');
+  expect(renderer).toContain('cx-scout-dense-list');
+  expect(renderer).toContain('cx-scout-mobile-metrics');
+  expect(renderer).not.toContain('requestAnimationFrame(()=>requestAnimationFrame(decorate))');
 });
 
-test('Scout mobile first paint waits for IA and dense-list ownership',async()=>{
+test('Scout mobile first paint waits for route-owned IA and dense list',async()=>{
   const source=await read('src/modules/scout/first-paint-guard.js');
   expect(source).toContain("host.classList.add('cx-scout-preparing')");
   expect(source).toContain('#cxParityCards.cx-scout-dense-list');
