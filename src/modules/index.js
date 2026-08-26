@@ -38,6 +38,7 @@ const scoutIntelligence=[
 
 const askEnhancers=[
   ()=>import('./ask/preferences-cache.js'),
+  ()=>import('./ask/actionable-signals-context.js'),
   ()=>import('./ask/signals-starters.js'),
   ()=>import('./ask/investigate-presentation.js'),
   ()=>import('./ask/concise-view.js'),
