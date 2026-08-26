@@ -51,6 +51,26 @@ test('navigation and Scout controls expose keyboard focus and touch-safe sizing'
   expect(mobile).toContain('env(safe-area-inset-bottom)');
 });
 
+test('Scout mobile rows prioritize decision metrics instead of repeating score',async({page},testInfo)=>{
+  test.skip(testInfo.project.name==='desktop-chromium','mobile decision-density contract');
+  await page.goto('/');
+  await page.evaluate(()=>{
+    const host=document.createElement('div');
+    host.id='cxParityCards';
+    host.innerHTML='<button class="cx-scout-card cx-scout-dense-row"><span class="cx-scout-dense-card"><span></span><span class="cx-scout-dense-name"><span class="cx-scout-mobile-metrics"><span><small>Score</small><b>88</b></span><span><small>Market</small><b>$10</b></span><span><small>Direct</small><b>$12</b></span><span><small>Premium</small><b>+20%</b></span><span><small>Velocity</small><b>1.4/d</b></span><span><small>CK BL</small><b>$8</b></span></span></span></span></button>';
+    document.body.appendChild(host);
+  });
+  const result=await page.locator('.cx-scout-mobile-metrics').evaluate(box=>({
+    visible:[...box.children].filter(el=>getComputedStyle(el).display!=='none').map(el=>el.querySelector('small')?.textContent),
+    columns:getComputedStyle(box).gridTemplateColumns.trim().split(/\s+/).length,
+    spans:[...box.children].filter(el=>getComputedStyle(el).display!=='none').map(el=>getComputedStyle(el).gridColumnEnd)
+  }));
+  expect(result.visible).toEqual(['Market','Direct','Premium','Velocity','CK BL']);
+  expect(result.columns).toBe(6);
+  expect(result.spans.slice(0,3)).toEqual(['span 2','span 2','span 2']);
+  expect(result.spans.slice(3)).toEqual(['span 3','span 3']);
+});
+
 test('reduced-motion preference disables decorative motion',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('/');
