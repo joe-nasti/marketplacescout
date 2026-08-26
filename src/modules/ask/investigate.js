@@ -1,11 +1,7 @@
-// Ask Collectish V3 — startup-safe Investigate bridge.
-// Intentionally event-driven: no DOM observer guardian, fetch monkeypatch, startup RPC, or DOM scan loop.
+// Ask Collectish Investigate bridge.
+// Route the visible Investigate action through normal Ask so the shared Pass 3
+// evidence layer (sales, supply, EDHREC, Signals) is authoritative.
 (() => {
-  const cfg=window.COLLECTISH_CONFIG;
-  if(!cfg?.supabaseUrl)return;
-  const ENDPOINT=`${String(cfg.supabaseUrl).replace(/\/$/,'')}/functions/v1/ask-collectish`;
-  let busy=false;
-  const session=()=>{try{return JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{return null}};
   const active=()=>String(document.querySelector('.cx-page.active')?.id||'').replace(/^cx/,'').toLowerCase();
   function context(){
     const screen=active()||'unknown';
@@ -17,47 +13,21 @@
     const name=card?.querySelector('.cx-scout-card-body>strong')?.textContent?.trim()||null;
     return {screen,sku_id:sku,product_id:product,product_name_hint:name};
   }
-  function add(role,text,meta=''){
+  function add(role,text){
     const h=document.getElementById('cxAskMessages');if(!h)return null;
     const w=document.createElement('div');w.className=`cx-ask-msg cx-ask-${role}`;
-    const b=document.createElement('div');b.className='cx-ask-msg-body';b.textContent=text;w.append(b);
-    if(meta){const s=document.createElement('small');s.textContent=meta;w.append(s)}
-    h.append(w);
-    if(role==='assistant')window.CollectishRenderMarkdown?.(b);
-    document.dispatchEvent(new CustomEvent('collectish:ask-message-rendered',{detail:{role,element:b}}));
-    h.scrollTop=h.scrollHeight;
-    return w;
-  }
-  async function api(body){
-    const token=session()?.token;if(!token)throw Error('Sign in required');
-    const r=await fetch(ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const t=await r.text();let d;try{d=t?JSON.parse(t):{}}catch{d={error:t}}
-    if(!r.ok)throw Error(d?.error||`Ask Collectish HTTP ${r.status}`);return d;
+    const b=document.createElement('div');b.className='cx-ask-msg-body';b.textContent=text;w.append(b);h.append(w);h.scrollTop=h.scrollHeight;return w;
   }
   async function investigate(){
-    if(busy)return;
-    let c=context();
-    if(!c.product_id&&c.sku_id){
-      try{const rows=await window.rest(`scout_opportunities_v5?select=product_id,product_name&sku_id=eq.${encodeURIComponent(c.sku_id)}&limit=1`);if(rows?.[0])c={...c,product_id:String(rows[0].product_id||''),product_name_hint:rows[0].product_name||c.product_name_hint}}catch{}
-    }
-    if(!c.product_id){add('system','Open a Scout card first, then Investigate.');return}
-    busy=true;
+    const c=context();
+    if(!c.sku_id&&!c.product_id){add('system','Open a Scout card first, then Investigate.');return}
     const state=document.getElementById('cxAskInvestigateState');if(state)state.textContent='Investigating…';
-    const wait=add('assistant','Investigating current card across Scout, sales, supply, SYP, Seller, vendors, inventory and reprint metadata…');wait?.classList.add('cx-ask-thinking');
+    const prompt='Investigate this card using current Scout, exact-SKU sales history, price history, supply, shared EDHREC rank, linked Signals, vendor exits and data quality. Give a concise BUY/WATCH/PASS verdict, strongest evidence, contradictions/risks, and clearly identify any missing data.';
     try{
-      const d=await api({action:'investigate',context:c});
-      wait?.remove();
-      add('assistant',d.analysis||'Investigation complete.',`${d.model||'reasoning model'} · ${d.usage?.total_tokens||0} tokens`);
-      const q=d.snapshot?.data_quality;
-      if(q)add('system',`Data quality: Scout ${q.scout_fresh?'fresh':'stale'} · sales ${q.sales_available?(q.sales_fresh?'fresh':'stale'):'missing'} · inventory ${q.inventory_available?'available':'missing'}`);
-      if(d.queued_refresh)add('system','A bounded missing/stale-data refresh was queued. This analysis uses the pre-refresh snapshot until it lands.');
-      if(state)state.textContent='V3 investigation complete';
-    }catch(e){wait?.remove();add('system',e?.message||String(e));if(state)state.textContent='Investigate failed'}
-    finally{busy=false}
+      if(window.AskCollectish?.send){await window.AskCollectish.send(prompt);if(state)state.textContent='Investigation complete';return}
+      add('system','Ask Collectish is still loading. Try Investigate again in a moment.');if(state)state.textContent='Investigate unavailable';
+    }catch(e){add('system',e?.message||String(e));if(state)state.textContent='Investigate failed'}
   }
-  document.addEventListener('click',e=>{
-    const b=e.target?.closest?.('#cxAskInvestigate');if(!b)return;
-    e.preventDefault();e.stopImmediatePropagation();investigate();
-  },true);
+  document.addEventListener('click',e=>{const b=e.target?.closest?.('#cxAskInvestigate');if(!b)return;e.preventDefault();e.stopImmediatePropagation();void investigate()},true);
   window.CollectishAskV3Safe={...(window.CollectishAskV3Safe||{}),investigate,context};
 })();
