@@ -2,17 +2,19 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const sourcePath=path.join(process.cwd(),'src/modules/scout/ia-v2.js');
+const sourcePath=path.join(process.cwd(),'src/modules/scout/renderer.js');
 
-test('Scout detail IA reconciles Decision and Evidence in place',async({},testInfo)=>{
+test('Scout renderer owns Decision and Evidence hierarchy directly',async({},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const source=await readFile(sourcePath,'utf8');
-  expect(source).toContain("const decisions=[...h.querySelectorAll(':scope > .cx-scout-decision')]");
-  expect(source).toContain('decisions.forEach(x=>x.remove())');
-  expect(source).toContain("const wrappers=[...h.querySelectorAll(':scope > .cx-scout-evidence')]");
-  expect(source).toContain('for(const extra of wrappers)');
-  expect(source).toContain("!x.closest('.cx-scout-evidence')");
-  expect(source).toContain('function scheduleDetail(){for(const ms of [0,120,420])setTimeout(compressDetail,ms)}');
-  expect(source).not.toContain('delete h.dataset.cxIa');
-  expect(source).not.toContain("h.dataset.cxIa='1'");
+  expect(source).toContain('cx-scout-decision');
+  expect(source).toContain('cx-scout-execution-primary');
+  expect(source).toContain('cx-scout-why-buy');
+  expect(source).toContain('cx-scout-evidence');
+  expect(source).toContain('cx-scout-evidence-body');
+  expect(source).toContain('Best trade');
+  expect(source).toContain('Cash floor');
+  expect(source).not.toContain('function compressDetail');
+  expect(source).not.toContain('scheduleDetail(){for(const ms of [0,120,420])');
+  expect(source).not.toContain("querySelectorAll(':scope > .cx-scout-decision')");
 });
