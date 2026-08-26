@@ -5,6 +5,7 @@ import { primeResources } from '../state/resources.js';
 const loaded=new Set();
 const loading=new Map();
 const prefetched=new Map();
+const prefetching=new Map();
 
 const pageModules={
   signals:()=>import('../modules/signals/index.js'),
@@ -36,12 +37,15 @@ function moduleFor(page){
 
 export function prefetchPage(page){
   if(!pageModules[page]||loaded.has(page)||loading.has(page))return null;
+  if(prefetching.has(page))return prefetching.get(page);
   const started=performance.now();
   const jobs=[moduleFor(page)];
   if(routePrime[page]?.length)jobs.push(primeResources(routePrime[page]).catch(()=>0));
-  return Promise.all(jobs).then(()=>{
+  const job=Promise.all(jobs).then(()=>{
     document.dispatchEvent(new CustomEvent('collectish:lazy-page-prefetched',{detail:{page,ms:Math.round(performance.now()-started)}}));
-  }).catch(()=>{});
+  }).catch(()=>{}).finally(()=>prefetching.delete(page));
+  prefetching.set(page,job);
+  return job;
 }
 
 function recoverStaleModule(page,err){
