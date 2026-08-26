@@ -51,7 +51,7 @@ function articleMatches(article,query){
   const meta=articleMeta(article),{setCodes,collectorNumbers,finishes}=query.filters;
   if(setCodes.length&&!setCodes.includes(meta.set))return false;
   if(collectorNumbers.length&&!collectorNumbers.includes(meta.collector))return false;
-  if(finishes.length&&!finishes.some(f=>f==='nonfoil'?meta.finishes.includes('normal'):f==='foil'?meta.finishes.includes('foil')&&!meta.finishes.includes('etched')||meta.finishes.includes('foil'):meta.finishes.includes('etched')))return false;
+  if(finishes.length&&!finishes.some(f=>f==='nonfoil'?meta.finishes.includes('normal'):f==='foil'?meta.finishes.includes('foil'):meta.finishes.includes('etched')))return false;
   return true;
 }
 function applyToRenderedResults(query){
@@ -86,6 +86,8 @@ async function run(raw,{force=false}={}){
   }
   query.resolvedName=name;activeQuery=query;
   await api.loadCard(name);
+  const field=input();if(field)field.value=raw;
+  renderTokens(query);
   applyToRenderedResults(query);
   return true;
 }
