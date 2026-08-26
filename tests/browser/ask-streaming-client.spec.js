@@ -59,6 +59,28 @@ test('Fast Ask reuses browser Scout snapshot and attaches Signals rollup when av
   expect(fn).toContain('signals:Boolean(signals)');
 });
 
+test('Fast Ask warms preferences once and reuses them without the server preference RPC',async()=>{
+  const cache=await source('src/modules/ask/preferences-cache.js');
+  const fn=await source('supabase/functions/ask-collectish-stream/index.ts');
+  const index=await source('src/modules/index.js');
+  expect(cache).toContain('COLLECTISH_ASK_PREFS_CACHE_V1');
+  expect(cache).toContain('ask_collectish_get_preferences');
+  expect(cache).toContain('preferencesSnapshot');
+  expect(index).toContain("import('./ask/preferences-cache.js')");
+  expect(fn).toContain("preferencesSource=clientPref?'browser-cache':'server-rpc'");
+  expect(fn).toContain('preferences_source:preferencesSource');
+});
+
+test('Scout Ask starter bar includes Signals coverage probes that remain fast-path-safe',async()=>{
+  const starters=await source('src/modules/ask/signals-starters.js');
+  const index=await source('src/modules/index.js');
+  expect(starters).toContain('What do Signals say?');
+  expect(starters).toContain('Do Signals agree with Scout?');
+  expect(starters).toContain('Is momentum early or confirmed?');
+  expect(starters).toContain("form.dispatchEvent(new Event('submit'");
+  expect(index).toContain("import('./ask/signals-starters.js')");
+});
+
 test('Deep and historical requests remain on the canonical V3 tool path',async()=>{
   const js=await source('src/modules/ask/streaming.js');
   expect(js).toContain('investigate|purchase list|portfolio|allocate|rebalance|restock|reprice');
