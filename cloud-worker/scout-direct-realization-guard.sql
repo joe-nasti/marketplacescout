@@ -1,0 +1,22 @@
+-- Direct realization guard for Scout quick-turn and position sizing.
+-- Production migration: guard_extreme_direct_premiums_from_quick_turn
+--
+-- Policy: a Direct asking price at >= 3x TCG Market is a market-structure anomaly,
+-- not a realized exit assumption. Until Collectish has explicit realized-premium
+-- evidence, those rows must not qualify through liquid_scout_opportunities(),
+-- which also keeps them out of scout_position_sizing().
+--
+-- The canonical function preserves the existing return contract and adds:
+--   c.sku_market_price > 0
+--   c.direct_low > 0
+--   c.direct_low < c.sku_market_price * 3
+--
+-- This deliberately does NOT remove the row from Scout itself. Scout can still
+-- surface the opportunity with ! / !! evidence markers; it simply cannot use
+-- that extreme Direct ask to claim a quick-turn exit or enlarge position size.
+
+-- Verification query:
+-- select count(*)
+-- from public.scout_opportunities_v5_cache
+-- where sku_market_price > 0
+--   and direct_low >= sku_market_price * 3;
