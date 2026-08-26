@@ -3,11 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 const U=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
 const A=Deno.env.get('SUPABASE_ANON_KEY')||'';
 const O=Deno.env.get('OPENAI_API_KEY')||'';
-const C={
-  'Access-Control-Allow-Origin':'*',
-  'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods':'POST, OPTIONS'
-};
+const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
 const SSE={...C,'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform','Connection':'keep-alive','X-Accel-Buffering':'no'};
 const enc=new TextEncoder();
 const evt=(name:string,data:any)=>enc.encode(`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -31,25 +27,19 @@ Deno.serve(async(req:Request)=>{
 
   const clientCard=b.cardSnapshot&&typeof b.cardSnapshot==='object'?b.cardSnapshot:null;
   const signals=b.signalsSnapshot&&typeof b.signalsSnapshot==='object'?b.signalsSnapshot:null;
-  let card:any=clientCard,pref:any=null,contextSource=clientCard?'browser-cache':'server-rpc';
+  const clientPref=b.preferencesSnapshot&&typeof b.preferencesSnapshot==='object'?b.preferencesSnapshot:null;
+  let card:any=clientCard,pref:any=clientPref,contextSource=clientCard?'browser-cache':'server-rpc',preferencesSource=clientPref?'browser-cache':'server-rpc';
   try{
-    if(clientCard){
-      pref=await rpc(t,'ask_collectish_get_preferences',{}).catch(()=>null);
-    }else{
-      [card,pref]=await Promise.all([
-        rpc(t,'ask_collectish_get_scout_card',{p_product_id:ctx.product_id??null,p_sku_id:ctx.sku_id??null}),
-        rpc(t,'ask_collectish_get_preferences',{}).catch(()=>null)
-      ]);
-    }
+    const jobs=[] as Promise<any>[];
+    if(!clientCard)jobs.push(rpc(t,'ask_collectish_get_scout_card',{p_product_id:ctx.product_id??null,p_sku_id:ctx.sku_id??null}).then(x=>card=x));
+    if(!clientPref)jobs.push(rpc(t,'ask_collectish_get_preferences',{}).then(x=>pref=x).catch(()=>{pref=null}));
+    if(jobs.length)await Promise.all(jobs);
   }catch(e){return new Response(JSON.stringify({error:String((e as Error).message)}),{status:502,headers:{...C,'Content-Type':'application/json'}})}
 
-  const body={
-    model:'gpt-5-mini',stream:true,max_completion_tokens:350,reasoning_effort:'minimal',
-    messages:[
-      {role:'system',content:'You are Ask Collectish fast mode. Answer only from the supplied Collectish Scout and Signals context. Be concise and decision-oriented. Never invent missing metrics. Scout pricing, demand, supply, velocity, EDHREC and buylist data are primary evidence. Signals intelligence is corroborating context only: use independent-source count, claims, timing and direction to widen confidence, but never let Signals override hard Scout economics by itself. For buy questions give BUY/WATCH/PASS, the main reason, key risk, and grounded entry/exit only when supported.'},
-      {role:'user',content:`QUESTION:\n${q}\n\nSCOUT_CONTEXT:\n${clip(card)}\n\nSIGNALS_CONTEXT:\n${clip(signals,2500)}\n\nUSER_PREFERENCES:\n${clip(pref,2500)}`}
-    ]
-  };
+  const body={model:'gpt-5-mini',stream:true,max_completion_tokens:350,reasoning_effort:'minimal',messages:[
+    {role:'system',content:'You are Ask Collectish fast mode. Answer only from the supplied Collectish Scout and Signals context. Be concise and decision-oriented. Never invent missing metrics. Scout pricing, demand, supply, velocity, EDHREC and buylist data are primary evidence. Signals intelligence is corroborating context only: use independent-source count, claims, timing and direction to widen confidence, but never let Signals override hard Scout economics by itself. For buy questions give BUY/WATCH/PASS, the main reason, key risk, and grounded entry/exit only when supported.'},
+    {role:'user',content:`QUESTION:\n${q}\n\nSCOUT_CONTEXT:\n${clip(card)}\n\nSIGNALS_CONTEXT:\n${clip(signals,2500)}\n\nUSER_PREFERENCES:\n${clip(pref,2500)}`}
+  ]};
 
   const upstream=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${O}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!upstream.ok||!upstream.body){const text=await upstream.text();return new Response(JSON.stringify({error:`OpenAI ${upstream.status}: ${text.slice(0,400)}`}),{status:502,headers:{...C,'Content-Type':'application/json'}})}
@@ -57,7 +47,7 @@ Deno.serve(async(req:Request)=>{
   const stream=new ReadableStream({
     async start(controller){
       const reader=upstream.body!.getReader(),decoder=new TextDecoder();let buffer='',started=false;
-      controller.enqueue(evt('meta',{model:'gpt-5-mini',cached:false,mode:'supabase-fast',context_screen:'scout',context_source:contextSource,signals:Boolean(signals)}));
+      controller.enqueue(evt('meta',{model:'gpt-5-mini',cached:false,mode:'supabase-fast',context_screen:'scout',context_source:contextSource,signals:Boolean(signals),preferences_source:preferencesSource}));
       try{
         while(true){
           const {value,done}=await reader.read();if(done)break;
