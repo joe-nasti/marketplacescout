@@ -7,17 +7,24 @@ import store from '../../state/store.js';
 
   const num=v=>v==null||v===''?null:Number(v);
   const lower=v=>String(v||'').trim().toLowerCase();
+  const TREATMENT_SUFFIX=/\s*\((?:borderless|extended art|showcase|retro frame|retro|etched|surge foil|galaxy foil|serialized|promo|buy-a-box|prerelease|commander|concept praetor|step-and-compleat|oil slick|poster|raised foil|textured foil|borderless manga|anime|full art)\)\s*$/i;
+  function canonicalName(v){
+    let s=String(v||'').trim();
+    let prev='';
+    while(s&&s!==prev){prev=s;s=s.replace(TREATMENT_SUFFIX,'').trim()}
+    return lower(s);
+  }
 
   function matchActionable(body={}){
     const rows=store.get().actionableEmerging?.rows||[];
     const card=body.cardSnapshot||{};
     const sku=String(card.skuId||body.context?.sku_id||'');
     const product=String(card.productId||body.context?.product_id||'');
-    const name=lower(card.name||body.context?.product_name_hint);
+    const name=canonicalName(card.name||body.context?.product_name_hint);
     const exact=rows.find(r=>(sku&&String(r.sku_id||'')===sku)||(product&&String(r.product_id||'')===product));
     if(exact)return {row:exact,scope:'exact-printing'};
     const sameName=rows
-      .filter(r=>name&&lower(r.card_name)===name)
+      .filter(r=>name&&canonicalName(r.card_name)===name)
       .sort((a,b)=>Number(b.actionability_score||0)-Number(a.actionability_score||0))[0]||null;
     return sameName?{row:sameName,scope:'same-name'}:null;
   }
@@ -28,6 +35,7 @@ import store from '../../state/store.js';
     return {
       source:'actionable_emerging',
       scope:match.scope,
+      sourceCardName:r.card_name||null,
       sourceProductId:r.product_id||null,
       sourceSkuId:r.sku_id||null,
       sourcePrinting:r.printing||null,
@@ -68,5 +76,5 @@ import store from '../../state/store.js';
     }catch{return nativeFetch(input,init)}
   };
 
-  window.CollectishAskActionableSignalsContext={match:matchActionable,compact};
+  window.CollectishAskActionableSignalsContext={match:matchActionable,compact,canonicalName};
 })();
