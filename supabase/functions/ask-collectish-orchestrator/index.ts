@@ -1,0 +1,40 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
+const U=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
+const A=Deno.env.get('SUPABASE_ANON_KEY')||'';
+const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
+const js=(b:any,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{...C,'Content-Type':'application/json','Cache-Control':'no-store'}});
+const tok=(r:Request)=>{const h=r.headers.get('authorization')||'';return h.toLowerCase().startsWith('bearer ')?h.slice(7):''};
+const headers=(t:string)=>({apikey:A,Authorization:`Bearer ${t}`,'Content-Type':'application/json'});
+async function rpc(t:string,n:string,a:any={}){const r=await fetch(`${U}/rest/v1/rpc/${n}`,{method:'POST',headers:headers(t),body:JSON.stringify(a)});const q=await r.text();let d:any;try{d=q?JSON.parse(q):null}catch{d=q}if(!r.ok)throw Error(d?.message||`${n} failed (${r.status})`);return d}
+async function fn(t:string,n:string,b:any){const r=await fetch(`${U}/functions/v1/${n}`,{method:'POST',headers:headers(t),body:JSON.stringify(b)});const q=await r.text();let d:any;try{d=q?JSON.parse(q):null}catch{d=q}if(!r.ok)throw Error(d?.error||`${n} failed (${r.status})`);return d}
+const text=(v:any)=>String(v??'').trim();
+function ids(ctx:any){return {pid:text(ctx?.product_id||ctx?.entity?.product_id),sku:text(ctx?.sku_id||ctx?.entity?.sku_id)}}
+const deep=(q:string)=>/\binvestigate\b|deep dive|full analysis|research this card|why (?:is|did).*(?:spike|move)|what drove/i.test(q);
+const external=(q:string)=>/search (?:the )?web|research externally|look online|external research|latest (?:news|articles|discussion)|web research|search online|find (?:recent )?(?:news|articles|discussion)/i.test(q);
+function compactInvestigation(s:any){
+  if(!s?.available)return null;
+  const scout=s.scout||{},sales=s.shared_sales?.summary||{},supply=s.exact_supply?.current||{},edh=(s.edhrec_history?.observations||[]).at?.(-1)||{},cur=s.edhrec_current||{},intel=s.market_intelligence||{},roll=intel.rollup||{};
+  return {card:s.card,scout:{grade:scout.promoted_grade,score:scout.promoted_score,market:scout.sku_market_price,direct_low:scout.direct_low,ck_buylist:scout.ck_buylist},sales:{units_90d:sales.units,transactions_90d:sales.transactions,low_sold:sales.low_sold,high_sold:sales.high_sold},supply:{direct_available:supply.direct_available,direct_listings:supply.direct_listings,supply_type:supply.supply_type,direct_low:supply.direct_low},edhrec:{rank:edh.edhrec_rank??cur.edhrec_rank??roll.edhrec_rank??null,signal:edh.edhrec_signal,demand_adjustment:edh.demand_adjustment,observed_at:edh.captured_at??cur.observed_at??roll.edhrec_observed_at??null},intel:{claim_count:roll.claim_count||0,source_count:roll.independent_source_count||0,direction_score:roll.intel_direction_score||0,fresh_claims_7d:intel.fresh_claims_7d||0},snapshot_at:s.snapshot_at};
+}
+function investigationAnswer(s:any){const c=compactInvestigation(s);if(!c)return null;const p=[];p.push(`${c.card?.product_name||'This card'} is Scout ${c.scout.grade||'—'} ${c.scout.score??'—'} with Market ${c.scout.market!=null?'$'+Number(c.scout.market).toFixed(2):'—'}.`);if(c.sales.units_90d!=null)p.push(`Shared TCG history shows ${Number(c.sales.units_90d).toLocaleString()} units across ${Number(c.sales.transactions_90d||0).toLocaleString()} transactions in the last 90 days.`);if(c.supply.direct_available!=null)p.push(`Direct supply is ${Number(c.supply.direct_available).toLocaleString()} copies across ${Number(c.supply.direct_listings||0).toLocaleString()} listings (${c.supply.supply_type||'unclassified'}).`);if(c.edhrec.rank)p.push(`EDHREC rank is #${Number(c.edhrec.rank).toLocaleString()}.`);if(c.intel.claim_count)p.push(`Signals has ${c.intel.claim_count} linked claims from ${c.intel.source_count} independent sources.`);return p.join(' ')}
+function investigationSurface(s:any){if(!s?.available)return null;return {type:'market_investigation',domain:'collectish',title:'Market investigation',data:compactInvestigation(s),claims:(s.market_intelligence?.claims||[]).slice(0,6),source_performance:(s.market_intelligence?.source_performance||[]).slice(0,5),actions:[{type:'ask',label:'Research externally',prompt:'Research externally on the web for recent events or discussion that could explain this card market move.'},{type:'ask',label:'Compare signals',prompt:'Compare price, sales velocity, supply, EDHREC and linked Signals evidence for this card.'}]}}
+function researchSurface(r:any){if(!r?.ok)return null;return {type:'external_research',domain:'web',title:'External research',answer:r.answer||'',sources:r.sources||[],source_count:r.source_count||0,model:r.model||null}}
+Deno.serve(async(req:Request)=>{
+  if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method!=='POST')return js({error:'POST required'},405);const t=tok(req);if(!t)return js({error:'Authentication required'},401);let body:any;try{body=await req.json()}catch{return js({error:'Invalid JSON'},400)}
+  const action=String(body?.action||'chat'),q=text(body?.message||body?.question),ctx=body?.context||{},id=ids(ctx),wantsExternal=action==='chat'&&external(q);
+  const baseP=fn(t,'ask-collectish-agent-ui',body);
+  const needInvestigation=action==='investigate'||(action==='chat'&&(deep(q)||wantsExternal));
+  const invP=(needInvestigation&&(id.pid||id.sku))?rpc(t,'ask_collectish_market_investigation_v2',{p_product_id:id.pid||null,p_sku_id:id.sku||null}).catch(()=>null):Promise.resolve(null);
+  const [base,inv]=await Promise.all([baseP,invP]);
+  if(action!=='chat')return js({...base,investigation_v2:inv||null,investigation_version:inv?'v2':null});
+  let research:any=null;
+  if(wantsExternal){
+    if(!inv)return js({...base,response:'I could not resolve enough current card identity/evidence to run external research safely. Open the card and try again.',orchestration:{...(base?.orchestration||{}),pass3:false,pass4:false,web_search_used:false,external_research_requested:true}});
+    research=await fn(t,'ask-collectish-web-research',{question:q,card:inv.card,internal_evidence:compactInvestigation(inv)}).catch(e=>({ok:false,error:String(e?.message||e)}));
+  }
+  const added=[investigationSurface(inv),researchSurface(research)].filter(Boolean),existing=Array.isArray(base?.surfaces)?base.surfaces:[],surfaces=[...added,...existing].slice(0,7);
+  let response=base?.response;if(research?.answer)response=research.answer;else if(wantsExternal&&research?.error)response=`External research failed: ${research.error}`;else if(inv&&deep(q))response=investigationAnswer(inv)||response;
+  const tools=[...(Array.isArray(base?.tools)?base.tools:[])];if(inv)tools.unshift({name:'market_investigation_v2',ok:true,classification:'READ'});if(research?.ok)tools.unshift({name:'external_web_research',ok:true,classification:'READ'});
+  return js({...base,response,tools,surface_schema:'collectish.ask.surface.v6',surfaces,orchestration:{...(base?.orchestration||{}),pass3:Boolean(inv),pass4:Boolean(research?.ok),web_search_used:Boolean(research?.ok),external_research_requested:wantsExternal,external_research_error:research?.ok?null:(research?.error||null)}});
+});
