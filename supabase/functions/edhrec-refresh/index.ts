@@ -7,8 +7,9 @@ const js=(b:any,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{...C,'
 const token=(r:Request)=>{const h=r.headers.get('authorization')||'';return h.toLowerCase().startsWith('bearer ')?h.slice(7):''};
 const h=(t:string)=>({apikey:A,Authorization:`Bearer ${t}`,'Content-Type':'application/json'});
 async function rpc(t:string,n:string,a:any={}){const r=await fetch(`${U}/rest/v1/rpc/${n}`,{method:'POST',headers:h(t),body:JSON.stringify(a)});const x=await r.text();let d:any;try{d=x?JSON.parse(x):null}catch{d=x}if(!r.ok)throw Error(d?.message||`${n} failed (${r.status})`);return d}
-async function upsert(t:string,rows:any[]){if(!rows.length)return;const r=await fetch(`${U}/rest/v1/edhrec_card_cache?on_conflict=user_id,scryfall_id`,{method:'POST',headers:{...h(t),Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)});if(!r.ok)throw Error(`cache upsert failed ${r.status}`)}
+async function upsert(t:string,rows:any[]){if(!rows.length)return;const r=await fetch(`${U}/rest/v1/edhrec_card_cache?on_conflict=user_id,scryfall_id`,{method:'POST',headers:{...h(t),Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)});if(!r.ok){const x=await r.text();throw Error(`cache upsert failed ${r.status}: ${x.slice(0,300)}`)}}
 function role(t:string){try{const p=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');return JSON.parse(atob(p.padEnd(Math.ceil(p.length/4)*4,'=')))?.role||''}catch{return ''}}
+function dedupeCandidates(items:any[],service:boolean){const m=new Map<string,any>();for(const x of items){const sf=String(x?.scryfall_id||'').trim();if(!sf)continue;const key=service?`${String(x?.user_id||'')}:${sf}`:sf;if(!m.has(key))m.set(key,x);else{const old=m.get(key);if(!old?.product_id&&x?.product_id)old.product_id=x.product_id;if(!old?.product_name&&x?.product_name)old.product_name=x.product_name}}return [...m.values()]}
 
 Deno.serve(async r=>{
   if(r.method==='OPTIONS')return new Response('ok',{headers:C});
@@ -18,17 +19,24 @@ Deno.serve(async r=>{
   const limit=Math.max(1,Math.min(Number(body?.limit||500),2000));
   const service=role(t)==='service_role';
   const c=await rpc(t,service?'service_edhrec_refresh_candidates':'ask_collectish_edhrec_refresh_candidates',{p_limit:limit});
-  const items=Array.isArray(c?.results)?c.results:[];let written=0;
+  const raw=Array.isArray(c?.results)?c.results:[];
+  const items=dedupeCandidates(raw,service);
+  let written=0;
   for(let i=0;i<items.length;i+=75){
     const batch=items.slice(i,i+75);
-    const resp=await fetch('https://api.scryfall.com/cards/collection',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'collectish-edhrec-refresh/2.0'},body:JSON.stringify({identifiers:batch.map((x:any)=>({id:x.scryfall_id}))})});
+    const byScryfall=new Map<string,any[]>();
+    for(const x of batch){const sf=String(x.scryfall_id);const list=byScryfall.get(sf)||[];list.push(x);byScryfall.set(sf,list)}
+    const resp=await fetch('https://api.scryfall.com/cards/collection',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'collectish-edhrec-refresh/2.1'},body:JSON.stringify({identifiers:[...byScryfall.keys()].map(id=>({id}))})});
     if(!resp.ok)throw Error(`Scryfall collection failed ${resp.status}`);
-    const data=await resp.json();const byId=new Map(batch.map((x:any)=>[String(x.scryfall_id),x]));
-    const rows=(data?.data||[]).map((x:any)=>{const m:any=byId.get(String(x.id))||{};return {user_id:m.user_id||undefined,scryfall_id:String(x.id),product_id:m.product_id||null,card_name:x.name||m.product_name||null,edhrec_rank:Number.isFinite(Number(x.edhrec_rank))?Number(x.edhrec_rank):null,source:'scryfall',observed_at:new Date().toISOString(),raw_json:{id:x.id,name:x.name,edhrec_rank:x.edhrec_rank}}}).filter((x:any)=>service?Boolean(x.user_id):true);
-    if(!service)for(const row of rows)delete row.user_id;
-    await upsert(t,rows);written+=rows.length;
+    const data=await resp.json();const now=new Date().toISOString();const rows:any[]=[];
+    for(const x of data?.data||[]){
+      const targets=byScryfall.get(String(x.id))||[];
+      for(const m of targets){const row:any={user_id:m.user_id||undefined,scryfall_id:String(x.id),product_id:m.product_id||null,card_name:x.name||m.product_name||null,edhrec_rank:Number.isFinite(Number(x.edhrec_rank))?Number(x.edhrec_rank):null,source:'scryfall',observed_at:now,raw_json:{id:x.id,name:x.name,edhrec_rank:x.edhrec_rank}};if(!service)delete row.user_id;rows.push(row)}
+    }
+    const uniqueRows=[...new Map(rows.map(row=>[service?`${row.user_id}:${row.scryfall_id}`:row.scryfall_id,row])).values()];
+    await upsert(t,uniqueRows);written+=uniqueRows.length;
     await new Promise(res=>setTimeout(res,90));
   }
-  const hydrated=await rpc(t,service?'service_hydrate_scout_edhrec_from_cache':'hydrate_scout_edhrec_from_cache',{}).catch(()=>null);
-  return js({ok:true,mode:service?'service':'user',candidates:items.length,written,hydrated});
+  const hydrated=await rpc(t,service?'service_hydrate_scout_edhrec_from_cache':'hydrate_scout_edhrec_from_cache',{}).catch(e=>({error:String(e?.message||e)}));
+  return js({ok:true,mode:service?'service':'user',raw_candidates:raw.length,candidates:items.length,written,hydrated});
 });
