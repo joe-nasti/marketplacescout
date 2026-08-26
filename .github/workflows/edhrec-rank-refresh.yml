@@ -1,0 +1,39 @@
+name: Collectish shared EDHREC rank refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/edhrec-rank-refresh.yml"
+      - "supabase/functions/edhrec-refresh/**"
+      - "supabase/migrations/*edhrec*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-edhrec-rank-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Refresh shared EDHREC ranks for Scout and Signals
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          curl --fail-with-body --silent --show-error \
+            -X POST "$SUPABASE_URL/functions/v1/edhrec-refresh" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            --data '{"limit":2000}'
