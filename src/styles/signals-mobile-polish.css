@@ -2,6 +2,9 @@
    Keep evidence semantics without letting marker controls disturb row geometry. */
 #cxSignalsVnext .cx-sv-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
 #cxSignalsVnext .cx-sv-num strong{display:flex;align-items:center;gap:2px}
+#cxSignalsVnext .cx-sv-sales-confirm{display:inline-flex;align-items:center;gap:2px;flex:0 0 auto;color:var(--cx-muted);font-size:8px;line-height:1}
+#cxSignalsVnext .cx-sv-sales-confirm b{font-size:8px;color:var(--cx-text);font-weight:850;white-space:nowrap}
+#cxSignalsVnext .cx-sv-sales-confirm i{font-size:7px;color:var(--color-success);font-style:normal;white-space:nowrap}
 
 @media(max-width:900px){
   #cxSignalsVnext .cx-sv-row{
@@ -24,8 +27,8 @@
   #cxSignalsVnext .cx-sv-card{grid-area:card;align-self:start}
   #cxSignalsVnext .cx-sv-card strong{font-size:12px;line-height:1.15}
   #cxSignalsVnext .cx-sv-card small{margin-top:2px}
-  #cxSignalsVnext .cx-sv-signal{grid-area:signal;display:flex;align-items:center;gap:6px;min-width:0}
-  #cxSignalsVnext .cx-sv-signal small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #cxSignalsVnext .cx-sv-signal{grid-area:signal;display:flex;align-items:center;gap:5px;min-width:0}
+  #cxSignalsVnext .cx-sv-signal>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #cxSignalsVnext .cx-sv-price{grid-area:price;display:flex;align-items:baseline;justify-content:flex-end;gap:6px;min-width:0}
   #cxSignalsVnext .cx-sv-price strong{font-size:11px;flex:0 0 auto}
   #cxSignalsVnext .cx-sv-price small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -41,4 +44,5 @@
   #cxSignalsVnext .cx-sv-metric strong{font-size:14px}
   #cxSignalsVnext .cx-sv-metric small{font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #cxSignalsVnext .cx-sv-row{min-height:60px;padding:7px 8px}
+  #cxSignalsVnext .cx-sv-sales-confirm i{display:none}
 }
