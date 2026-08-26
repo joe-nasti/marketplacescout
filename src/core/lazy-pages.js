@@ -1,6 +1,7 @@
 import { registerComponent } from './lifecycle.js';
 import store from '../state/store.js';
 import { primeResources } from '../state/resources.js';
+import { primeSpecsForRoute } from '../state/route-data-contracts.js';
 
 const loaded=new Set();
 const loading=new Map();
@@ -14,12 +15,6 @@ const pageModules={
   syp:()=>import('../modules/seller/syp.js'),
   inventory:()=>import('../modules/seller/inventory-index.js'),
   admin:()=>import('../modules/admin/index.js')
-};
-const routePrime={
-  sealed:[
-    {key:'sealed.rows',scope:'user',maxStale:7*24*60*60*1000},
-    {key:'sealed.setTypes',scope:'user',maxStale:30*24*60*60*1000}
-  ]
 };
 const title=p=>p==='syp'?'SYP':p[0].toUpperCase()+p.slice(1);
 const host=page=>document.getElementById(`cx${page==='syp'?'Syp':page[0].toUpperCase()+page.slice(1)}`);
@@ -40,7 +35,8 @@ export function prefetchPage(page){
   if(prefetching.has(page))return prefetching.get(page);
   const started=performance.now();
   const jobs=[moduleFor(page)];
-  if(routePrime[page]?.length)jobs.push(primeResources(routePrime[page]).catch(()=>0));
+  const prime=primeSpecsForRoute(page);
+  if(prime.length)jobs.push(primeResources(prime).catch(()=>0));
   const job=Promise.all(jobs).then(()=>{
     document.dispatchEvent(new CustomEvent('collectish:lazy-page-prefetched',{detail:{page,ms:Math.round(performance.now()-started)}}));
   }).catch(()=>{}).finally(()=>prefetching.delete(page));
