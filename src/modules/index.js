@@ -7,7 +7,8 @@ const scoutCore=[
   ()=>import('./scout/power-search.js'),
   ()=>import('./scout/vendor.js'),
   ()=>import('./scout/detail-swipe.js'),
-  ()=>import('./scout/liquidity.js')
+  ()=>import('./scout/liquidity.js'),
+  ()=>import('./scout/velocity-display.js')
 ];
 
 const scoutPostRender=[
