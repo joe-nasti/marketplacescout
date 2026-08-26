@@ -20,8 +20,8 @@ function timing(r){
 }
 
 function summary(r){
-  const sources=Number(r.independent_source_count||0),claims=Number(r.claim_count||0),stage=timing(r);
-  return `${sources} source${sources===1?'':'s'} · ${claims} claim${claims===1?'':'s'}${stage!=='UNRATED'?` · ${stage}`:''}`;
+  const sources=Number(r.independent_source_count||0),claims=Number(r.claim_count||0),stage=timing(r),rank=Number(r.edhrec_rank||0);
+  return `${sources} source${sources===1?'':'s'} · ${claims} claim${claims===1?'':'s'}${stage!=='UNRATED'?` · ${stage}`:''}${rank>0?` · EDHREC #${rank.toLocaleString()}`:''}`;
 }
 
 function compact(r){
@@ -35,7 +35,9 @@ function compact(r){
     confirmingSources:Number(r.confirming_sources||0),
     lateSources:Number(r.late_sources||0),
     latestObservedAt:r.latest_observed_at||null,
-    entityName:r.entity_name||null
+    entityName:r.entity_name||null,
+    edhrecRank:Number(r.edhrec_rank||0)||null,
+    edhrecObservedAt:r.edhrec_observed_at||null
   };
 }
 
@@ -50,8 +52,8 @@ function decorateList(){
     let badge=card.querySelector('.cx-intel-mini');
     if(!badge){badge=document.createElement('span');badge.className='cx-intel-mini';top.appendChild(badge)}
     badge.textContent=`◉ ${summary(r)}`;
-    const score=Number(r.intel_direction_score||0);
-    badge.title=`Independent intelligence rollup. Direction score ${score>=0?'+':''}${score.toFixed(1)}. Signals do not change Scout grade.`;
+    const score=Number(r.intel_direction_score||0),rank=Number(r.edhrec_rank||0);
+    badge.title=`Independent intelligence rollup. Direction score ${score>=0?'+':''}${score.toFixed(1)}.${rank>0?` EDHREC rank #${rank.toLocaleString()}.`:''} Signals do not change Scout grade.`;
   });
 }
 
@@ -62,15 +64,15 @@ function decorateDetail(sku){
   const section=host.querySelector('.cx-intel-detail');if(!section)return;
   section.querySelector('[data-intel-rollup]')?.remove();
   const line=document.createElement('div');line.dataset.intelRollup='1';line.className='cx-signal-meta';
-  const score=Number(r.intel_direction_score||0);
-  line.textContent=`Consensus: ${summary(r)} · direction ${score>=0?'+':''}${score.toFixed(1)}`;
+  const score=Number(r.intel_direction_score||0),rank=Number(r.edhrec_rank||0);
+  line.textContent=`Consensus: ${summary(r)} · direction ${score>=0?'+':''}${score.toFixed(1)}${rank>0?` · EDHREC #${rank.toLocaleString()}`:''}`;
   const title=section.querySelector('.cx-section-title');
   if(title)title.insertAdjacentElement('afterend',line);else section.prepend(line);
 }
 
 async function load(){
   if(loading)return loading;
-  loading=rest('market_intel_entity_rollups?select=*&order=latest_observed_at.desc&limit=500')
+  loading=rest('market_intel_entity_rollups_with_edhrec?select=*&order=latest_observed_at.desc&limit=500')
     .then(data=>{rollups=Array.isArray(data)?data:[];decorateList();decorateDetail(store.get().scout?.selectedSku||null);return rollups})
     .catch(error=>{console.warn('Intel source rollup load failed',error);return rollups})
     .finally(()=>{loading=null});
