@@ -45,6 +45,7 @@ const askEnhancers=[
   ()=>import('./ask/signals-starters.js'),
   ()=>import('./ask/investigate-presentation.js'),
   ()=>import('./ask/concise-view.js'),
+  ()=>import('./ask/sales-history-surface.js'),
   ()=>import('./ask/structured-surfaces.js'),
   ()=>import('./ask/rich-surfaces.js'),
   ()=>import('./ask/investigate.js'),
