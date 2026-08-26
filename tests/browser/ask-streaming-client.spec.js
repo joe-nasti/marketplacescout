@@ -59,6 +59,19 @@ test('Fast Ask reuses browser Scout snapshot and attaches Signals rollup when av
   expect(fn).toContain('signals:Boolean(signals)');
 });
 
+test('Fast Ask also attaches actionable emerging Signals when no entity rollup exists',async()=>{
+  const bridge=await source('src/modules/ask/actionable-signals-context.js');
+  const index=await source('src/modules/index.js');
+  expect(bridge).toContain('actionableEmerging?.rows');
+  expect(bridge).toContain("source:'actionable_emerging'");
+  expect(bridge).toContain('primarySignal');
+  expect(bridge).toContain('signalFamilies');
+  expect(bridge).toContain('liquidityScore');
+  expect(bridge).toContain('marginCushionPct');
+  expect(bridge).toContain('signalsSnapshot:merged');
+  expect(index).toContain("import('./ask/actionable-signals-context.js')");
+});
+
 test('Fast Ask warms preferences once and reuses them without the server preference RPC',async()=>{
   const cache=await source('src/modules/ask/preferences-cache.js');
   const fn=await source('supabase/functions/ask-collectish-stream/index.ts');
