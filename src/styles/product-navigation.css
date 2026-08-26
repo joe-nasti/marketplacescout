@@ -14,17 +14,18 @@
 .cx-route-tabs[hidden]{display:none!important}
 .cx-route-tabs button{border:1px solid var(--color-border);background:var(--color-bg-surface);color:var(--color-text-secondary);border-radius:999px;padding:7px 12px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
 .cx-route-tabs button.active{background:var(--color-accent-soft);border-color:color-mix(in srgb,var(--color-accent) 24%,var(--color-border));color:var(--color-accent)}
+.cx-nav-sub button:focus-visible,.cx-side-tools button:focus-visible,.cx-route-tabs button:focus-visible,.cx-mobile-nav button:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
 
 @media(max-width:700px){
-  #collectishUxShell{padding-bottom:78px}
+  #collectishUxShell{padding-bottom:calc(78px + env(safe-area-inset-bottom))}
   .cx-main{padding-top:max(12px,env(safe-area-inset-top))}
-  .cx-route-context{display:block;position:sticky;top:0;z-index:120;margin:-12px -12px 12px;padding:10px 12px 8px;background:color-mix(in srgb,var(--color-bg-primary) 94%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--color-border)}
+  .cx-route-context{display:block;position:sticky;top:0;z-index:120;margin:-12px -12px 12px;padding:10px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));background:color-mix(in srgb,var(--color-bg-primary) 94%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--color-border)}
   .cx-route-context[data-group="signals"] .cx-route-tabs,.cx-route-context[data-group="system"] .cx-route-tabs{display:none}
-  .cx-route-tabs{overflow-x:auto;scrollbar-width:none}
+  .cx-route-tabs{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;scroll-snap-type:x proximity}
   .cx-route-tabs::-webkit-scrollbar{display:none}
-  .cx-route-tabs button{flex:0 0 auto;min-height:36px}
-  .cx-mobile-nav{grid-template-columns:repeat(4,minmax(0,1fr));padding-left:8px;padding-right:8px;gap:4px}
-  .cx-mobile-nav button{font-size:11px;padding:9px 3px;border-radius:10px}
+  .cx-route-tabs button{flex:0 0 auto;min-height:44px;scroll-snap-align:start;touch-action:manipulation}
+  .cx-mobile-nav{grid-template-columns:repeat(4,minmax(0,1fr));padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right));gap:4px}
+  .cx-mobile-nav button{min-height:48px;font-size:11px;padding:9px 3px;border-radius:10px;touch-action:manipulation}
   .cx-mobile-nav button span{display:block;overflow:hidden;text-overflow:ellipsis}
   .cx-mobile-nav .cx-mobile-more{color:var(--color-text-secondary)}
   .cx-mobile-nav .cx-mobile-more.active{color:var(--color-accent)}

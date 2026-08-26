@@ -3,16 +3,18 @@
 .cx-auth{min-height:100vh;min-height:100dvh;padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom))}
 #cxParityCards>.cx-scout-card[data-cx-advanced-match="0"]{display:none!important}
 .cx-scout-mobile-metrics{display:none}
+:where(button,a,input,select,textarea,summary):focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
 
 @media(max-width:700px){
-  #collectishUxShell{min-height:100vh;min-height:100dvh;padding-bottom:calc(68px + env(safe-area-inset-bottom))}
+  #collectishUxShell{min-height:100vh;min-height:100dvh;padding-bottom:calc(78px + env(safe-area-inset-bottom))}
   .cx-main{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
   .cx-mobile-nav{
-    grid-template-columns:repeat(7,minmax(0,1fr));
-    padding-left:max(4px,env(safe-area-inset-left));
-    padding-right:max(4px,env(safe-area-inset-right));
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    padding-left:max(8px,env(safe-area-inset-left));
+    padding-right:max(8px,env(safe-area-inset-right));
+    gap:4px;
   }
-  .cx-mobile-nav button{min-height:44px;padding:6px 1px;line-height:1.1}
+  .cx-mobile-nav button{min-height:48px;padding:8px 3px;line-height:1.1;touch-action:manipulation}
   .cx-page-head{min-width:0}
   .cx-page-head>div{min-width:0}
   .cx-page-head h2,.cx-page-head p{overflow-wrap:anywhere}
@@ -22,7 +24,11 @@
   /* Mobile utility controls live in their own document-flow strip. */
   #app>.cx-top-utilities{display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:max(6px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 4px max(12px,env(safe-area-inset-left));background:var(--color-bg-primary)}
   #app>.cx-top-utilities .cx-top-version,#app>.cx-top-utilities .cx-theme-toggle{position:static!important;right:auto!important;top:auto!important;margin:0;box-shadow:none}
-  #app>.cx-top-utilities .cx-theme-toggle{width:34px;height:34px;font-size:16px}
+  #app>.cx-top-utilities .cx-theme-toggle{width:44px;height:44px;font-size:16px}
+
+  /* Navigation and filtering controls use comfortable touch targets. */
+  #cxScout .cx-scout-saved-views button,#cxScout [data-scout-filters],#cxScout [data-scout-filter-close],#cxScout [data-scout-filter-reset],#cxScout #cxScoutShare{min-height:44px;touch-action:manipulation}
+  #cxScout #cxScoutFilterSheetBody>select,#cxScout #cxScoutFilterSheetBody>input,#cxScout #cxScoutFilterSheetBody>[data-cx-compact-filters]>*{min-height:44px}
 
   /* Never expose Scout's intermediate legacy/wide render on mobile. */
   #cxScout.cx-scout-preparing #cxScoutIa,#cxScout.cx-scout-preparing .cx-scout-toolbar,#cxScout.cx-scout-preparing .cx-scout-layout{display:none!important}
@@ -51,9 +57,14 @@
 }
 
 @media(max-width:380px){
-  .cx-main{padding-left:10px;padding-right:10px}
-  .cx-mobile-nav button{font-size:9.5px}
+  .cx-main{padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}
+  .cx-mobile-nav button{font-size:10px}
   .cx-card{padding:12px}
   #cxParityCards .cx-scout-mobile-metrics{gap:3px 5px}
   #cxParityCards .cx-scout-mobile-metrics b{font-size:9px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
