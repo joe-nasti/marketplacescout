@@ -5,7 +5,7 @@ import path from 'node:path';
 const primitivesPath=path.join(process.cwd(),'src/core/ui-primitives.js');
 const adoptionPath=path.join(process.cwd(),'src/core/ui-adoption.js');
 
-test('shared vNext primitives stay theme-token driven',async()=>{
+test('shared UI primitives stay theme-token driven',async()=>{
   const source=await readFile(primitivesPath,'utf8');
   expect(source).toContain('var(--color-border)');
   expect(source).toContain('var(--color-bg-surface)');

@@ -64,4 +64,4 @@ body.cx-scout-filter-lock{overflow:hidden}
 #cxScout .cx-mobile-detail-open .cx-scout-why-buy{border-top:1px solid var(--color-border);padding-top:12px}
 }
 `;
-if(!document.getElementById('cxScoutIaV2Style')){const s=document.createElement('style');s.id='cxScoutIaV2Style';s.textContent=css;document.head.appendChild(s)}
+if(!document.getElementById('cxScoutStructureStyle')){const s=document.createElement('style');s.id='cxScoutStructureStyle';s.textContent=css;document.head.appendChild(s)}

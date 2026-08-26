@@ -12,10 +12,9 @@ test('Inventory route owns Action queue and Workspace without a visibility shim'
   expect(source).toContain('function syncMode()');
   expect(source).toContain("actions.hidden=mode!=='actions'");
   expect(source).toContain("workspace.hidden=mode!=='workspace'");
-  expect(source).not.toContain('cxInventoryVnext');
   const index=await read('src/modules/seller/inventory-index.js');
-  expect(index).not.toContain("import('./inventory-dense-vnext.js')");
-  expect(index).not.toContain("import('./inventory-vnext-ownership.js')");
+  expect(index).not.toContain('inventory-dense');
+  expect(index).not.toContain('inventory-vnext');
 });
 
 test('Inventory action queue reuses canonical route data instead of refetching context',async()=>{
