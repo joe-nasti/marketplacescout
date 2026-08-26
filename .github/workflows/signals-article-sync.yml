@@ -1,0 +1,54 @@
+name: Collectish article Signals refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 */2 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-article-sync.yml"
+      - "supabase/functions/market-intel-feed-sync/index.ts"
+      - "supabase/functions/market-intel-ingest/index.ts"
+      - "supabase/functions/market-intel-analyze/index.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-article-signals-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SUPABASE_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-feed-sync
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Refresh subscribed article feeds
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{"max_new":6}' \
+            "$SUPABASE_FUNCTION_URL"; } || true)"
+          cat "$response_file"
+          echo
+          if [[ ! "$status" =~ ^2 ]]; then
+            echo "Article Signals refresh failed with HTTP $status" >&2
+            exit 1
+          fi
+          if grep -Eq '"failed":[1-9]' "$response_file"; then
+            echo "Article Signals refresh completed with source failures" >&2
+            exit 1
+          fi
