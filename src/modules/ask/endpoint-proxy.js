@@ -11,7 +11,7 @@
     try{
       const u=new URL(raw,location.href);
       if(!u.pathname.endsWith('/functions/v1/ask-collectish'))return null;
-      u.pathname=u.pathname.replace(/\/ask-collectish$/,'/ask-collectish-ui');
+      u.pathname=u.pathname.replace(/\/ask-collectish$/,'/ask-collectish-agent-ui');
       return u.toString();
     }catch{return null}
   }
