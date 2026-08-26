@@ -1,0 +1,31 @@
+/* Product-level information architecture: Scout, Signals, Selling, then System. */
+.cx-nav{gap:12px}
+.cx-nav-group{display:grid;gap:4px}
+.cx-nav-group-label{padding:0 10px 4px;display:grid;gap:1px}
+.cx-nav-group-label strong{font-size:13px;letter-spacing:-.1px;color:var(--color-text-primary)}
+.cx-nav-group-label small{font-size:10px;line-height:1.25;color:var(--color-text-secondary);font-weight:600}
+.cx-nav-sub{display:grid;gap:3px}
+.cx-nav-sub button,.cx-side-tools button{width:100%;border:0;background:transparent;color:var(--color-text-primary);font-weight:700;cursor:pointer;padding:10px 13px;border-radius:11px;text-align:left;font-size:13px}
+.cx-nav-sub button.active,.cx-side-tools button.active{background:var(--color-accent-soft);color:var(--color-accent)}
+.cx-nav-group.active .cx-nav-group-label strong{color:var(--color-accent)}
+.cx-side-tools{padding-top:8px;border-top:1px solid var(--color-border)}
+.cx-route-context{display:none;margin:-2px 0 16px}
+.cx-route-tabs{display:flex;align-items:center;gap:6px;min-height:38px}
+.cx-route-tabs[hidden]{display:none!important}
+.cx-route-tabs button{border:1px solid var(--color-border);background:var(--color-bg-surface);color:var(--color-text-secondary);border-radius:999px;padding:7px 12px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.cx-route-tabs button.active{background:var(--color-accent-soft);border-color:color-mix(in srgb,var(--color-accent) 24%,var(--color-border));color:var(--color-accent)}
+
+@media(max-width:700px){
+  #collectishUxShell{padding-bottom:78px}
+  .cx-main{padding-top:max(12px,env(safe-area-inset-top))}
+  .cx-route-context{display:block;position:sticky;top:0;z-index:120;margin:-12px -12px 12px;padding:10px 12px 8px;background:color-mix(in srgb,var(--color-bg-primary) 94%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--color-border)}
+  .cx-route-context[data-group="signals"] .cx-route-tabs,.cx-route-context[data-group="system"] .cx-route-tabs{display:none}
+  .cx-route-tabs{overflow-x:auto;scrollbar-width:none}
+  .cx-route-tabs::-webkit-scrollbar{display:none}
+  .cx-route-tabs button{flex:0 0 auto;min-height:36px}
+  .cx-mobile-nav{grid-template-columns:repeat(4,minmax(0,1fr));padding-left:8px;padding-right:8px;gap:4px}
+  .cx-mobile-nav button{font-size:11px;padding:9px 3px;border-radius:10px}
+  .cx-mobile-nav button span{display:block;overflow:hidden;text-overflow:ellipsis}
+  .cx-mobile-nav .cx-mobile-more{color:var(--color-text-secondary)}
+  .cx-mobile-nav .cx-mobile-more.active{color:var(--color-accent)}
+}
