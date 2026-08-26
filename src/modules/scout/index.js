@@ -12,9 +12,10 @@ export async function installScoutRenderer(){
   await import('./renderer.js');
   document.dispatchEvent(new CustomEvent('collectish:scout-structure-ready'));
 
-  // These remain interaction-only enhancers and cannot reshape first paint.
+  // These remain interaction/state enhancers and cannot reshape first paint.
   void Promise.all([
     import('./detail-navigation.js'),
+    import('./route-state.js'),
     import('./score-explain.js')
   ]).then(()=>document.dispatchEvent(new CustomEvent('collectish:scout-interactions-ready')));
 }
