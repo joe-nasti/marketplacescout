@@ -16,6 +16,7 @@ const buylistBacked=r=>{const buy=Number(r?.cardkingdom_buylist_ev),acq=acquisit
 const xval=(r,k)=>Number(r?.quantity||0)*Number(r?.[k]||0);
 const setMap=()=>new Map(Object.entries(store.get().sealed?.setTypes||{}));
 let detailSeq=0;
+let setTypesLoading=null;
 
 function languageMeta(r){const s=r?.score_components||{};return{lang:s.sealed_language||'English',mode:s.language_pricing_mode||'',exact:Number(s.exact_language_coverage_pct||0),fallback:Number(s.english_fallback_coverage_pct||0),penalty:Number(s.language_confidence_penalty||0),raw:s.language_raw_score==null?null:Number(s.language_raw_score)}}
 function languageClass(r){const m=languageMeta(r);if(m.mode==='english_equivalent_fallback'||m.fallback>0)return'fallback';if(m.lang.toLowerCase()!=='english'&&m.exact>0)return'nonenglish_exact';return'english_exact'}
@@ -27,15 +28,29 @@ function stat(label,value,sub='',url=''){const body=`<span>${esc(label)}</span><
 function sortRows(a,b){const as=score(a),bs=score(b);if(as!=null&&bs!=null)return bs-as;if(as!=null)return-1;if(bs!=null)return 1;return Number(b.tcg_market_ev||0)-Number(a.tcg_market_ev||0)}
 function selectedRow(){const s=store.get().sealed||{};return (s.rows||[]).find(r=>String(r.sealed_uuid)===String(s.selectedId))||null}
 
+function setTypeOptions(){
+  const s=store.get().sealed||{},rows=s.rows||[];
+  return [...new Set(rows.map(r=>s.setTypes?.[String(r.set_code||'').toUpperCase()]).filter(Boolean))].sort();
+}
+function refreshSetTypeSurface(){
+  const s=store.get().sealed||{},select=document.getElementById('cxSealedSetType');
+  if(select){const value=s.filters?.setType||'';select.innerHTML=`<option value="">All Types</option>${setTypeOptions().map(x=>`<option value="${esc(x)}">${esc(human(x))}</option>`).join('')}`;select.value=value}
+  renderRows();
+  if(selectedRow())renderDetail(selectedRow()).catch(()=>{});
+}
+async function loadSetTypes(force=false){
+  if(setTypesLoading&&!force)return setTypesLoading;
+  setTypesLoading=loadResource('sealed.setTypes',()=>rest('magic_set_catalog?select=code,set_type&digital=eq.false'),{force,ttl:15*60*1000})
+    .then(catalog=>{const types=Object.fromEntries((catalog||[]).map(x=>[String(x.code||'').toUpperCase(),x.set_type]));store.update('sealed',{setTypes:types,setTypesLoadedAt:Date.now(),setTypesError:null});refreshSetTypeSurface();document.dispatchEvent(new CustomEvent('collectish:sealed-set-types-ready',{detail:{count:Object.keys(types).length}}));return types})
+    .catch(error=>{store.update('sealed',{setTypesError:String(error?.message||error)});return store.get().sealed?.setTypes||{}})
+    .finally(()=>{setTypesLoading=null});
+  return setTypesLoading;
+}
 async function loadIndex(force=false){
-  const [rows,catalog]=await Promise.all([
-    loadResource('sealed.rows',()=>rest('sealed_ev_current?select=*&order=scout_sealed_score.desc.nullslast,release_date.desc,product_name.asc&limit=5000'),{force,ttl:60000}),
-    loadResource('sealed.setTypes',()=>rest('magic_set_catalog?select=code,set_type&digital=eq.false'),{force,ttl:15*60*1000})
-  ]);
-  const types=Object.fromEntries((catalog||[]).map(x=>[String(x.code||'').toUpperCase(),x.set_type]));
-  const current=store.get().sealed||{};
-  const sorted=(rows||[]).slice().sort(sortRows);
-  store.update('sealed',{rows:sorted,setTypes:types,selectedId:current.selectedId||sorted[0]?.sealed_uuid||null,loadedAt:Date.now()});
+  const rows=await loadResource('sealed.rows',()=>rest('sealed_ev_current?select=*&order=scout_sealed_score.desc.nullslast,release_date.desc,product_name.asc&limit=5000'),{force,ttl:60000});
+  const current=store.get().sealed||{},sorted=(rows||[]).slice().sort(sortRows);
+  store.update('sealed',{rows:sorted,selectedId:current.selectedId||sorted[0]?.sealed_uuid||null,loadedAt:Date.now()});
+  void loadSetTypes(force);
   return sorted;
 }
 
@@ -59,7 +74,7 @@ function filteredRows(){
 
 function renderShell(){
   const h=document.getElementById('cxSealed');if(!h)return;
-  const s=store.get().sealed||{},rows=s.rows||[],f=s.filters||{},types=[...new Set(rows.map(r=>s.setTypes?.[String(r.set_code||'').toUpperCase()]).filter(Boolean))].sort();
+  const s=store.get().sealed||{},rows=s.rows||[],f=s.filters||{},types=setTypeOptions();
   const assessed=rows.length,graded=rows.filter(r=>score(r)!=null).length,sets=new Set(rows.map(r=>r.set_code).filter(Boolean)).size,last=rows.reduce((m,r)=>!m||new Date(r.refreshed_at)>new Date(m)?r.refreshed_at:m,null);
   h.innerHTML=`<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Generalized sealed opportunities across enabled sets.</p><small class="cx-sub">${assessed} assessed · ${graded} graded · ${sets} enabled sets · refreshed ${esc(age(last))}</small></div><button class="cx-refresh" id="cxSealedRefresh">Refresh</button></div><div class="cx-sealed-toolbar cx-sealed-toolbar-compact"><input id="cxSealedSearch" value="${esc(f.query||'')}" placeholder="Search sealed products…"><select id="cxSealedFilter" class="cx-sealed-filter-internal"><option value="">All assessed products</option><option value="graded">Graded only</option><option value="scout">Scout Sealed only</option><option value="evready">EV ready</option><option value="blocked">Blocked / pending</option></select><div class="cx-sealed-chip-bar"><select id="cxSealedSetType" class="cx-sealed-filter-chip"><option value="">All Types</option>${types.map(x=>`<option value="${esc(x)}">${esc(human(x))}</option>`).join('')}</select><select id="cxSealedLanguagePricing" class="cx-sealed-filter-chip"><option value="all">Language</option><option value="exclude_fallback">Exclude fallback pricing</option><option value="english_exact">English / exact-default only</option><option value="nonenglish_exact">Non-English exact-language only</option><option value="fallback">English fallback only</option></select><button type="button" id="cxSealedBuylistBacked" class="cx-sealed-filter-toggle ${f.buylistBacked?'active':''}" aria-pressed="${f.buylistBacked?'true':'false'}"><span aria-hidden="true">⚡</span><span>Buylist Backed</span></button></div><small id="cxSealedLanguageFilterCount" class="cx-sealed-filter-internal"></small></div><div class="cx-sealed-layout"><section><div id="cxSealedRows" class="cx-sealed-list"></div></section><aside id="cxSealedDetail" class="cx-card cx-sealed-detail"></aside></div>`;
   h.querySelector('#cxSealedFilter').value=f.status||'';h.querySelector('#cxSealedSetType').value=f.setType||'';h.querySelector('#cxSealedLanguagePricing').value=f.language||'all';
@@ -129,8 +144,8 @@ async function renderDetail(r){
 
 export async function load(force=false){
   const h=document.getElementById('cxSealed');if(!h)return;
-  h.innerHTML='<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Loading sealed model…</p></div></div><div class="cx-sealed-page-skeleton" aria-hidden="true"><div class="cx-skeleton-toolbar"></div><div class="cx-skeleton-layout"><div class="cx-skeleton-list">'+Array.from({length:6},()=>'<div class="cx-skeleton-card"><span class="cx-skeleton-art"></span><span class="cx-skeleton-copy"></span></div>').join('')+'</div><div class="cx-skeleton-table"></div></div></div>';
-  try{await loadIndex(force);renderShell()}
+  h.innerHTML='<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Loading sealed opportunities…</p></div></div><div class="cx-sealed-page-skeleton" aria-hidden="true"><div class="cx-skeleton-toolbar"></div><div class="cx-skeleton-layout"><div class="cx-skeleton-list">'+Array.from({length:6},()=>'<div class="cx-skeleton-card"><span class="cx-skeleton-art"></span><span class="cx-skeleton-copy"></span></div>').join('')+'</div><div class="cx-skeleton-table"></div></div></div>';
+  try{await loadIndex(force);renderShell();document.dispatchEvent(new CustomEvent('collectish:sealed-core-ready',{detail:{count:store.get().sealed?.rows?.length||0}}))}
   catch(error){h.innerHTML=`<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Could not load the sealed model.</p></div><button class="cx-refresh" id="cxSealedRetry">Retry</button></div><div class="cx-card"><div class="cx-empty">${esc(error.message||error)}</div></div>`;h.querySelector('#cxSealedRetry')?.addEventListener('click',()=>load(true))}
 }
 
