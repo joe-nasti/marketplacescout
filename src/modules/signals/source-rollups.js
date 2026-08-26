@@ -24,6 +24,23 @@ function summary(r){
   return `${sources} source${sources===1?'':'s'} · ${claims} claim${claims===1?'':'s'}${stage!=='UNRATED'?` · ${stage}`:''}`;
 }
 
+function compact(r){
+  if(!r)return null;
+  return {
+    independentSources:Number(r.independent_source_count||0),
+    claims:Number(r.claim_count||0),
+    timing:timing(r),
+    direction:Number(r.intel_direction_score||0),
+    earlySources:Number(r.early_sources||0),
+    confirmingSources:Number(r.confirming_sources||0),
+    lateSources:Number(r.late_sources||0),
+    latestObservedAt:r.latest_observed_at||null,
+    entityName:r.entity_name||null
+  };
+}
+
+function getCompactForRow(row){return compact(match(row))}
+
 function decorateList(){
   const rows=store.get().scout?.rows||[];
   const bySku=new Map(rows.map(r=>[String(r.sku_id),r]));
@@ -66,4 +83,5 @@ document.addEventListener('collectish:scout-list-rendered',()=>{if(rollups.lengt
 document.addEventListener('collectish:scout-detail-rendered',e=>{if(rollups.length)decorateDetail(e.detail?.sku);else void load()});
 document.addEventListener('collectish:ready',()=>void load());
 
-export { load as loadIntelSourceRollups };
+window.CollectishIntelRollups={getCompactForRow,load};
+export { load as loadIntelSourceRollups, getCompactForRow };
