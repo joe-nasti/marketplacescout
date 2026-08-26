@@ -4,8 +4,8 @@ import path from 'node:path';
 
 const read=p=>readFile(path.join(process.cwd(),p),'utf8');
 
-test('Scout mobile rows surface decision metrics inside the visible row',async()=>{
-  const source=await read('src/modules/scout/dense-list.js');
+test('Scout mobile rows surface decision metrics inside the route-owned row',async()=>{
+  const source=await read('src/modules/scout/renderer.js');
   expect(source).toContain('cx-scout-mobile-metrics');
   for(const label of ['Score','Market','Direct','Premium','Velocity','CK BL'])expect(source).toContain(`>${label}<`);
 });
