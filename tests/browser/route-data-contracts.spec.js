@@ -16,6 +16,17 @@ test('Signals and Selling declare first-use and useful-soon data contracts',asyn
   expect(js).toContain("role:'usefulSoon'");
 });
 
+test('SYP first use includes read-only stats options and default eligible page',async()=>{
+  const js=await read('src/state/route-data-contracts.js');
+  expect(js).toContain("key:'syp.dashboardStats'");
+  expect(js).toContain("path:'rpc/syp_dashboard_stats'");
+  expect(js).toContain("key:'syp.filterOptions'");
+  expect(js).toContain("path:'rpc/syp_filter_options_rpc'");
+  expect(js).toContain("method:'POST'");
+  expect(js).toContain("key:'syp.eligibleFirstPage'");
+  expect(js).toContain('order=last_seen.desc&limit=100&offset=0');
+});
+
 test('deep Selling report reads stay interaction-driven',async()=>{
   const js=await read('src/state/route-data-contracts.js');
   expect(js).not.toContain('seller_payments?select=');
@@ -27,12 +38,11 @@ test('deep Selling report reads stay interaction-driven',async()=>{
 
 test('REST reuses named route resources without recursive cache wrapping',async()=>{
   const rest=await read('src/core/rest.js');
-  expect(rest).toContain("import { loadResource } from '../state/resources.js'");
-  expect(rest).toContain("resourceContractForPath(path)");
+  expect(rest).toContain("import { loadResource, getResource } from '../state/resources.js'");
+  expect(rest).toContain('resourceContractForRequest(path,options)');
   expect(rest).toContain("!options.__routeResource");
   expect(rest).toContain("__routeResource:true");
   expect(rest).toContain('loadResource(contract.key');
-  expect(rest).toContain('staleWhileRevalidate:true');
 });
 
 test('contract cache accelerates first read but later reads preserve explicit refresh semantics',async()=>{
@@ -41,6 +51,26 @@ test('contract cache accelerates first read but later reads preserve explicit re
   expect(rest).toContain('const seen=contractReads.has(contract.key)');
   expect(rest).toContain('contractReads.add(contract.key)');
   expect(rest).toContain('force:Boolean(options.force)||seen');
+});
+
+test('route contracts never leave visible owners on silently stale SWR data',async()=>{
+  const [contracts,rest]=await Promise.all([
+    read('src/state/route-data-contracts.js'),
+    read('src/core/rest.js')
+  ]);
+  expect(contracts).toContain('staleWhileRevalidate:false');
+  expect(contracts).toContain('fallbackToStaleOnError:true');
+  expect(rest).toContain('staleWhileRevalidate:contract.staleWhileRevalidate!==false');
+  expect(rest).toContain('contract.fallbackToStaleOnError&&stale?.data!=null');
+  expect(rest).toContain("bump('route_data_stale_fallbacks'");
+});
+
+test('request contracts can safely identify explicit idempotent POST reads',async()=>{
+  const contracts=await read('src/state/route-data-contracts.js');
+  expect(contracts).toContain('requestSignature');
+  expect(contracts).toContain('stableBody');
+  expect(contracts).toContain('resourceContractForRequest');
+  expect(contracts).toContain("options.method||'GET'");
 });
 
 test('navigation cache hydration is derived from route contracts',async()=>{
