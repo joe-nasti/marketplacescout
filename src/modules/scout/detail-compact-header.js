@@ -20,7 +20,9 @@ function compactHeader(h,row){
   const meta=document.createElement('div');meta.className='cx-v5-compact-meta';
   const printing=document.createElement('span');printing.className='cx-v5-printing-chip';printing.textContent=[row.printing,row.condition].filter(Boolean).join(' · ')||'Printing unknown';
   const overall=document.createElement('span');overall.className='cx-v5-overall-chip';overall.innerHTML=`<span class="cx-grade cx-grade-${grade(row).toLowerCase()}">${grade(row)}</span><strong>${score(row)}<small>/100</small></strong>`;
-  meta.append(printing,overall);info.append(title,set,meta);if(oldBadges?.children.length){oldBadges.classList.add('cx-v5-compact-badges');info.append(oldBadges)}head.append(info);oldTitle.replaceWith(head);
+  meta.append(printing,overall);
+  const edhrec=Number(row.edhrec_rank||0);if(edhrec>0){const chip=document.createElement('span');chip.className='cx-v5-printing-chip cx-v5-edhrec-chip';chip.textContent=`EDHREC #${edhrec.toLocaleString()}`;chip.title='Commander popularity rank from the shared Scryfall EDHREC-rank cache.';meta.append(chip)}
+  info.append(title,set,meta);if(oldBadges?.children.length){oldBadges.classList.add('cx-v5-compact-badges');info.append(oldBadges)}head.append(info);oldTitle.replaceWith(head);
   const execution=Number(row.direct_execution_points||0)+Number(row.buylist_backing_points||0),strip=document.createElement('div');strip.className='cx-v5-score-strip';strip.append(points('Thesis',row.thesis_points,70),points('Exec',execution,20),points('Floor',row.exit_floor_points,5),points('Conf',row.confirmation_points,5));oldComponents.replaceWith(strip);
 }
 
