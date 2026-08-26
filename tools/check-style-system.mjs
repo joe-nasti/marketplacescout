@@ -24,7 +24,8 @@ const expected=[
   'signals-mobile-polish.css',
   'signals-rendered.css',
   'signals.css',
-  'tokens.css'
+  'tokens.css',
+  'utility-controls.css'
 ].sort();
 const files=(await readdir(styles)).sort();
 if(JSON.stringify(files)!==JSON.stringify(expected)){
