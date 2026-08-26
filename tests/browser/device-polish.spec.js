@@ -60,15 +60,22 @@ test('Scout mobile rows prioritize decision metrics instead of repeating score',
     host.innerHTML='<button class="cx-scout-card cx-scout-dense-row"><span class="cx-scout-dense-card"><span></span><span class="cx-scout-dense-name"><span class="cx-scout-mobile-metrics"><span><small>Score</small><b>88</b></span><span><small>Market</small><b>$10</b></span><span><small>Direct</small><b>$12</b></span><span><small>Premium</small><b>+20%</b></span><span><small>Velocity</small><b>1.4/d</b></span><span><small>CK BL</small><b>$8</b></span></span></span></span></button>';
     document.body.appendChild(host);
   });
-  const result=await page.locator('.cx-scout-mobile-metrics').evaluate(box=>({
-    visible:[...box.children].filter(el=>getComputedStyle(el).display!=='none').map(el=>el.querySelector('small')?.textContent),
-    columns:getComputedStyle(box).gridTemplateColumns.trim().split(/\s+/).length,
-    spans:[...box.children].filter(el=>getComputedStyle(el).display!=='none').map(el=>getComputedStyle(el).gridColumnEnd)
-  }));
+  const result=await page.locator('.cx-scout-mobile-metrics').evaluate(box=>{
+    const visible=[...box.children].filter(el=>getComputedStyle(el).display!=='none');
+    const rects=visible.map(el=>{const r=el.getBoundingClientRect();return {top:r.top,width:r.width}});
+    return {
+      visible:visible.map(el=>el.querySelector('small')?.textContent),
+      columns:getComputedStyle(box).gridTemplateColumns.trim().split(/\s+/).length,
+      rects
+    };
+  });
   expect(result.visible).toEqual(['Market','Direct','Premium','Velocity','CK BL']);
   expect(result.columns).toBe(6);
-  expect(result.spans.slice(0,3)).toEqual(['span 2','span 2','span 2']);
-  expect(result.spans.slice(3)).toEqual(['span 3','span 3']);
+  expect(Math.max(...result.rects.slice(0,3).map(r=>r.top))-Math.min(...result.rects.slice(0,3).map(r=>r.top))).toBeLessThan(1);
+  expect(Math.abs(result.rects[3].top-result.rects[4].top)).toBeLessThan(1);
+  expect(result.rects[3].top).toBeGreaterThan(result.rects[0].top);
+  expect(result.rects[3].width).toBeGreaterThan(result.rects[0].width*1.35);
+  expect(result.rects[4].width).toBeGreaterThan(result.rects[1].width*1.35);
 });
 
 test('reduced-motion preference disables decorative motion',async({page})=>{
