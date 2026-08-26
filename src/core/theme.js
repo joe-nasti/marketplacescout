@@ -1,6 +1,7 @@
 const KEY='collectishTheme';
 const MODES=['system','light','dark'];
 const media=matchMedia('(prefers-color-scheme: dark)');
+const mobile=matchMedia('(max-width:700px)');
 
 export const savedThemeMode=()=>{
   const value=localStorage.getItem(KEY);
@@ -12,6 +13,8 @@ export const resolvedTheme=mode=>mode==='system'?(media.matches?'dark':'light'):
 function syncNative(theme){
   try{window.CollectishAndroid?.setTheme?.(theme)}catch{}
 }
+
+function themeLabel(mode){return mode[0].toUpperCase()+mode.slice(1)}
 
 export function applyTheme(mode=savedThemeMode()){
   const theme=resolvedTheme(mode);
@@ -25,7 +28,7 @@ export function applyTheme(mode=savedThemeMode()){
   if(meta)meta.content=bg;
   syncNative(theme);
   document.querySelectorAll('[data-cx-theme-toggle]').forEach(button=>{
-    button.textContent=mode==='system'?'◐':mode==='dark'?'☾':'☀';
+    button.textContent=`Theme · ${themeLabel(mode)}`;
     button.title=`Theme: ${mode}. Tap to change.`;
     button.setAttribute('aria-label',`Theme: ${mode}. Tap to change.`);
   });
@@ -39,20 +42,15 @@ export function cycleTheme(){
   applyTheme(next);
 }
 
-function ensureTopUtilities(){
-  const app=document.getElementById('app');
-  if(!app)return null;
-  let bar=document.getElementById('cxTopUtilities');
-  if(!bar){bar=document.createElement('div');bar.id='cxTopUtilities';bar.className='cx-top-utilities';app.prepend(bar)}
-  const badge=document.querySelector('.cx-top-version');
-  if(badge&&badge.parentElement!==bar)bar.appendChild(badge);
-  return bar;
+function utilityHost(){
+  if(mobile.matches)return document.getElementById('cxMobileUtilities');
+  return document.getElementById('cxDesktopUtilities');
 }
 
 export function ensureThemeToggle(){
   if(!document.body)return;
   if(!document.getElementById('collectishUxShell'))return;
-  const bar=ensureTopUtilities();
+  const host=utilityHost();
   let button=document.querySelector('[data-cx-theme-toggle]');
   if(!button){
     button=document.createElement('button');
@@ -61,14 +59,15 @@ export function ensureThemeToggle(){
     button.dataset.cxThemeToggle='1';
     button.addEventListener('click',cycleTheme);
   }
-  if(bar&&button.parentElement!==bar)bar.appendChild(button);
-  else if(!bar&&!button.isConnected)document.body.append(button);
+  if(host&&button.parentElement!==host)host.appendChild(button);
+  else if(!host&&!button.isConnected)document.body.append(button);
   applyTheme();
 }
 
 export function installTheme(){
   applyTheme();
   media.addEventListener?.('change',()=>{if(savedThemeMode()==='system')applyTheme('system')});
+  mobile.addEventListener?.('change',()=>queueMicrotask(ensureThemeToggle));
   window.addEventListener('pageshow',()=>applyTheme());
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)applyTheme()});
   document.addEventListener('collectish:shell-rendered',()=>{
