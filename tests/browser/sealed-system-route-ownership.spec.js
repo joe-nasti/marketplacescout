@@ -24,6 +24,6 @@ test('Admin establishes console before additive diagnostics',async()=>{
   const alertsAt=index.indexOf("import('./alerts.js')");
   expect(consoleAt).toBeGreaterThan(-1);
   expect(alertsAt).toBeGreaterThan(consoleAt);
-  expect(index).toContain("document.querySelectorAll('#cxAdmin [data-cx-lazy-placeholder]').forEach(el=>el.remove())");
-  expect(lazy).toContain('data-cx-lazy-placeholder');
+  expect(lazy).toContain("h.setAttribute('aria-busy','true')");
+  expect(lazy).not.toContain('data-cx-lazy-placeholder');
 });
