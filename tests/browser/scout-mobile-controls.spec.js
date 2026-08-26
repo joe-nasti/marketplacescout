@@ -5,15 +5,17 @@ import path from 'node:path';
 const root=process.cwd();
 const read=p=>readFile(path.join(root,p),'utf8');
 
-test('Scout saved views do not include a redundant Filters trigger',async()=>{
-  const source=await read('src/modules/scout/ia-v2.js');
-  const chrome=source.match(/ia\.innerHTML=`([\s\S]*?)`;/)?.[1]||'';
+test('Scout saved views stay separate from the Filters trigger',async()=>{
+  const source=await read('src/modules/scout/renderer.js');
+  const start=source.indexOf('cx-scout-saved-views');
+  const end=source.indexOf('</div></div><button type="button" id="cxScoutBudgetStrip"',start);
+  const chrome=start>=0&&end>start?source.slice(start,end):'';
   expect(chrome).toContain('Top');
   expect(chrome).toContain('Quick turns');
   expect(chrome).toContain('Buylist backed');
   expect(chrome).toContain('High velocity');
   expect(chrome).not.toContain('data-scout-filters');
-  expect(source).toContain("b.dataset.scoutFilters='1'");
+  expect(source).toContain('data-scout-filters>Filters');
 });
 
 test('mobile build badge and theme toggle live in the scrolling document utility strip',async()=>{
