@@ -5,6 +5,7 @@
   window.__collectishAskEndpointProxyInstalled=true;
   window.__CollectishAskSurfaceQueue=window.__CollectishAskSurfaceQueue||[];
   const nativeFetch=window.fetch.bind(window);
+  const externalResearch=/search (?:the )?web|research externally|look online|external research|latest (?:news|articles|discussion)|web research|search online|find (?:recent )?(?:news|articles|discussion)/i;
 
   function rewritten(input){
     const raw=input instanceof Request?input.url:String(input||'');
@@ -16,6 +17,7 @@
     }catch{return null}
   }
 
+  function requestBody(init={}){try{return init?.body&&typeof init.body==='string'?JSON.parse(init.body):null}catch{return null}}
   function withCanonicalContext(init={}){
     if(!init?.body||typeof init.body!=='string')return init;
     try{
@@ -26,11 +28,18 @@
       return {...init,body:JSON.stringify({...body,context:{...canonical,...(body.context||{}),entity:canonical.entity,view:canonical.view}})};
     }catch{return init}
   }
+  function status(text,kind=''){
+    const el=document.getElementById('cxAskStatus');if(!el)return;
+    el.textContent=text;if(kind)el.dataset.kind=kind;
+  }
 
   window.fetch=async function(input,init){
     const url=rewritten(input);
     if(!url)return nativeFetch(input,init);
     const nextInit=input instanceof Request?init:withCanonicalContext(init);
+    const body=requestBody(nextInit);
+    const isExternal=String(body?.action||'chat')==='chat'&&externalResearch.test(String(body?.message||body?.question||''));
+    if(isExternal)status('Searching external sources…');
     const response=input instanceof Request
       ? await nativeFetch(input,nextInit)
       : await nativeFetch(url,nextInit);
@@ -39,7 +48,9 @@
       if(/^collectish\.ask\.surface\.v\d+$/.test(String(data?.surface_schema||''))&&Array.isArray(data.surfaces)&&data.surfaces.length){
         window.__CollectishAskSurfaceQueue.push({schema:data.surface_schema,surfaces:data.surfaces,conversation_id:data.conversation_id||null});
       }
-    }catch{}
+      if(isExternal&&data?.orchestration?.pass4)status(`Web research · ${data.surfaces?.find?.(s=>s?.type==='external_research')?.source_count||0} sources`,'ok');
+      else if(isExternal&&data?.orchestration?.external_research_error)status('Web research failed','bad');
+    }catch{if(isExternal)status('Web research finished')}
     return response;
   };
 })();
