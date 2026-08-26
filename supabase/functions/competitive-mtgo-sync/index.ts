@@ -26,7 +26,7 @@ function deckKey(player:string,placement:number){return `${player}\u0000${placem
 async function insertChunks(db:any,table:string,rows:any[],size=500){for(let i=0;i<rows.length;i+=size){const {error}=await db.from(table).insert(rows.slice(i,i+size));if(error)throw error}}
 
 Deno.serve(async req=>{
-  if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return J({error:'POST required'},405);const token=bearer(req);if(!token)return J({error:'Authentication required'},401);try{await auth(token)}catch{return J({error:'Authentication required'},401)}if(!SERVICE)return J({error:'Service role unavailable'},500);
+  if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return J({error:'POST required'},405);const token=bearer(req);if(!token)return J({error:'Authentication required'},401);const isScheduler=Boolean(SERVICE&&token===SERVICE);if(!isScheduler){try{await auth(token)}catch{return J({error:'Authentication required'},401)}}if(!SERVICE)return J({error:'Service role unavailable'},500);
   const db=createClient(SUPABASE_URL,SERVICE,{auth:{persistSession:false}});const started=Date.now();
   try{
     let body:any={};try{body=await req.json()}catch{}const limit=Math.max(1,Math.min(8,Number(body?.limit)||4));const prefer=Array.isArray(body?.prefer_formats)&&body.prefer_formats.length?body.prefer_formats.map(String):['Standard','Pioneer','Modern','Legacy'];const skipImported=body?.skip_imported!==false;
