@@ -1,20 +1,52 @@
 import { registerComponent } from './lifecycle.js';
 import store from '../state/store.js';
+import { primeResources } from '../state/resources.js';
 
 const loaded=new Set();
 const loading=new Map();
-const pageLoaders={
-  signals:async()=>{const m=await import('../modules/signals/index.js');await m.install()},
-  sealed:async()=>{const m=await import('../modules/sealed/index.js');await m.install()},
-  seller:async()=>{const m=await import('../modules/seller/index.js');await m.install()},
-  syp:async()=>{const m=await import('../modules/seller/syp.js');await m.install()},
-  inventory:async()=>{const m=await import('../modules/seller/inventory-index.js');await m.install()},
-  admin:async()=>{const m=await import('../modules/admin/index.js');await m.install()}
+const prefetched=new Map();
+const prefetching=new Map();
+
+const pageModules={
+  signals:()=>import('../modules/signals/index.js'),
+  sealed:()=>import('../modules/sealed/index.js'),
+  seller:()=>import('../modules/seller/index.js'),
+  syp:()=>import('../modules/seller/syp.js'),
+  inventory:()=>import('../modules/seller/inventory-index.js'),
+  admin:()=>import('../modules/admin/index.js')
+};
+const routePrime={
+  sealed:[
+    {key:'sealed.rows',scope:'user',maxStale:7*24*60*60*1000},
+    {key:'sealed.setTypes',scope:'user',maxStale:30*24*60*60*1000}
+  ]
 };
 const title=p=>p==='syp'?'SYP':p[0].toUpperCase()+p.slice(1);
 const host=page=>document.getElementById(`cx${page==='syp'?'Syp':page[0].toUpperCase()+page.slice(1)}`);
 const buildId=()=>document.querySelector('meta[name="collectish-build"]')?.content?.trim()||'unknown';
 const dynamicImportFailure=err=>/failed to fetch dynamically imported module|importing a module script failed|error loading dynamically imported module/i.test(String(err?.message||err||''));
+
+function moduleFor(page){
+  if(prefetched.has(page))return prefetched.get(page);
+  const importer=pageModules[page];
+  if(!importer)return null;
+  const job=importer().catch(error=>{prefetched.delete(page);throw error});
+  prefetched.set(page,job);
+  return job;
+}
+
+export function prefetchPage(page){
+  if(!pageModules[page]||loaded.has(page)||loading.has(page))return null;
+  if(prefetching.has(page))return prefetching.get(page);
+  const started=performance.now();
+  const jobs=[moduleFor(page)];
+  if(routePrime[page]?.length)jobs.push(primeResources(routePrime[page]).catch(()=>0));
+  const job=Promise.all(jobs).then(()=>{
+    document.dispatchEvent(new CustomEvent('collectish:lazy-page-prefetched',{detail:{page,ms:Math.round(performance.now()-started)}}));
+  }).catch(()=>{}).finally(()=>prefetching.delete(page));
+  prefetching.set(page,job);
+  return job;
+}
 
 function recoverStaleModule(page,err){
   if(!dynamicImportFailure(err))return false;
@@ -30,19 +62,26 @@ function recoverStaleModule(page,err){
   return true;
 }
 
-function showLoading(page){const h=host(page);if(!h||h.dataset.cxLazyReady==='1')return;h.innerHTML=`<div data-cx-lazy-placeholder="${page}"><div class="cx-page-head"><div><h2>${title(page)}</h2><p>Loading ${title(page)}…</p></div></div><div class="cx-card"><div class="cx-empty">Preparing ${title(page)} data…</div></div></div>`}
-function showError(page,err){const h=host(page);if(!h)return;h.innerHTML=`<div class="cx-page-head"><div><h2>${title(page)}</h2></div></div><div class="cx-card"><div class="cx-empty">Could not load ${title(page)}${err?`: ${String(err.message||err)}`:''}. Reopen the tab to retry.</div></div>`}
+function setLoading(page,isLoading){
+  const h=host(page);if(!h)return;
+  h.dataset.cxLazyStatus=isLoading?'loading':'ready';
+  if(isLoading)h.setAttribute('aria-busy','true');else h.removeAttribute('aria-busy');
+}
+function showError(page,err){const h=host(page);if(!h)return;h.dataset.cxLazyStatus='error';h.removeAttribute('aria-busy');h.innerHTML=`<div class="cx-page-head"><div><h2>${title(page)}</h2></div></div><div class="cx-card"><div class="cx-empty">Could not load ${title(page)}${err?`: ${String(err.message||err)}`:''}. Reopen the tab to retry.</div></div>`}
 
 export async function loadPage(page){
-  const loader=pageLoaders[page];
-  if(!loader||loaded.has(page))return;
+  if(!pageModules[page]||loaded.has(page))return;
   if(loading.has(page))return loading.get(page);
-  showLoading(page);
+  setLoading(page,true);
   const started=performance.now();
   store.update('runtime',{lazyPage:page,lazyStatus:'loading'});
-  const job=loader().then(()=>{
+  const job=(async()=>{
+    const m=await moduleFor(page);
+    await m.install();
+  })().then(()=>{
     loaded.add(page);
     const h=host(page);if(h)h.dataset.cxLazyReady='1';
+    setLoading(page,false);
     store.update('runtime',{lazyPage:page,lazyStatus:'ready'});
     document.dispatchEvent(new CustomEvent('collectish:lazy-page-loaded',{detail:{page,ms:Math.round(performance.now()-started)}}));
   }).catch(err=>{
@@ -57,7 +96,7 @@ export async function loadPage(page){
 }
 
 registerComponent('lazy-pages',{
-  onPage(page){if(pageLoaders[page])loadPage(page).catch(()=>{})}
+  onPage(page){if(pageModules[page])loadPage(page).catch(()=>{})}
 });
 
-window.CollectishLazyDataPages={load:loadPage};
+window.CollectishLazyDataPages={load:loadPage,prefetch:prefetchPage};
