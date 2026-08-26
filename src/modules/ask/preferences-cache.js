@@ -4,9 +4,7 @@
   window.__collectishAskPreferencesCacheInstalled=true;
   const KEY='COLLECTISH_ASK_PREFS_CACHE_V1',TTL=15*60*1000;
   let warming=null;
-  function read(){
-    try{const x=JSON.parse(localStorage.getItem(KEY)||'null');return x&&Date.now()-Number(x.at||0)<TTL?x.data:null}catch{return null}
-  }
+  function read(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');return x&&Date.now()-Number(x.at||0)<TTL?x.data:null}catch{return null}}
   function write(data){try{localStorage.setItem(KEY,JSON.stringify({at:Date.now(),data}))}catch{}return data}
   async function warm(force=false){
     if(!force&&read())return read();
@@ -26,14 +24,12 @@
     const pref=read();if(!pref)return nativeFetch(input,init);
     try{
       const body=JSON.parse(String(init.body));
-      if(body&&typeof body==='object'&&!body.preferencesSnapshot){
-        return nativeFetch(input,{...init,body:JSON.stringify({...body,preferencesSnapshot:pref})});
-      }
+      if(body&&typeof body==='object'&&!body.preferencesSnapshot)return nativeFetch(input,{...init,body:JSON.stringify({...body,preferencesSnapshot:pref})});
     }catch{}
     return nativeFetch(input,init);
   };
   const schedule=()=>{if('requestIdleCallback'in window)requestIdleCallback(()=>void warm(),{timeout:2500});else setTimeout(()=>void warm(),400)};
   schedule();
-  document.addEventListener('collectish:ask-preferences-saved',()=>void warm(true));
+  document.addEventListener('click',e=>{if(e.target?.closest?.('.cx-ask-prefbox button'))setTimeout(()=>void warm(true),500)},true);
   window.CollectishAskPreferencesCache={get:read,warm,clear:()=>localStorage.removeItem(KEY)};
 })();
