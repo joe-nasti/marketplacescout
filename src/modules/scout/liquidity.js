@@ -19,26 +19,13 @@ function liquidity(r){
 }
 function rows(){return store.get().scout?.rows||[]}
 function bySku(){return new Map(rows().map(r=>[String(r.sku_id),r]))}
-function addFilter(){
-  const bar=document.querySelector('#cxScout .cx-scout-toolbar');if(!bar||document.getElementById('cxLiquidityFilter'))return;
-  const s=document.createElement('select');s.id='cxLiquidityFilter';s.innerHTML='<option value="">All market liquidity</option><option value="very">Very liquid</option><option value="liquid">Liquid+</option><option value="normal">Normal+</option><option value="slow">Slow only</option>';bar.appendChild(s);s.addEventListener('change',applyFilter);
-}
-function applyFilter(){
-  const v=document.getElementById('cxLiquidityFilter')?.value||'',map=bySku();let first=null;
-  document.querySelectorAll('#cxParityCards .cx-scout-card').forEach(card=>{
-    const r=map.get(String(card.dataset.sku)),m=liquidity(r);let show=true;
-    if(v==='very')show=m.score>=85;else if(v==='liquid')show=m.score>=70;else if(v==='normal')show=m.score>=55;else if(v==='slow')show=m.score<40;
-    card.style.display=show?'':'none';if(show&&!first)first=card;
-  });
-  if(first&&document.querySelector('#cxParityCards .cx-scout-card.selected')?.style.display==='none')first.click();
-}
 function decorateList(){
-  addFilter();const map=bySku();
+  const map=bySku();
   document.querySelectorAll('#cxParityCards .cx-scout-card').forEach(card=>{
     card.querySelector('.cx-liquidity-badge')?.remove();const r=map.get(String(card.dataset.sku));if(!r)return;const m=liquidity(r),top=card.querySelector('.cx-scout-card-top');if(!top)return;
     const measured=m.velocity!=null,marker=uiEvidenceMarker(measured?'verified':'inferred',measured?'TCGplayer marketplace sales velocity is measured; this is not Direct-only demand.':'Liquidity is inferred from marketplace sales rank because measured SKU velocity is unavailable.');
     const b=document.createElement('span');b.className='cx-v5-badge cx-liquidity-badge';b.innerHTML=`MKT ${esc(m.label)}${m.bonus?` +${m.bonus}`:''}${marker}`;b.title=`Marketplace liquidity ${m.score}/100 · target net ROI ${m.target}%`;top.appendChild(b);
-  });applyFilter();
+  });
 }
 function stat(label,value,sub=''){return `<div class="cx-v5-stat"><span>${esc(label)}</span><strong>${value}</strong>${sub?`<small>${esc(sub)}</small>`:''}</div>`}
 function decorateDetail(sku){
@@ -46,7 +33,7 @@ function decorateDetail(sku){
   const marker=uiEvidenceMarker(measured?'verified':'inferred',measured?'TCGplayer marketplace sales velocity is measured; this is not Direct-only demand.':'Liquidity is inferred from marketplace sales rank because measured SKU velocity is unavailable.');
   const section=document.createElement('section');section.className='cx-v5-section cx-liquidity-section';
   section.innerHTML=`<div class="cx-section-title">Market liquidity</div><div class="cx-v5-grid">${stat('Market liquidity',`${esc(m.label)} · ${m.score}/100 ${marker}`,measured?`${m.velocity.toFixed(1)} marketplace sales/day`:'sales-rank model')}${stat('Sales rank',m.rank!=null?`#${m.rank}`:'—')}${stat('Target net ROI',`${m.target}%`,'lower hurdle only when marketplace liquidity is stronger')}${stat('Liquidity overlay',`+${m.bonus} pts`,`${baseScore(r)} base → ${m.adjusted} execution-adjusted`)}</div>`;
-  const demand=[...h.querySelectorAll('.cx-v5-section')].find(x=>x.querySelector('.cx-section-title')?.textContent?.trim()==='Demand & supply');if(demand)demand.insertAdjacentElement('afterend',section);else h.appendChild(section);
+  const evidence=h.querySelector('.cx-scout-evidence-body');if(evidence)evidence.appendChild(section);else h.appendChild(section);
 }
 document.addEventListener('collectish:scout-list-rendered',()=>setTimeout(decorateList,0));
 document.addEventListener('collectish:scout-detail-rendered',e=>setTimeout(()=>decorateDetail(e.detail?.sku),0));

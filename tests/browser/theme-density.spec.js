@@ -7,7 +7,6 @@ const DENSE_SOURCES=[
   'src/modules/signals/dense-vnext.js',
   'src/modules/seller/inventory-dense-vnext.js',
   'src/modules/seller/syp-dense-vnext.js',
-  'src/modules/scout/dense-list.js',
   'src/modules/seller/dashboard-vnext.js',
   'src/modules/sealed/dense-list.js',
   'src/modules/admin/single-owner-style.js',
