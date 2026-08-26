@@ -1,6 +1,7 @@
 import { uiEvidenceMarker } from './ui-primitives.js';
 
 let installed=false;
+let queued=false;
 
 function add(el,...classes){if(el)el.classList.add(...classes)}
 function adoptStatus(el,tone){if(el)add(el,'cx-ui-status',tone)}
@@ -15,7 +16,7 @@ function appendMarker(host,kind,help,key=kind){
 function labeledCell(row,label){return [...row.querySelectorAll('.cx-iv-num')].find(el=>String(el.querySelector('small')?.textContent||'').trim().toLowerCase()===label)||null}
 
 function adoptSellerEvidence(){
-  document.querySelectorAll('#cxSellerVnext .cx-sellv-row').forEach(row=>{
+  document.querySelectorAll('#cxSellerRoute .cx-sellv-row').forEach(row=>{
     const host=row.querySelector('.cx-sellv-state strong');if(!host)return;
     const text=String(host.textContent||'').trim();
     if(text==='Needs detail')appendMarker(host,'unmeasured','Order detail is not loaded yet.','seller-order');
@@ -32,12 +33,13 @@ function adoptInventoryEvidence(){
 }
 
 function sync(){
-  // Signals
-  add(document.querySelector('#cxSignalsVnext .cx-sv-nav'),'cx-ui-tabs');
-  add(document.querySelector('#cxSignalsVnext .cx-sv-metrics'),'cx-ui-metrics');
-  document.querySelectorAll('#cxSignalsVnext .cx-sv-metric').forEach(el=>add(el,'cx-ui-metric'));
-  add(document.querySelector('#cxSignalsVnext .cx-sv-list'),'cx-ui-list');
-  document.querySelectorAll('#cxSignalsVnext .cx-sv-chip').forEach(el=>{
+  queued=false;
+  // Signals route-owned scan.
+  add(document.querySelector('#cxSignalsNav'),'cx-ui-tabs');
+  add(document.querySelector('#cxSignalsScan .cx-sv-metrics'),'cx-ui-metrics');
+  document.querySelectorAll('#cxSignalsScan .cx-sv-metric').forEach(el=>add(el,'cx-ui-metric'));
+  add(document.querySelector('#cxSignalsScan .cx-sv-list'),'cx-ui-list');
+  document.querySelectorAll('#cxSignalsScan .cx-sv-chip').forEach(el=>{
     if(el.classList.contains('cx-sv-action'))adoptStatus(el,'success');
     else if(el.classList.contains('cx-sv-emerging'))adoptStatus(el,'accent');
     else adoptStatus(el,'muted');
@@ -57,17 +59,17 @@ function sync(){
   });
   adoptInventoryEvidence();
 
-  // Seller reports + dense dashboard
+  // Selling route + report enhancer.
+  add(document.querySelector('#cxSellerRoute .cx-sellv-nav'),'cx-ui-tabs');
   add(document.querySelector('#cxSeller.cx-seller-reports-vnext .cx-seller-tabs'),'cx-ui-tabs');
   add(document.querySelector('#cxSellerReportContext'),'cx-ui-metrics');
   document.querySelectorAll('#cxSellerReportContext .cx-sellr-metric').forEach(el=>add(el,'cx-ui-metric'));
   adoptSellerEvidence();
 
-  // Scout saved views and filters use the same compact tab behavior.
   add(document.querySelector('#cxScoutIa .cx-scout-saved-views'),'cx-ui-tabs');
 }
 
-function schedule(){for(const ms of [0,80,220])setTimeout(sync,ms)}
+function schedule(){if(queued)return;queued=true;queueMicrotask(sync)}
 
 export function installUiAdoption(){
   if(installed)return;
@@ -76,9 +78,9 @@ export function installUiAdoption(){
     'collectish:ready','collectish:page-change','collectish:scout-list-rendered',
     'collectish:intel-changed','collectish:actionable-emerging-changed',
     'collectish:inventory-modules-ready','collectish:inventory-workspace-rendered',
-    'collectish:seller-rendered','collectish:seller-tab-rendered'
+    'collectish:seller-rendered','collectish:seller-route-rendered','collectish:seller-tab-rendered'
   ])document.addEventListener(name,schedule);
-  queueMicrotask(schedule);
+  schedule();
 }
 
 installUiAdoption();

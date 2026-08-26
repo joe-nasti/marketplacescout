@@ -26,13 +26,10 @@ export async function install(){
   if(installed)return;
   installed=true;
 
-  // Selling has one owner for first paint: orders provides the state/data renderer,
-  // dashboard-vnext provides the action-first overview. Everything else enhances
-  // reports or secondary workflows and must not block the route becoming usable.
-  await Promise.all([
-    import('./orders.js'),
-    import('./dashboard-vnext.js')
-  ]);
+  // orders.js is the sole Selling route owner. Dashboard and report markup are
+  // composed inside its stable route root; secondary modules may add evidence,
+  // buyer/cashflow surfaces, and report polish without replacing that root.
+  await import('./orders.js');
   document.dispatchEvent(new CustomEvent('collectish:seller-core-ready'));
   scheduleSecondary();
 }
