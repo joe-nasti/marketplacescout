@@ -18,7 +18,7 @@
 
 @media(max-width:700px){
   #collectishUxShell{padding-bottom:calc(78px + env(safe-area-inset-bottom))}
-  .cx-main{padding-top:max(12px,env(safe-area-inset-top))}
+  .cx-main{padding-top:12px}
   .cx-route-context{display:block;position:sticky;top:0;z-index:120;margin:-12px -12px 12px;padding:10px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));background:color-mix(in srgb,var(--color-bg-primary) 94%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--color-border)}
   .cx-route-context[data-group="signals"] .cx-route-tabs,.cx-route-context[data-group="system"] .cx-route-tabs{display:none}
   .cx-route-tabs{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;scroll-snap-type:x proximity}
