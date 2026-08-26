@@ -1,3 +1,5 @@
+import store from '../../state/store.js';
+
 // Adds fast-path-safe Signals questions to the Ask starter bar.
 (() => {
   if(window.__collectishAskSignalsStartersInstalled)return;
@@ -13,8 +15,8 @@
     const host=document.getElementById('cxAskStarters');if(!host)return;
     const scout=document.getElementById('cxScout');
     if(!scout?.classList.contains('active'))return;
-    const hasCard=Boolean(document.querySelector('#cxParityCards .cx-scout-card.selected')||window.CollectishScoutDetailNavigation);
-    if(!hasCard)return;
+    const selected=store.get().scout?.selectedSku||document.querySelector('#cxParityCards .cx-scout-card.selected')?.dataset?.sku;
+    if(!selected)return;
     for(const text of prompts){
       if([...host.querySelectorAll('.cx-ask-starter')].some(b=>b.textContent?.trim()===text))continue;
       const b=document.createElement('button');b.type='button';b.className='cx-ask-starter cx-ask-signals-starter';b.textContent=text;b.onclick=()=>submit(text);host.append(b);
