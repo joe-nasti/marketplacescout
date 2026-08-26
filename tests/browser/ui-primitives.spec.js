@@ -19,7 +19,8 @@ test('Signals Inventory and Seller adopt shared shell primitives',async()=>{
   const source=await readFile(adoptionPath,'utf8');
   expect(source).toContain("#cxSignalsNav");
   expect(source).toContain("#cxSignalsScan .cx-sv-metrics");
-  expect(source).toContain("#cxInventoryVnext .cx-iv-nav");
+  expect(source).toContain("#cxInventoryRouteNav");
+  expect(source).toContain("#cxInventoryActions .cx-iv-metrics");
   expect(source).toContain("#cxSellerRoute .cx-sellv-nav");
   expect(source).toContain("'cx-ui-tabs'");
   expect(source).toContain("'cx-ui-metrics'");
@@ -27,4 +28,5 @@ test('Signals Inventory and Seller adopt shared shell primitives',async()=>{
   expect(source).toContain("'cx-ui-status'");
   expect(source).not.toContain('#cxSignalsVnext');
   expect(source).not.toContain('#cxSellerVnext');
+  expect(source).not.toContain('#cxInventoryVnext');
 });
