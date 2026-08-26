@@ -11,7 +11,12 @@ test('Seller lazy page retains cashflow and buyer-account enhancers',async()=>{
   expect(source).toContain("import('./buyer-account.js')");
 });
 
-test('Seller remains lazy-loaded from page lifecycle',async()=>{
+test('Seller remains lifecycle-lazy while allowing code-only intent prefetch',async()=>{
   const source=await read('src/core/lazy-pages.js');
-  expect(source).toContain("seller:async()=>{const m=await import('../modules/seller/index.js');await m.install()}");
+  expect(source).toContain("seller:()=>import('../modules/seller/index.js')");
+  expect(source).toContain('onPage(page){if(pageModules[page])loadPage(page)');
+  expect(source).toContain('const m=await moduleFor(page)');
+  expect(source).toContain('await m.install()');
+  const prefetch=source.slice(source.indexOf('export function prefetchPage(page)'),source.indexOf('function recoverStaleModule'));
+  expect(prefetch).not.toContain('.install()');
 });
