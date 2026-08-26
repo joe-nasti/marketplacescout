@@ -10,7 +10,7 @@ function scheduleSecondary(){
       import('./filters.js'),
       import('./drilldowns.js'),
       import('./detail-polish.js'),
-      import('./reports-vnext.js'),
+      import('./report-presentation.js'),
       import('./cashflow-budget.js'),
       import('./buyer-account.js'),
       import('./buyer-history.js'),
