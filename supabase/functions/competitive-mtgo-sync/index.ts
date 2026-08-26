@@ -9,6 +9,7 @@ const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'au
 const J=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{...CORS,'Content-Type':'application/json','Cache-Control':'no-store'}});
 const bearer=(r:Request)=>{const h=r.headers.get('authorization')||'';return h.toLowerCase().startsWith('bearer ')?h.slice(7):''};
 async function auth(token:string){const r=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:ANON,Authorization:`Bearer ${token}`}});if(!r.ok)throw new Error('Unauthorized');return await r.json()}
+async function serviceAuth(token:string){if(!token)return false;if(SERVICE&&token===SERVICE)return true;try{const r=await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=1`,{headers:{apikey:token,Authorization:`Bearer ${token}`}});return r.ok}catch{return false}}
 async function get(url:string,ms=12000){const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(url,{redirect:'follow',signal:c.signal,headers:{'User-Agent':'MarketplaceScout/0.5 competitive-results','Accept':'text/html,application/xhtml+xml'}});if(!r.ok)throw new Error(`${url} HTTP ${r.status}`);return await r.text()}catch(e){if((e as Error)?.name==='AbortError')throw new Error(`${url} timed out after ${Math.round(ms/1000)}s`);throw e}finally{clearTimeout(t)}}
 function clean(s:any){return String(s??'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()}
 function formatFromName(name:string){for(const f of ['Standard','Modern','Pioneer','Legacy','Vintage','Pauper','Premodern','Duel Commander'])if(name.toLowerCase().includes(f.toLowerCase()))return f;return null}
@@ -26,7 +27,7 @@ function deckKey(player:string,placement:number){return `${player}\u0000${placem
 async function insertChunks(db:any,table:string,rows:any[],size=500){for(let i=0;i<rows.length;i+=size){const {error}=await db.from(table).insert(rows.slice(i,i+size));if(error)throw error}}
 
 Deno.serve(async req=>{
-  if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return J({error:'POST required'},405);const token=bearer(req);if(!token)return J({error:'Authentication required'},401);const isScheduler=Boolean(SERVICE&&token===SERVICE);if(!isScheduler){try{await auth(token)}catch{return J({error:'Authentication required'},401)}}if(!SERVICE)return J({error:'Service role unavailable'},500);
+  if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return J({error:'POST required'},405);const token=bearer(req);if(!token)return J({error:'Authentication required'},401);const isScheduler=await serviceAuth(token);if(!isScheduler){try{await auth(token)}catch{return J({error:'Authentication required'},401)}}if(!SERVICE)return J({error:'Service role unavailable'},500);
   const db=createClient(SUPABASE_URL,SERVICE,{auth:{persistSession:false}});const started=Date.now();
   try{
     let body:any={};try{body=await req.json()}catch{}const limit=Math.max(1,Math.min(8,Number(body?.limit)||4));const prefer=Array.isArray(body?.prefer_formats)&&body.prefer_formats.length?body.prefer_formats.map(String):['Standard','Pioneer','Modern','Legacy'];const skipImported=body?.skip_imported!==false;
