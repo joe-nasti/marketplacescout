@@ -53,8 +53,12 @@ function decorateDetail(sku){
   const stat=[...detail.querySelectorAll('.cx-v5-stat')].find(x=>x.querySelector('span')?.textContent?.trim()==='Sales / day');
   const strong=stat?.querySelector('strong');if(strong){strong.textContent=m.known&&m.daily!==null?m.daily.toFixed(1):'—';strong.title=help(m)}
 }
+function decorateCurrent(){decorateList();decorateDetail(store.get().scout?.selectedSku)}
 document.addEventListener('collectish:scout-list-rendered',()=>queueMicrotask(decorateList));
 document.addEventListener('collectish:scout-detail-rendered',e=>queueMicrotask(()=>decorateDetail(e.detail?.sku)));
-document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout')setTimeout(()=>{decorateList();decorateDetail(store.get().scout?.selectedSku)},80)});
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout')setTimeout(decorateCurrent,80)});
+// Core enhancers can finish loading just after the first ranking render; patch that frame too.
+queueMicrotask(decorateCurrent);
+setTimeout(decorateCurrent,120);
 
 export {salesEvidence as scoutSalesEvidence};
