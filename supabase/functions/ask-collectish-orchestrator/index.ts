@@ -8,10 +8,13 @@ const tok=(r:Request)=>{const h=r.headers.get('authorization')||'';return h.toLo
 const headers=(t:string)=>({apikey:A,Authorization:`Bearer ${t}`,'Content-Type':'application/json'});
 async function rpc(t:string,n:string,a:any={}){const r=await fetch(`${U}/rest/v1/rpc/${n}`,{method:'POST',headers:headers(t),body:JSON.stringify(a)});const q=await r.text();let d:any;try{d=q?JSON.parse(q):null}catch{d=q}if(!r.ok)throw Error(d?.message||`${n} failed (${r.status})`);return d}
 async function fn(t:string,n:string,b:any){const r=await fetch(`${U}/functions/v1/${n}`,{method:'POST',headers:headers(t),body:JSON.stringify(b)});const q=await r.text();let d:any;try{d=q?JSON.parse(q):null}catch{d=q}if(!r.ok)throw Error(d?.error||`${n} failed (${r.status})`);return d}
+async function rest(t:string,path:string,opt:any={}){const r=await fetch(`${U}/rest/v1/${path}`,{method:opt.method||'GET',headers:{...headers(t),...(opt.prefer?{Prefer:opt.prefer}:{})},body:opt.body===undefined?undefined:JSON.stringify(opt.body)});const q=await r.text();let d:any;try{d=q?JSON.parse(q):null}catch{d=q}if(!r.ok)throw Error(d?.message||`REST failed (${r.status})`);return d}
 const text=(v:any)=>String(v??'').trim();
 function ids(ctx:any){return {pid:text(ctx?.product_id||ctx?.entity?.product_id),sku:text(ctx?.sku_id||ctx?.entity?.sku_id)}}
 const deep=(q:string)=>/\binvestigate\b|deep dive|full analysis|research this card|why (?:is|did).*(?:spike|move)|what drove/i.test(q);
 const external=(q:string)=>/search (?:the )?web|research externally|look online|external research|latest (?:news|articles|discussion)|web research|search online|find (?:recent )?(?:news|articles|discussion)/i.test(q);
+async function ensureConversation(t:string,id:any,title:string){if(id){try{const x=await rest(t,`ask_collectish_conversations?id=eq.${encodeURIComponent(String(id))}&select=id&limit=1`);if(x?.[0]?.id)return String(x[0].id)}catch{}}const rows=await rest(t,'ask_collectish_conversations',{method:'POST',prefer:'return=representation',body:[{title:title.slice(0,90)}]});return String(rows?.[0]?.id||'')}
+async function saveMessage(t:string,cid:string,role:string,content:string,metadata:any={}){if(!cid)return;await rest(t,'ask_collectish_messages',{method:'POST',prefer:'return=minimal',body:[{conversation_id:cid,role,content,metadata}]}).catch(()=>{})}
 function compactInvestigation(s:any){
   if(!s?.available)return null;
   const scout=s.scout||{},sales=s.shared_sales?.summary||{},supply=s.exact_supply?.current||{},edh=(s.edhrec_history?.observations||[]).at?.(-1)||{},cur=s.edhrec_current||{},intel=s.market_intelligence||{},roll=intel.rollup||{};
@@ -23,18 +26,30 @@ function researchSurface(r:any){if(!r?.ok)return null;return {type:'external_res
 Deno.serve(async(req:Request)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method!=='POST')return js({error:'POST required'},405);const t=tok(req);if(!t)return js({error:'Authentication required'},401);let body:any;try{body=await req.json()}catch{return js({error:'Invalid JSON'},400)}
   const action=String(body?.action||'chat'),q=text(body?.message||body?.question),ctx=body?.context||{},id=ids(ctx),wantsExternal=action==='chat'&&external(q);
+
+  // Explicit Pass 4 requests bypass the general Ask model. They only need the
+  // internal Pass 3 evidence snapshot plus one required web-search response.
+  if(wantsExternal){
+    const cid=await ensureConversation(t,body?.conversation_id||null,q).catch(()=>String(body?.conversation_id||''));
+    await saveMessage(t,cid,'user',q,{screen:ctx?.screen||'unknown',route:'pass4_external_research'});
+    if(!id.pid&&!id.sku){const response='I could not resolve the current card identity for external research. Open a Scout card and try again.';await saveMessage(t,cid,'assistant',response,{route:'pass4_external_research',ok:false});return js({conversation_id:cid||null,response,model:null,usage:null,tools:[],surface_schema:'collectish.ask.surface.v6',surfaces:[],context_screen:ctx?.screen||null,orchestration:{pass3:false,pass4:false,web_search_used:false,external_research_requested:true,external_research_error:'card identity unavailable'}})}
+    const inv=await rpc(t,'ask_collectish_market_investigation_v2',{p_product_id:id.pid||null,p_sku_id:id.sku||null}).catch(()=>null);
+    if(!inv){const response='I could not assemble the current Collectish evidence snapshot needed to ground web research.';await saveMessage(t,cid,'assistant',response,{route:'pass4_external_research',ok:false});return js({conversation_id:cid||null,response,model:null,usage:null,tools:[],surface_schema:'collectish.ask.surface.v6',surfaces:[],context_screen:ctx?.screen||null,orchestration:{pass3:false,pass4:false,web_search_used:false,external_research_requested:true,external_research_error:'internal evidence unavailable'}})}
+    const research=await fn(t,'ask-collectish-web-research',{question:q,card:inv.card,internal_evidence:compactInvestigation(inv)}).catch(e=>({ok:false,error:String(e?.message||e)}));
+    const response=research?.answer||`External research failed: ${research?.error||'unknown error'}`;
+    const surfaces=[investigationSurface(inv),researchSurface(research)].filter(Boolean);
+    const tools=[{name:'market_investigation_v2',ok:true,classification:'READ'},...(research?.ok?[{name:'external_web_research',ok:true,classification:'READ'}]:[])];
+    await saveMessage(t,cid,'assistant',response,{route:'pass4_external_research',ok:Boolean(research?.ok),source_count:research?.source_count||0,web_search_used:Boolean(research?.ok)});
+    return js({conversation_id:cid||null,response,model:research?.model||null,usage:research?.usage||null,tools,surface_schema:'collectish.ask.surface.v6',surfaces,context_screen:ctx?.screen||null,orchestration:{pass3:true,pass4:Boolean(research?.ok),web_search_used:Boolean(research?.ok),external_research_requested:true,external_research_error:research?.ok?null:(research?.error||null),general_agent_bypassed:true}});
+  }
+
   const baseP=fn(t,'ask-collectish-agent-ui',body);
-  const needInvestigation=action==='investigate'||(action==='chat'&&(deep(q)||wantsExternal));
+  const needInvestigation=action==='investigate'||(action==='chat'&&deep(q));
   const invP=(needInvestigation&&(id.pid||id.sku))?rpc(t,'ask_collectish_market_investigation_v2',{p_product_id:id.pid||null,p_sku_id:id.sku||null}).catch(()=>null):Promise.resolve(null);
   const [base,inv]=await Promise.all([baseP,invP]);
   if(action!=='chat')return js({...base,investigation_v2:inv||null,investigation_version:inv?'v2':null});
-  let research:any=null;
-  if(wantsExternal){
-    if(!inv)return js({...base,response:'I could not resolve enough current card identity/evidence to run external research safely. Open the card and try again.',orchestration:{...(base?.orchestration||{}),pass3:false,pass4:false,web_search_used:false,external_research_requested:true}});
-    research=await fn(t,'ask-collectish-web-research',{question:q,card:inv.card,internal_evidence:compactInvestigation(inv)}).catch(e=>({ok:false,error:String(e?.message||e)}));
-  }
-  const added=[investigationSurface(inv),researchSurface(research)].filter(Boolean),existing=Array.isArray(base?.surfaces)?base.surfaces:[],surfaces=[...added,...existing].slice(0,7);
-  let response=base?.response;if(research?.answer)response=research.answer;else if(wantsExternal&&research?.error)response=`External research failed: ${research.error}`;else if(inv&&deep(q))response=investigationAnswer(inv)||response;
-  const tools=[...(Array.isArray(base?.tools)?base.tools:[])];if(inv)tools.unshift({name:'market_investigation_v2',ok:true,classification:'READ'});if(research?.ok)tools.unshift({name:'external_web_research',ok:true,classification:'READ'});
-  return js({...base,response,tools,surface_schema:'collectish.ask.surface.v6',surfaces,orchestration:{...(base?.orchestration||{}),pass3:Boolean(inv),pass4:Boolean(research?.ok),web_search_used:Boolean(research?.ok),external_research_requested:wantsExternal,external_research_error:research?.ok?null:(research?.error||null)}});
+  const added=[investigationSurface(inv)].filter(Boolean),existing=Array.isArray(base?.surfaces)?base.surfaces:[],surfaces=[...added,...existing].slice(0,7);
+  let response=base?.response;if(inv&&deep(q))response=investigationAnswer(inv)||response;
+  const tools=[...(Array.isArray(base?.tools)?base.tools:[])];if(inv)tools.unshift({name:'market_investigation_v2',ok:true,classification:'READ'});
+  return js({...base,response,tools,surface_schema:'collectish.ask.surface.v6',surfaces,orchestration:{...(base?.orchestration||{}),pass3:Boolean(inv),pass4:false,web_search_used:false}});
 });
