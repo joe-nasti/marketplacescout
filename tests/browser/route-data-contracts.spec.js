@@ -35,6 +35,14 @@ test('REST reuses named route resources without recursive cache wrapping',async(
   expect(rest).toContain('staleWhileRevalidate:true');
 });
 
+test('contract cache accelerates first read but later reads preserve explicit refresh semantics',async()=>{
+  const rest=await read('src/core/rest.js');
+  expect(rest).toContain('const contractReads=new Set()');
+  expect(rest).toContain('const seen=contractReads.has(contract.key)');
+  expect(rest).toContain('contractReads.add(contract.key)');
+  expect(rest).toContain('force:Boolean(options.force)||seen');
+});
+
 test('navigation cache hydration is derived from route contracts',async()=>{
   const lazy=await read('src/core/lazy-pages.js');
   expect(lazy).toContain("import { primeSpecsForRoute } from '../state/route-data-contracts.js'");
