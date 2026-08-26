@@ -79,6 +79,7 @@ async function liveMarketSalesSurface(ctx:any,q:string){
 }
 async function marketSalesSurface(t:string,ctx:any,q:string){return await sharedSalesSurface(t,ctx,q)||await liveMarketSalesSurface(ctx,q)}
 async function historicalSurfaces(t:string,body:any){const q=text(body?.message||body?.question),ctx=body?.context||{},jobs=[] as Promise<any>[];if(wantsPrice(q))jobs.push(priceSurface(t,ctx,q));if(wantsSales(q))jobs.push(marketSalesSurface(t,ctx,q));const out=await Promise.all(jobs);return out.filter(Boolean)}
+function deterministicSalesAnswer(s:any){if(!s||s.domain!=='market_sales'||s.evidence?.scope!=='exact_sku')return null;const units=Number(s.total_units||0),tx=Number(s.total_transactions||0),d=Number(s.summary?.average_daily_quantity_sold||0),td=Number(s.summary?.average_daily_transaction_count||0),range=s.range?.label||'the requested period';return `For exact SKU ${s.sku_id}, the shared TCGplayer sales history has ${units.toLocaleString()} units across ${tx.toLocaleString()} transactions over ${range} (${d.toFixed(1)} cards/day, ${td.toFixed(1)} transactions/day). The chart below uses the same shared SKU-level sales buckets as Scout and Signals. Direct vs non-Direct sales are not identified.`}
 
 Deno.serve(async(req:Request)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method!=='POST')return json({error:'POST required'},405);
@@ -86,6 +87,6 @@ Deno.serve(async(req:Request)=>{
   const r=await fetch(`${U}/functions/v1/ask-collectish-ui`,{method:'POST',headers:headers(t),body:JSON.stringify(body)});const raw=await r.text();let upstream:any;try{upstream=raw?JSON.parse(raw):{}}catch{return new Response(raw,{status:r.status,headers:{...C,'Content-Type':r.headers.get('content-type')||'text/plain','Cache-Control':'no-store'}})}if(!r.ok)return json(upstream,r.status);
   if(String(body?.action||'chat')!=='chat')return json(upstream,r.status);
   const historical=await historicalSurfaces(t,body).catch(()=>[]);const existing=Array.isArray(upstream?.surfaces)?upstream.surfaces:[];
-  const historicalTypes=new Set(historical.map((x:any)=>`${x.type}:${x.domain||''}`));const surfaces=[...historical,...existing.filter((x:any)=>!historicalTypes.has(`${x?.type}:${x?.domain||''}`))].slice(0,6);
-  return json({...upstream,surface_schema:'collectish.ask.surface.v4',surfaces,orchestration:{mode:historical.length?'deterministic+agent':'agent',historical_tools:historical.map((x:any)=>x.domain==='market_sales'?'shared_market_sales_history':x.type)}},r.status);
+  const historicalTypes=new Set(historical.map((x:any)=>`${x.type}:${x.domain||''}`));const surfaces=[...historical,...existing.filter((x:any)=>!historicalTypes.has(`${x?.type}:${x?.domain||''}`))].slice(0,6),sales=historical.find((x:any)=>x?.domain==='market_sales'),grounded=deterministicSalesAnswer(sales);
+  return json({...upstream,response:grounded||upstream?.response,surface_schema:'collectish.ask.surface.v4',surfaces,orchestration:{mode:historical.length?'deterministic+agent':'agent',historical_tools:historical.map((x:any)=>x.domain==='market_sales'?'shared_market_sales_history':x.type),response_source:grounded?'shared_sales_history':'agent'}},r.status);
 });
