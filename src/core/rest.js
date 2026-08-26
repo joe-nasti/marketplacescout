@@ -1,10 +1,13 @@
 import { collectishConfig } from './config.js';
 import { validSession, refreshSession, isJwtProblem } from './session.js';
 import store from '../state/store.js';
+import { loadResource } from '../state/resources.js';
+import { resourceContractForPath } from '../state/route-data-contracts.js';
 
 const METRIC_KEY='collectishRuntimeHealth';
 const ENDPOINT_STAT_LIMIT=24;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const contractReads=new Set();
 
 function readMetrics(){try{return JSON.parse(sessionStorage.getItem(METRIC_KEY)||'{}')}catch{return {}}}
 function bump(key,extra={}){const m=readMetrics();m[key]=Number(m[key]||0)+1;m.last_event_at=new Date().toISOString();Object.assign(m,extra);try{sessionStorage.setItem(METRIC_KEY,JSON.stringify(m))}catch{};document.dispatchEvent(new CustomEvent('collectish:runtime-health',{detail:{...m,event:key}}))}
@@ -76,6 +79,21 @@ async function baseRestLarge(path,options,requestedLimit){
 
 export async function rest(path,options={}){
   const method=String(options?.method||'GET').toUpperCase();
+  const contract=method==='GET'&&!options.__routeResource?resourceContractForPath(path):null;
+  if(contract){
+    const nested={...options,__routeResource:true};
+    delete nested.force;
+    const seen=contractReads.has(contract.key);
+    contractReads.add(contract.key);
+    return loadResource(contract.key,()=>rest(path,nested),{
+      force:Boolean(options.force)||seen,
+      ttl:Number(contract.ttl??30000),
+      persistent:true,
+      scope:'user',
+      staleWhileRevalidate:true,
+      maxStale:Number(contract.maxStale??7*24*60*60*1000)
+    });
+  }
   const requestedLimit=method==='GET'?largeLimit(path):0;
   const started=performance.now();
   if(method==='GET')writeResource(path,{status:'loading',error:null,requestedAt:Date.now()});
