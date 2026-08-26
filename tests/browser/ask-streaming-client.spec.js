@@ -72,6 +72,18 @@ test('Fast Ask also attaches actionable emerging Signals when no entity rollup e
   expect(index).toContain("import('./ask/actionable-signals-context.js')");
 });
 
+test('Fast Ask falls back to same-name actionable Signals for alternate printings without pretending the scope is exact',async()=>{
+  const bridge=await source('src/modules/ask/actionable-signals-context.js');
+  const fn=await source('supabase/functions/ask-collectish-stream/index.ts');
+  expect(bridge).toContain("scope:'exact-printing'");
+  expect(bridge).toContain("scope:'same-name'");
+  expect(bridge).toContain("lower(r.card_name)===name");
+  expect(bridge).toContain('sourceProductId');
+  expect(bridge).toContain('sourcePrinting');
+  expect(fn).toContain('signals_scope:signalScope');
+  expect(fn).toContain('If actionable Signals scope is same-name');
+});
+
 test('Fast Ask warms preferences once and reuses them without the server preference RPC',async()=>{
   const cache=await source('src/modules/ask/preferences-cache.js');
   const fn=await source('supabase/functions/ask-collectish-stream/index.ts');
