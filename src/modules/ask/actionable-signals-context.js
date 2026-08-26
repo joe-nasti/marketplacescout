@@ -14,13 +14,23 @@ import store from '../../state/store.js';
     const sku=String(card.skuId||body.context?.sku_id||'');
     const product=String(card.productId||body.context?.product_id||'');
     const name=lower(card.name||body.context?.product_name_hint);
-    return rows.find(r=>(sku&&String(r.sku_id||'')===sku)||(product&&String(r.product_id||'')===product)||(name&&lower(r.card_name)===name))||null;
+    const exact=rows.find(r=>(sku&&String(r.sku_id||'')===sku)||(product&&String(r.product_id||'')===product));
+    if(exact)return {row:exact,scope:'exact-printing'};
+    const sameName=rows
+      .filter(r=>name&&lower(r.card_name)===name)
+      .sort((a,b)=>Number(b.actionability_score||0)-Number(a.actionability_score||0))[0]||null;
+    return sameName?{row:sameName,scope:'same-name'}:null;
   }
 
-  function compact(r){
-    if(!r)return null;
+  function compact(match){
+    if(!match?.row)return null;
+    const r=match.row;
     return {
       source:'actionable_emerging',
+      scope:match.scope,
+      sourceProductId:r.product_id||null,
+      sourceSkuId:r.sku_id||null,
+      sourcePrinting:r.printing||null,
       class:r.action_class||null,
       actionability:num(r.actionability_score),
       primarySignal:r.primary_signal||null,
