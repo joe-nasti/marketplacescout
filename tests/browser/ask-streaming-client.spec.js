@@ -72,18 +72,33 @@ test('Fast Ask also attaches actionable emerging Signals when no entity rollup e
   expect(index).toContain("import('./ask/actionable-signals-context.js')");
 });
 
-test('Fast Ask normalizes alternate treatment names for same-name actionable Signals',async()=>{
+test('Fast Ask normalizes alternate treatment names and prefers matching set plus foil state',async()=>{
   const bridge=await source('src/modules/ask/actionable-signals-context.js');
   const fn=await source('supabase/functions/ask-collectish-stream/index.ts');
   expect(bridge).toContain('canonicalName');
   expect(bridge).toContain('borderless|extended art|showcase');
+  expect(bridge).toContain('printingClass');
+  expect(bridge).toContain("same-set-printing");
+  expect(bridge).toContain("lower(r.set_name)===setName");
+  expect(bridge).toContain("printingClass(r.printing)===printing");
   expect(bridge).toContain("scope:'exact-printing'");
   expect(bridge).toContain("scope:'same-name'");
-  expect(bridge).toContain('canonicalName(r.card_name)===name');
   expect(bridge).toContain('sourceProductId');
   expect(bridge).toContain('sourcePrinting');
   expect(fn).toContain('signals_scope:signalScope');
   expect(fn).toContain('If actionable Signals scope is same-name');
+});
+
+test('Fast Ask emits polished mobile-friendly Markdown instead of raw internal fields',async()=>{
+  const fn=await source('supabase/functions/ask-collectish-stream/index.ts');
+  const md=await source('src/modules/ask/markdown.js');
+  expect(fn).toContain('polished Markdown for a compact chat UI');
+  expect(fn).toContain('Never dump JSON keys, camelCase field names');
+  expect(fn).toContain('### Signals');
+  expect(fn).toContain('### This printing');
+  expect(fn).toContain('### Takeaway');
+  expect(md).toContain("#{1,4}");
+  expect(md).toContain('<strong>');
 });
 
 test('Fast Ask warms preferences once and reuses them without the server preference RPC',async()=>{
