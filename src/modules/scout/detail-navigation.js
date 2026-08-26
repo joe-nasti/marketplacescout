@@ -9,8 +9,9 @@ function resolveSummary(detail={}){
   if(!sku)return null;
   const state=store.get().scout||{};
   const row=(state.rows||[]).find(r=>skuOf(r.sku_id)===sku);
-  if(row)return row;
+  if(row)return {...detail,...row};
   return {
+    ...detail,
     sku_id:detail.sku_id??detail.sku,
     product_id:detail.product_id,
     product_name:detail.product_name||detail.card_name||'',
