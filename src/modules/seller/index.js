@@ -6,8 +6,6 @@ function scheduleSecondary(){
   const run=()=>{
     if(secondaryPromise)return;
     secondaryPromise=Promise.all([
-      import('./drill-navigation.js'),
-      import('./route-state.js'),
       import('./order-meta.js'),
       import('./filters.js'),
       import('./drilldowns.js'),
@@ -28,11 +26,14 @@ export async function install(){
   if(installed)return;
   installed=true;
 
-  // orders.js is the sole Selling route owner. Dashboard and report markup are
-  // composed inside its stable route root; secondary modules may add evidence,
-  // navigation state, buyer/cashflow surfaces, and report polish without
-  // replacing that root.
+  // orders.js is the sole Selling route owner. Route navigation state and
+  // deterministic drill-ins install with that owner; slower evidence/report
+  // enrichers remain progressive and cannot replace the stable route root.
   await import('./orders.js');
+  await Promise.all([
+    import('./drill-navigation.js'),
+    import('./route-state.js')
+  ]);
   document.dispatchEvent(new CustomEvent('collectish:seller-core-ready'));
   scheduleSecondary();
 }
