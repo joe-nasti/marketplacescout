@@ -1,0 +1,43 @@
+name: Collectish competitive MTGO refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-competitive-mtgo-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/competitive-mtgo-sync
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Refresh MTGO competitive events
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{"limit":4,"prefer_formats":["Standard","Pioneer","Modern","Legacy"],"skip_imported":true}' \
+            "$SUPABASE_FUNCTION_URL"; } || true)"
+          cat "$response_file"
+          echo
+          if [[ ! "$status" =~ ^2 ]]; then
+            echo "MTGO refresh failed with HTTP $status" >&2
+            exit 1
+          fi
