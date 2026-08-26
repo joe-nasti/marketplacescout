@@ -1,0 +1,76 @@
+name: Collectish EDHREC article Signals refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */2 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-edhrec-articles.yml"
+      - "supabase/functions/market-intel-edhrec-articles-sync/index.ts"
+      - "supabase/functions/market-intel-ingest/index.ts"
+      - "supabase/functions/market-intel-analyze/index.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-edhrec-article-signals-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-edhrec-articles-sync
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Refresh EDHREC articles and drain recent backfill
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+
+          max_chunks=6
+          source_failures=0
+          for chunk in $(seq 1 "$max_chunks"); do
+            response_file="$(mktemp)"
+            echo "EDHREC article Signals chunk $chunk/$max_chunks"
+            status="$({ curl --silent --show-error \
+              --max-time 165 \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              --request POST \
+              --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+              --header "Content-Type: application/json" \
+              --data '{"max_new":4}' \
+              "$SUPABASE_FUNCTION_URL"; } || true)"
+            cat "$response_file"
+            echo
+
+            if [[ ! "$status" =~ ^2 ]]; then
+              echo "EDHREC Signals chunk $chunk failed with HTTP $status" >&2
+              exit 1
+            fi
+
+            failed="$(jq -r '.failed // 0' "$response_file" 2>/dev/null || echo 0)"
+            more_pending="$(jq -r '.more_pending // false' "$response_file" 2>/dev/null || echo false)"
+            attempted="$(jq -r '.attempted // 0' "$response_file" 2>/dev/null || echo 0)"
+            saved="$(jq -r '.saved // 0' "$response_file" 2>/dev/null || echo 0)"
+            duplicates="$(jq -r '.duplicates // 0' "$response_file" 2>/dev/null || echo 0)"
+            source_failures=$((source_failures + failed))
+
+            echo "chunk=$chunk attempted=$attempted saved=$saved duplicates=$duplicates failed=$failed more_pending=$more_pending"
+
+            if [[ "$more_pending" != "true" ]]; then
+              echo "EDHREC article queue drained after $chunk chunk(s)."
+              break
+            fi
+          done
+
+          if (( source_failures > 0 )); then
+            echo "EDHREC article refresh completed with $source_failures source failure(s); failed items remain eligible after cooldown." >&2
+          fi
