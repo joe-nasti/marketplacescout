@@ -7,7 +7,7 @@
 
 @media(max-width:700px){
   .cx-desktop-utilities{display:none}
-  .cx-mobile-utilities{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:54px;padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));background:var(--color-bg-surface);border-bottom:1px solid var(--color-border)}
+  .cx-mobile-utilities{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:54px;padding:8px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));background:var(--color-bg-surface);border-bottom:1px solid var(--color-border)}
   .cx-mobile-utilities .cx-theme-toggle{margin-left:auto;min-height:34px}
   .cx-mobile-utilities .cx-top-version{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
 }
