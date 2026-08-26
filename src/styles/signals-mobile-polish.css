@@ -2,6 +2,7 @@
    Keep evidence semantics without letting marker controls disturb row geometry. */
 #cxSignalsVnext .cx-sv-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
 #cxSignalsVnext .cx-sv-num strong{display:flex;align-items:center;gap:2px}
+#cxSignalsVnext .cx-sv-confirming{background:color-mix(in srgb,var(--color-accent) 18%,transparent);color:var(--color-accent)}
 #cxSignalsVnext .cx-sv-sales-confirm{display:inline-flex;align-items:center;gap:2px;flex:0 0 auto;color:var(--cx-muted);font-size:8px;line-height:1}
 #cxSignalsVnext .cx-sv-sales-confirm b{font-size:8px;color:var(--cx-text);font-weight:850;white-space:nowrap}
 #cxSignalsVnext .cx-sv-sales-confirm i{font-size:7px;color:var(--color-success);font-style:normal;white-space:nowrap}
