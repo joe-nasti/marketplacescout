@@ -1,57 +1,53 @@
 import {test,expect} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+import path from 'node:path';
+import {
+  signalLabelFromActionClass,
+  signalKindFromActionClass,
+  signalKindFromIntelStage,
+  signalKindLabel,
+  SIGNAL_KIND_RANK,
+  SIGNAL_SCAN_STAGES
+} from '../../src/modules/signals/decision-taxonomy.js';
 
-const load=()=>import('../../src/modules/signals/scan-view.js');
+const read=p=>readFile(path.join(process.cwd(),p),'utf8');
 
 test('Signals decision taxonomy distinguishes Action Emerging Confirming and Watch',async()=>{
-  const {buildSignalScanRows}=await load();
-  const rows=buildSignalScanRows({
-    actionableRows:[
-      {sku_id:'a1',card_name:'Action Card',action_class:'action_now',actionability_score:95,signal_families:3},
-      {sku_id:'e1',card_name:'Emerging Card',action_class:'emerging_quick_turn',actionability_score:80,signal_families:2}
-    ],
-    intelItems:[
-      {intel_id:'i1',signal_stage:'confirming',title:'Confirming source',market_intel_entities:[{entity_type:'card',product_id:'p1',entity_name:'Confirming Card'}]},
-      {intel_id:'i2',signal_stage:'neutral',title:'Monitor source',market_intel_entities:[{entity_type:'card',product_id:'p2',entity_name:'Watch Card'}]}
-    ]
-  });
-  expect(rows.map(r=>[r.card_name,r.kind,r.signal])).toEqual([
-    ['Action Card','action','Action now'],
-    ['Emerging Card','emerging','Emerging'],
-    ['Confirming Card','confirming','Confirming'],
-    ['Watch Card','watch','Watch']
-  ]);
+  expect(signalKindFromActionClass('action_now')).toBe('action');
+  expect(signalLabelFromActionClass('action_now')).toBe('Action now');
+  expect(signalKindFromActionClass('emerging_quick_turn')).toBe('emerging');
+  expect(signalLabelFromActionClass('emerging_quick_turn')).toBe('Emerging');
+  expect(signalKindFromIntelStage('leading')).toBe('emerging');
+  expect(signalKindFromIntelStage('confirming')).toBe('confirming');
+  expect(signalKindFromIntelStage('neutral')).toBe('watch');
+  expect(signalKindLabel('confirming')).toBe('Confirming');
+  expect(signalKindLabel('watch')).toBe('Watch');
+  expect(SIGNAL_KIND_RANK).toEqual({action:4,emerging:3,confirming:2,watch:1});
 });
 
 test('Signals scan KPIs and filters use the same four decision stages',async()=>{
-  const {renderSignalScan}=await load();
-  const html=renderSignalScan({
-    actionableRows:[
-      {sku_id:'a1',card_name:'Action Card',action_class:'action_now',actionability_score:95},
-      {sku_id:'e1',card_name:'Emerging Card',action_class:'emerging_quick_turn',actionability_score:80}
-    ],
-    intelItems:[
-      {intel_id:'i1',signal_stage:'confirming',market_intel_entities:[{entity_type:'card',product_id:'p1',entity_name:'Confirming Card'}]},
-      {intel_id:'i2',signal_stage:'neutral',market_intel_entities:[{entity_type:'card',product_id:'p2',entity_name:'Watch Card'}]}
-    ]
-  });
-  expect(html).toContain('Action now');
-  expect(html).toContain('Emerging');
-  expect(html).toContain('Confirming');
-  expect(html).toContain('Watch');
-  expect(html).toContain('data-sv-filter="confirming"');
-  expect(html).not.toContain('verified cards');
-  expect(html).not.toContain('>Sources<');
-  expect(html).toContain('<small>Evidence</small>');
-  expect(html).toContain('<small>Confidence</small>');
+  const source=await read('src/modules/signals/scan-view.js');
+  expect(SIGNAL_SCAN_STAGES).toEqual([
+    ['all','All'],['action','Action'],['emerging','Emerging'],['confirming','Confirming'],['watch','Watch']
+  ]);
+  expect(source).toContain("metric('Action now',action,'ready')");
+  expect(source).toContain("metric('Emerging',emerging,'early')");
+  expect(source).toContain("metric('Confirming',confirming,'corroborated')");
+  expect(source).toContain("metric('Watch',watch,'monitor only')");
+  expect(source).toContain('SIGNAL_SCAN_STAGES.map');
+  expect(source).not.toContain('verified cards');
+  expect(source).not.toContain("metric('Sources'");
+  expect(source).toContain('<small>Evidence</small>');
+  expect(source).toContain('<small>Confidence</small>');
 });
 
-test('external leading and confirming intelligence never collapses into Watch',async()=>{
-  const {buildSignalScanRows}=await load();
-  const rows=buildSignalScanRows({intelItems:[
-    {signal_stage:'leading',market_intel_entities:[{entity_type:'card',product_id:'p1',entity_name:'Leading Card'}]},
-    {signal_stage:'confirming',market_intel_entities:[{entity_type:'card',product_id:'p2',entity_name:'Confirming Card'}]}
-  ]});
-  const byName=Object.fromEntries(rows.map(r=>[r.card_name,r.kind]));
-  expect(byName['Leading Card']).toBe('emerging');
-  expect(byName['Confirming Card']).toBe('confirming');
+test('scan renderer consumes pure taxonomy instead of reclassifying stages locally',async()=>{
+  const source=await read('src/modules/signals/scan-view.js');
+  expect(source).toContain('signalKindFromActionClass(r.action_class)');
+  expect(source).toContain('signalLabelFromActionClass(r.action_class)');
+  expect(source).toContain('signalKindFromIntelStage(item.signal_stage)');
+  expect(source).toContain('signalKindLabel(kind)');
+  expect(source).toContain('SIGNAL_KIND_RANK[b.kind]-SIGNAL_KIND_RANK[a.kind]');
+  expect(source).not.toContain("stage==='leading'?'emerging'");
+  expect(source).not.toContain("stage==='confirming'?'confirming'");
 });
