@@ -5,10 +5,10 @@ export async function installScoutRenderer(){
   installed=true;
 
   // Guard stale/cached content, then let the route-owned renderer compose the
-  // complete first useful Scout surface in one pass. The legacy IA/mobile/dense
-  // modules are no longer structural dependencies.
+  // complete first useful Scout surface in one pass. Retired mobile/dense
+  // compatibility modules are no longer structural dependencies.
   await import('./first-paint-guard.js');
-  await import('./ia-v2-style.js');
+  await import('./structure-style.js');
   await import('./renderer.js');
   document.dispatchEvent(new CustomEvent('collectish:scout-structure-ready'));
 
