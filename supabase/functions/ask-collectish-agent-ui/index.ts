@@ -22,7 +22,9 @@ function requestedRange(q:string){
 }
 function wantsPrice(q:string){const s=lower(q);return /(?:price|market|direct).*(?:history|graph|chart|trend)|(?:history|graph|chart|trend).*(?:price|market|direct)|\bsince release\b/.test(s)}
 function wantsSales(q:string){const s=lower(q);return /(?:sale|sold|velocity).*(?:history|graph|chart|trend|recent)|(?:history|graph|chart|trend).*(?:sale|sold|velocity)/.test(s)}
-function dateOf(x:any){for(const k of ['date','day','observed_at','observedAt','captured_at','capturedAt','orderDate','order_date','timestamp']){const v=x?.[k];if(v&&Number.isFinite(Date.parse(v)))return new Date(v).toISOString()}return null}
+function dateOf(x:any){for(const k of ['date','day','observed_at','observedAt','captured_at','capturedAt','orderDate','order_date','timestamp','purchaseDate','purchase_date']){const v=x?.[k];if(v&&Number.isFinite(Date.parse(v)))return new Date(v).toISOString()}return null}
+function salePrice(x:any){for(const k of ['price','unitPrice','unit_price','pricePerUnit','price_per_unit','marketPrice','market_price','soldPrice','sold_price']){const v=num(x?.[k]);if(v!=null)return v}return null}
+function saleQty(x:any){for(const k of ['quantity','qty','units','count']){const v=num(x?.[k]);if(v!=null)return v}return 1}
 function filterRange(rows:any[],from:string|null,to:string|null){if(!from&&!to)return rows;const a=from?Date.parse(from):-Infinity,b=to?Date.parse(to):Infinity;return rows.filter(x=>{const d=dateOf(x);if(!d)return true;const t=Date.parse(d);return t>=a&&t<=b})}
 function summarizePrices(rows:any[]){const vals=rows.map(x=>num(x?.sku_market_price??x?.market_price??x?.market)).filter((x:any)=>x!=null) as number[];if(!vals.length)return null;const start=vals[0],end=vals[vals.length-1];return {start,end,low:Math.min(...vals),high:Math.max(...vals),change_pct:start?((end-start)/start)*100:null}}
 async function priceSurface(t:string,ctx:any,q:string){
@@ -38,14 +40,16 @@ async function marketSalesSurface(ctx:any,q:string){
   const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),12000);
   try{
     const r=await fetch(`https://infinite-api.tcgplayer.com/price/history/${encodeURIComponent(String(pid))}/detailed?range=${upstreamRange}`,{signal:ac.signal,headers:{Accept:'application/json'}});
-    if(!r.ok)return null;const d=await r.json();const raw=Array.isArray(d?.result)?d.result:[];const points:any[]=[];
+    if(!r.ok)return null;const d=await r.json();const raw=Array.isArray(d?.result)?d.result:[];const flat:any[]=[];
     for(const bucket of raw){
       const nested=Array.isArray(bucket?.sales)?bucket.sales:Array.isArray(bucket?.results)?bucket.results:null;
-      if(nested){for(const sale of nested){points.push({...sale,sku_id:bucket?.skuId??bucket?.sku_id??sale?.sku_id})}}
-      else points.push(bucket);
+      if(nested){for(const sale of nested)flat.push({...sale,sku_id:bucket?.skuId??bucket?.sku_id??sale?.sku_id})}
+      else flat.push(bucket);
     }
-    const filtered=filterRange(points,range.from,range.to);if(!filtered.length)return null;
-    return {type:'market_sales_history',domain:'scout',title:'Market sales history',product_id:String(pid),range,observations:filtered,count:filtered.length,freshness:{source:'tcgplayer',observed_at:new Date().toISOString()},actions:[{type:'ask',label:'Interpret velocity',prompt:'Interpret the sales velocity and price distribution over this period.'},{type:'ask',label:'Compare price',prompt:'Compare these sales with the price history over the same period.'}]};
+    const normalized=flat.map(x=>({date:dateOf(x),sku_market_price:salePrice(x),quantity:saleQty(x),sku_id:x?.sku_id??x?.skuId??null})).filter(x=>x.sku_market_price!=null);
+    const filtered=filterRange(normalized,range.from,range.to).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));if(!filtered.length)return null;
+    const totalUnits=filtered.reduce((n,x)=>n+Number(x.quantity||1),0);
+    return {type:'price_history',domain:'market_sales',title:'Market sales history',product_id:String(pid),range,observations:filtered,count:filtered.length,total_units:totalUnits,summary:summarizePrices(filtered),freshness:{source:'tcgplayer',observed_at:new Date().toISOString()},actions:[{type:'ask',label:'Interpret velocity',prompt:'Interpret the market sales velocity and price distribution over this period.'},{type:'ask',label:'Compare price',prompt:'Compare these market sales with the price history over the same period.'}]};
   }catch{return null}finally{clearTimeout(timer)}
 }
 async function historicalSurfaces(t:string,body:any){const q=text(body?.message||body?.question),ctx=body?.context||{},jobs=[] as Promise<any>[];if(wantsPrice(q))jobs.push(priceSurface(t,ctx,q));if(wantsSales(q))jobs.push(marketSalesSurface(ctx,q));const out=await Promise.all(jobs);return out.filter(Boolean)}
@@ -56,6 +60,6 @@ Deno.serve(async(req:Request)=>{
   const r=await fetch(`${U}/functions/v1/ask-collectish-ui`,{method:'POST',headers:headers(t),body:JSON.stringify(body)});const raw=await r.text();let upstream:any;try{upstream=raw?JSON.parse(raw):{}}catch{return new Response(raw,{status:r.status,headers:{...C,'Content-Type':r.headers.get('content-type')||'text/plain','Cache-Control':'no-store'}})}if(!r.ok)return json(upstream,r.status);
   if(String(body?.action||'chat')!=='chat')return json(upstream,r.status);
   const historical=await historicalSurfaces(t,body).catch(()=>[]);const existing=Array.isArray(upstream?.surfaces)?upstream.surfaces:[];
-  const types=new Set(historical.map((x:any)=>x.type));const surfaces=[...historical,...existing.filter((x:any)=>!types.has(x?.type))].slice(0,6);
-  return json({...upstream,surface_schema:'collectish.ask.surface.v4',surfaces,orchestration:{mode:historical.length?'deterministic+agent':'agent',historical_tools:historical.map((x:any)=>x.type)}},r.status);
+  const historicalTypes=new Set(historical.map((x:any)=>`${x.type}:${x.domain||''}`));const surfaces=[...historical,...existing.filter((x:any)=>!historicalTypes.has(`${x?.type}:${x?.domain||''}`))].slice(0,6);
+  return json({...upstream,surface_schema:'collectish.ask.surface.v4',surfaces,orchestration:{mode:historical.length?'deterministic+agent':'agent',historical_tools:historical.map((x:any)=>x.domain==='market_sales'?'market_sales_history':x.type)}},r.status);
 });
