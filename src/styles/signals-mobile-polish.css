@@ -1,49 +1,51 @@
-/* Compact mobile treatment for the Signals scanner.
-   Keep evidence semantics without letting marker controls disturb row geometry. */
-#cxSignalsVnext .cx-sv-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
-#cxSignalsVnext .cx-sv-num strong{display:flex;align-items:center;gap:2px}
-#cxSignalsVnext .cx-sv-confirming{background:color-mix(in srgb,var(--color-accent) 18%,transparent);color:var(--color-accent)}
-#cxSignalsVnext .cx-sv-sales-confirm{display:inline-flex;align-items:center;gap:2px;flex:0 0 auto;color:var(--cx-muted);font-size:8px;line-height:1}
-#cxSignalsVnext .cx-sv-sales-confirm b{font-size:8px;color:var(--cx-text);font-weight:850;white-space:nowrap}
-#cxSignalsVnext .cx-sv-sales-confirm i{font-size:7px;color:var(--color-success);font-style:normal;white-space:nowrap}
+/* Canonical mobile treatment for the Signals scanner.
+   Prioritize the decision: card -> stage/reason -> buy/edge. Modeled metadata stays secondary. */
+#cxSignals .cx-sv-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+#cxSignals .cx-sv-num strong{display:flex;align-items:center;gap:2px}
+#cxSignals .cx-sv-confirming{background:color-mix(in srgb,var(--color-accent) 18%,transparent);color:var(--color-accent)}
+#cxSignals .cx-sv-sales-confirm{display:inline-flex;align-items:center;gap:2px;flex:0 0 auto;color:var(--cx-muted);font-size:8px;line-height:1}
+#cxSignals .cx-sv-sales-confirm b{font-size:8px;color:var(--cx-text);font-weight:850;white-space:nowrap}
+#cxSignals .cx-sv-sales-confirm i{font-size:7px;color:var(--color-success);font-style:normal;white-space:nowrap}
 
 @media(max-width:900px){
-  #cxSignalsVnext .cx-sv-row{
-    grid-template-columns:minmax(0,1fr) 54px 54px 42px;
+  #cxSignals .cx-sv-row{
+    grid-template-columns:minmax(0,1fr) auto auto;
     grid-template-areas:
-      'card conf scout move'
-      'signal signal price price';
-    row-gap:5px;
-    column-gap:7px;
-    min-height:62px;
-    padding:7px 9px;
+      'card move move'
+      'signal signal signal'
+      'price conf scout';
+    row-gap:6px;
+    column-gap:8px;
+    min-height:78px;
+    padding:9px 10px;
   }
-  #cxSignalsVnext .cx-sv-num:nth-of-type(3){display:none}
-  #cxSignalsVnext .cx-sv-num:nth-of-type(4){grid-area:conf;justify-items:end}
-  #cxSignalsVnext .cx-sv-num:nth-of-type(5){grid-area:scout;justify-items:end}
-  #cxSignalsVnext .cx-sv-num:nth-of-type(4) strong,
-  #cxSignalsVnext .cx-sv-num:nth-of-type(5) strong{justify-content:flex-end;width:100%}
-  #cxSignalsVnext .cx-sv-num:nth-of-type(4) small,
-  #cxSignalsVnext .cx-sv-num:nth-of-type(5) small{text-align:right;width:100%}
-  #cxSignalsVnext .cx-sv-card{grid-area:card;align-self:start}
-  #cxSignalsVnext .cx-sv-card strong{font-size:12px;line-height:1.15}
-  #cxSignalsVnext .cx-sv-card small{margin-top:2px}
-  #cxSignalsVnext .cx-sv-signal{grid-area:signal;display:flex;align-items:center;gap:5px;min-width:0}
-  #cxSignalsVnext .cx-sv-signal>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #cxSignalsVnext .cx-sv-price{grid-area:price;display:flex;align-items:baseline;justify-content:flex-end;gap:6px;min-width:0}
-  #cxSignalsVnext .cx-sv-price strong{font-size:11px;flex:0 0 auto}
-  #cxSignalsVnext .cx-sv-price small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #cxSignalsVnext .cx-sv-move{grid-area:move;align-self:start;justify-items:end}
-  #cxSignalsVnext .cx-sv-move strong{line-height:1}
-  #cxSignalsVnext .cx-ui-evidence{padding-left:2px;min-width:auto;min-height:auto}
+  #cxSignals .cx-sv-num:nth-of-type(3){display:none}
+  #cxSignals .cx-sv-num:nth-of-type(4){grid-area:conf;justify-items:end;align-self:end;opacity:.72}
+  #cxSignals .cx-sv-num:nth-of-type(5){grid-area:scout;justify-items:end;align-self:end;opacity:.72}
+  #cxSignals .cx-sv-num:nth-of-type(4) strong,
+  #cxSignals .cx-sv-num:nth-of-type(5) strong{justify-content:flex-end;width:100%;font-size:9px;font-weight:750}
+  #cxSignals .cx-sv-num:nth-of-type(4) small,
+  #cxSignals .cx-sv-num:nth-of-type(5) small{text-align:right;width:100%;font-size:7px}
+  #cxSignals .cx-sv-card{grid-area:card;align-self:start}
+  #cxSignals .cx-sv-card strong{font-size:12.5px;line-height:1.15}
+  #cxSignals .cx-sv-card small{margin-top:2px}
+  #cxSignals .cx-sv-signal{grid-area:signal;display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:5px;min-width:0}
+  #cxSignals .cx-sv-signal>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;color:var(--cx-text)}
+  #cxSignals .cx-sv-price{grid-area:price;display:flex;align-items:baseline;justify-content:flex-start;gap:6px;min-width:0}
+  #cxSignals .cx-sv-price strong{font-size:12px;flex:0 0 auto}
+  #cxSignals .cx-sv-price small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;color:var(--color-success);font-weight:800}
+  #cxSignals .cx-sv-move{grid-area:move;align-self:start;justify-items:end}
+  #cxSignals .cx-sv-move strong{line-height:1}
+  #cxSignals .cx-ui-evidence{padding-left:2px;min-width:auto;min-height:auto}
 }
 
 @media(max-width:600px){
-  #cxSignalsVnext .cx-sv-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
-  #cxSignalsVnext .cx-sv-metric{padding:7px 6px;min-width:0}
-  #cxSignalsVnext .cx-sv-metric span{font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #cxSignalsVnext .cx-sv-metric strong{font-size:14px}
-  #cxSignalsVnext .cx-sv-metric small{font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #cxSignalsVnext .cx-sv-row{min-height:60px;padding:7px 8px}
-  #cxSignalsVnext .cx-sv-sales-confirm i{display:none}
+  #cxSignals .cx-sv-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  #cxSignals .cx-sv-metric{padding:7px 6px;min-width:0}
+  #cxSignals .cx-sv-metric span{font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #cxSignals .cx-sv-metric strong{font-size:14px}
+  #cxSignals .cx-sv-metric small{font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #cxSignals .cx-sv-row{min-height:76px;padding:8px}
+  #cxSignals .cx-sv-sales-confirm i{display:none}
+  #cxSignals .cx-sv-signal>small{font-size:9px}
 }
