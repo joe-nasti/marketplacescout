@@ -5,13 +5,18 @@ import path from 'node:path';
 const read=p=>readFile(path.join(process.cwd(),p),'utf8');
 
 test('lazy routes prefetch code and known caches without installing the page',async()=>{
-  const source=await read('src/core/lazy-pages.js');
-  expect(source).toContain('export function prefetchPage(page)');
-  expect(source).toContain('const pageModules=');
-  expect(source).toContain("{key:'sealed.rows'");
-  expect(source).toContain("{key:'sealed.setTypes'");
-  expect(source).toContain('primeResources(routePrime[page])');
-  expect(source).toContain("m.install()");
+  const [lazy,contracts]=await Promise.all([
+    read('src/core/lazy-pages.js'),
+    read('src/state/route-data-contracts.js')
+  ]);
+  expect(lazy).toContain('export function prefetchPage(page)');
+  expect(lazy).toContain('const pageModules=');
+  expect(lazy).toContain('primeSpecsForRoute(page)');
+  expect(lazy).toContain('primeResources(prime)');
+  expect(contracts).toContain("key:'sealed.rows'");
+  expect(contracts).toContain("key:'sealed.setTypes'");
+  expect(lazy).toContain("await m.install()");
+  expect(lazy.indexOf('await m.install()')).toBeGreaterThan(lazy.indexOf('export async function loadPage(page)'));
 });
 
 test('lazy loading no longer paints a generic page-wide placeholder',async()=>{
