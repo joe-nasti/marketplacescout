@@ -8,7 +8,6 @@ const DENSE_SOURCES=[
   'src/modules/seller/inventory-action-view.js',
   'src/modules/seller/syp-scan-view.js',
   'src/modules/seller/dashboard-view.js',
-  'src/modules/sealed/dense-list.js',
   'src/modules/admin/single-owner-style.js',
   'src/styles/signals.css',
   'src/styles/seller-progress.css',
