@@ -1,0 +1,38 @@
+name: Collectish YouTube deterministic fallback
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/market-intel-video-deterministic-backfill/index.ts"
+      - ".github/workflows/signals-youtube-deterministic-backfill.yml"
+  schedule:
+    - cron: "48 */6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-youtube-deterministic-fallback
+  cancel-in-progress: true
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-deterministic-backfill
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Process one cached creator video
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --max-time 240 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{}' "$FUNCTION_URL")"
+          cat "$response_file"
+          echo
+          test "$status" -ge 200 -a "$status" -lt 300
+          echo "events_saved=$(jq -r '.events_saved // 0' "$response_file")"
