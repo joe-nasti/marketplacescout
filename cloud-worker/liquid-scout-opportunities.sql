@@ -41,7 +41,9 @@ with base as (
           when c.avg_daily_qty_sold>=3 then 86
           when c.avg_daily_qty_sold>=1 then 72
           when c.avg_daily_qty_sold>=0.5 then 58
-          else 42
+          when c.avg_daily_qty_sold>=0.1 then 42
+          when c.avg_daily_qty_sold>0 then 30
+          else 15
         end
       else least(54,
         case
@@ -57,7 +59,8 @@ with base as (
       when c.avg_daily_qty_sold is not null and c.avg_daily_qty_sold>=9 then 15
       when c.avg_daily_qty_sold is not null and c.avg_daily_qty_sold>=1 then 18
       when c.avg_daily_qty_sold is not null and c.avg_daily_qty_sold>=0.5 then 22
-      else 25
+      when c.avg_daily_qty_sold is not null and c.avg_daily_qty_sold>=0.1 then 25
+      else 30
     end::numeric as target_roi,
     case
       when c.cheapest_buy>0 and c.direct_net_profit is not null then round((c.direct_net_profit/c.cheapest_buy*100)::numeric,1)
