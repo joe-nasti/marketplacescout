@@ -1,0 +1,53 @@
+name: Collectish YouTube requested backfills
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17,47 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-youtube-backfill-controller.yml"
+      - "cloud-worker/youtube-backfill-controller.mjs"
+      - "cloud-worker/youtube-ledger-discovery.mjs"
+      - "supabase/functions/market-intel-youtube-ledger-evaluate/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-youtube-requested-backfills
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      EVALUATOR_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-youtube-ledger-evaluate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate workers
+        run: |
+          node --check cloud-worker/youtube-ledger-discovery.mjs
+          node --check cloud-worker/youtube-backfill-controller.mjs
+      - name: Deepen requested channel discovery
+        run: node cloud-worker/youtube-ledger-discovery.mjs
+      - name: Queue requested backlog
+        run: node cloud-worker/youtube-backfill-controller.mjs
+      - name: Evaluate queued videos
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"limit":2}' "$EVALUATOR_URL")"
+          cat "$response_file"
+          echo
+          test "$status" -ge 200 -a "$status" -lt 300
+      - name: Refill backlog after evaluation
+        run: node cloud-worker/youtube-backfill-controller.mjs
