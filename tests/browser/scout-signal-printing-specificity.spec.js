@@ -5,20 +5,23 @@ import path from 'node:path';
 const root=process.cwd();
 const read=p=>readFile(path.join(root,p),'utf8');
 
-test('Scout uses exact-SKU Signal confidence and attenuates related-printing Interests',async()=>{
-  const [ui,skuSql,scopeSql,collector]=await Promise.all([
+test('Scout keeps exact-SKU Signal specificity inside unified opportunity context',async()=>{
+  const [ui,skuSql,scopeSql,contextSql,collector]=await Promise.all([
     read('src/modules/signals/scout-badges.js'),
     read('cloud-worker/scout-signal-sku-confidence.sql'),
     read('cloud-worker/mtgstocks-interest-printing-scope.sql'),
+    read('cloud-worker/scout-opportunity-context.sql'),
     read('cloud-worker/mtgstocks-interests.mjs')
   ]);
-  expect(ui).toContain('market_intel_scout_confidence_sku');
-  expect(ui).toContain("confidence.get(String(row?.sku_id||''))");
-  expect(ui).toContain('Interests related-printing only');
-  expect(skuSql).toContain("specificity_weight");
-  expect(skuSql).toContain("isolated to another printing or finish");
-  expect(scopeSql).toContain("resolve_mtgstocks_interest_links");
-  expect(scopeSql).toContain("cross_print_corroborated");
-  expect(collector).toContain("rpc/resolve_mtgstocks_interest_links");
+  expect(ui).toContain('scout_opportunity_context');
+  expect(ui).toContain("context.get(String(row?.sku_id||''))");
+  expect(ui).toContain("return'related printing'");
+  expect(skuSql).toContain('specificity_weight');
+  expect(skuSql).toContain('isolated to another printing or finish');
+  expect(contextSql).toContain('interest_exact_signal_count');
+  expect(contextSql).toContain("'related_printing_only'");
+  expect(scopeSql).toContain('resolve_mtgstocks_interest_links');
+  expect(scopeSql).toContain('cross_print_corroborated');
+  expect(collector).toContain('rpc/resolve_mtgstocks_interest_links');
   expect(collector.indexOf('rpc/resolve_mtgstocks_interest_links')).toBeLessThan(collector.indexOf('rpc/enqueue_market_intel_scout_wakes'));
 });

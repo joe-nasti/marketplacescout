@@ -3,14 +3,14 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('Scout Signals confidence is priority context, not grade mutation',async()=>{
+test('Scout Signals flow through unified opportunity context without grade mutation',async()=>{
   const source=await read('src/modules/signals/scout-badges.js');
-  expect(source).toContain('market_intel_scout_confidence_sku?select=');
-  expect(source).toContain("confidence.get(String(row?.sku_id||''))");
-  expect(source).toContain('priority context · grade unchanged');
-  expect(source).toContain('independent source');
-  expect(source).toContain('Oracle-family context');
-  expect(source).toContain('inherited/related-printing link');
+  expect(source).toContain('scout_opportunity_context?select=');
+  expect(source).toContain("context.get(String(row?.sku_id||''))");
+  expect(source).toContain('priority/urgency only · grade unchanged');
+  expect(source).toContain('signal_independent_sources');
+  expect(source).toContain("return'Oracle family'");
+  expect(source).toContain("return'related printing'");
 });
 
 test('Signal confidence SQL requires independent corroboration for stronger labels',async()=>{
