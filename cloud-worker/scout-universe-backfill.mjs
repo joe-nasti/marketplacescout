@@ -45,7 +45,8 @@ async function queueSet({userId,set,reason,priority,wakeQueueId=null}){
   return jobId;
 }
 
-await sb('rpc/sync_scout_card_catalog',{method:'POST',body:{}});
+const catalogProbe=await sb('scout_card_catalog?select=sku_id,cataloged_at&order=cataloged_at.desc&limit=1').catch(()=>[]);
+if(!catalogProbe?.length)await sb('rpc/sync_scout_card_catalog',{method:'POST',body:{}});
 const reconciled=await reconcile();
 const active=await activeUniverseJob();
 if(active){console.log(JSON.stringify({ok:true,queued:false,reason:'universe_job_active',job_id:active.job_id,reconciled},null,2));process.exit(0)}
