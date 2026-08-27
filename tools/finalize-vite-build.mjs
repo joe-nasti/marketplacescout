@@ -14,7 +14,7 @@ const deployedAt=new Date().toISOString();
 const shellSource=await readFile(join(root,'src/core/shell.js'),'utf8').catch(()=> '');
 const version=shellSource.match(/WEB_VERSION\s*=\s*['"]([^'"]+)['"]/)?.[1]||'unknown';
 
-for(const name of ['manifest.webmanifest','collectish-icon-192.png']){
+for(const name of ['manifest.webmanifest','collectish-icon-192.png','sw.mjs']){
   const src=join(root,name),dst=join(dist,name);
   if(existsSync(src)&&!existsSync(dst))await copyFile(src,dst);
 }
@@ -39,4 +39,5 @@ await writeFile(join(dist,'web-version.json'),JSON.stringify({
 
 const out=await stat(targetHtml).catch(()=>null);
 if(!out?.size)throw new Error('Vite build did not produce dist/index.html');
+if(!existsSync(join(dist,'sw.mjs')))throw new Error('Vite build did not include sw.mjs');
 if(!/name=["']collectish-revision["']/.test(html))throw new Error('Build metadata injection did not produce collectish-revision meta');
