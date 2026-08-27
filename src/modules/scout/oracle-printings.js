@@ -3,6 +3,7 @@ import { rest } from '../../core/rest.js';
 
 let installed=false;
 const sfCache=new Map();
+const FAMILY_LIMIT=500;
 let compareContext=null,familyData=[],familyOracle='',familySeq=0;
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -64,7 +65,7 @@ async function loadFamily(force=false){
   if(!force&&familyOracle===oracle&&familyData.length)return familyData;
   const n=++familySeq;
   try{
-    const data=await rest('rpc/scout_catalog_by_oracle',{method:'POST',body:{p_oracle_id:oracle,p_limit:200}});
+    const data=await rest('rpc/scout_catalog_by_oracle',{method:'POST',body:{p_oracle_id:oracle,p_limit:FAMILY_LIMIT}});
     if(n!==familySeq)return familyData;
     familyOracle=oracle;familyData=data||[];
   }catch{
@@ -105,9 +106,11 @@ function refreshCompareDecorations(){if(!compareContext)return;void renderCompar
 function returnToPrinting(){
   const ctx=compareContext;if(!ctx?.row)return;
   document.querySelector('#cxOracleCompareSummary')?.remove();
-  const input=document.getElementById('cxParitySearch');if(input)input.value='';
+  const input=document.getElementById('cxParitySearch');if(input){input.value='';input.dispatchEvent(new Event('input',{bubbles:true}))}
+  const results=document.getElementById('cxUniversalResults');if(results){results.hidden=true;results.innerHTML='';delete results._familyRows;delete results._rows}
+  document.getElementById('cxUniversalDetail')?.replaceChildren();
   compareContext=null;familyData=[];familyOracle='';familySeq++;
-  const p=new URL(location.href).searchParams;p.delete('oracle');p.delete('fromSku');p.delete('q');history.replaceState({collectish:true},'',`${location.pathname}?${p.toString()}${location.hash}`);
+  const p=new URL(location.href).searchParams;for(const key of ['oracle','fromSku','q','oracleSort','oracleFilter','oracleOpenSku'])p.delete(key);history.replaceState({collectish:true},'',`${location.pathname}?${p.toString()}${location.hash}`);
   window.CollectishScoutRenderer?.renderDetail?.(selectedRow(ctx.sku)||ctx.row,true);
 }
 
@@ -136,8 +139,14 @@ function ensureStyle(){
   if(document.getElementById('cxScoutOraclePrintingsStyle'))return;const style=document.createElement('style');style.id='cxScoutOraclePrintingsStyle';style.textContent=`.cx-scout-all-printings{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 8px;align-items:center;margin-top:7px;padding:0;border:0;background:transparent;color:var(--cx-accent);text-align:left;cursor:pointer;font:inherit}.cx-scout-all-printings span{font-size:12px;font-weight:850;line-height:1.25}.cx-scout-all-printings small{grid-column:1;font-size:9px;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px}.cx-scout-all-printings b{grid-column:2;grid-row:1/3;font-size:16px}.cx-scout-all-printings:hover span,.cx-scout-all-printings:focus-visible span{text-decoration:underline}.cx-scout-all-printings:focus-visible{outline:2px solid var(--cx-accent);outline-offset:4px;border-radius:4px}.cx-oracle-compare-summary{margin:8px 0 14px;padding:12px;border:1px solid var(--cx-line);border-radius:14px;background:var(--cx-bg)}.cx-oracle-compare-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.cx-oracle-compare-head small,.cx-oracle-compare-grid span,.cx-oracle-compare-grid small{display:block;color:var(--cx-muted);font-size:10px}.cx-oracle-compare-head strong{display:block;font-size:16px}.cx-oracle-compare-head span{display:block;margin-top:2px;color:var(--cx-muted);font-size:11px}.cx-oracle-compare-head button{border:1px solid var(--cx-line);border-radius:9px;background:transparent;color:var(--cx-accent);font-weight:800;padding:7px 9px;white-space:nowrap}.cx-oracle-compare-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-top:10px}.cx-oracle-compare-grid>div{border:1px solid var(--cx-line);border-radius:10px;padding:8px}.cx-oracle-compare-grid strong{display:block;margin:2px 0;font-size:14px}.cx-oracle-current-printing{outline:2px solid var(--cx-accent);outline-offset:-2px;position:relative}.cx-oracle-current-badge{font-size:10px;font-weight:850;color:var(--cx-accent);white-space:nowrap;align-self:center}@media(max-width:760px){.cx-oracle-compare-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cx-oracle-compare-head{flex-direction:column}.cx-oracle-compare-head button{width:100%}}@media(max-width:520px){.cx-scout-all-printings{margin-top:6px}.cx-scout-all-printings small{max-width:180px}}`;document.head.appendChild(style);
 }
 
+function hydrateNow(){
+  restoreContextFromUrl();
+  const sku=store.get().scout?.selectedSku;
+  if(sku&&document.querySelector('#cxParityDetail .cx-v5-title'))void addLink({sku});
+}
+
 export function installOraclePrintingsLink(){
-  if(installed)return;installed=true;ensureStyle();document.addEventListener('collectish:scout-detail-rendered',e=>void addLink(e.detail));document.addEventListener('collectish:scout-structure-ready',restoreContextFromUrl);document.addEventListener('collectish:scout-list-rendered',refreshCompareDecorations);document.addEventListener('collectish:scout-universal-results',acceptFamilyResults);
+  if(installed)return;installed=true;ensureStyle();document.addEventListener('collectish:scout-detail-rendered',e=>void addLink(e.detail));document.addEventListener('collectish:scout-structure-ready',restoreContextFromUrl);document.addEventListener('collectish:scout-list-rendered',refreshCompareDecorations);document.addEventListener('collectish:scout-universal-results',acceptFamilyResults);setTimeout(hydrateNow,0);
 }
 
 installOraclePrintingsLink();
