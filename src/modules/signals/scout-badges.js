@@ -15,7 +15,7 @@ async function load(){
   loading=Promise.all([
     rest('market_intel_items?select=intel_id,signal_stage,direction,title,source_name,source_url,observed_at&order=observed_at.desc&limit=500'),
     rest('market_intel_scout_signal_links?select=intel_id,entity_name,canonical_name,oracle_id,source_scryfall_id,source_product_id,matched_scryfall_id,product_id,family_match&limit=5000'),
-    rest('scout_opportunity_context?select=sku_id,product_id,promoted_grade,promoted_score,signal_count,signal_independent_sources,signal_leading_sources,signal_confirming_sources,exact_signal_count,inherited_signal_count,interest_exact_signal_count,interest_inherited_signal_count,interest_corroborating_printings,signal_priority_boost,signal_confidence_label,signal_confidence_reason,latest_signal_at,catalyst_source_name,catalyst_title,primary_event_type,content_conviction_score,catalyst_impact_score,convergence_score,expected_market_reaction_score,expected_reaction_confidence,market_response_score,market_response_status,unpriced_catalyst_gap_score,unpriced_catalyst_gap_state,catalyst_market_state,catalyst_priority_boost,context_priority_boost,discovery_priority_score,urgency_state,urgency_reason,risk_flags&limit=10000').catch(()=>[])
+    rest('scout_opportunity_context?select=sku_id,product_id,promoted_grade,promoted_score,signal_count,signal_independent_sources,signal_leading_sources,signal_confirming_sources,exact_signal_count,inherited_signal_count,interest_exact_signal_count,interest_inherited_signal_count,interest_corroborating_printings,signal_priority_boost,signal_confidence_label,signal_confidence_reason,latest_signal_at,catalyst_source_name,catalyst_title,primary_event_type,content_conviction_score,catalyst_impact_score,convergence_score,expected_market_reaction_score,expected_reaction_confidence,market_response_score,market_response_status,unpriced_catalyst_gap_score,unpriced_catalyst_gap_state,catalyst_market_state,catalyst_priority_boost,context_priority_boost,discovery_priority_score,urgency_state,urgency_reason,risk_flags,printing_demand_class,printing_demand_reason,printing_market_price,printing_finish_family_median,printing_premium_ratio,current_printing_release_date,newest_family_release_date,days_since_newest_family_release,family_printing_count,reprint_migration_evidence,prestige_evidence&limit=10000').catch(()=>[])
   ]).then(([itemRows,entityRows,contextRows])=>{
     items=new Map((itemRows||[]).map(x=>[x.intel_id,x]));
     links=(entityRows||[]).filter(x=>items.has(x.intel_id));
@@ -56,11 +56,21 @@ function signalScope(c){
   if(inherited>0)return'Oracle family';
   return'underlying card';
 }
+function printingDemandLabel(c){
+  const cls=String(c?.printing_demand_class||'not_printing_specific');
+  if(cls==='reprint_migration')return'reprint migration';
+  if(cls==='prestige_printing')return'prestige printing';
+  if(cls==='broad_card_demand')return'broad card demand';
+  if(cls==='thin_print_anomaly')return'thin-print risk';
+  if(cls==='unknown_printing_specific')return'printing-specific';
+  return'';
+}
 function compactWhyNow(c){
   if(!c)return'';
   const sources=Number(c.signal_independent_sources||0),leading=Number(c.signal_leading_sources||0),confirming=Number(c.signal_confirming_sources||0),gap=Number(c.unpriced_catalyst_gap_score||0);
   const bits=[];
   if(sources){bits.push(`${sources} source${sources===1?'':'s'}`);bits.push(leading?`${leading} leading`:confirming?`${confirming} confirming`:'context');bits.push(signalScope(c));if(c.latest_signal_at)bits.push(relativeAge(c.latest_signal_at))}
+  const printing=printingDemandLabel(c);if(printing)bits.push(printing);
   if(gap>0)bits.push(`catalyst gap ${gap}`);
   return bits.join(' · ');
 }
@@ -114,11 +124,12 @@ function decorateDetail(sku){
   host.querySelector('.cx-intel-detail')?.remove();
   const row=(store.get().scout?.rows||[]).find(r=>String(r.sku_id)===String(sku)),c=contextFor(row),signals=matching(row);if(!c&&!signals.length)return;
   const boost=eligiblePriorityBoost(row),signalBoost=Number(c?.signal_priority_boost||0),catalystBoost=Number(c?.catalyst_priority_boost||0),exact=Number(c?.exact_signal_count||0),inherited=Number(c?.inherited_signal_count||0),risks=Array.isArray(c?.risk_flags)?c.risk_flags:[];
+  const premium=Number(c?.printing_premium_ratio||0);const printingMeta=c&&printingDemandLabel(c)?`<div class="cx-v5-component"><strong>Printing thesis · ${esc(pretty(c.printing_demand_class))}</strong><small>${esc(c.printing_demand_reason||'Printing-specific movement detected.')}</small><small>${premium>0?`Price vs same-finish family median ${esc((premium*100).toFixed(0))}% · `:''}${c.current_printing_release_date?`printing ${esc(c.current_printing_release_date)} · `:''}${c.newest_family_release_date?`newest family release ${esc(c.newest_family_release_date)} · `:''}${esc(c.family_printing_count??0)} known family printings</small></div>`:'';
   const catalyst=c?.catalyst_impact_score!=null?`<div class="cx-v5-component"><strong>Creator catalyst · ${esc(c.catalyst_source_name||'creator')}</strong><small>Conviction ${esc(c.content_conviction_score??'—')} · Catalyst ${esc(c.catalyst_impact_score??'—')} · Expected ${esc(c.expected_market_reaction_score??'—')} · Market ${esc(c.market_response_score??'—')} · Gap ${esc(c.unpriced_catalyst_gap_score??'—')}</small><small>${esc(pretty(c.unpriced_catalyst_gap_state||c.catalyst_market_state||'watching'))} · ${esc(c.catalyst_title||c.primary_event_type||'')}</small></div>`:'';
   const contextBlock=c?`<div class="cx-v5-component"><strong>${esc(pretty(c.urgency_state||'standard'))}${boost>0?` · +${boost} context priority`:''}</strong><small><b>Why now:</b> ${esc(compactWhyNow(c)||c.urgency_reason||'No elevated external urgency.')}</small><small>Signal +${esc(signalBoost)} · catalyst +${esc(catalystBoost)} · ${esc(exact)} exact-SKU link${exact===1?'':'s'} · ${esc(inherited)} inherited link${inherited===1?'':'s'}</small><small>${esc(c.urgency_reason||'Scout economics remain primary.')}${risks.length?` Risks: ${esc(risks.map(pretty).join(', '))}.`:''}</small></div>`:'';
   const signalList=signals.length?`<div class="cx-intel-detail-list">${signals.slice(0,5).map(x=>`<a href="${esc(x.source_url)}" target="_blank" rel="noopener"><span class="cx-signal-stage ${esc(x.signal_stage)}">${esc(x.signal_stage)}</span><strong>${esc(x.title||x.source_name||'Market signal')}</strong><small>${esc(x.source_name||'External source')}${x._oracleFamily?` · underlying card: ${esc(x._signalCard)}`:' · exact/linked printing'}</small></a>`).join('')}</div>`:'';
   const section=document.createElement('section');section.className='cx-v5-section cx-intel-detail';
-  section.innerHTML=`<div class="cx-section-title">Opportunity context <span class="cx-intel-context">priority/urgency only · grade unchanged</span></div>${contextBlock}${catalyst}${signalList}`;
+  section.innerHTML=`<div class="cx-section-title">Opportunity context <span class="cx-intel-context">priority/urgency only · grade unchanged</span></div>${contextBlock}${printingMeta}${catalyst}${signalList}`;
   const anchor=host.querySelector('.cx-v5-components')||host.firstElementChild;if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor.nextSibling);else host.appendChild(section);
 }
 

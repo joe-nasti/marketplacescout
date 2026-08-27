@@ -17,9 +17,11 @@ test('Scout opportunity context unifies Signals and creator catalyst without gra
   expect(ui).toContain('priority/urgency only · grade unchanged');
   expect(sql).toContain('market_intel_scout_confidence_sku');
   expect(sql).toContain('market_intel_video_opportunity_gap');
-  expect(sql).toContain("when promoted_grade not in ('A','B') then 0");
+  expect(sql).toContain("when b.promoted_grade not in ('A','B') then 0");
+  expect(sql).toContain("case when s.promoted_grade in ('A','B') then least(12");
   expect(sql).toContain("then 'act_now'");
   expect(sql).toContain("then 'confirmed_late'");
   expect(sql).toContain("then 'printing_specific'");
-  expect(sql).toContain('presentation/prioritization only and never mutates Scout score or grade');
+  expect(sql).toContain("coalesce(p.printing_demand_class,'')<>'thin_print_anomaly'");
+  expect(sql).toContain('does not change Scout grade or economics');
 });
