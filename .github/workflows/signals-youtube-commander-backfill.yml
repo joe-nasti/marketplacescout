@@ -10,6 +10,7 @@ on:
       - ".github/workflows/signals-youtube-commander-backfill.yml"
       - "supabase/functions/market-intel-video-commander-deterministic/**"
       - "supabase/functions/market-intel-video-speaker-enrichment/**"
+      - "supabase/functions/market-intel-future-card-thesis-refresh/**"
 
 permissions:
   contents: read
@@ -25,6 +26,7 @@ jobs:
     env:
       FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-commander-deterministic
       SPEAKER_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-speaker-enrichment
+      FUTURE_THESIS_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-future-card-thesis-refresh
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - name: Extract one cached Commander video
@@ -72,3 +74,23 @@ jobs:
           echo
           [[ "$status" =~ ^2 ]] || exit 1
           echo "videos_processed=$(jq -r '.videos_processed // 0' "$response_file") events_updated=$(jq -r '.events_updated // 0' "$response_file")"
+
+      - name: Preserve unreleased-card theses
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error \
+            --max-time 300 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{"limit":60}' \
+            "$FUTURE_THESIS_FUNCTION_URL"; } || true)"
+          cat "$response_file"
+          echo
+          [[ "$status" =~ ^2 ]] || exit 1
+          echo "future_cards_detected=$(jq -r '.future_cards_detected // 0' "$response_file") theses_refreshed=$(jq -r '.theses_refreshed // 0' "$response_file")"
