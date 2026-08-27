@@ -33,12 +33,8 @@ with liquid as (
   select l.*,coalesce(i.existing_qty,0)::numeric existing_qty,
          a.action_class,a.primary_signal,a.actionability_score,
          case
-           when coalesce(l.avg_daily_qty_sold,0)>0 then round(greatest(0.15,l.avg_daily_qty_sold*0.12)::numeric,2)
-           when l.sales_rank<=30 then 0.60::numeric
-           when l.sales_rank<=80 then 0.40::numeric
-           when l.sales_rank<=180 then 0.25::numeric
-           when l.sales_rank<=300 then 0.15::numeric
-           else 0.10::numeric
+           when l.avg_daily_qty_sold is not null then round(greatest(0.05,l.avg_daily_qty_sold*0.12)::numeric,2)
+           else 0.05::numeric
          end capture_per_day,
          case when l.liquidity_score>=85 then 9 else 7 end::integer days_cover,
          case
@@ -97,11 +93,11 @@ select card_name,product_id,sku_id,set_name,printing,
          when add_qty>=3 then 'BUY 3–4'
          else 'STARTER BUY' end,
        case
-         when add_qty=0 then 'Current inventory already meets or exceeds the liquidity-adjusted target exposure.'
-         when action_class='action_now' then 'Strong emerging signal plus liquid execution supports a larger position, capped by seller-capture and per-SKU capital limits.'
-         when action_class='emerging_quick_turn' then 'Emerging demand and acceptable quick-turn economics support moderate incremental exposure.'
-         when margin_cushion_pct>=50 then 'Large ROI cushion and strong liquidity support a moderate quick-turn position without requiring a new catalyst.'
-         else 'Liquid card clears its margin hurdle; keep the position conservative because catalyst strength or margin cushion is lower.' end,
+         when add_qty=0 then 'Current inventory already meets or exceeds the exact-SKU liquidity-adjusted target exposure.'
+         when action_class='action_now' then 'Strong emerging signal plus measured exact-SKU liquidity supports a larger position, capped by seller-capture and per-SKU capital limits.'
+         when action_class='emerging_quick_turn' then 'Emerging demand and measured exact-SKU sales support moderate incremental exposure.'
+         when margin_cushion_pct>=50 then 'Large ROI cushion and measured exact-SKU liquidity support a moderate quick-turn position without requiring a new catalyst.'
+         else 'Measured exact-SKU liquidity clears its margin hurdle; keep the position conservative because catalyst strength or margin cushion is lower.' end,
        action_class,primary_signal,actionability_score
 from final
 where add_qty>0 or existing_qty>0
