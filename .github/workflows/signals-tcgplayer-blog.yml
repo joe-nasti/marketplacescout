@@ -1,0 +1,39 @@
+name: Collectish TCGplayer MTG Blog Signals refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "29 */2 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-tcgplayer-blog.yml"
+      - "supabase/functions/market-intel-tcgplayer-blog-sync/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-tcgplayer-blog-signals-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-tcgplayer-blog-sync
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Refresh MTG-tagged TCGplayer Seller Blog and reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          for chunk in $(seq 1 8); do
+            response_file="$(mktemp)"
+            status="$({ curl --silent --show-error --max-time 165 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"max_new":4}' "$SUPABASE_FUNCTION_URL"; } || true)"
+            cat "$response_file"; echo
+            [[ "$status" =~ ^2 ]] || exit 1
+            [[ "$(jq -r '.more_pending // false' "$response_file")" == "true" ]] || break
+          done
