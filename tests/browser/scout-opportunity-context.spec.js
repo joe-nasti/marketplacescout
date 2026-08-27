@@ -21,5 +21,5 @@ test('Scout opportunity context unifies Signals and creator catalyst without gra
   expect(sql).toContain("then 'act_now'");
   expect(sql).toContain("then 'confirmed_late'");
   expect(sql).toContain("then 'printing_specific'");
-  expect(sql).toContain('does not change Scout grade or economics');
+  expect(sql).toContain('presentation/prioritization only and never mutates Scout score or grade');
 });
