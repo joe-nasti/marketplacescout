@@ -66,3 +66,24 @@ test('creator catalyst semantics separate conviction convergence and market reac
   expect(workflow).toContain('capture_due_market_intel_snapshots');
   expect(workflow).toContain('17 * * * *');
 });
+
+test('unreleased creator theses survive until release and stay separate from Scout opportunities',async({},testInfo)=>{
+  test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
+  const futureSql=await read('cloud-worker/future-card-theses.sql');
+  const futureFn=await read('supabase/functions/market-intel-future-card-thesis-refresh/index.ts');
+  const futureUi=await read('src/modules/signals/future-card-theses.js');
+  const modules=await read('src/modules/index.js');
+  const commanderWorkflow=await read('.github/workflows/signals-youtube-commander-backfill.yml');
+  expect(futureSql).toContain('market_intel_future_card_theses');
+  expect(futureSql).toContain("'unreleased_deferred'");
+  expect(futureSql).toContain("'release_window'");
+  expect(futureSql).toContain('+90');
+  expect(futureSql).toContain('security_invoker=true');
+  expect(futureFn).toContain('card_release_date');
+  expect(futureFn).toContain('captured_as_unreleased');
+  expect(futureFn).toContain('refresh_future_card_theses');
+  expect(futureUi).toContain('Future card theses');
+  expect(futureUi).toContain('separately from actionable Scout opportunities');
+  expect(modules).toContain("import('./signals/future-card-theses.js')");
+  expect(commanderWorkflow).toContain('market-intel-future-card-thesis-refresh');
+});
