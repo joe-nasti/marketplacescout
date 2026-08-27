@@ -41,5 +41,9 @@ for(const stream of fetched){
     inserted++;insertedIds.push(intelId);seen.add(title);
   }
 }
-let wake=null;if(insertedIds.length)wake=await sb('rpc/enqueue_market_intel_scout_wakes',{method:'POST',body:{p_intel_ids:insertedIds}});
-console.log(JSON.stringify({ok:true,source:INTERESTS_URL,sourceDate,streams:fetched.map(x=>({priceType:x.priceType,finish:x.finish,date:x.date,rows:x.interests.length})),inserted,skipped,wake},null,2));
+let resolution=null,wake=null;
+if(insertedIds.length){
+  resolution=await sb('rpc/resolve_mtgstocks_interest_links',{method:'POST',body:{p_intel_ids:insertedIds}});
+  wake=await sb('rpc/enqueue_market_intel_scout_wakes',{method:'POST',body:{p_intel_ids:insertedIds}});
+}
+console.log(JSON.stringify({ok:true,source:INTERESTS_URL,sourceDate,streams:fetched.map(x=>({priceType:x.priceType,finish:x.finish,date:x.date,rows:x.interests.length})),inserted,skipped,resolution,wake},null,2));
