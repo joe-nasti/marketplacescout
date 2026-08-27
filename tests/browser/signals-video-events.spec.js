@@ -11,6 +11,9 @@ test('YouTube sync stays native-only and extracts first-class video events',asyn
   expect(sync).toContain('market-intel-video-event-extract');
   expect(sync).toContain('maxTranscripts=Math.max(1,Math.min');
   expect(sync).toContain('events_saved');
+  expect(sync).toContain('rss_retry_count:4');
+  expect(sync).toContain('native_retry_hours:72');
+  expect(sync).toContain('[0,1200,4000,9000]');
 });
 
 test('video event extractor enforces graduation threshold and timestamp taxonomy',async({},testInfo)=>{
