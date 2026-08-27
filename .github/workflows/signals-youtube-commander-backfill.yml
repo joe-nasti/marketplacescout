@@ -1,0 +1,51 @@
+name: Collectish Commander video extraction
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "10 1,7,13,19 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-youtube-commander-backfill.yml"
+      - "supabase/functions/market-intel-video-commander-backfill/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-commander-video-extraction
+  cancel-in-progress: true
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-commander-backfill
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Extract one cached Commander video
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error \
+            --max-time 300 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{}' \
+            "$FUNCTION_URL"; } || true)"
+          cat "$response_file"
+          echo
+          [[ "$status" =~ ^2 ]] || exit 1
+          credits="$(jq -r '.transcript_credits_used // 0' "$response_file")"
+          saved="$(jq -r '.events_saved // 0' "$response_file")"
+          video="$(jq -r '.video_id // "none"' "$response_file")"
+          echo "video=$video events_saved=$saved transcript_credits_used=$credits"
+          test "$credits" = "0"
