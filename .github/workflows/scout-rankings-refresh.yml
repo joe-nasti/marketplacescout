@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "20 * * * *"
+    - cron: "5,35 * * * *"
 
 permissions:
   contents: read
@@ -19,7 +20,7 @@ jobs:
     env:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      SCOUT_RANKINGS_STALE_MINUTES: "105"
+      SCOUT_RANKINGS_STALE_MINUTES: "75"
       SCOUT_FORCE_FULL: "1"
       SCOUT_RANKINGS_SOURCE: "hourly_reconciliation"
     steps:
@@ -32,6 +33,7 @@ jobs:
       - name: Validate workers
         run: node --check cloud-worker/refresh-scout-rankings.mjs cloud-worker/watch-scout-rankings.mjs
       - name: Refresh Scout aggregation, v5 score, and cache
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '20 * * * *'
         id: refresh
         continue-on-error: true
         run: node cloud-worker/refresh-scout-rankings.mjs
