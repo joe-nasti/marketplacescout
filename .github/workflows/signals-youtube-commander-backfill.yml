@@ -10,6 +10,7 @@ on:
       - ".github/workflows/signals-youtube-commander-backfill.yml"
       - "supabase/functions/market-intel-video-commander-deterministic/**"
       - "supabase/functions/market-intel-video-speaker-enrichment/**"
+      - "supabase/functions/market-intel-video-synergy-extract/**"
       - "supabase/functions/market-intel-future-card-thesis-refresh/**"
 
 permissions:
@@ -22,10 +23,11 @@ concurrency:
 jobs:
   extract:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-commander-deterministic
       SPEAKER_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-speaker-enrichment
+      SYNERGY_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-synergy-extract
       FUTURE_THESIS_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-future-card-thesis-refresh
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
@@ -54,6 +56,27 @@ jobs:
           video="$(jq -r '.video_id // "none"' "$response_file")"
           echo "video=$video trigger_hits=$hits events_saved=$saved transcript_credits_used=$credits"
           test "$credits" = "0"
+
+      - name: Extract new-card to existing-card synergies
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error \
+            --max-time 420 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{}' \
+            "$SYNERGY_FUNCTION_URL"; } || true)"
+          cat "$response_file"
+          echo
+          [[ "$status" =~ ^2 ]] || exit 1
+          echo "relationships_saved=$(jq -r '.relationships_saved // 0' "$response_file") actionable=$(jq -r '.actionable_relationships // 0' "$response_file")"
+          test "$(jq -r '.transcript_credits_used // 0' "$response_file")" = "0"
 
       - name: Enrich speaker consensus from cached transcript
         shell: bash
