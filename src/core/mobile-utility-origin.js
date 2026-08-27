@@ -5,7 +5,7 @@ let gestureActive=false;
 let snapTimer=0;
 
 function originTarget(){
-  return document.getElementById('cxRouteContext')||document.querySelector('#collectishUxShell > .cx-main');
+  return document.getElementById('cxMobileOrigin')||document.getElementById('cxRouteContext')||document.querySelector('#collectishUxShell > .cx-main');
 }
 
 function mobileOrigin(){
