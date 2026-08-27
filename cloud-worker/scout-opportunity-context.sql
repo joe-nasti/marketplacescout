@@ -79,11 +79,11 @@ with scout_identity as (
 ), printing_profile as (
   select p.*,
     case
-      when interest_exact_signal_count=0 then 'not_printing_specific'
-      when interest_corroborating_printings>=2 then 'broad_card_demand'
-      when reprint_migration_evidence then 'reprint_migration'
-      when prestige_evidence then 'prestige_printing'
-      when avg_daily_qty_sold<0.1 and not buylist_backed and signal_independent_sources<2 then 'thin_print_anomaly'
+      when p.interest_exact_signal_count=0 then 'not_printing_specific'
+      when p.interest_corroborating_printings>=2 then 'broad_card_demand'
+      when p.reprint_migration_evidence then 'reprint_migration'
+      when p.prestige_evidence then 'prestige_printing'
+      when p.avg_daily_qty_sold<0.1 and not p.buylist_backed and p.signal_independent_sources<2 then 'thin_print_anomaly'
       else 'unknown_printing_specific'
     end::text as printing_demand_class
   from printing_profile_raw p
@@ -130,40 +130,40 @@ with scout_identity as (
 ), scored as (
   select b.*,
     case
-      when promoted_grade not in ('A','B') then 0
-      when coalesce(unpriced_catalyst_gap_score,0)>=50 and coalesce(catalyst_impact_score,0)>=70 then 5
-      when coalesce(unpriced_catalyst_gap_score,0)>=30 and coalesce(catalyst_impact_score,0)>=60 then 4
-      when coalesce(unpriced_catalyst_gap_score,0)>=15 and coalesce(catalyst_impact_score,0)>=50 then 2
+      when b.promoted_grade not in ('A','B') then 0
+      when coalesce(b.unpriced_catalyst_gap_score,0)>=50 and coalesce(b.catalyst_impact_score,0)>=70 then 5
+      when coalesce(b.unpriced_catalyst_gap_score,0)>=30 and coalesce(b.catalyst_impact_score,0)>=60 then 4
+      when coalesce(b.unpriced_catalyst_gap_score,0)>=15 and coalesce(b.catalyst_impact_score,0)>=50 then 2
       else 0
     end::integer as catalyst_priority_boost,
     array_remove(array[
-      case when coalesce(avg_daily_qty_sold,0)<0.5 then 'low_exact_sku_liquidity' end,
+      case when coalesce(b.avg_daily_qty_sold,0)<0.5 then 'low_exact_sku_liquidity' end,
       case when p.printing_demand_class='thin_print_anomaly' then 'thin_print_anomaly' end,
-      case when coalesce(direct_realization_factor,1)<0.5 then 'weak_direct_realization' end,
-      case when not coalesce(buylist_backed,false) then 'no_buylist_floor' end,
-      case when signal_confidence_label='mixed_or_bearish' then 'mixed_or_bearish_signals' end,
-      case when unpriced_catalyst_gap_state='market_caught_up' then 'market_already_caught_up' end
+      case when coalesce(b.direct_realization_factor,1)<0.5 then 'weak_direct_realization' end,
+      case when not coalesce(b.buylist_backed,false) then 'no_buylist_floor' end,
+      case when b.signal_confidence_label='mixed_or_bearish' then 'mixed_or_bearish_signals' end,
+      case when b.unpriced_catalyst_gap_state='market_caught_up' then 'market_already_caught_up' end
     ],null)::text[] as risk_flags
   from base b
   left join printing_profile p on p.user_id=b.user_id and p.sku_id=b.sku_id
 ), final as (
   select s.*,
-    case when promoted_grade in ('A','B') then least(12,signal_priority_boost+catalyst_priority_boost) else 0 end::integer as context_priority_boost,
+    case when s.promoted_grade in ('A','B') then least(12,s.signal_priority_boost+s.catalyst_priority_boost) else 0 end::integer as context_priority_boost,
     case
-      when promoted_grade not in ('A','B') then 'context_only'
-      when unpriced_catalyst_gap_state='market_caught_up'
-        or (expected_market_reaction_score is not null and coalesce(market_response_score,0)>=expected_market_reaction_score) then 'confirmed_late'
+      when s.promoted_grade not in ('A','B') then 'context_only'
+      when s.unpriced_catalyst_gap_state='market_caught_up'
+        or (s.expected_market_reaction_score is not null and coalesce(s.market_response_score,0)>=s.expected_market_reaction_score) then 'confirmed_late'
       when (
-          signal_confidence_label in ('corroborated','strong_corroboration')
-          or coalesce(unpriced_catalyst_gap_score,0)>=30
+          s.signal_confidence_label in ('corroborated','strong_corroboration')
+          or coalesce(s.unpriced_catalyst_gap_score,0)>=30
           or p.printing_demand_class='broad_card_demand'
-        ) and coalesce(avg_daily_qty_sold,0)>=0.5
+        ) and coalesce(s.avg_daily_qty_sold,0)>=0.5
         and coalesce(p.printing_demand_class,'')<>'thin_print_anomaly' then 'act_now'
       when p.printing_demand_class in ('thin_print_anomaly','unknown_printing_specific')
-        and interest_exact_signal_count>0 and interest_corroborating_printings<2
-        and coalesce(signal_independent_sources,0)<2 and coalesce(unpriced_catalyst_gap_score,0)<30 then 'printing_specific'
-      when signal_confidence_label in ('emerging','corroborated','strong_corroboration')
-        or coalesce(unpriced_catalyst_gap_score,0)>=15
+        and s.interest_exact_signal_count>0 and s.interest_corroborating_printings<2
+        and coalesce(s.signal_independent_sources,0)<2 and coalesce(s.unpriced_catalyst_gap_score,0)<30 then 'printing_specific'
+      when s.signal_confidence_label in ('emerging','corroborated','strong_corroboration')
+        or coalesce(s.unpriced_catalyst_gap_score,0)>=15
         or p.printing_demand_class in ('reprint_migration','prestige_printing','broad_card_demand') then 'watch_closely'
       else 'standard'
     end::text as urgency_state
@@ -171,22 +171,22 @@ with scout_identity as (
   left join printing_profile p on p.user_id=s.user_id and p.sku_id=s.sku_id
 )
 select f.*,
-  (promoted_score + context_priority_boost)::integer as discovery_priority_score,
+  (f.promoted_score+f.context_priority_boost)::integer as discovery_priority_score,
   case
-    when urgency_state='act_now' and p.printing_demand_class='broad_card_demand'
+    when f.urgency_state='act_now' and p.printing_demand_class='broad_card_demand'
       then 'Multiple printings are moving with actionable Scout execution; this looks like card-level demand rather than an isolated SKU.'
-    when urgency_state='watch_closely' and p.printing_demand_class='reprint_migration'
+    when f.urgency_state='watch_closely' and p.printing_demand_class='reprint_migration'
       then 'Demand is concentrating into this older printing after a newer reprint; exact-SKU sales support a reprint-migration thesis.'
-    when urgency_state='watch_closely' and p.printing_demand_class='prestige_printing'
+    when f.urgency_state='watch_closely' and p.printing_demand_class='prestige_printing'
       then 'This printing is showing supported demand at a premium to comparable-finish siblings, consistent with preferred or prestige-printing demand.'
-    when urgency_state='printing_specific' and p.printing_demand_class='thin_print_anomaly'
+    when f.urgency_state='printing_specific' and p.printing_demand_class='thin_print_anomaly'
       then 'The price move is isolated and exact-SKU sales depth is thin, so scarcity noise remains a material risk.'
-    when urgency_state='printing_specific'
+    when f.urgency_state='printing_specific'
       then 'Movement is concentrated in this printing, but there is not yet enough evidence to classify it as reprint migration, prestige demand, or a thin-market anomaly.'
-    when urgency_state='act_now' then 'Strong Scout execution plus external/catalyst support with room for the market to react.'
-    when urgency_state='watch_closely' then 'Scout economics are actionable, but external evidence or market timing is still developing.'
-    when urgency_state='confirmed_late' then 'The catalyst is supported, but measured market response has largely caught up.'
-    when urgency_state='context_only' then 'External context is retained, but this SKU is outside Scout A/B execution quality.'
+    when f.urgency_state='act_now' then 'Strong Scout execution plus external/catalyst support with room for the market to react.'
+    when f.urgency_state='watch_closely' then 'Scout economics are actionable, but external evidence or market timing is still developing.'
+    when f.urgency_state='confirmed_late' then 'The catalyst is supported, but measured market response has largely caught up.'
+    when f.urgency_state='context_only' then 'External context is retained, but this SKU is outside Scout A/B execution quality.'
     else 'Scout economics remain the primary thesis; no high-urgency external catalyst is currently established.'
   end::text as urgency_reason,
   coalesce(p.printing_demand_class,'not_printing_specific')::text as printing_demand_class,
