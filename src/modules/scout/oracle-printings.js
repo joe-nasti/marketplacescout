@@ -63,8 +63,7 @@ function metric(rows,selector,compare=(a,b)=>a-b){
 function renderCompareSummary(){
   const scout=document.getElementById('cxScout');
   if(!scout||!compareContext)return;
-  const old=scout.querySelector('#cxOracleCompareSummary');
-  old?.remove();
+  scout.querySelector('#cxOracleCompareSummary')?.remove();
   const rows=familyRows(compareContext.name);
   const best=rows.slice().sort((a,b)=>score(b)-score(a))[0];
   const cheapest=metric(rows,r=>({value:Number(r.cheapest_buy||r.tcg_low||0),row:r}));
@@ -92,7 +91,8 @@ function markCurrentPrinting(){
 }
 
 function returnToPrinting(){
-  if(!compareContext?.row)return;
+  const ctx=compareContext;
+  if(!ctx?.row)return;
   document.querySelector('#cxOracleCompareSummary')?.remove();
   const input=document.getElementById('cxParitySearch');
   if(input)input.value='';
@@ -100,7 +100,7 @@ function returnToPrinting(){
   const p=new URL(location.href).searchParams;
   p.delete('oracle');p.delete('fromSku');p.delete('q');
   history.replaceState({collectish:true},'',`${location.pathname}?${p.toString()}${location.hash}`);
-  window.CollectishScoutRenderer?.renderDetail?.(selectedRow(compareContext?.sku)||store.get().scout?.rows?.find(r=>String(r?.sku_id)===String(compareContext?.sku)),true);
+  window.CollectishScoutRenderer?.renderDetail?.(selectedRow(ctx.sku)||ctx.row,true);
 }
 
 function openAllPrintings(name,oracleId,sku,row){
