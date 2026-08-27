@@ -1,0 +1,35 @@
+name: Scout universe backfill
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/scout-universe-backfill.yml"
+      - "cloud-worker/scout-universe-backfill.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-scout-universe-backfill
+  cancel-in-progress: false
+
+jobs:
+  admit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate
+        run: node --check cloud-worker/scout-universe-backfill.mjs
+      - name: Admit wake or cold baseline
+        run: node cloud-worker/scout-universe-backfill.mjs
