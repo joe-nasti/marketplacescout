@@ -6,7 +6,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/signals-command-zone-synergy-validation.yml"
-      - "supabase/functions/market-intel-video-synergy-extract/**"
+      - "supabase/functions/market-intel-video-synergy-batch/**"
 
 permissions:
   contents: read
@@ -14,9 +14,9 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     env:
-      FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-synergy-extract
+      FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-synergy-batch
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - name: Re-run Command Zone 759 cached transcript
@@ -25,18 +25,8 @@ jobs:
           set -euo pipefail
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
           response_file="$(mktemp)"
-          status="$({ curl --silent --show-error \
-            --max-time 600 \
-            --output "$response_file" \
-            --write-out '%{http_code}' \
-            --request POST \
-            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            --header "Content-Type: application/json" \
-            --data '{"video_id":"7XpHTfYG_X0","force":true}' \
-            "$FUNCTION_URL"; } || true)"
-          cat "$response_file"
-          echo
+          status="$({ curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"video_id":"7XpHTfYG_X0","force":true}' "$FUNCTION_URL"; } || true)"
+          cat "$response_file"; echo
           [[ "$status" =~ ^2 ]] || exit 1
           test "$(jq -r '.transcript_credits_used // 0' "$response_file")" = "0"
           saved="$(jq -r '.relationships_saved // 0' "$response_file")"
