@@ -19,10 +19,31 @@ async function rest(path:string,opt:any={}){const r=await fetch(`${U}/rest/v1/${
 async function sha(v:string){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v));return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function getJson(url:string){const c=new AbortController(),timer=setTimeout(()=>c.abort(),15000);try{const r=await fetch(url,{signal:c.signal,headers:{'User-Agent':'CollectishSignals/1.0 (+MTG market discovery)','Accept':'application/json'}});if(!r.ok)throw Error(`MTGStocks API ${r.status}`);return await r.json()}finally{clearTimeout(timer)}}
 async function getText(url:string){const c=new AbortController(),timer=setTimeout(()=>c.abort(),15000);try{const r=await fetch(url,{signal:c.signal,headers:{'User-Agent':'CollectishSignals/1.0 (+MTG market discovery)','Accept':'text/html'}});if(!r.ok)throw Error(`Source HTTP ${r.status}`);return await r.text()}finally{clearTimeout(timer)}}
-function htmlText(s:string){return String(s||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&#39;/gi,"'").replace(/&quot;/gi,'"').replace(/[ \t]+/g,' ').replace(/\n\s+/g,'\n').trim()}
+function htmlText(s:string){return String(s||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<\/div>/gi,'\n').replace(/<\/p>/gi,'\n').replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&#39;/gi,"'").replace(/&quot;/gi,'"').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/[ \t]+/g,' ').replace(/\n\s+/g,'\n').replace(/\n{3,}/g,'\n\n').trim()}
 async function owner(){const rows=await rest('source_captures?select=user_id&capture_type=eq.feed_subscription&source=eq.MTGStocks&limit=1');const id=String(rows?.[0]?.user_id||'');if(!UUID.test(id))throw Error('MTGStocks Signals owner not found');return id}
 function normalizeInterest(x:any,e:any,date:string){const p=x?.print||{};return{print_id:String(p.id||''),card_name:String(p.name||'').trim(),set_name:p.set_name||null,set_code:p.abbreviation||null,set_id:p.set_id||null,foil:!!x.foil,interest_type:String(x.interest_type||'').toLowerCase(),pct_change:Number(x.percentage),new_price:Number(x.present_price),old_price:Number(x.past_price),price_type:e.price_type,finish:e.finish,date,url:p.id?`https://www.mtgstocks.com/prints/${p.id}`:'https://www.mtgstocks.com/interests',discovery_source:'api'}}
-async function telegramFallback(){const html=await getText('https://t.me/s/mtgstocks'),blocks=[...html.matchAll(/<div class="tgme_widget_message_text[^>]*>([\s\S]*?)<\/div>/gi)].map(m=>htmlText(m[1])).filter(x=>/^Interests of /i.test(x));const recent=blocks.slice(-5),items:any[]=[];for(const block of recent){const lines=block.split(/\n+/).map(x=>x.trim()).filter(Boolean),date=(lines[0].match(/^Interests of (.+?) are online\.?$/i)||[])[1]||lines[0];for(const line of lines.slice(1)){const m=line.match(/^(.+?)\s+\(([^()]+)\)\s+\$([\d,.]+)\s+\(([▲▼])([\d,.]+)%\)$/);if(!m)continue;items.push({print_id:`telegram:${m[2]}:${m[1]}`,card_name:m[1].trim(),set_name:null,set_code:m[2],set_id:null,foil:null,interest_type:'daily_announced',pct_change:(m[4]==='▼'?-1:1)*Number(m[5].replace(/,/g,'')),new_price:Number(m[3].replace(/,/g,'')),old_price:null,price_type:'mtgstocks_default',finish:'unknown',date,url:'https://www.mtgstocks.com/interests',discovery_source:'telegram_announcement'})}}return items}
+function announcementItems(text:string){
+  const starts=[...text.matchAll(/Interests of\s+([A-Za-z]+\s+\d{1,2},\s+\d{4})\s+are online\.?/gi)];
+  const batches:any[]=[];
+  for(let i=0;i<starts.length;i++){
+    const start=(starts[i].index||0)+starts[i][0].length,end=i+1<starts.length?(starts[i+1].index||text.length):text.length;
+    let body=text.slice(start,end);
+    const cutoff=body.search(/(?:MTGStocks Interests|\b\d+\s+views\b|MTGStocks Announcements)/i);if(cutoff>=0)body=body.slice(0,cutoff);
+    body=body.replace(/https?:\/\/www\.mtgstocks\.com\/interests/gi,' ').replace(/\s+/g,' ').trim();
+    const cards:any[]=[];
+    const re=/(.+?)\s+\(([A-Z0-9]+)\)\s+\$([\d,.]+)\s+\(([▲▼])([\d,.]+)%\)/g;
+    for(const m of body.matchAll(re)){
+      let name=m[1].trim().replace(/^[-–—•·\s]+/,'');
+      const prior=name.lastIndexOf(') ');if(prior>=0&&/\$\d/.test(name.slice(0,prior)))name=name.slice(prior+2).trim();
+      if(!name||name.length>180)continue;
+      cards.push({print_id:`announcement:${starts[i][1]}:${m[2]}:${name}`,card_name:name,set_name:null,set_code:m[2],set_id:null,foil:null,interest_type:'daily_announced',pct_change:(m[4]==='▼'?-1:1)*Number(m[5].replace(/,/g,'')),new_price:Number(m[3].replace(/,/g,'')),old_price:null,price_type:'mtgstocks_default',finish:'unknown',date:starts[i][1],url:'https://www.mtgstocks.com/interests',discovery_source:'telegram_announcement'});
+      if(cards.length>=3)break;
+    }
+    if(cards.length)batches.push(...cards);
+  }
+  return batches;
+}
+async function telegramFallback(){const html=await getText('https://t.me/s/mtgstocks'),page=htmlText(html),all=announcementItems(page);if(!all.length)throw Error(`No Interests announcements parsed (page_chars=${page.length}, interests_mentions=${(page.match(/Interests of/gi)||[]).length})`);const dates=[...new Set(all.map(x=>x.date))].slice(-5);return all.filter(x=>dates.includes(x.date))}
 async function scout(ownerId:string,item:any){const names=[item.card_name,item.card_name.replace(/\s*\([^)]*\)\s*$/,'').trim()].filter(Boolean);for(const name of [...new Set(names)]){let rows=await rest(`scout_opportunities_v5_cache?select=sku_id,product_id,product_name,set_name,set_code,printing,condition,language,promoted_score,promoted_grade,opportunity_score,grade,direct_low,sku_market_price,avg_daily_qty_sold,sales_rank,scryfall_id&user_id=eq.${ownerId}&product_name=eq.${encodeURIComponent(name)}&order=promoted_score.desc.nullslast,opportunity_score.desc.nullslast&limit=12`).catch(()=>[]);if(item.set_code){const same=rows.filter((r:any)=>String(r.set_code||'').toLowerCase()===String(item.set_code||'').toLowerCase());if(same.length)rows=same}else if(item.set_name){const same=rows.filter((r:any)=>String(r.set_name||'').toLowerCase()===String(item.set_name||'').toLowerCase());if(same.length)rows=same}if(rows.length)return rows}return[]}
 Deno.serve(async(req:Request)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method!=='POST')return J({error:'POST required'},405);
