@@ -19,7 +19,10 @@ test('Scout keeps exact-SKU Signal specificity inside unified opportunity contex
   expect(skuSql).toContain('specificity_weight');
   expect(skuSql).toContain('isolated to another printing or finish');
   expect(contextSql).toContain('interest_exact_signal_count');
-  expect(contextSql).toContain("'related_printing_only'");
+  expect(contextSql).toContain("'thin_print_anomaly'");
+  expect(contextSql).toContain("'reprint_migration'");
+  expect(contextSql).toContain("'prestige_printing'");
+  expect(contextSql).not.toContain("'related_printing_only'=any(risk_flags)");
   expect(scopeSql).toContain('resolve_mtgstocks_interest_links');
   expect(scopeSql).toContain('cross_print_corroborated');
   expect(collector).toContain('rpc/resolve_mtgstocks_interest_links');
