@@ -43,7 +43,7 @@ test('creator catalyst semantics separate conviction convergence and market reac
   expect(ui).toContain('<span>Conviction</span>');
   expect(ui).toContain('Catalyst / convergence / market');
   expect(ui).toContain('bounded same-video consensus');
-  expect(ui).toContain('Multiple speakers still remain one independent source for Convergence');
+  expect(ui).toContain('multiple speakers in one video remain one independent source for Convergence');
   expect(ui).not.toContain('Attention vs market');
   expect(semanticsSql).toContain("when 'the command zone' then 90");
   expect(semanticsSql).toContain("when 'precon_upgrade' then 96");
