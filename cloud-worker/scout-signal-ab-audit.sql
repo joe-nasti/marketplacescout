@@ -54,7 +54,7 @@ select
   count(*) filter(where signal_prioritized)::integer as signal_prioritized_cards,
   round(avg(promoted_score),2) as avg_scout_score,
   round(avg(discovery_priority_score),2) as avg_discovery_priority_score,
-  round(avg(avg_daily_qty_sold),3) filter(where avg_daily_qty_sold is not null) as avg_exact_sku_sales_per_day,
+  round(avg(avg_daily_qty_sold) filter(where avg_daily_qty_sold is not null),3) as avg_exact_sku_sales_per_day,
   max(latest_signal_at) as latest_signal_at
 from public.scout_signal_ab_audit
 group by promoted_grade,signal_confidence_label,signal_scope;
