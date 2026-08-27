@@ -3,35 +3,65 @@ import { rest } from '../../core/rest.js';
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num=v=>Number.isFinite(Number(v))?Number(v):null;
 const lower=s=>String(s||'').trim().toLowerCase();
+const baseName=s=>String(s||'').replace(/^\(RL\)\s*/i,'').replace(/\s+#\d+(?:\s+.*)?$/,'').replace(/\s*\(\d{3,4}\)\s*$/,'').trim();
 let rows=[],loading=null,filter='all',query='';
 
-function scoreOf(row){return num(row?.payload_json?.scout_best?.score)??num(row?.metadata_json?.scout_score)}
-function gradeOf(row){return String(row?.payload_json?.scout_best?.grade||row?.metadata_json?.scout_grade||'').toUpperCase()}
-function candidateName(row){return String(row?.payload_json?.card_name||'Unknown card')}
-function setLabel(row){return row?.payload_json?.set_code||row?.payload_json?.set_name||'—'}
-function moveOf(row){return num(row?.payload_json?.pct_change)}
-function identityKey(row){const p=row?.payload_json||{},best=p.scout_best||{};if(best.scryfall_id)return `sf:${best.scryfall_id}`;if(best.product_id)return `product:${best.product_id}`;return `name:${lower(candidateName(row))}|set:${lower(p.set_code||p.set_name||'')}`}
-function latestCandidates(data){
-  const sourceSeen=new Set(),grouped=new Map();
+function payload(row){return row?.payload_json||{}}
+function scoutBest(row){return payload(row).scout_best||{}}
+function identityBest(row){return payload(row).identity_best||{}}
+function scoreOf(row){return num(scoutBest(row).score)??num(row?.metadata_json?.scout_score)}
+function gradeOf(row){return String(scoutBest(row).grade||row?.metadata_json?.scout_grade||'').toUpperCase()}
+function candidateName(row){return String(payload(row).card_name||'Unknown card')}
+function setLabel(row){return payload(row).set_code||payload(row).set_name||identityBest(row).set_code||'—'}
+function moveOf(row){return num(payload(row).pct_change)}
+function sourceLabel(row){return payload(row).source_label||row.source||'Discovery'}
+function resolvedIdentity(row){const b=scoutBest(row),i=identityBest(row);return !!(b.product_id||b.scryfall_id||i.tcgplayer_product_id||i.scryfall_id)}
+function openIdentity(row){const b=scoutBest(row),i=identityBest(row);return{sku_id:b.sku_id||'',product_id:b.product_id||i.tcgplayer_product_id||'',scryfall_id:b.scryfall_id||i.scryfall_id||'',card_name:baseName(candidateName(row))||candidateName(row)}}
+function identityKey(row){const o=openIdentity(row);if(o.scryfall_id)return `sf:${o.scryfall_id}`;if(o.product_id)return `product:${o.product_id}`;return `name:${lower(baseName(candidateName(row)))}|set:${lower(setLabel(row))}`}
+function sourceNames(row){return Array.isArray(row._sources)?row._sources:[sourceLabel(row)]}
+function mergeCandidates(data){
+  const grouped=new Map();
   for(const row of data||[]){
-    const sourceKey=String(row.source_key||row.capture_id||'');if(!sourceKey||sourceSeen.has(sourceKey))continue;sourceSeen.add(sourceKey);
     const key=identityKey(row),existing=grouped.get(key);
-    if(!existing){grouped.set(key,{...row,_discovery_occurrences:1,_discovery_max_abs_move:Math.abs(moveOf(row)||0)});continue}
-    existing._discovery_occurrences=(existing._discovery_occurrences||1)+1;
-    existing._discovery_max_abs_move=Math.max(existing._discovery_max_abs_move||0,Math.abs(moveOf(row)||0));
+    if(!existing){grouped.set(key,{...row,_discovery_occurrences:Number(row._discovery_occurrences||1),_sources:[sourceLabel(row)]});continue}
+    existing._discovery_occurrences=Number(existing._discovery_occurrences||1)+Number(row._discovery_occurrences||1);
+    existing._sources=[...new Set([...sourceNames(existing),sourceLabel(row)])];
+    const existingScore=scoreOf(existing)??-1,rowScore=scoreOf(row)??-1;
+    if(rowScore>existingScore||(rowScore===existingScore&&new Date(row.captured_at||0)>new Date(existing.captured_at||0))){
+      const occ=existing._discovery_occurrences,sources=existing._sources;Object.assign(existing,row);existing._discovery_occurrences=occ;existing._sources=sources;
+    }
   }
   return [...grouped.values()];
 }
-function matchesFilter(row){const grade=gradeOf(row),score=scoreOf(row),move=moveOf(row);if(filter==='rated')return !!grade;if(filter==='top')return grade==='A'||grade==='B'||(score!=null&&score>=70);if(filter==='unrated')return !grade;if(filter==='up')return move!=null&&move>0;if(filter==='down')return move!=null&&move<0;return true}
-function matchesQuery(row){if(!query)return true;const p=row.payload_json||{},hay=`${candidateName(row)} ${p.set_code||''} ${p.set_name||''} ${gradeOf(row)} ${p.discovery_source||''}`.toLowerCase();return hay.includes(query.toLowerCase())}
+function latestMtgStocks(data){const seen=new Set(),out=[];for(const row of data||[]){const k=String(row.source_key||row.capture_id||'');if(!k||seen.has(k))continue;seen.add(k);out.push({...row,source:'MTGStocks',payload_json:{...payload(row),source_label:'MTGStocks'}})}return out}
+function parseMoverPct(summary,direction){const s=String(summary||''),m=s.match(/([+-]?\d+(?:\.\d+)?)%/);if(!m)return null;const v=Math.abs(Number(m[1]));return direction==='bearish'?-v:v}
+function mtgGoldfishRows(items){const out=[];for(const item of items||[]){if(!String(item.source_url||'').includes('/movers/paper/'))continue;for(const entity of item.market_intel_entities||[]){if(!entity?.entity_name)continue;out.push({capture_id:`goldfish:${item.intel_id}:${entity.entity_name}`,source_key:`goldfish:${item.intel_id}:${entity.entity_name}`,captured_at:item.observed_at,source:'MTGGoldfish',metadata_json:{signal_weight:'discovery_only'},payload_json:{card_name:entity.entity_name,set_code:entity.set_code||null,pct_change:parseMoverPct(item.summary,item.direction),url:item.source_url,discovery_source:'mtggoldfish_paper_mover',source_label:'MTGGoldfish',identity_best:{scryfall_id:entity.scryfall_id||null,tcgplayer_product_id:entity.product_id||null,set_code:entity.set_code||null}}})}}
+  return out;
+}
+async function resolveRow(row){if(resolvedIdentity(row))return row;const p=payload(row),name=baseName(candidateName(row)),set=String(p.set_code||'').trim();if(!name)return row;
+  const q=`mtgjson_cards?select=name,set_code,collector_number,scryfall_id,tcgplayer_product_id,finishes&name=eq.${encodeURIComponent(name)}${set?`&set_code=eq.${encodeURIComponent(set)}`:''}&language=eq.English&order=collector_number.asc&limit=12`;
+  const identities=await rest(q).catch(()=>[]);if(!identities?.length)return row;
+  const wantedCollector=(candidateName(row).match(/\((\d{3,4})\)\s*$/)||[])[1]||'';
+  const id=identities.find(x=>wantedCollector&&String(x.collector_number||'').padStart(4,'0')===wantedCollector)||identities[0];
+  row.payload_json={...p,identity_best:id,identity_resolution:'mtgjson'};
+  const product=String(id.tcgplayer_product_id||'');if(product){const scout=await rest(`scout_opportunities_v5_cache?select=sku_id,product_id,product_name,set_name,set_code,printing,condition,language,promoted_score,promoted_grade,opportunity_score,grade,direct_low,sku_market_price,avg_daily_qty_sold,sales_rank,scryfall_id&product_id=eq.${encodeURIComponent(product)}&order=promoted_score.desc.nullslast,opportunity_score.desc.nullslast&limit=1`).catch(()=>[]);if(scout?.[0]){const s=scout[0];row.payload_json.scout_best={sku_id:s.sku_id,product_id:s.product_id,product_name:s.product_name,set_name:s.set_name,set_code:s.set_code,printing:s.printing,condition:s.condition,grade:s.promoted_grade||s.grade,score:s.promoted_score??s.opportunity_score,direct_low:s.direct_low,market_price:s.sku_market_price,avg_daily_qty_sold:s.avg_daily_qty_sold,sales_rank:s.sales_rank,scryfall_id:s.scryfall_id}}}
+  return row;
+}
+async function autoResolve(data){const unresolved=data.filter(r=>!resolvedIdentity(r)).slice(0,16);await Promise.all(unresolved.map(resolveRow));return data}
+function matchesFilter(row){const grade=gradeOf(row),score=scoreOf(row),move=moveOf(row);if(filter==='rated')return !!grade;if(filter==='top')return grade==='A'||grade==='B'||(score!=null&&score>=70);if(filter==='unrated')return !grade;if(filter==='unresolved')return !resolvedIdentity(row);if(filter==='up')return move!=null&&move>0;if(filter==='down')return move!=null&&move<0;return true}
+function matchesQuery(row){if(!query)return true;const hay=`${candidateName(row)} ${setLabel(row)} ${gradeOf(row)} ${sourceNames(row).join(' ')}`.toLowerCase();return hay.includes(query.toLowerCase())}
 function relativeAge(value){const t=new Date(value).getTime();if(!Number.isFinite(t))return'';const h=Math.max(0,Math.floor((Date.now()-t)/3600000));if(h<1)return'now';if(h<24)return`${h}h`;return`${Math.floor(h/24)}d`}
 function moveText(row){const v=moveOf(row);return v==null?'—':`${v>0?'+':''}${v.toFixed(Math.abs(v)>=100?0:1)}%`}
 function gradeClass(g){return ['A','B','C','D','F'].includes(g)?`grade-${g.toLowerCase()}`:'grade-none'}
-function reason(row){const g=gradeOf(row),s=scoreOf(row),move=moveOf(row);if(g==='A'||g==='B'||(s!=null&&s>=70))return'Worth opening in Scout';if(!g)return'No current Scout match — prefetch / investigate';if(move!=null&&Math.abs(move)>=100)return'Sharp external move, weak Scout support';return'Scout does not currently confirm the move'}
-function rowMarkup(row){const p=row.payload_json||{},best=p.scout_best||{},g=gradeOf(row),s=scoreOf(row),move=moveOf(row),occ=Number(row._discovery_occurrences||1),canOpen=!!(best.sku_id||best.product_id||best.scryfall_id||candidateName(row)),seen=occ>1?` · seen ${occ}×`:'';return `<button class="cx-discovery-row" type="button" ${canOpen?'data-discovery-open':''} data-sku="${esc(best.sku_id||'')}" data-product="${esc(best.product_id||'')}" data-scryfall="${esc(best.scryfall_id||'')}" data-card="${esc(candidateName(row))}"><div class="cx-discovery-card"><strong>${esc(candidateName(row))}</strong><small>${esc(setLabel(row))}${p.finish&&p.finish!=='unknown'?` · ${esc(p.finish)}`:''} · ${esc(relativeAge(row.captured_at))}${seen}</small></div><div class="cx-discovery-move ${move!=null&&move<0?'down':'up'}"><strong>${esc(moveText(row))}</strong><small>latest MTGStocks interest</small></div><div class="cx-discovery-scout"><span class="cx-discovery-grade ${gradeClass(g)}">${esc(g||'—')}</span><div><strong>${s==null?'Unrated':`Scout ${Math.round(s)}`}</strong><small>${esc(reason(row))}</small></div></div></button>`}
-function summaryMarkup(filtered){const rated=rows.filter(r=>gradeOf(r)).length,top=rows.filter(r=>['A','B'].includes(gradeOf(r))||(scoreOf(r)!=null&&scoreOf(r)>=70)).length,unrated=rows.length-rated;return `<div class="cx-discovery-intro"><div><span class="cx-discovery-kicker">Discovery queue</span><h3>Cards worth a second look</h3><p>MTGStocks Interests is used here as a candidate generator, not as evidence that changes Scout scoring. The useful question is whether our own Scout data agrees.</p></div><div class="cx-discovery-metrics"><div><strong>${rows.length}</strong><small>unique cards</small></div><div><strong>${top}</strong><small>Scout A/B</small></div><div><strong>${rated}</strong><small>rated</small></div><div><strong>${unrated}</strong><small>needs lookup</small></div></div></div><div class="cx-discovery-toolbar"><div class="cx-discovery-filters">${[['all','All'],['top','A/B first'],['rated','Rated'],['unrated','Needs lookup'],['up','Up'],['down','Down']].map(([k,l])=>`<button type="button" data-discovery-filter="${k}" class="${filter===k?'active':''}">${l}</button>`).join('')}</div><input id="cxDiscoverySearch" type="search" value="${esc(query)}" placeholder="Find card or set…" aria-label="Search discovery candidates"></div><div class="cx-discovery-list">${filtered.length?filtered.map(rowMarkup).join(''):'<div class="cx-empty">No discovery candidates match this view.</div>'}</div>`}
+function reason(row){const g=gradeOf(row),s=scoreOf(row),move=moveOf(row);if(g==='A'||g==='B'||(s!=null&&s>=70))return'Worth opening in Scout';if(!g&&resolvedIdentity(row))return'Printing resolved · no current Scout grade';if(!g)return'Identity still unresolved · investigate';if(move!=null&&Math.abs(move)>=100)return'Sharp external move, weak Scout support';return'Scout does not currently confirm the move'}
+function rowMarkup(row){const o=openIdentity(row),g=gradeOf(row),s=scoreOf(row),move=moveOf(row),occ=Number(row._discovery_occurrences||1),sources=sourceNames(row),seen=occ>1?` · seen ${occ}×`:'';return `<button class="cx-discovery-row" type="button" data-discovery-open data-sku="${esc(o.sku_id)}" data-product="${esc(o.product_id)}" data-scryfall="${esc(o.scryfall_id)}" data-card="${esc(o.card_name)}"><div class="cx-discovery-card"><strong>${esc(candidateName(row))}</strong><small>${esc(setLabel(row))} · ${esc(relativeAge(row.captured_at))}${seen} · ${esc(sources.join(' + '))}</small></div><div class="cx-discovery-move ${move!=null&&move<0?'down':'up'}"><strong>${esc(moveText(row))}</strong><small>${esc(sources.length>1?'cross-source discovery':sourceLabel(row))}</small></div><div class="cx-discovery-scout"><span class="cx-discovery-grade ${gradeClass(g)}">${esc(g||'—')}</span><div><strong>${s==null?(resolvedIdentity(row)?'Identity ready':'Needs lookup'):`Scout ${Math.round(s)}`}</strong><small>${esc(reason(row))}</small></div></div></button>`}
+function sorted(data){return [...data].sort((a,b)=>(scoreOf(b)??-1)-(scoreOf(a)??-1)||sourceNames(b).length-sourceNames(a).length||Math.abs(moveOf(b)||0)-Math.abs(moveOf(a)||0)||new Date(b.captured_at||0)-new Date(a.captured_at||0))}
+function summaryMarkup(filtered){const rated=rows.filter(r=>gradeOf(r)).length,top=rows.filter(r=>['A','B'].includes(gradeOf(r))||(scoreOf(r)!=null&&scoreOf(r)>=70)).length,unresolved=rows.filter(r=>!resolvedIdentity(r)).length,multi=rows.filter(r=>sourceNames(r).length>1).length;return `<div class="cx-discovery-intro"><div><span class="cx-discovery-kicker">Discovery queue</span><h3>Cards worth a second look</h3><p>External movers nominate cards for investigation. Collectish resolves the printing, checks Scout, and ranks the queue by our own data. Discovery sources do not directly change Scout scoring.</p></div><div class="cx-discovery-metrics"><div><strong>${rows.length}</strong><small>unique cards</small></div><div><strong>${top}</strong><small>Scout A/B</small></div><div><strong>${rated}</strong><small>rated</small></div><div><strong>${multi}</strong><small>multi-source</small></div></div></div><div class="cx-discovery-toolbar"><div class="cx-discovery-filters">${[['all','All'],['top','A/B first'],['rated','Rated'],['unrated','No grade'],['unresolved','Needs lookup'],['up','Up'],['down','Down']].map(([k,l])=>`<button type="button" data-discovery-filter="${k}" class="${filter===k?'active':''}">${l}</button>`).join('')}</div><input id="cxDiscoverySearch" type="search" value="${esc(query)}" placeholder="Find card, set, or source…" aria-label="Search discovery candidates"></div>${unresolved?`<div class="cx-discovery-note">${unresolved} candidate${unresolved===1?'':'s'} could not yet be resolved to a printing. Resolved-but-ungraded cards are still directly openable in Scout.</div>`:''}<div class="cx-discovery-list">${filtered.length?sorted(filtered).map(rowMarkup).join(''):'<div class="cx-empty">No discovery candidates match this view.</div>'}</div>`}
 
-export async function loadDiscovery(force=false){if(loading&&!force)return loading;loading=rest('source_captures?select=capture_id,source_key,captured_at,payload_json,metadata_json&source=eq.MTGStocks&capture_type=eq.discovery_candidate&order=captured_at.desc&limit=250').then(data=>{rows=latestCandidates(Array.isArray(data)?data:[]);return rows}).finally(()=>{loading=null});return loading}
+export async function loadDiscovery(force=false){if(loading&&!force)return loading;loading=Promise.all([
+  rest('source_captures?select=capture_id,source_key,captured_at,payload_json,metadata_json&source=eq.MTGStocks&capture_type=eq.discovery_candidate&order=captured_at.desc&limit=250'),
+  rest('market_intel_items?select=intel_id,source_name,source_url,title,summary,direction,observed_at,market_intel_entities(entity_name,scryfall_id,product_id,set_code)&source_name=eq.MTGGoldfish&order=observed_at.desc&limit=160').catch(()=>[])
+]).then(async([stocks,goldfish])=>{const combined=[...latestMtgStocks(Array.isArray(stocks)?stocks:[]),...mtgGoldfishRows(Array.isArray(goldfish)?goldfish:[])];await autoResolve(combined);rows=mergeCandidates(combined);return rows}).finally(()=>{loading=null});return loading}
 export function renderDiscovery(host){if(!host)return;const filtered=rows.filter(matchesFilter).filter(matchesQuery);host.innerHTML=summaryMarkup(filtered)}
 export function setDiscoveryFilter(next){filter=next||'all'}
 export function setDiscoveryQuery(next){query=String(next||'')}
