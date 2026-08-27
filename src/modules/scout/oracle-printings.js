@@ -90,6 +90,12 @@ function markCurrentPrinting(){
   });
 }
 
+function refreshCompareDecorations(){
+  if(!compareContext)return;
+  renderCompareSummary();
+  markCurrentPrinting();
+}
+
 function returnToPrinting(){
   const ctx=compareContext;
   if(!ctx?.row)return;
@@ -154,8 +160,7 @@ function restoreContextFromUrl(){
   const row=selectedRow(sku);
   if(!row)return;
   compareContext={name,oracleId,sku,row};
-  renderCompareSummary();
-  setTimeout(markCurrentPrinting,350);
+  refreshCompareDecorations();
 }
 
 function ensureStyle(){
@@ -172,8 +177,7 @@ export function installOraclePrintingsLink(){
   ensureStyle();
   document.addEventListener('collectish:scout-detail-rendered',e=>void addLink(e.detail));
   document.addEventListener('collectish:scout-structure-ready',restoreContextFromUrl);
-  const observer=new MutationObserver(()=>{if(compareContext)markCurrentPrinting()});
-  observer.observe(document.documentElement,{childList:true,subtree:true});
+  document.addEventListener('collectish:scout-list-rendered',refreshCompareDecorations);
 }
 
 installOraclePrintingsLink();
