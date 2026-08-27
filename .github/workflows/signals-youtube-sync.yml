@@ -8,8 +8,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/signals-youtube-sync.yml"
-      - "supabase/functions/market-intel-youtube-sync/index.ts"
-      - "supabase/functions/market-intel-video-event-extract/index.ts"
+      - "supabase/functions/market-intel-youtube-sync/**"
+      - "supabase/functions/market-intel-video-event-extract/**"
       - "supabase/functions/market-intel-ingest/index.ts"
       - "supabase/functions/market-intel-analyze/index.ts"
 
