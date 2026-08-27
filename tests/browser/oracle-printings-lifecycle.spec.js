@@ -9,3 +9,15 @@ test('Oracle printing compare uses Scout lifecycle events instead of DOM observe
   expect(source).toContain("collectish:scout-list-rendered");
   expect(source).toContain('refreshCompareDecorations');
 });
+
+test('Oracle family search renders decision-oriented printing comparison metrics',async()=>{
+  const source=await read('src/modules/scout/universal-search.js');
+  expect(source).toContain('familyAwards');
+  expect(source).toContain('BEST BUY');
+  expect(source).toContain('BEST DIRECT ROI');
+  expect(source).toContain('MOST LIQUID');
+  expect(source).toContain('Direct ROI');
+  expect(source).toContain('Buylist ROI');
+  expect(source).toContain('Velocity');
+  expect(source).toContain('cx-oracle-result');
+});
