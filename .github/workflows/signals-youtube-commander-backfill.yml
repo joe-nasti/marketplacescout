@@ -9,6 +9,7 @@ on:
     paths:
       - ".github/workflows/signals-youtube-commander-backfill.yml"
       - "supabase/functions/market-intel-video-commander-deterministic/**"
+      - "supabase/functions/market-intel-video-speaker-enrichment/**"
 
 permissions:
   contents: read
@@ -23,6 +24,7 @@ jobs:
     timeout-minutes: 15
     env:
       FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-commander-deterministic
+      SPEAKER_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-speaker-enrichment
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - name: Extract one cached Commander video
@@ -50,3 +52,23 @@ jobs:
           video="$(jq -r '.video_id // "none"' "$response_file")"
           echo "video=$video trigger_hits=$hits events_saved=$saved transcript_credits_used=$credits"
           test "$credits" = "0"
+
+      - name: Enrich speaker consensus from cached transcript
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error \
+            --max-time 300 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{"video_limit":4}' \
+            "$SPEAKER_FUNCTION_URL"; } || true)"
+          cat "$response_file"
+          echo
+          [[ "$status" =~ ^2 ]] || exit 1
+          echo "videos_processed=$(jq -r '.videos_processed // 0' "$response_file") events_updated=$(jq -r '.events_updated // 0' "$response_file")"
