@@ -1,0 +1,35 @@
+name: Collectish YouTube ledger discovery
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "13 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-youtube-ledger-discovery.yml"
+      - "cloud-worker/youtube-ledger-discovery.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-youtube-ledger-discovery
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate
+        run: node --check cloud-worker/youtube-ledger-discovery.mjs
+      - name: Discover configured channel videos
+        run: node cloud-worker/youtube-ledger-discovery.mjs

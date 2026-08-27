@@ -1,6 +1,5 @@
 name: Collectish YouTube Signals refresh
 
-# Manual validation marker: commander lane sample 2
 on:
   workflow_dispatch:
   schedule:
@@ -29,7 +28,7 @@ jobs:
       SUPABASE_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-youtube-sync
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
-      - name: Refresh one native-captioned creator video
+      - name: Refresh up to two native-captioned creator videos
         shell: bash
         run: |
           set -euo pipefail
@@ -43,7 +42,7 @@ jobs:
             --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             --header "Content-Type: application/json" \
-            --data '{"max_transcripts":1,"backfill_days":14}' \
+            --data '{"max_transcripts":2,"backfill_days":60}' \
             "$SUPABASE_FUNCTION_URL"; } || true)"
           cat "$response_file"
           echo
@@ -61,7 +60,7 @@ jobs:
           echo "mode=$policy_mode ai_generation=$ai_generation attempted=$attempted observed_billable=$billable events_saved=$events_saved source_failures=$source_failures diagnostics=$diagnostics"
           test "$policy_mode" = "native"
           test "$ai_generation" = "false"
-          test "$attempted" -le 1
+          test "$attempted" -le 2
           if (( source_failures > 0 )); then
             echo "YouTube discovery completed with $source_failures transient source failure(s); no policy violation occurred." >&2
           fi
