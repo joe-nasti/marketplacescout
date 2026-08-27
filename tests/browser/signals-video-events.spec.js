@@ -14,9 +14,12 @@ test('YouTube sync stays native-only and extracts first-class video events',asyn
   expect(sync).toContain('rss_retry_count:4');
   expect(sync).toContain('native_retry_hours:72');
   expect(sync).toContain('[0,1200,4000,9000]');
+  expect(sync).toContain('reprocessCached');
+  expect(sync).toContain('cache_first:true');
+  expect(sync).not.toContain("functions/v1/market-intel-ingest");
 });
 
-test('video event extractor enforces graduation threshold and timestamp taxonomy',async({},testInfo)=>{
+test('video event extractor creates verified card Signals directly',async({},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const extractor=await read('supabase/functions/market-intel-video-event-extract/index.ts');
   expect(extractor).toContain("'competitive_test'");
@@ -24,6 +27,10 @@ test('video event extractor enforces graduation threshold and timestamp taxonomy
   expect(extractor).toContain("'reprint_reveal'");
   expect(extractor).toContain('prominence<0.55');
   expect(extractor).toContain('A mere card name, decklist inclusion, routine cast');
+  expect(extractor).toContain("rest('market_intel_items'");
+  expect(extractor).toContain("rest('market_intel_entities'");
+  expect(extractor).toContain('resolveCard');
+  expect(extractor).toContain('[18:42] means 1,122,000 ms');
 });
 
 test('Signals and Scout expose timestamped creator catalyst UI',async({},testInfo)=>{
