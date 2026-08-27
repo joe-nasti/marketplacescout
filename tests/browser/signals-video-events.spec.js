@@ -31,20 +31,29 @@ test('Signals and Scout collapse repeated moments into creator-video card theses
   expect(modules).toContain("import('./signals/video-events-ui.js')");
 });
 
-test('creator catalysts expose attention versus measured market response',async({},testInfo)=>{
+test('creator catalyst semantics separate conviction convergence and market reaction',async({},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const ui=await read('src/modules/signals/video-events-ui.js');
-  const sql=await read('cloud-worker/video-market-response.sql');
+  const responseSql=await read('cloud-worker/video-market-response.sql');
+  const semanticsSql=await read('cloud-worker/video-attention-semantics.sql');
   const workflow=await read('.github/workflows/signals-video-market-response.yml');
-  expect(ui).toContain('market_intel_video_market_response');
-  expect(ui).toContain('Attention vs market');
-  expect(ui).toContain('Market response is measured');
-  expect(sql).toContain('market_intel_market_snapshots');
-  expect(sql).toContain('capture_due_market_intel_snapshots');
-  expect(sql).toContain("'h6'");
-  expect(sql).toContain("'h24'");
-  expect(sql).toContain("'d30'");
-  expect(sql).toContain('security invoker');
+  expect(ui).toContain('Creator conviction');
+  expect(ui).toContain('Catalyst / convergence / market');
+  expect(ui).toContain('Repeated moments do not count as independent sources');
+  expect(ui).toContain('high-purchase-intent Command Zone precon upgrade');
+  expect(ui).not.toContain('Attention vs market');
+  expect(semanticsSql).toContain("when 'the command zone' then 90");
+  expect(semanticsSql).toContain("when 'precon_upgrade' then 96");
+  expect(semanticsSql).toContain("when 'competitive_test' then 65");
+  expect(semanticsSql).toContain('independent_source_count');
+  expect(semanticsSql).toContain('convergence_score');
+  expect(semanticsSql).toContain('creator_conviction_score');
+  expect(semanticsSql).toContain('major_single_source_catalyst');
+  expect(responseSql).toContain('market_intel_market_snapshots');
+  expect(responseSql).toContain('capture_due_market_intel_snapshots');
+  expect(responseSql).toContain("'h6'");
+  expect(responseSql).toContain("'h24'");
+  expect(responseSql).toContain("'d30'");
   expect(workflow).toContain('capture_due_market_intel_snapshots');
   expect(workflow).toContain('17 * * * *');
 });
