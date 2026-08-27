@@ -35,3 +35,16 @@ test('Oracle family comparison can sort and filter without dropping catalog prin
   expect(source).toContain('oracleSort');
   expect(source).toContain('oracleFilter');
 });
+
+test('Oracle bulk refresh is one-off, bounded, and asks before large batches',async()=>{
+  const source=await read('src/modules/scout/oracle-bulk-refresh.js');
+  expect(source).toContain('AUTO_CONFIRM_LIMIT=8');
+  expect(source).toContain('BATCH_LIMIT=25');
+  expect(source).toContain('window.confirm');
+  expect(source).toContain("p_reason:'oracle_compare_bulk'");
+  expect(source).toContain("rpc/request_scout_refresh");
+  expect(source).toContain('Stale + catalog-only');
+  expect(source).toContain('Dormant only');
+  expect(source).toContain('Catalog-only');
+  expect(source).not.toContain('recurring');
+});
