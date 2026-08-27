@@ -12,8 +12,10 @@ function showStartupError(error){
 
 Promise.all([
   import('./app.js'),
-  import('./modules/seller/inventory-session-status.js')
-]).then(([app,status])=>{
+  import('./modules/seller/inventory-session-status.js'),
+  import('./modules/signals/discovery-integration.js')
+]).then(([app,status,discovery])=>{
   status.installInventorySessionStatus();
+  discovery.installSignalsDiscovery();
   return app.startCollectish();
 }).catch(showStartupError);
