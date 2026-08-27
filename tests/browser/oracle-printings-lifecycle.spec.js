@@ -21,3 +21,17 @@ test('Oracle family search renders decision-oriented printing comparison metrics
   expect(source).toContain('Velocity');
   expect(source).toContain('cx-oracle-result');
 });
+
+test('Oracle family comparison can sort and filter without dropping catalog printings by default',async()=>{
+  const source=await read('src/modules/scout/universal-search.js');
+  expect(source).toContain('familySort');
+  expect(source).toContain('familyFilter');
+  expect(source).toContain('Best opportunity');
+  expect(source).toContain('Cheapest');
+  expect(source).toContain('Scout score');
+  expect(source).toContain('All printings');
+  expect(source).toContain('Catalog-only');
+  expect(source).toContain("filter:p.get('oracleFilter')||'all'");
+  expect(source).toContain('oracleSort');
+  expect(source).toContain('oracleFilter');
+});
