@@ -10,7 +10,7 @@ on:
       - ".github/workflows/signals-youtube-commander-backfill.yml"
       - "supabase/functions/market-intel-video-commander-deterministic/**"
       - "supabase/functions/market-intel-video-speaker-enrichment/**"
-      - "supabase/functions/market-intel-video-synergy-extract/**"
+      - "supabase/functions/market-intel-video-synergy-batch/**"
       - "supabase/functions/market-intel-future-card-thesis-refresh/**"
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
     env:
       FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-commander-deterministic
       SPEAKER_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-speaker-enrichment
-      SYNERGY_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-synergy-extract
+      SYNERGY_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-synergy-batch
       FUTURE_THESIS_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-future-card-thesis-refresh
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
@@ -37,24 +37,11 @@ jobs:
           set -euo pipefail
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
           response_file="$(mktemp)"
-          status="$({ curl --silent --show-error \
-            --max-time 300 \
-            --output "$response_file" \
-            --write-out '%{http_code}' \
-            --request POST \
-            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            --header "Content-Type: application/json" \
-            --data '{}' \
-            "$FUNCTION_URL"; } || true)"
-          cat "$response_file"
-          echo
+          status="$({ curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{}' "$FUNCTION_URL"; } || true)"
+          cat "$response_file"; echo
           [[ "$status" =~ ^2 ]] || exit 1
           credits="$(jq -r '.transcript_credits_used // 0' "$response_file")"
-          saved="$(jq -r '.events_saved // 0' "$response_file")"
-          hits="$(jq -r '.trigger_hits // 0' "$response_file")"
-          video="$(jq -r '.video_id // "none"' "$response_file")"
-          echo "video=$video trigger_hits=$hits events_saved=$saved transcript_credits_used=$credits"
+          echo "video=$(jq -r '.video_id // "none"' "$response_file") trigger_hits=$(jq -r '.trigger_hits // 0' "$response_file") events_saved=$(jq -r '.events_saved // 0' "$response_file") transcript_credits_used=$credits"
           test "$credits" = "0"
 
       - name: Extract new-card to existing-card synergies
@@ -62,18 +49,8 @@ jobs:
         run: |
           set -euo pipefail
           response_file="$(mktemp)"
-          status="$({ curl --silent --show-error \
-            --max-time 420 \
-            --output "$response_file" \
-            --write-out '%{http_code}' \
-            --request POST \
-            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            --header "Content-Type: application/json" \
-            --data '{}' \
-            "$SYNERGY_FUNCTION_URL"; } || true)"
-          cat "$response_file"
-          echo
+          status="$({ curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{}' "$SYNERGY_FUNCTION_URL"; } || true)"
+          cat "$response_file"; echo
           [[ "$status" =~ ^2 ]] || exit 1
           echo "relationships_saved=$(jq -r '.relationships_saved // 0' "$response_file") actionable=$(jq -r '.actionable_relationships // 0' "$response_file")"
           test "$(jq -r '.transcript_credits_used // 0' "$response_file")" = "0"
@@ -83,18 +60,8 @@ jobs:
         run: |
           set -euo pipefail
           response_file="$(mktemp)"
-          status="$({ curl --silent --show-error \
-            --max-time 300 \
-            --output "$response_file" \
-            --write-out '%{http_code}' \
-            --request POST \
-            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            --header "Content-Type: application/json" \
-            --data '{"video_limit":4}' \
-            "$SPEAKER_FUNCTION_URL"; } || true)"
-          cat "$response_file"
-          echo
+          status="$({ curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"video_limit":4}' "$SPEAKER_FUNCTION_URL"; } || true)"
+          cat "$response_file"; echo
           [[ "$status" =~ ^2 ]] || exit 1
           echo "videos_processed=$(jq -r '.videos_processed // 0' "$response_file") events_updated=$(jq -r '.events_updated // 0' "$response_file")"
 
@@ -103,17 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           response_file="$(mktemp)"
-          status="$({ curl --silent --show-error \
-            --max-time 300 \
-            --output "$response_file" \
-            --write-out '%{http_code}' \
-            --request POST \
-            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            --header "Content-Type: application/json" \
-            --data '{"limit":60}' \
-            "$FUTURE_THESIS_FUNCTION_URL"; } || true)"
-          cat "$response_file"
-          echo
+          status="$({ curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"limit":60}' "$FUTURE_THESIS_FUNCTION_URL"; } || true)"
+          cat "$response_file"; echo
           [[ "$status" =~ ^2 ]] || exit 1
           echo "future_cards_detected=$(jq -r '.future_cards_detected // 0' "$response_file") theses_refreshed=$(jq -r '.theses_refreshed // 0' "$response_file")"
