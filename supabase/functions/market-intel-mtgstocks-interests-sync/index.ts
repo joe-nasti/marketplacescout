@@ -1,0 +1,34 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
+const U=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
+const A=Deno.env.get('SUPABASE_ANON_KEY')||'';
+const S=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
+const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
+const J=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{...C,'Content-Type':'application/json','Cache-Control':'no-store'}});
+const bearer=(r:Request)=>{const h=r.headers.get('authorization')||'';return h.toLowerCase().startsWith('bearer ')?h.slice(7):''};
+const H=(t:string)=>({apikey:t===S&&S?S:A,Authorization:`Bearer ${t}`,'Content-Type':'application/json'});
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const trim=(x:any,n=500)=>String(x??'').trim().slice(0,n);
+
+async function serviceAuth(t:string){if(!t)return false;if(S&&t===S)return true;try{const r=await fetch(`${U}/auth/v1/admin/users?page=1&per_page=1`,{headers:{apikey:t,Authorization:`Bearer ${t}`}});return r.ok}catch{return false}}
+async function rest(path:string,opt:any={}){const r=await fetch(`${U}/rest/v1/${path}`,{method:opt.method||'GET',headers:{...H(S),...(opt.prefer?{Prefer:opt.prefer}:{})},body:opt.body===undefined?undefined:JSON.stringify(opt.body)});const raw=await r.text();let d:any;try{d=raw?JSON.parse(raw):null}catch{d=raw}if(!r.ok)throw Error(d?.message||`REST ${r.status}`);return d}
+async function sha(v:string){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v));return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+function text(s:string){return String(s||'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/\s+/g,' ').trim()}
+async function fetchPage(){const c=new AbortController(),timer=setTimeout(()=>c.abort(),15000);try{const r=await fetch('https://www.mtgstocks.com/interests',{redirect:'follow',signal:c.signal,headers:{'User-Agent':'CollectishSignals/1.0 (+MTG market discovery)','Accept':'text/html,application/xhtml+xml'}});if(!r.ok)throw Error(`MTGStocks HTTP ${r.status}`);return await r.text()}finally{clearTimeout(timer)}}
+async function owner(){const rows=await rest('source_captures?select=user_id&capture_type=eq.feed_subscription&source=eq.MTGStocks&limit=1');const id=String(rows?.[0]?.user_id||'');if(!UUID.test(id))throw Error('MTGStocks Signals owner not found');return id}
+function parse(html:string){const lower=html.toLowerCase(),weekAt=lower.indexOf('since last week');const out:any[]=[];for(const m of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){const row=m[1],link=row.match(/href=["']([^"']*\/prints\/(\d+)-[^"']+)["'][^>]*>([\s\S]*?)<\/a>/i);if(!link)continue;const name=text(link[3]);if(!name)continue;const cells=[...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map(x=>text(x[1]));const nums=cells.flatMap(c=>[...c.matchAll(/\$?(-?\d[\d,]*(?:\.\d+)?)(%?)/g)].map(x=>({v:Number(x[1].replace(/,/g,'')),pct:x[2]==='%'}))).filter(x=>Number.isFinite(x.v));const prices=nums.filter(x=>!x.pct).map(x=>x.v),pct=nums.find(x=>x.pct)?.v??null;const period=(m.index??0)>weekAt&&weekAt>=0?'week':'day';out.push({print_id:link[2],url:new URL(link[1],'https://www.mtgstocks.com').toString(),card_name:name,period,new_price:prices.length>=2?prices[prices.length-2]:prices[0]??null,old_price:prices.length>=2?prices[prices.length-1]:null,pct_change:pct,cells});}return out}
+async function scout(ownerId:string,name:string){const base=name.replace(/\s*\([^)]*\)\s*$/,'').trim();for(const q of [name,base]){const rows=await rest(`scout_opportunities_v5_cache?select=sku_id,product_id,product_name,set_name,set_code,printing,condition,language,promoted_score,promoted_grade,opportunity_score,grade,direct_low,sku_market_price,avg_daily_qty_sold,sales_rank,scryfall_id&user_id=eq.${encodeURIComponent(ownerId)}&product_name=eq.${encodeURIComponent(q)}&order=promoted_score.desc.nullslast,opportunity_score.desc.nullslast&limit=8`).catch(()=>[]);if(rows?.length)return rows}return[]}
+
+Deno.serve(async(req:Request)=>{
+  if(req.method==='OPTIONS')return new Response('ok',{headers:C});
+  if(req.method!=='POST')return J({error:'POST required'},405);
+  const caller=bearer(req);if(!caller||!(await serviceAuth(caller)))return J({error:'Service authentication required'},401);
+  if(!S)return J({error:'Service role unavailable'},500);
+  try{
+    const ownerId=await owner(),html=await fetchPage(),parsed=parse(html);
+    const wanted=[...parsed.filter(x=>x.period==='day').slice(0,30),...parsed.filter(x=>x.period==='week').slice(0,30)];
+    let inserted=0,unchanged=0,matched=0;const report:any[]=[];
+    for(const item of wanted){const matches=await scout(ownerId,item.card_name);if(matches.length)matched++;const best=matches[0]||null;const payload={...item,scout_match_count:matches.length,scout_best:best?{sku_id:best.sku_id,product_id:best.product_id,product_name:best.product_name,set_name:best.set_name,set_code:best.set_code,printing:best.printing,condition:best.condition,grade:best.promoted_grade||best.grade,score:best.promoted_score??best.opportunity_score,direct_low:best.direct_low,market_price:best.sku_market_price,avg_daily_qty_sold:best.avg_daily_qty_sold,sales_rank:best.sales_rank,scryfall_id:best.scryfall_id}:null,scout_matches:matches.slice(0,5)};const hash=await sha(JSON.stringify(payload));const key=`${item.period}:${item.print_id}`;const existing=await rest(`source_captures?select=content_hash&user_id=eq.${ownerId}&source=eq.MTGStocks&capture_type=eq.discovery_candidate&source_key=eq.${encodeURIComponent(key)}&order=captured_at.desc&limit=1`).catch(()=>[]);if(existing?.[0]?.content_hash===hash){unchanged++;continue}await rest('source_captures',{method:'POST',prefer:'return=minimal',body:{user_id:ownerId,source:'MTGStocks',capture_type:'discovery_candidate',source_key:key,content_type:'application/mtgstocks-interest+json',payload_json:payload,payload_text:`${item.card_name} ${item.period} interest ${item.pct_change??''}%`,content_hash:hash,metadata_json:{kind:'scout_candidate',signal_weight:'discovery_only',period:item.period,scout_matched:!!best,scout_grade:best?.promoted_grade||best?.grade||null,scout_score:best?.promoted_score??best?.opportunity_score??null}}});inserted++;report.push({card:item.card_name,period:item.period,pct:item.pct_change,scout_grade:best?.promoted_grade||best?.grade||null,scout_score:best?.promoted_score??best?.opportunity_score??null});}
+    return J({ok:true,parsed:parsed.length,candidates:wanted.length,inserted,unchanged,scout_matched:matched,report:report.slice(0,20)});
+  }catch(e){return J({error:(e as Error).message},502)}
+});
