@@ -1,0 +1,58 @@
+name: Collectish YouTube Signals refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 */6 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-youtube-sync.yml"
+      - "supabase/functions/market-intel-youtube-sync/index.ts"
+      - "supabase/functions/market-intel-ingest/index.ts"
+      - "supabase/functions/market-intel-analyze/index.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-youtube-signals-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-youtube-sync
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Refresh one native-captioned creator video
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error \
+            --max-time 165 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{"max_transcripts":1,"backfill_days":14}' \
+            "$SUPABASE_FUNCTION_URL"; } || true)"
+          cat "$response_file"
+          echo
+          if [[ ! "$status" =~ ^2 ]]; then
+            echo "YouTube Signals refresh failed with HTTP $status" >&2
+            exit 1
+          fi
+          policy_mode="$(jq -r '.policy.transcript_mode // "unknown"' "$response_file")"
+          ai_generation="$(jq -r '.policy.ai_generation // true' "$response_file")"
+          attempted="$(jq -r '.transcript_attempts // 0' "$response_file")"
+          billable="$(jq -r '.billable_credits_observed // 0' "$response_file")"
+          echo "mode=$policy_mode ai_generation=$ai_generation attempted=$attempted observed_billable=$billable"
+          test "$policy_mode" = "native"
+          test "$ai_generation" = "false"
