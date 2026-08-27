@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+
 const SUPABASE_URL=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const SERVICE_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 const INTERESTS_URL='https://www.mtgstocks.com/interests';
@@ -6,7 +8,9 @@ const MAX_PER_STREAM=Number(process.env.MTGSTOCKS_INTERESTS_MAX_PER_WINDOW||40);
 if(!SUPABASE_URL||!SERVICE_KEY)throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
 const H={apikey:SERVICE_KEY,Authorization:`Bearer ${SERVICE_KEY}`,'Content-Type':'application/json'};
 async function sb(path,{method='GET',body,prefer}={}){const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers:{...H,...(prefer?{Prefer:prefer}:{})},body:body===undefined?undefined:JSON.stringify(body)});const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch{d=t}if(!r.ok)throw new Error(d?.message||`Supabase ${r.status}: ${String(t).slice(0,300)}`);return d}
-async function getJson(url){const r=await fetch(url,{headers:{'User-Agent':'Collectish market intelligence/1.0 (+https://github.com/joe-nasti/marketplacescout)','Accept':'application/json','Referer':'https://www.mtgstocks.com/'}});const t=await r.text();if(!r.ok)throw new Error(`MTGStocks API ${r.status}: ${t.slice(0,220)}`);try{return JSON.parse(t)}catch{throw new Error(`MTGStocks API returned non-JSON: ${t.slice(0,220)}`)}}
+const htmlDecode=s=>String(s||'').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+function jsonViaChrome(url){const bins=[process.env.CHROME_BIN,'/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium','/usr/bin/chromium-browser'].filter(Boolean);let last='';for(const bin of bins){try{const dom=execFileSync(bin,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--dump-dom',url],{encoding:'utf8',timeout:30000,stdio:['ignore','pipe','pipe']});const pre=dom.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i)?.[1];const text=htmlDecode(pre||dom.replace(/<[^>]+>/g,''));return JSON.parse(text.trim())}catch(e){last=String(e?.stderr||e?.message||e).slice(0,240)}}throw new Error(`Chrome fallback failed: ${last}`)}
+async function getJson(url){const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36','Accept':'application/json,text/plain,*/*','Referer':'https://www.mtgstocks.com/','Origin':'https://www.mtgstocks.com'}});const t=await r.text();if(r.ok){try{return JSON.parse(t)}catch{}}if(r.status===403||!r.ok)return jsonViaChrome(url);throw new Error(`MTGStocks API ${r.status}: ${t.slice(0,220)}`)}
 const finite=v=>{const n=Number(v);return Number.isFinite(n)?n:null};
 const cleanName=s=>String(s||'').trim();
 const canonicalName=s=>cleanName(s).replace(/\s*\((?:extended art|borderless|showcase[^)]*|retro frame|galaxy foil|surge foil|rainbow foil|etched|foil etched|serialized[^)]*)\)\s*$/i,'').trim();
