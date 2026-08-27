@@ -46,10 +46,27 @@ function summary(signals,c){
   return Number(c?.priority_boost||0)>0?`${base} · +${c.priority_boost} priority`:base;
 }
 function confidenceLabel(c){const x=String(c?.confidence_label||'').replaceAll('_',' ');return x?x.replace(/\b\w/g,m=>m.toUpperCase()):'Signal context'}
-function signalPriorityScore(row){return Number(row?.promoted_score||0)+Number(confidenceFor(row)?.priority_boost||0)}
+function gradeRank(row){return({A:5,B:4,C:3,D:2,F:1})[String(row?.promoted_grade||'').toUpperCase()]||0}
+function eligiblePriorityBoost(row){return gradeRank(row)>=4?Number(confidenceFor(row)?.priority_boost||0):0}
+function signalPriorityScore(row){return Number(row?.promoted_score||0)+eligiblePriorityBoost(row)}
 function relativeAge(value){
   const t=new Date(value||0).getTime();if(!Number.isFinite(t)||!t)return'unknown age';
   const h=Math.max(0,Math.floor((Date.now()-t)/3600000));if(h<1)return'within 1h';if(h<24)return`${h}h ago`;return`${Math.floor(h/24)}d ago`;
+}
+function signalScope(c){
+  const interestExact=Number(c?.interest_exact_signal_count||0),interestInherited=Number(c?.interest_inherited_signal_count||0),crossPrint=Number(c?.interest_corroborating_printings||0),exact=Number(c?.exact_signal_count||0),inherited=Number(c?.inherited_signal_count||0);
+  if(crossPrint>=2)return`${crossPrint} printings moving`;
+  if(interestExact>0)return'exact SKU';
+  if(interestInherited>0)return'related printing';
+  if(exact>0&&inherited===0)return'exact printing';
+  if(inherited>0)return'Oracle family';
+  return'underlying card';
+}
+function compactWhyNow(c){
+  if(!c)return'';
+  const sources=Number(c.independent_sources||0),leading=Number(c.leading_sources||0),confirming=Number(c.confirming_sources||0);
+  const stage=leading?`${leading} leading`:confirming?`${confirming} confirming`:'context';
+  return`${sources} source${sources===1?'':'s'} · ${stage} · ${signalScope(c)} · ${relativeAge(c.latest_signal_at)}`;
 }
 function matchesSignalFilter(row){
   const c=confidenceFor(row),label=String(c?.confidence_label||'');
@@ -61,7 +78,7 @@ function matchesSignalFilter(row){
 function ensureSignalPriorityControls(host){
   let controls=host.querySelector(':scope > .cx-signal-priority-controls');if(controls)return controls;
   controls=document.createElement('div');controls.className='cx-signal-priority-controls';
-  controls.innerHTML=`<span>Signal priority</span><button type="button" data-signal-filter="all">All</button><button type="button" data-signal-filter="corroborated">Corroborated</button><button type="button" data-signal-filter="emerging">Emerging</button><button type="button" data-signal-filter="none">No signal</button><button type="button" data-signal-sort>Sort by grade + signal</button>`;
+  controls.innerHTML=`<span>Signal priority</span><button type="button" data-signal-filter="all">All</button><button type="button" data-signal-filter="corroborated">Corroborated</button><button type="button" data-signal-filter="emerging">Emerging</button><button type="button" data-signal-filter="none">No signal</button><button type="button" data-signal-sort>Sort within grade + signal</button>`;
   controls.addEventListener('click',e=>{
     const filter=e.target.closest('[data-signal-filter]'),sort=e.target.closest('[data-signal-sort]');
     if(filter){signalFilter=filter.dataset.signalFilter||'all';applySignalPriorityView()}
@@ -77,7 +94,10 @@ function applySignalPriorityView(){
   const sortButton=controls.querySelector('[data-signal-sort]');if(sortButton){sortButton.classList.toggle('active',signalSort);sortButton.setAttribute('aria-pressed',String(signalSort))}
   const cards=[...host.querySelectorAll(':scope > .cx-scout-card')];
   for(const card of cards){const row=bySku.get(String(card.dataset.sku)),visible=matchesSignalFilter(row);card.dataset.signalPriorityHidden=visible?'false':'true';card.hidden=!visible}
-  if(signalSort){cards.sort((a,b)=>{const ar=bySku.get(String(a.dataset.sku)),br=bySku.get(String(b.dataset.sku));return signalPriorityScore(br)-signalPriorityScore(ar)||Number(br?.promoted_score||0)-Number(ar?.promoted_score||0)}).forEach(card=>host.appendChild(card))}
+  if(signalSort){cards.sort((a,b)=>{
+    const ar=bySku.get(String(a.dataset.sku)),br=bySku.get(String(b.dataset.sku));
+    return gradeRank(br)-gradeRank(ar)||signalPriorityScore(br)-signalPriorityScore(ar)||Number(br?.promoted_score||0)-Number(ar?.promoted_score||0);
+  }).forEach(card=>host.appendChild(card))}
 }
 function decorateList(){
   const rows=store.get().scout?.rows||[],bySku=new Map(rows.map(r=>[String(r.sku_id),r]));
@@ -85,8 +105,8 @@ function decorateList(){
     card.querySelector('.cx-intel-mini')?.remove();
     const row=bySku.get(String(card.dataset.sku)),signals=matching(row);if(!signals.length)return;
     const c=confidenceFor(row),top=card.querySelector('.cx-scout-card-top');if(!top)return;
-    const badge=document.createElement('span');badge.className='cx-intel-mini';badge.textContent=`◉ ${summary(signals,c)}`;
-    badge.title=c?.confidence_reason||'Underlying-card market intelligence; exact-SKU execution remains separate and Scout grade is unchanged';top.appendChild(badge);
+    const badge=document.createElement('span');badge.className='cx-intel-mini';badge.textContent=`◉ ${compactWhyNow(c)||summary(signals,c)}`;
+    badge.title=`Why now: ${compactWhyNow(c)||summary(signals,c)}. ${c?.confidence_reason||'Underlying-card market intelligence; exact-SKU execution remains separate and Scout grade is unchanged'}`;top.appendChild(badge);
   });
   applySignalPriorityView();
 }
@@ -94,10 +114,11 @@ function decorateDetail(sku){
   const host=document.getElementById('cxParityDetail');if(!host||!sku)return;
   host.querySelector('.cx-intel-detail')?.remove();
   const row=(store.get().scout?.rows||[]).find(r=>String(r.sku_id)===String(sku)),signals=matching(row);if(!signals.length)return;
-  const c=confidenceFor(row),boost=Number(c?.priority_boost||0),inherited=Number(c?.inherited_signal_count||0),exact=Number(c?.exact_signal_count||0),leading=Number(c?.leading_sources||0),sources=Number(c?.independent_sources||0),interestExact=Number(c?.interest_exact_signal_count||0),interestInherited=Number(c?.interest_inherited_signal_count||0),interestPrintings=Number(c?.interest_corroborating_printings||0);
+  const c=confidenceFor(row),boost=Number(c?.priority_boost||0),eligibleBoost=eligiblePriorityBoost(row),inherited=Number(c?.inherited_signal_count||0),exact=Number(c?.exact_signal_count||0),leading=Number(c?.leading_sources||0),sources=Number(c?.independent_sources||0),interestExact=Number(c?.interest_exact_signal_count||0),interestInherited=Number(c?.interest_inherited_signal_count||0),interestPrintings=Number(c?.interest_corroborating_printings||0);
   const interestScope=interestExact?` · Interests exact SKU${interestPrintings>=2?` · ${interestPrintings} printings moving`:''}`:interestInherited?' · Interests related-printing only':'';
   const whyNow=c?`${sources} independent source${sources===1?'':'s'} · ${leading} leading · latest ${relativeAge(c.latest_signal_at)}${inherited?' · Oracle-family context':exact?' · exact-printing context':''}${interestScope}`:'';
-  const confidenceBlock=c?`<div class="cx-v5-component"><strong>${esc(confidenceLabel(c))}${boost>0?` · +${boost} priority`:''}</strong><small><b>Why now:</b> ${esc(whyNow)}</small><small>${esc(exact)} exact-SKU link${exact===1?'':'s'} · ${esc(inherited)} inherited/related-printing link${inherited===1?'':'s'}</small><small>${esc(c.confidence_reason||'Signals provide contextual support only.')}</small></div>`:'';
+  const boostText=eligibleBoost>0?` · +${eligibleBoost} priority`:boost>0?' · signal boost withheld outside A/B':'';
+  const confidenceBlock=c?`<div class="cx-v5-component"><strong>${esc(confidenceLabel(c))}${boostText}</strong><small><b>Why now:</b> ${esc(whyNow)}</small><small>${esc(exact)} exact-SKU link${exact===1?'':'s'} · ${esc(inherited)} inherited/related-printing link${inherited===1?'':'s'}</small><small>${esc(c.confidence_reason||'Signals provide contextual support only.')}</small></div>`:'';
   const section=document.createElement('section');section.className='cx-v5-section cx-intel-detail';
   section.innerHTML=`<div class="cx-section-title">Underlying demand signals <span class="cx-intel-context">priority context · grade unchanged</span></div>${confidenceBlock}<div class="cx-intel-detail-list">${signals.slice(0,5).map(x=>`<a href="${esc(x.source_url)}" target="_blank" rel="noopener"><span class="cx-signal-stage ${esc(x.signal_stage)}">${esc(x.signal_stage)}</span><strong>${esc(x.title||x.source_name||'Market signal')}</strong><small>${esc(x.source_name||'External source')}${x._oracleFamily?` · underlying card: ${esc(x._signalCard)}`:' · exact/linked printing'}</small></a>`).join('')}</div>`;
   const anchor=host.querySelector('.cx-v5-components')||host.firstElementChild;if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor.nextSibling);else host.appendChild(section);
