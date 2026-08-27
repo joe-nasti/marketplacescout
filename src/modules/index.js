@@ -26,6 +26,7 @@ const scoutIntelligence=[
   ()=>import('./signals/scout-open-navigation-guard.js'),
   ()=>import('./signals/scout-badges.js'),
   ()=>import('./signals/scout-intelligence-bridge.js'),
+  ()=>import('./signals/video-events-ui.js'),
   ()=>import('./signals/entity-semantic-labels.js'),
   ()=>import('./signals/source-grouping.js'),
   ()=>import('./signals/rendered-capture.js'),
