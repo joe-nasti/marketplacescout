@@ -1,11 +1,17 @@
--- Structural realization-aware Scout scoring.
+-- Structural realization- and evidence-aware Scout scoring.
 --
--- When TCG Direct is >= 1.75x TCG Market, the legacy structural score can be
--- inflated by set-rank velocity and the same unproven Direct premium that V5
--- already discounts at execution time. Keep a 20-point structural floor for
--- scarcity / non-execution thesis, but scale the remaining structural excess by
--- exact-SKU marketplace velocity. This prevents an unproven Direct gap from
--- manufacturing a B/C grade while preserving independent buylist backing.
+-- Large TCG Direct gaps are discounted using exact-SKU sales velocity, realized
+-- sale history, and SYP restock risk. Grade gates then keep high letter grades
+-- reserved for opportunities with enough execution evidence and enough absolute
+-- dollars to matter:
+--   * A requires measured exact-SKU history; sub-0.5/day needs a strong cash floor.
+--   * B requires measured >=0.1/day or a strong independent buylist floor.
+--   * Unknown sales history caps at C unless the buylist floor is strong enough for B.
+--   * <$1 absolute modeled upside caps at D; <$2 caps at C.
+--
+-- Grade gates are implemented by reducing only the structural contribution. This
+-- preserves independent Direct execution, buylist backing, and confirmation data
+-- while ensuring both V5 and promoted Scout scores respect the same evidence cap.
 
 create or replace function public.refresh_scout_v5_shadow_batch(
   p_after_key text default '',
@@ -69,7 +75,8 @@ with s as (
     case when sku_market_price>0 and ck_buylist>0 then least(5.0,(ck_buylist/sku_market_price)/.80*5.0) else 0 end liquidity_points,
     case when sku_market_price>0 then (case when ck_retail>0 then 2.5*greatest(0,1-least(1,abs(ck_retail-sku_market_price)/sku_market_price)) else 0 end)+(case when mp_retail>0 then 2.5*greatest(0,1-least(1,abs(mp_retail-sku_market_price)/sku_market_price)) else 0 end) else 0 end confirmation_points,
     coalesce(sku_market_price>0 and cheapest_buy>0 and cheapest_buy < sku_market_price*.20,false) source_verify,
-    coalesce((select max(nullif((b->>'highSalePriceWithShipping')::numeric,0)) from jsonb_array_elements(coalesce(sales_raw->'buckets','[]'::jsonb)) b),0) historical_high_sale_ship
+    coalesce((select max(nullif((b->>'highSalePriceWithShipping')::numeric,0)) from jsonb_array_elements(coalesce(sales_raw->'buckets','[]'::jsonb)) b),0) historical_high_sale_ship,
+    coalesce((score_components->>'sales_history_known')::boolean,false) sales_history_known
   from x
 ), q as (
   select a.*,
@@ -77,30 +84,68 @@ with s as (
     case
       when direct_low<=0 or sku_market_price<=0 or direct_low < sku_market_price*1.75 then structural_raw
       else least(structural_raw, 20::numeric + greatest(0::numeric, structural_raw-20::numeric)*velocity_evidence_factor*case when syp_current then .85::numeric else 1::numeric end)
-    end structural_points,
+    end structural_realized,
     case
       when direct_low<=0 or sku_market_price<=0 or direct_low < sku_market_price*1.75 then 1::numeric
       else greatest(.15::numeric, least(case when historical_high_sale_ship>0 then least(1::numeric,historical_high_sale_ship/(direct_low*.75)) else .15::numeric end, velocity_evidence_factor) * case when syp_current then .65::numeric else 1::numeric end)
     end direct_realization_factor
   from a
-), f as (
+), p as (
   select q.*,
     direct_execution_raw*execution_confidence_factor*direct_realization_factor direct_execution_points,
     buylist_backing_raw*execution_confidence_factor buylist_backing_points,
-    greatest(0,least(100,round(structural_points+direct_execution_raw*execution_confidence_factor*direct_realization_factor+buylist_backing_raw*execution_confidence_factor+liquidity_points+confirmation_points)))::int v5_score,
     coalesce(ck_buylist>cheapest_buy and cheapest_buy>0,false) buylist_backed,
-    case when ck_buylist>cheapest_buy and cheapest_buy>0 then ck_buylist-cheapest_buy end buylist_spread,
-    case when ck_buylist>cheapest_buy and cheapest_buy>0 then (ck_buylist-cheapest_buy)/cheapest_buy*100 end buylist_roi_pct
+    case when ck_buylist>cheapest_buy and cheapest_buy>0 then ck_buylist-cheapest_buy else 0 end buylist_spread,
+    case when ck_buylist>cheapest_buy and cheapest_buy>0 then (ck_buylist-cheapest_buy)/cheapest_buy*100 else 0 end buylist_roi_pct,
+    case when direct_low>0 and cheapest_buy>0 and direct_low*.8>cheapest_buy then direct_low*.8-cheapest_buy else 0 end direct_profit_raw,
+    case when sku_market_price>0 and ck_buylist>0 then least(3.0,ck_buylist/sku_market_price/.80*3.0) else 0 end market_floor_points,
+    case when direct_low>0 and ck_buylist>0 then least(2.0,greatest(0.0,(ck_buylist/direct_low-.75)/.25*2.0)) else 0 end direct_floor_points
   from q
+), g as (
+  select p.*,
+    greatest(direct_profit_raw,buylist_spread) absolute_upside,
+    (buylist_spread>=5 and buylist_roi_pct>=20) strong_cash_floor_a,
+    (buylist_spread>=3 and buylist_roi_pct>=15) strong_cash_floor_b,
+    least(
+      case when greatest(direct_profit_raw,buylist_spread)<1 then 59 when greatest(direct_profit_raw,buylist_spread)<2 then 69 else 100 end,
+      case when not sales_history_known then case when buylist_spread>=5 and buylist_roi_pct>=20 then 79 else 69 end else 100 end,
+      case when sales_history_known and coalesce(avg_daily_qty_sold,0)<.5 and not (buylist_spread>=5 and buylist_roi_pct>=20) then 79 else 100 end,
+      case when not ((sales_history_known and coalesce(avg_daily_qty_sold,0)>=.1) or (buylist_spread>=3 and buylist_roi_pct>=15)) then 69 else 100 end
+    )::numeric score_cap,
+    direct_execution_points+buylist_backing_points+liquidity_points+confirmation_points other_v5_points,
+    direct_execution_points+buylist_backing_points+market_floor_points+direct_floor_points+confirmation_points other_promoted_points
+  from p
+), h as (
+  select g.*,
+    least(structural_realized,greatest(0::numeric,score_cap-greatest(other_v5_points,other_promoted_points))) structural_points,
+    greatest(0::numeric,structural_realized-least(structural_realized,greatest(0::numeric,score_cap-greatest(other_v5_points,other_promoted_points)))) evidence_gate_penalty
+  from g
+), f as (
+  select h.*,
+    greatest(0,least(100,round(structural_points+other_v5_points)))::int v5_score
+  from h
 ), upserted as (
   insert into scout_v5_shadow as t
   select user_id,sku_id,product_id,product_name,set_name,set_code,collector_number,printing,uuid,now(),opportunity_score,v5_score,
     case when v5_score>=80 then 'A' when v5_score>=70 then 'B' when v5_score>=60 then 'C' when v5_score>=50 then 'D' else 'F' end,
-    round(structural_points,2),round(direct_execution_points,2),round(buylist_backing_points,2),round(liquidity_points,2),round(confirmation_points,2),0::numeric,cheapest_buy,cheapest_source,
+    round(structural_points,2),round(direct_execution_points,2),round(buylist_backing_points,2),round(liquidity_points,2),round(confirmation_points,2),round(evidence_gate_penalty,2),cheapest_buy,cheapest_source,
     case when direct_low>0 then round(direct_low*.8,2) end,case when direct_low*.8>cheapest_buy then round(direct_low*.8-cheapest_buy,2) end,
-    ck_retail,ck_buylist,mp_retail,mkm_retail,buylist_backed,buylist_spread,buylist_roi_pct,source_verify,
+    ck_retail,ck_buylist,mp_retail,mkm_retail,buylist_backed,nullif(buylist_spread,0),nullif(buylist_roi_pct,0),source_verify,
     case when direct_low>=sku_market_price*1.75 and direct_realization_factor<.70 and syp_current then 'direct_gap_restock_risk' when direct_low>=sku_market_price*1.75 and direct_realization_factor<.70 then 'speculative_direct_gap' when uuid is null then 'identity_missing' when source_verify then 'verify_source' when buylist_backed then 'buylist_backed' when confirmation_points>=3.5 then 'market_confirmed' else 'market_mixed' end,
-    jsonb_build_object('version','v5-shadow-5','model','velocity-adjusted-structure70+realization-adjusted-execution20+liquidity5+confirmation5','tcgMarketRole','index','tcgLowRole','retail acquisition','tcgDirectLowRole','direct benchmark / modeled exit','structuralRaw',round(structural_raw,2),'structural',round(structural_points,2),'velocityEvidenceFactor',round(velocity_evidence_factor,3),'directExecution',round(direct_execution_points,2),'directExecutionRaw',round(direct_execution_raw*execution_confidence_factor,2),'directRealizationFactor',round(direct_realization_factor,3),'historicalHighSaleWithShipping',historical_high_sale_ship,'exactSkuSalesPerDay',avg_daily_qty_sold,'directInventoryAvailable',direct_available,'sypCurrentlyEligible',syp_current,'buylistBacking',round(buylist_backing_points,2),'liquidity',round(liquidity_points,2),'confirmation',round(confirmation_points,2),'executionConfidenceFactor',execution_confidence_factor,'cheapestSource',cheapest_source,'cheapestBuy',cheapest_buy),execution_confidence_factor
+    jsonb_build_object(
+      'version','v5-shadow-6',
+      'model','realization-adjusted-structure+execution with grade evidence gates',
+      'tcgMarketRole','index','tcgLowRole','retail acquisition','tcgDirectLowRole','direct benchmark / modeled exit',
+      'structuralRaw',round(structural_raw,2),'structuralRealized',round(structural_realized,2),'structural',round(structural_points,2),
+      'velocityEvidenceFactor',round(velocity_evidence_factor,3),'salesHistoryKnown',sales_history_known,'exactSkuSalesPerDay',avg_daily_qty_sold,
+      'directExecution',round(direct_execution_points,2),'directExecutionRaw',round(direct_execution_raw*execution_confidence_factor,2),'directRealizationFactor',round(direct_realization_factor,3),
+      'historicalHighSaleWithShipping',historical_high_sale_ship,'directInventoryAvailable',direct_available,'sypCurrentlyEligible',syp_current,
+      'buylistBacking',round(buylist_backing_points,2),'buylistSpread',round(buylist_spread,2),'buylistRoiPct',round(buylist_roi_pct,2),
+      'strongCashFloorA',strong_cash_floor_a,'strongCashFloorB',strong_cash_floor_b,'absoluteUpside',round(absolute_upside,2),
+      'scoreCap',score_cap,'evidenceGatePenalty',round(evidence_gate_penalty,2),
+      'liquidity',round(liquidity_points,2),'confirmation',round(confirmation_points,2),'executionConfidenceFactor',execution_confidence_factor,
+      'cheapestSource',cheapest_source,'cheapestBuy',cheapest_buy
+    ),execution_confidence_factor
   from f
   on conflict(user_id,sku_id) do update set product_id=excluded.product_id,product_name=excluded.product_name,set_name=excluded.set_name,set_code=excluded.set_code,collector_number=excluded.collector_number,printing=excluded.printing,mtgjson_uuid=excluded.mtgjson_uuid,computed_at=excluded.computed_at,v4_score=excluded.v4_score,v5_score=excluded.v5_score,v5_grade=excluded.v5_grade,structural_points=excluded.structural_points,direct_execution_points=excluded.direct_execution_points,buylist_backing_points=excluded.buylist_backing_points,liquidity_points=excluded.liquidity_points,confirmation_points=excluded.confirmation_points,outlier_penalty=excluded.outlier_penalty,cheapest_buy=excluded.cheapest_buy,cheapest_source=excluded.cheapest_source,direct_net_est=excluded.direct_net_est,direct_net_profit=excluded.direct_net_profit,ck_retail=excluded.ck_retail,ck_buylist=excluded.ck_buylist,manapool_retail=excluded.manapool_retail,cardmarket_retail=excluded.cardmarket_retail,buylist_backed=excluded.buylist_backed,buylist_spread=excluded.buylist_spread,buylist_roi_pct=excluded.buylist_roi_pct,source_verify=excluded.source_verify,confidence_label=excluded.confidence_label,score_components=excluded.score_components,execution_confidence_factor=excluded.execution_confidence_factor
   returning 1
