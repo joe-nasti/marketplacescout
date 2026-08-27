@@ -12,6 +12,10 @@ export async function installScoutRenderer(){
   await import('./renderer.js');
   document.dispatchEvent(new CustomEvent('collectish:scout-structure-ready'));
 
+  // Search now spans the universal Scout catalog while ranked cards remain the
+  // primary first-paint surface. Dormant/catalog-only opens enqueue a wake.
+  void import('./universal-search.js');
+
   // These remain interaction/state enhancers and cannot reshape first paint.
   void Promise.all([
     import('./detail-navigation.js'),
