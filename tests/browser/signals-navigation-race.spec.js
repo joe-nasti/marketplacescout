@@ -18,12 +18,12 @@ test('Signals cannot be bounced to Scout by a generic open-card event',async({},
   expect(bridge).toContain("document.addEventListener('collectish:open-scout-card',e=>openScout(e.detail||{}))");
 });
 
-test('intentional dense Signals row clicks retain explicit Scout navigation',async({},testInfo)=>{
+test('intentional Signals Scan and Discovery row clicks retain explicit Scout navigation',async({},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const guard=await source('src/modules/signals/scout-open-navigation-guard.js');
-  expect(guard).toContain("event.target.closest?.('#cxSignals [data-sv-open]')");
+  expect(guard).toContain("event.target.closest?.('#cxSignals [data-sv-open], #cxSignals [data-discovery-open]')");
   expect(guard).toContain('navigateToScout:true');
-  expect(guard).toContain("source:'signals'");
+  expect(guard).toContain("row.hasAttribute('data-discovery-open')?'signals-discovery':'signals'");
   expect(guard).toContain("window.CollectishShell?.switchPage?.('scout')");
   expect(guard).toContain("queueMicrotask(()=>document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail})))");
 });
