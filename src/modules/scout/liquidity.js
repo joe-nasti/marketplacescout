@@ -3,12 +3,13 @@ import { uiEvidenceMarker } from '../../core/ui-primitives.js';
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function baseScore(r){return Number(r?.promoted_score??r?.v5_shadow_score??r?.opportunity_score??0)}
+function numeric(v){return v==null||v===''?NaN:Number(v)}
 function liquidity(r){
-  const rank=Number(r?.sales_rank),vel=Number(r?.avg_daily_qty_sold);
+  const rank=numeric(r?.sales_rank),vel=numeric(r?.avg_daily_qty_sold);
   let rankScore=25;
   if(Number.isFinite(rank)&&rank>0){if(rank<=30)rankScore=95;else if(rank<=80)rankScore=85;else if(rank<=180)rankScore=70;else if(rank<=300)rankScore=50;else if(rank<=500)rankScore=32;else rankScore=18}
   let velScore=null;
-  if(Number.isFinite(vel)&&vel>0){if(vel>=9)velScore=100;else if(vel>=3)velScore=86;else if(vel>=1)velScore=72;else if(vel>=0.5)velScore=58;else velScore=42}
+  if(Number.isFinite(vel)&&vel>=0){if(vel>=9)velScore=100;else if(vel>=3)velScore=86;else if(vel>=1)velScore=72;else if(vel>=0.5)velScore=58;else if(vel>=0.1)velScore=42;else if(vel>0)velScore=30;else velScore=15}
 
   // avg_daily_qty_sold is measured at the Scout SKU/printing level and is the
   // authoritative execution signal. sales_rank is TCGplayer's set-level
@@ -22,7 +23,7 @@ function liquidity(r){
   else if(score>=70){label='LIQUID';bonus=5;target=18}
   else if(score>=55){label='NORMAL+';bonus=2;target=22}
   else if(score>=40){label='NORMAL';bonus=0;target=25}
-  return {score,label,bonus,target,adjusted:Math.min(100,baseScore(r)+bonus),rank:Number.isFinite(rank)&&rank>0?rank:null,velocity:Number.isFinite(vel)&&vel>0?vel:null,measured};
+  return {score,label,bonus,target,adjusted:Math.min(100,baseScore(r)+bonus),rank:Number.isFinite(rank)&&rank>0?rank:null,velocity:Number.isFinite(vel)&&vel>=0?vel:null,measured};
 }
 function rows(){return store.get().scout?.rows||[]}
 function bySku(){return new Map(rows().map(r=>[String(r.sku_id),r]))}
