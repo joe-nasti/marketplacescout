@@ -1,14 +1,26 @@
 -- Deduplicate repeated extracted claims from the same source/card event before
--- calculating source-level empirical timing rates.
+-- calculating source-level empirical timing rates. Also segment source lanes
+-- whose timing behavior is structurally different (for example MTGStocks
+-- Weekly Winners vs Interests).
 create or replace view public.market_intel_source_outcomes
 with (security_invoker=true)
 as
-with events as (
-  select distinct on (user_id,lower(source_name),coalesce(source_url,''),oracle_id,signal_at)
-    user_id,lower(source_name) as source_key,source_name,source_url,oracle_id,signal_at,
+with labeled as (
+  select o.*,
+    case
+      when lower(o.source_name)='mtgstocks' and lower(coalesce(i.title,'')) like 'weekly winners%' then 'MTGStocks · Weekly Winners'
+      when lower(o.source_name)='mtgstocks' and (lower(coalesce(i.title,'')) like '%interest%' or lower(coalesce(o.source_url,'')) like '%interest%') then 'MTGStocks · Interests'
+      else o.source_name
+    end as source_variant,
+    regexp_replace(coalesce(o.source_url,''),'[?].*$','') as normalized_source_url
+  from public.market_intel_signal_outcomes o
+  join public.market_intel_items i on i.user_id=o.user_id and i.intel_id=o.intel_id
+), events as (
+  select distinct on (user_id,lower(source_variant),normalized_source_url,oracle_id,signal_at)
+    user_id,lower(source_variant) as source_key,source_variant as source_name,normalized_source_url,oracle_id,signal_at,
     empirical_timing,pre7_vs_prior23_pct,post7_vs_pre7_pct,post7_market_price_change_pct
-  from public.market_intel_signal_outcomes
-  order by user_id,lower(source_name),coalesce(source_url,''),oracle_id,signal_at,intel_id
+  from labeled
+  order by user_id,lower(source_variant),normalized_source_url,oracle_id,signal_at,intel_id
 )
 select
   user_id,source_key,max(source_name) as source_name,count(*)::int as measured_signals,
