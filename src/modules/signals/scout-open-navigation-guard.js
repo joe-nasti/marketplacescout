@@ -10,7 +10,7 @@ function onOpenScoutCard(event){
 }
 
 function onClick(event){
-  const row=event.target.closest?.('#cxSignals [data-sv-open]');
+  const row=event.target.closest?.('#cxSignals [data-sv-open], #cxSignals [data-discovery-open]');
   if(!row)return;
   event.preventDefault();
   event.stopImmediatePropagation();
@@ -20,7 +20,7 @@ function onClick(event){
     scryfall_id:row.dataset.scryfall||null,
     card_name:row.dataset.card||null,
     navigateToScout:true,
-    source:'signals'
+    source:row.hasAttribute('data-discovery-open')?'signals-discovery':'signals'
   };
   window.CollectishShell?.switchPage?.('scout');
   queueMicrotask(()=>document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail})));
