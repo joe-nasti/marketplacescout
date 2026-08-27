@@ -32,5 +32,9 @@ jobs:
           saved="$(jq -r '.relationships_saved // 0' "$response_file")"
           actionable="$(jq -r '.actionable_relationships // 0' "$response_file")"
           echo "relationships_saved=$saved actionable_relationships=$actionable"
-          test "$saved" -ge 2
-          test "$actionable" -ge 2
+          test "$saved" -ge 3
+          test "$actionable" -ge 3
+          jq -e '[.relationships[].target_card] | index("Cauldron of Essence") != null' "$response_file" >/dev/null
+          jq -e '[.relationships[].target_card] | index("Wraith, Vicious Vigilante") != null' "$response_file" >/dev/null
+          jq -e '[.relationships[].target_card] | index("Dryad of the Ilysian Grove") != null' "$response_file" >/dev/null
+          jq -e '[.relationships[].target_card] | index("Hardened Academic") == null' "$response_file" >/dev/null
