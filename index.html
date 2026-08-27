@@ -53,7 +53,7 @@
       const nonce=Date.now();
       if('serviceWorker' in navigator){
         try{
-          await navigator.serviceWorker.register(`./sw.js?boot=${nonce}`,{scope:'./',updateViaCache:'none'});
+          await navigator.serviceWorker.register(`./sw.mjs?boot=${nonce}`,{scope:'./',type:'module',updateViaCache:'none'});
           await navigator.serviceWorker.ready;
           await waitForController();
         }catch(error){window.__collectishBootErrors?.push(`fresh-loader: ${error?.message||error}`)}
