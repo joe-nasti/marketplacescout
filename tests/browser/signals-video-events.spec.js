@@ -35,7 +35,7 @@ test('creator catalyst semantics separate conviction convergence and market reac
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const ui=await read('src/modules/signals/video-events-ui.js');
   const responseSql=await read('cloud-worker/video-market-response.sql');
-  const semanticsSql=await read('cloud-worker/video-attention-semantics.sql');
+  const semanticsSql=await read('cloud-worker/video-market-response-z-semantics.sql');
   const workflow=await read('.github/workflows/signals-video-market-response.yml');
   expect(ui).toContain('Creator conviction');
   expect(ui).toContain('Catalyst / convergence / market');
