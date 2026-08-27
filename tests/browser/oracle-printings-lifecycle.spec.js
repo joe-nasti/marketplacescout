@@ -53,6 +53,7 @@ test('Oracle printing detail preserves family navigation and explains winning ba
   const source=await read('src/modules/scout/oracle-detail-context.js');
   expect(source).toContain('Back to ${familyName()} printings');
   expect(source).toContain('Why this printing wins');
+  expect(source).toContain('Why this printing currently leads');
   expect(source).toContain('Next best:');
   expect(source).toContain('BEST SCOUT');
   expect(source).toContain('BEST BUY');
@@ -60,6 +61,7 @@ test('Oracle printing detail preserves family navigation and explains winning ba
   expect(source).toContain('MOST LIQUID');
   expect(source).toContain('oracleOpenSku');
   expect(source).toContain('backToFamily');
+  expect(source).toContain('collectish:oracle-family-confidence');
 });
 
 test('Oracle family confidence weights current, dormant, and catalog coverage explicitly',async()=>{
@@ -71,4 +73,6 @@ test('Oracle family confidence weights current, dormant, and catalog coverage ex
   expect(source).toContain('catalog-only printings receive no credit');
   expect(source).toContain('Family confidence');
   expect(source).toContain('collectish:oracle-family-confidence');
+  expect(source).toContain('CURRENT LEADER');
+  expect(source).toContain('CONFIDENCE');
 });
