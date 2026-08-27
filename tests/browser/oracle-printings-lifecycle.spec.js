@@ -48,3 +48,16 @@ test('Oracle bulk refresh is one-off, bounded, and asks before large batches',as
   expect(source).toContain('Catalog-only');
   expect(source).not.toContain('recurring');
 });
+
+test('Oracle printing detail preserves family navigation and explains winning badges',async()=>{
+  const source=await read('src/modules/scout/oracle-detail-context.js');
+  expect(source).toContain('Back to ${familyName()} printings');
+  expect(source).toContain('Why this printing wins');
+  expect(source).toContain('Next best:');
+  expect(source).toContain('BEST SCOUT');
+  expect(source).toContain('BEST BUY');
+  expect(source).toContain('BEST DIRECT ROI');
+  expect(source).toContain('MOST LIQUID');
+  expect(source).toContain('oracleOpenSku');
+  expect(source).toContain('backToFamily');
+});
