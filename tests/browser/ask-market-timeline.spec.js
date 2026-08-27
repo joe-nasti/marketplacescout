@@ -5,7 +5,7 @@ const rendererSource=await readFile(new URL('../../src/modules/ask/market-invest
 
 test('Ask renders date-bucket-safe timeline with separate evidence and causal confidence',async({page})=>{
   await page.setViewportSize({width:412,height:915});
-  await page.setContent('<main id="askFixture"><div class="cx-ask-msg cx-ask-assistant"><div class="cx-ask-msg-body"><h3>Quick read</h3><p>No hard catalyst found. The best lead precedes measured acceleration.</p><h3>External findings</h3><p>Long supporting analysis.</p><h3>Timing / causation details</h3><p>More long analysis.</p></div></div></main>');
+  await page.setContent('<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><main id="askFixture"><div class="cx-ask-msg cx-ask-assistant"><div class="cx-ask-msg-body"><h3>Quick read</h3><p>No hard catalyst found. The best lead precedes measured acceleration.</p><h3>External findings</h3><p>Long supporting analysis.</p><h3>Timing / causation details</h3><p>More long analysis.</p></div></div></main></body></html>');
   await page.addScriptTag({content:rendererSource});
   await page.evaluate(()=>{
     const body=document.querySelector('.cx-ask-msg-body');
