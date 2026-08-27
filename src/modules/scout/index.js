@@ -16,6 +16,7 @@ export async function installScoutRenderer(){
   // primary first-paint surface. Dormant/catalog-only opens enqueue a wake.
   void import('./universal-search.js');
   void import('./freshness.js');
+  void import('./oracle-printings.js');
 
   // These remain interaction/state enhancers and cannot reshape first paint.
   void Promise.all([
