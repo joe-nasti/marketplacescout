@@ -1,0 +1,48 @@
+name: Collectish video market response snapshots
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-video-market-response.yml"
+      - "cloud-worker/video-market-response.sql"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-video-market-response
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RPC_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/rest/v1/rpc/capture_due_market_intel_snapshots
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Capture due video market snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error \
+            --max-time 120 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{"p_limit":100}' \
+            "$RPC_URL")"
+          cat "$response_file"
+          echo
+          [[ "$status" =~ ^2 ]] || exit 1
+          count="$(jq 'length' "$response_file")"
+          echo "snapshots_captured=$count"
