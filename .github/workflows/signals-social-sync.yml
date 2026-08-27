@@ -22,7 +22,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 6
     env:
       SUPABASE_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-social-sync
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -32,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
-          max_chunks=6
+          max_chunks=2
           source_failures=0
           for chunk in $(seq 1 "$max_chunks"); do
             response_file="$(mktemp)"
@@ -63,6 +63,7 @@ jobs:
               echo "Social Signals queue drained after $chunk chunk(s)."
               break
             fi
+            sleep 2
           done
           if (( source_failures > 0 )); then
             echo "Social Signals refresh completed with $source_failures source failure(s); failed items remain eligible after cooldown." >&2
