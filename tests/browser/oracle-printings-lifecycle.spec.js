@@ -76,3 +76,17 @@ test('Oracle family confidence weights current, dormant, and catalog coverage ex
   expect(source).toContain('CURRENT LEADER');
   expect(source).toContain('CONFIDENCE');
 });
+
+test('Oracle comparison hardening clears stale UI, hydrates late imports, and requests the full supported family',async()=>{
+  const compare=await read('src/modules/scout/oracle-printings.js');
+  const search=await read('src/modules/scout/universal-search.js');
+  expect(compare).toContain('const FAMILY_LIMIT=500');
+  expect(search).toContain('const FAMILY_LIMIT=500');
+  expect(compare).toContain('p_limit:FAMILY_LIMIT');
+  expect(search).toContain('p_limit:FAMILY_LIMIT');
+  expect(compare).toContain("input.dispatchEvent(new Event('input',{bubbles:true}))");
+  expect(compare).toContain("results.hidden=true;results.innerHTML=''");
+  expect(compare).toContain("['oracle','fromSku','q','oracleSort','oracleFilter','oracleOpenSku']");
+  expect(compare).toContain('function hydrateNow()');
+  expect(compare).toContain('setTimeout(hydrateNow,0)');
+});
