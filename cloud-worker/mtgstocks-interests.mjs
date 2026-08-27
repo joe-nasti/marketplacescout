@@ -27,7 +27,7 @@ if(!fetched.some(x=>x.interests.length))throw new Error('MTGStocks Interests API
 const users=await sb('market_intel_items?select=user_id&order=created_at.asc&limit=1');const userId=users?.[0]?.user_id;if(!userId)throw new Error('No market_intel user available');
 const sourceDates=fetched.map(x=>x.date).filter(Boolean).sort();const sourceDate=sourceDates.at(-1)||new Date().toISOString().slice(0,10);
 const existing=await sb(`market_intel_items?select=title&source_name=eq.MTGStocks&source_subtype=eq.interests&metadata_json->>source_date=eq.${encodeURIComponent(sourceDate)}&limit=1000`);const seen=new Set((existing||[]).map(x=>x.title));
-let inserted=0,skipped=0;
+let inserted=0,skipped=0;const insertedIds=[];
 for(const stream of fetched){
   for(const raw of stream.interests.slice(0,MAX_PER_STREAM)){
     const print=raw?.print||{};const originalName=cleanName(print.name||raw.name);if(!originalName){skipped++;continue}
@@ -38,8 +38,8 @@ for(const stream of fetched){
     const item=await sb('market_intel_items?select=intel_id',{method:'POST',prefer:'return=representation',body:{user_id:userId,source_type:'other',source_name:'MTGStocks',source_url:INTERESTS_URL,title,summary:`MTGStocks Interests ${stream.priceType} ${stream.finish} ${window}: ${originalName} moved from $${oldPrice.toFixed(2)} to $${newPrice.toFixed(2)} (${pct>=0?'+':''}${pct.toFixed(1)}%).`,claim_type:'price',direction,signal_stage:'confirming',confidence:0.95,published_at:at,observed_at:at,source_profile:'market_movement',source_subtype:'interests',metadata_json:{provider:'mtgstocks',lane:'interests',source_date:stream.date||sourceDate,window,interest_type:raw.interest_type||null,price_type:stream.priceType,finish:stream.finish,new_price:newPrice,old_price:oldPrice,change_pct:pct,mtgstocks_print_id:print.id||null,mtgstocks_set_id:print.set_id||null,mtgstocks_set_name:print.set_name||null,original_card_name:originalName}}});
     const intelId=item?.[0]?.intel_id;if(!intelId){skipped++;continue}
     await sb('market_intel_entities',{method:'POST',body:{intel_id:intelId,user_id:userId,entity_type:'card',entity_name:entityName,confidence:0.92}});
-    inserted++;seen.add(title);
+    inserted++;insertedIds.push(intelId);seen.add(title);
   }
 }
-let wake=null;if(inserted)wake=await sb('rpc/enqueue_signal_scout_wakes',{method:'POST',body:{p_hours:24}});
+let wake=null;if(insertedIds.length)wake=await sb('rpc/enqueue_market_intel_scout_wakes',{method:'POST',body:{p_intel_ids:insertedIds}});
 console.log(JSON.stringify({ok:true,source:INTERESTS_URL,sourceDate,streams:fetched.map(x=>({priceType:x.priceType,finish:x.finish,date:x.date,rows:x.interests.length})),inserted,skipped,wake},null,2));
