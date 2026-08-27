@@ -1,0 +1,40 @@
+name: Collectish MTGStocks Interests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */4 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/mtgstocks-interests.yml"
+      - "cloud-worker/mtgstocks-interests.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-mtgstocks-interests
+  cancel-in-progress: true
+
+jobs:
+  interests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MTGSTOCKS_INTERESTS_MAX_PER_WINDOW: "40"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate collector
+        run: |
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          node --check cloud-worker/mtgstocks-interests.mjs
+      - name: Collect Interests
+        run: node cloud-worker/mtgstocks-interests.mjs
