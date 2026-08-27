@@ -61,3 +61,14 @@ test('Oracle printing detail preserves family navigation and explains winning ba
   expect(source).toContain('oracleOpenSku');
   expect(source).toContain('backToFamily');
 });
+
+test('Oracle family confidence weights current, dormant, and catalog coverage explicitly',async()=>{
+  const source=await read('src/modules/scout/oracle-family-confidence.js');
+  expect(source).toContain('(c.dormant*.5)');
+  expect(source).toContain("score>=80?'High':score>=50?'Medium':'Low'");
+  expect(source).toContain('Current printings count fully');
+  expect(source).toContain('dormant printings receive half credit');
+  expect(source).toContain('catalog-only printings receive no credit');
+  expect(source).toContain('Family confidence');
+  expect(source).toContain('collectish:oracle-family-confidence');
+});
