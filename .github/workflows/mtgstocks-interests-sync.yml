@@ -1,0 +1,49 @@
+name: Collectish MTGStocks Interests refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "29 */4 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/mtgstocks-interests-sync.yml"
+      - "supabase/functions/market-intel-mtgstocks-interests-sync/index.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-mtgstocks-interests-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-mtgstocks-interests-sync
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Refresh MTGStocks Interests candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error \
+            --max-time 180 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{}' \
+            "$SUPABASE_FUNCTION_URL"; } || true)"
+          cat "$response_file"
+          echo
+          if [[ ! "$status" =~ ^2 ]]; then
+            echo "MTGStocks Interests refresh failed with HTTP $status" >&2
+            exit 1
+          fi
