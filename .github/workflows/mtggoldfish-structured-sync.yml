@@ -1,0 +1,60 @@
+name: Collectish MTGGoldfish structured Signals refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "29 */6 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/mtggoldfish-structured-sync.yml"
+      - "supabase/functions/market-intel-mtggoldfish-sync/index.ts"
+      - "supabase/functions/market-intel-ingest/index.ts"
+      - "supabase/functions/market-intel-analyze/index.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-mtggoldfish-structured-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      SUPABASE_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-mtggoldfish-sync
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Refresh MTGGoldfish structured sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          failures=0
+          for target in $(seq 0 7); do
+            response_file="$(mktemp)"
+            echo "MTGGoldfish target $target/7"
+            status="$({ curl --silent --show-error \
+              --max-time 110 \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              --request POST \
+              --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+              --header "Content-Type: application/json" \
+              --data "{\"target_index\":$target}" \
+              "$SUPABASE_FUNCTION_URL"; } || true)"
+            cat "$response_file"
+            echo
+            if [[ ! "$status" =~ ^2 ]]; then
+              failures=$((failures + 1))
+              echo "MTGGoldfish target $target failed with HTTP $status" >&2
+            fi
+            sleep 1
+          done
+          if (( failures > 0 )); then
+            echo "$failures MTGGoldfish target(s) failed" >&2
+            exit 1
+          fi
