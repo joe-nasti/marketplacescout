@@ -16,6 +16,7 @@ export function install(){
       import('./scans.js'),
       import('./marketplace-health.js'),
       import('./scout-universe.js'),
+      import('./signals-video-audit.js'),
       import('./sealed-catalog.js'),
       import('./sealed-health.js'),
       import('./cardtrader-health.js'),
