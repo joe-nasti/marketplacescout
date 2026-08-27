@@ -1,0 +1,9 @@
+const trim=(x:any,n=2000)=>String(x??'').trim().slice(0,n);
+
+export function moxfieldDeckId(value:any){const s=String(value||'').trim();const m=s.match(/https?:\/\/(?:www\.)?moxfield\.com\/decks\/([A-Za-z0-9_-]{10,})/i);return m?.[1]||null}
+
+function collectBoardCards(deck:any){const out=new Set<string>();const roots=[deck?.boards,deck];const boardNames=['mainboard','sideboard','commanders','companions','maybeboard','considering'];for(const root of roots){if(!root)continue;for(const boardName of boardNames){const board=root?.[boardName];const cards=board?.cards||board;if(!cards||typeof cards!=='object')continue;for(const entry of Object.values(cards) as any[]){const card=entry?.card||entry;const name=trim(card?.name||entry?.name,300);if(name)out.add(name)}}}return [...out]}
+
+export async function fetchMoxfieldDeck(deckUrl:string){const id=moxfieldDeckId(deckUrl);if(!id)return null;const headers={'User-Agent':'Mozilla/5.0 (compatible; Collectish/1.0; +https://joe-nasti.github.io/marketplacescout/)','Accept':'application/json','Origin':'https://www.moxfield.com','Referer':deckUrl,'Cache-Control':'no-cache'};const endpoints=[`https://api2.moxfield.com/v3/decks/all/${encodeURIComponent(id)}`,`https://api2.moxfield.com/v2/decks/all/${encodeURIComponent(id)}`,`https://api.moxfield.com/v2/decks/all/${encodeURIComponent(id)}`];for(const url of endpoints){try{const r=await fetch(url,{headers,redirect:'follow'});if(!r.ok)continue;const data=await r.json();const cards=collectBoardCards(data);if(cards.length)return{provider:'moxfield',deck_id:id,deck_url:deckUrl,name:trim(data?.name,300)||null,format:trim(data?.format,80)||null,cards}}catch{}}return null}
+
+export function findMoxfieldLinks(text:any){const s=String(text||'');return [...new Set([...s.matchAll(/https?:\/\/(?:www\.)?moxfield\.com\/decks\/[A-Za-z0-9_-]{10,}/gi)].map(m=>m[0]))].slice(0,4)}
