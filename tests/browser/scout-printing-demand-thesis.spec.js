@@ -4,6 +4,7 @@ import path from 'node:path';
 
 const read=p=>readFile(path.join(process.cwd(),p),'utf8');
 
+// Keep this coverage tied to the current PR merge ref: the canonical SQL is the contract.
 test('Scout classifies exact-printing movement instead of treating every isolated move as risk',async()=>{
   const sql=await read('cloud-worker/scout-opportunity-context.sql');
   for(const classification of ['broad_card_demand','reprint_migration','prestige_printing','thin_print_anomaly','unknown_printing_specific']){
