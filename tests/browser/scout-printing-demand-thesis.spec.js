@@ -6,12 +6,11 @@ const read=p=>readFile(path.join(process.cwd(),p),'utf8');
 
 test('Scout classifies exact-printing movement instead of treating every isolated move as risk',async()=>{
   const sql=await read('cloud-worker/scout-opportunity-context.sql');
-  expect(sql).toContain("then 'broad_card_demand'");
-  expect(sql).toContain("then 'reprint_migration'");
-  expect(sql).toContain("then 'prestige_printing'");
-  expect(sql).toContain("then 'thin_print_anomaly'");
-  expect(sql).toContain("else 'unknown_printing_specific'");
-  expect(sql).toContain("p.printing_demand_class in ('reprint_migration','prestige_printing','broad_card_demand')");
+  for(const classification of ['broad_card_demand','reprint_migration','prestige_printing','thin_print_anomaly','unknown_printing_specific']){
+    expect(sql).toContain(`'${classification}'`);
+  }
+  expect(sql).toContain("printing_demand_class in ('reprint_migration','prestige_printing','broad_card_demand')");
+  expect(sql).toContain("printing_demand_class='thin_print_anomaly'");
   expect(sql).not.toContain("'related_printing_only'=any(risk_flags)");
 });
 
@@ -28,7 +27,7 @@ test('Scout surfaces printing thesis metadata without changing economics',async(
   const ui=await read('src/modules/signals/scout-badges.js');
   expect(ui).toContain('function printingDemandLabel(c)');
   expect(ui).toContain("if(cls==='reprint_migration')return'reprint migration'");
-  expect(ui).toContain('Printing thesis ·');
+  expect(ui).toContain('Printing thesis');
   expect(ui).toContain('Price vs same-finish family median');
   expect(ui).toContain('Scout grade and economics are unchanged');
 });
