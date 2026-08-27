@@ -51,11 +51,15 @@ jobs:
             exit 1
           fi
           policy_mode="$(jq -r '.policy.transcript_mode // "unknown"' "$response_file")"
-          ai_generation="$(jq -r '.policy.ai_generation // true' "$response_file")"
+          ai_generation="$(jq -r 'if .policy.ai_generation == null then true else .policy.ai_generation end' "$response_file")"
           attempted="$(jq -r '.transcript_attempts // 0' "$response_file")"
           billable="$(jq -r '.billable_credits_observed // 0' "$response_file")"
           events_saved="$(jq -r '.events_saved // 0' "$response_file")"
-          echo "mode=$policy_mode ai_generation=$ai_generation attempted=$attempted observed_billable=$billable events_saved=$events_saved"
+          source_failures="$(jq -r '.failed // 0' "$response_file")"
+          echo "mode=$policy_mode ai_generation=$ai_generation attempted=$attempted observed_billable=$billable events_saved=$events_saved source_failures=$source_failures"
           test "$policy_mode" = "native"
           test "$ai_generation" = "false"
           test "$attempted" -le 1
+          if (( source_failures > 0 )); then
+            echo "YouTube discovery completed with $source_failures transient source failure(s); no policy violation occurred." >&2
+          fi
