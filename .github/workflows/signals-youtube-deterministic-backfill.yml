@@ -25,6 +25,7 @@ jobs:
       FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-deterministic-backfill
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
+      # Keep this as a separate zero-Supadata safety net after transcript ingestion.
       - name: Process one cached creator video
         shell: bash
         run: |
