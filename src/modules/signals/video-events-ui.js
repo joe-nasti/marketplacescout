@@ -26,10 +26,12 @@ function responseForThesis(thesis){
   const ids=new Set(thesis.moments.map(({event})=>String(event?.intel_id||'')));
   const rows=responses.filter(r=>ids.has(String(r.intel_id||'')));
   if(!rows.length)return null;
-  return rows.sort((a,b)=>Number(b.attention_score||0)-Number(a.attention_score||0)||Number(b.market_response_score||0)-Number(a.market_response_score||0))[0];
+  return rows.sort((a,b)=>Number(b.catalyst_impact_score||0)-Number(a.catalyst_impact_score||0)||Number(b.convergence_score||0)-Number(a.convergence_score||0)||Number(b.market_response_score||0)-Number(a.market_response_score||0))[0];
 }
-function responseLabel(r){if(!r)return'';if(r.latest_horizon==='t0')return'Baseline captured';return pretty(r.attention_market_state||r.market_response_status||'Watching')}
+function responseLabel(r){if(!r)return'';if(r.latest_horizon==='t0')return `${pretty(r.catalyst_market_state||'Watching')} · baseline captured`;return pretty(r.catalyst_market_state||r.market_response_status||'Watching')}
 function responseEvidence(r){if(!r)return'';if(r.latest_horizon==='t0')return `T0 ${money(r.baseline_market_price)} market · ${money(r.baseline_direct_low)} Direct`;const bits=[`Market ${pct(r.market_price_change_pct)}`,`Direct ${pct(r.direct_low_change_pct)}`];if(Number.isFinite(Number(r.direct_available_change_pct)))bits.push(`Direct supply ${pct(r.direct_available_change_pct)}`);if(Number.isFinite(Number(r.transaction_velocity_lift_30d_pct)))bits.push(`sales velocity ${pct(r.transaction_velocity_lift_30d_pct)}`);return bits.join(' · ')}
+function scopeEvidence(r){if(!r)return'';const sources=Math.max(1,Number(r.independent_source_count||1)),creators=Math.max(1,Number(r.independent_creator_count||1)),nonvideo=Math.max(0,Number(r.independent_nonvideo_source_count||0));return `${sources} independent source${sources===1?'':'s'} · ${creators} creator${creators===1?'':'s'}${nonvideo?` · ${nonvideo} non-video`:''}`}
+function scoreEvidence(r){if(!r)return'';return `Creator conviction ${Number(r.creator_conviction_score||0)} · Catalyst ${Number(r.catalyst_impact_score||0)} · Convergence ${Number(r.convergence_score||0)} · Market ${Number(r.market_response_score||0)}`}
 function decorateSignals(){
   document.querySelectorAll('.cx-video-event-strip').forEach(x=>x.remove());
   document.querySelectorAll('#cxSignalsFeed [data-video-thesis-collapsed="1"]').forEach(x=>{x.hidden=false;x.removeAttribute('data-video-thesis-collapsed')});
@@ -41,7 +43,7 @@ function decorateSignals(){
     const wrap=document.createElement('div');wrap.className='cx-video-event-strip';wrap.style.cssText='display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;margin:.45rem 0 .15rem;font-size:.82rem';
     const count=thesis.supporting_count>1?` · ${thesis.supporting_count} supporting moments`:'';
     const evidence=thesis.primary_event?.evidence?` · ${esc(thesis.primary_event.evidence)}`:'';
-    const market=response?`<span class="cx-signal-stage"><strong>Attention ${Number(response.attention_score||0)}</strong> · Market ${Number(response.market_response_score||0)}</span><small class="cx-sub">${esc(responseLabel(response))} · ${esc(responseEvidence(response))}</small>`:'';
+    const market=response?`<span class="cx-signal-stage"><strong>Catalyst ${Number(response.catalyst_impact_score||0)}</strong> · Conviction ${Number(response.creator_conviction_score||0)} · Convergence ${Number(response.convergence_score||0)} · Market ${Number(response.market_response_score||0)}</span><small class="cx-sub">${esc(scopeEvidence(response))} · ${esc(responseLabel(response))} · ${esc(responseEvidence(response))}</small>`:'';
     wrap.innerHTML=`${eventChip(thesis.primary_event?.event_type,thesis.direction,thesis.primary_item)}<strong>${esc(thesis.card_name)}</strong><small class="cx-sub">${esc(thesis.channel_name)}${esc(count)}</small><span class="cx-video-moments">${momentLinks(thesis)}</span>${market}<small class="cx-sub">${evidence}</small>`;
     claim.appendChild(wrap);
   }
@@ -52,11 +54,13 @@ function decorateScoutDetail(sku){
   const matched=events.filter(e=>matchesRow(e,row));if(!matched.length)return;
   const matchedIds=new Set(matched.map(e=>String(e.intel_id)));
   const theses=thesisData().filter(t=>t.moments.some(({event})=>matchedIds.has(String(event.intel_id))));if(!theses.length)return;
-  const top=theses[0],creators=new Set(theses.map(x=>x.channel_name).filter(Boolean)),types=[...new Set(theses.map(x=>pretty(x.primary_event?.event_type)))].slice(0,3);
-  const strength=Math.round(Number(top.max_prominence||0)*100),topResponse=responseForThesis(top),latest=theses.slice(0,3);
-  const responseStat=topResponse?`<div class="cx-v5-stat"><span>Attention vs market</span><strong>${Number(topResponse.attention_score||strength)}/100 attention · ${Number(topResponse.market_response_score||0)}/100 reaction</strong><small>${esc(responseLabel(topResponse))} · ${esc(responseEvidence(topResponse))}</small></div>`:'';
-  const rows=latest.map(t=>{const r=responseForThesis(t);return `<div class="cx-v5-stat"><span>${esc(pretty(t.primary_event?.event_type))}</span><strong>${esc(t.channel_name||'Creator')} · ${Math.round(Number(t.max_prominence||0)*100)}</strong><small>${t.supporting_count} supporting moment${t.supporting_count===1?'':'s'} · ${momentLinks(t,4)}${r?` · Market ${Number(r.market_response_score||0)}/100`:''}</small></div>`}).join('');
-  const section=document.createElement('section');section.className='cx-v5-section cx-video-catalyst-detail';section.innerHTML=`<div class="cx-section-title">Creator catalysts <span class="cx-intel-context">timestamped video + market response</span></div><div class="cx-v5-grid"><div class="cx-v5-stat"><span>Content momentum</span><strong>${strength}/100 · ${creators.size} creator${creators.size===1?'':'s'}</strong><small>${esc(types.join(' · '))}</small></div>${responseStat}${rows}</div><small class="cx-sub">Market response is measured from the creator-signal baseline using price, Direct supply when available, and post-signal sales velocity. It remains context rather than a Scout-grade input.</small>`;
+  const top=theses[0],topResponse=responseForThesis(top),latest=theses.slice(0,3);
+  const conviction=Number(topResponse?.creator_conviction_score??Math.round(Number(top.max_prominence||0)*100));
+  const catalyst=Number(topResponse?.catalyst_impact_score??0),convergence=Number(topResponse?.convergence_score??0),market=Number(topResponse?.market_response_score??0);
+  const convictionStat=`<div class="cx-v5-stat"><span>Creator conviction</span><strong>${conviction}/100</strong><small>Strength of this creator's thesis. Repeated moments do not count as independent sources.</small></div>`;
+  const responseStat=topResponse?`<div class="cx-v5-stat"><span>Catalyst / convergence / market</span><strong>${catalyst} / ${convergence} / ${market}</strong><small>${esc(scopeEvidence(topResponse))} · ${esc(responseLabel(topResponse))} · ${esc(responseEvidence(topResponse))}</small></div>`:'';
+  const rows=latest.map(t=>{const r=responseForThesis(t);return `<div class="cx-v5-stat"><span>${esc(pretty(t.primary_event?.event_type))}</span><strong>${esc(t.channel_name||'Creator')}${r?` · catalyst ${Number(r.catalyst_impact_score||0)}`:''}</strong><small>${t.supporting_count} supporting moment${t.supporting_count===1?'':'s'} · ${momentLinks(t,4)}${r?` · convergence ${Number(r.convergence_score||0)} · market ${Number(r.market_response_score||0)}`:''}</small></div>`}).join('');
+  const section=document.createElement('section');section.className='cx-v5-section cx-video-catalyst-detail';section.innerHTML=`<div class="cx-section-title">Creator catalysts <span class="cx-intel-context">timestamped video + independent convergence + market response</span></div><div class="cx-v5-grid">${convictionStat}${responseStat}${rows}</div><small class="cx-sub">Creator conviction measures how strongly one creator expressed the thesis. Catalyst impact also considers event intent and a conservative source-reach prior, so a high-purchase-intent Command Zone precon upgrade can matter on its own. Convergence rises only when independent creators or non-video sources corroborate the same card. Market reaction is measured separately from price, Direct supply, and post-signal sales velocity.</small>`;
   const anchor=host.querySelector('.cx-intelligence-detail')||host.querySelector('.cx-v5-components')||host.firstElementChild;if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor.nextSibling);else host.appendChild(section);
 }
 function decorate(){decorateSignals();decorateScoutDetail(store.get().scout?.selectedSku||null)}
@@ -64,7 +68,7 @@ async function load(force=false){
   if(loading)return loading;if(!force&&loadedAt&&Date.now()-loadedAt<TTL){decorate();return events}
   loading=Promise.all([
     rest('market_intel_video_events?select=*&order=created_at.desc&limit=300').catch(()=>[]),
-    rest('market_intel_video_market_response?select=*&order=attention_score.desc&limit=300').catch(()=>[])
+    rest('market_intel_video_market_response?select=*&order=catalyst_impact_score.desc&limit=300').catch(()=>[])
   ]).then(([eventRows,responseRows])=>{events=Array.isArray(eventRows)?eventRows:[];responses=Array.isArray(responseRows)?responseRows:[];loadedAt=Date.now();store.update('intel',{videoEvents:events,videoTheses:thesisData(),videoMarketResponses:responses,videoEventsLoadedAt:loadedAt});decorate();return events}).finally(()=>{loading=null});
   return loading;
 }
