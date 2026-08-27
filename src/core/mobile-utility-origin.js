@@ -4,33 +4,20 @@ let userInteracted=false;
 let gestureActive=false;
 let snapTimer=0;
 
-function originTarget(){
-  return document.getElementById('cxMobileOrigin')||document.getElementById('cxRouteContext')||document.querySelector('#collectishUxShell > .cx-main');
-}
-
 function mobileOrigin(){
   if(!mobile.matches)return 0;
-  const target=originTarget();
-  if(!target)return 0;
-  const rect=target.getBoundingClientRect();
-  return Math.max(0,Math.round(window.scrollY+rect.top));
+  const shelf=document.getElementById('cxMobileUtilities');
+  if(!shelf)return 0;
+  const rect=shelf.getBoundingClientRect();
+  return Math.max(0,Math.round(window.scrollY+rect.bottom));
 }
 
 function alignToOrigin({force=false,behavior='auto'}={}){
   if(!mobile.matches)return;
   if(initialSettling&&userInteracted&&!force)return;
-  const target=originTarget();
   const top=mobileOrigin();
-  if(!target||top<=0)return;
-  if(behavior==='smooth'){
-    window.scrollTo({top,behavior:'smooth'});
-    return;
-  }
-  try{target.scrollIntoView({block:'start',inline:'nearest',behavior:'auto'})}catch{}
-  requestAnimationFrame(()=>{
-    const delta=Math.abs(window.scrollY-top);
-    if(delta>2)window.scrollTo(0,top);
-  });
+  if(top<=0)return;
+  window.scrollTo({top,behavior});
 }
 
 function settleInitialOrigin(){
