@@ -1,4 +1,7 @@
 -- MarketplaceScout quick-turn liquidity lens.
+-- Exact Scout SKU/printing velocity is authoritative. TCGplayer Best Selling
+-- sales_rank is set-level context only and may never promote an unmeasured SKU
+-- into the LIQUID tier.
 -- SECURITY INVOKER and authenticated-only execution.
 create or replace function public.liquid_scout_opportunities(p_limit integer default 100)
 returns table(
@@ -32,17 +35,30 @@ as $$
 with base as (
   select c.*,
     case
-      when coalesce(c.avg_daily_qty_sold,0)>=9 or c.sales_rank<=30 then 95
-      when coalesce(c.avg_daily_qty_sold,0)>=3 or c.sales_rank<=80 then 80
-      when coalesce(c.avg_daily_qty_sold,0)>=1 or c.sales_rank<=180 then 68
-      when c.sales_rank<=300 then 50
-      else 25 end::integer as liq,
+      when c.avg_daily_qty_sold is not null then
+        case
+          when c.avg_daily_qty_sold>=9 then 100
+          when c.avg_daily_qty_sold>=3 then 86
+          when c.avg_daily_qty_sold>=1 then 72
+          when c.avg_daily_qty_sold>=0.5 then 58
+          else 42
+        end
+      else least(54,
+        case
+          when c.sales_rank<=30 then 54
+          when c.sales_rank<=80 then 50
+          when c.sales_rank<=180 then 46
+          when c.sales_rank<=300 then 42
+          when c.sales_rank<=500 then 36
+          else 25
+        end)
+    end::integer as liq,
     case
-      when coalesce(c.avg_daily_qty_sold,0)>=9 or c.sales_rank<=30 then 15
-      when coalesce(c.avg_daily_qty_sold,0)>=3 or c.sales_rank<=80 then 18
-      when coalesce(c.avg_daily_qty_sold,0)>=1 or c.sales_rank<=180 then 22
-      when c.sales_rank<=300 then 25
-      else 30 end::numeric as target_roi,
+      when c.avg_daily_qty_sold is not null and c.avg_daily_qty_sold>=9 then 15
+      when c.avg_daily_qty_sold is not null and c.avg_daily_qty_sold>=1 then 18
+      when c.avg_daily_qty_sold is not null and c.avg_daily_qty_sold>=0.5 then 22
+      else 25
+    end::numeric as target_roi,
     case
       when c.cheapest_buy>0 and c.direct_net_profit is not null then round((c.direct_net_profit/c.cheapest_buy*100)::numeric,1)
     end as direct_roi
@@ -51,6 +67,9 @@ with base as (
     and c.cheapest_buy>=1
     and c.direct_net_profit is not null
     and c.direct_net_profit>=1
+    and c.sku_market_price>0
+    and c.direct_low>0
+    and c.direct_low < c.sku_market_price*3
 ), scored as (
   select b.*,
     case when liq>=85 then 8 when liq>=70 then 5 when liq>=55 then 2 else 0 end::integer as bonus,
