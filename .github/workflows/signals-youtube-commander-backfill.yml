@@ -8,7 +8,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/signals-youtube-commander-backfill.yml"
-      - "supabase/functions/market-intel-video-commander-backfill/**"
+      - "supabase/functions/market-intel-video-commander-deterministic/**"
 
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-commander-backfill
+      FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-commander-deterministic
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - name: Extract one cached Commander video
@@ -46,6 +46,7 @@ jobs:
           [[ "$status" =~ ^2 ]] || exit 1
           credits="$(jq -r '.transcript_credits_used // 0' "$response_file")"
           saved="$(jq -r '.events_saved // 0' "$response_file")"
+          hits="$(jq -r '.trigger_hits // 0' "$response_file")"
           video="$(jq -r '.video_id // "none"' "$response_file")"
-          echo "video=$video events_saved=$saved transcript_credits_used=$credits"
+          echo "video=$video trigger_hits=$hits events_saved=$saved transcript_credits_used=$credits"
           test "$credits" = "0"
