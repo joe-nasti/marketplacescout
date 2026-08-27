@@ -17,6 +17,7 @@ export async function installScoutRenderer(){
   void import('./universal-search.js');
   void import('./freshness.js');
   void import('./oracle-printings.js');
+  void import('./oracle-bulk-refresh.js');
 
   // These remain interaction/state enhancers and cannot reshape first paint.
   void Promise.all([
