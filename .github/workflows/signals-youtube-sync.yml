@@ -9,6 +9,7 @@ on:
     paths:
       - ".github/workflows/signals-youtube-sync.yml"
       - "supabase/functions/market-intel-youtube-sync/index.ts"
+      - "supabase/functions/market-intel-video-event-extract/index.ts"
       - "supabase/functions/market-intel-ingest/index.ts"
       - "supabase/functions/market-intel-analyze/index.ts"
 
@@ -53,6 +54,8 @@ jobs:
           ai_generation="$(jq -r '.policy.ai_generation // true' "$response_file")"
           attempted="$(jq -r '.transcript_attempts // 0' "$response_file")"
           billable="$(jq -r '.billable_credits_observed // 0' "$response_file")"
-          echo "mode=$policy_mode ai_generation=$ai_generation attempted=$attempted observed_billable=$billable"
+          events_saved="$(jq -r '.events_saved // 0' "$response_file")"
+          echo "mode=$policy_mode ai_generation=$ai_generation attempted=$attempted observed_billable=$billable events_saved=$events_saved"
           test "$policy_mode" = "native"
           test "$ai_generation" = "false"
+          test "$attempted" -le 1
