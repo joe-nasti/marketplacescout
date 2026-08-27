@@ -1,6 +1,6 @@
 name: Collectish YouTube Signals refresh
 
-# Manual validation marker: commander lane sample
+# Manual validation marker: commander lane sample 2
 on:
   workflow_dispatch:
   schedule:
