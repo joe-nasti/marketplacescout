@@ -9,6 +9,7 @@ on:
     paths:
       - ".github/workflows/scout-universe-backfill.yml"
       - "cloud-worker/scout-universe-backfill.mjs"
+      - "cloud-worker/scout-signal-wake.mjs"
 
 permissions:
   contents: read
@@ -30,6 +31,10 @@ jobs:
         with:
           node-version: "24"
       - name: Validate
-        run: node --check cloud-worker/scout-universe-backfill.mjs
+        run: |
+          node --check cloud-worker/scout-signal-wake.mjs
+          node --check cloud-worker/scout-universe-backfill.mjs
+      - name: Enqueue stale Signals candidates
+        run: node cloud-worker/scout-signal-wake.mjs
       - name: Admit wake or cold baseline
         run: node cloud-worker/scout-universe-backfill.mjs
