@@ -18,13 +18,22 @@ test('Scout saved views stay separate from the Filters trigger',async()=>{
   expect(source).toContain('data-scout-filters>Filters');
 });
 
-test('mobile build badge and theme toggle live in the scrolling document utility strip',async()=>{
-  const [css,theme]=await Promise.all([read('src/styles/mobile-quality.css'),read('src/core/theme.js')]);
-  expect(theme).toContain("bar.id='cxTopUtilities'");
-  expect(theme).toContain('app.prepend(bar)');
-  expect(theme).toContain('bar.appendChild(badge)');
-  expect(theme).toContain('bar.appendChild(button)');
-  expect(css).toContain('#app>.cx-top-utilities');
-  expect(css).toContain('position:static!important');
-  expect(css).not.toMatch(/#app>\.cx-top-utilities[^}]*position:fixed/);
+test('mobile build badge and theme toggle live in the revealable app utility shelf',async()=>{
+  const [shell,theme,origin,css]=await Promise.all([
+    read('src/core/shell.js'),
+    read('src/core/theme.js'),
+    read('src/core/mobile-utility-origin.js'),
+    read('src/styles/utility-controls.css')
+  ]);
+  expect(shell).toContain('id="cxMobileUtilities"');
+  expect(shell).toContain('<div class="cx-top-version">web ${WEB_VERSION}</div>');
+  expect(theme).toContain("if(mobile.matches)return document.getElementById('cxMobileUtilities')");
+  expect(theme).toContain("return document.getElementById('cxDesktopUtilities')");
+  expect(theme).toContain('host.appendChild(button)');
+  expect(origin).toContain('shelfIsPartlyRevealed');
+  expect(origin).toContain('scheduleShelfSnap');
+  expect(origin).toContain("setTimeout(()=>alignToOrigin({force:true,behavior:'smooth'}),160)");
+  expect(css).toContain('.cx-mobile-utilities{display:none}');
+  expect(css).toContain('.cx-mobile-utilities{display:flex');
+  expect(css).toContain('.cx-desktop-utilities{display:none}');
 });
