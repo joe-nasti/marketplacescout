@@ -7,7 +7,7 @@ const ignoredTop=new Set(['.git','.github','android-agent','cloud-worker','docs'
 const revisionStamped=/^(?:current-.+-r\d+|v\d{3,})\.(?:js|mjs|css)$/i;
 const legacyEntrypoint=/^(?:collectish-app|current-.+|v\d+)\.(?:js|mjs|css)$/i;
 const nativePatchStamped=/^patch-native-v\d+\.py$/i;
-const allowedRootWebFiles=new Set(['vite.config.js']);
+const allowedRootWebFiles=new Set(['vite.config.js','sw.mjs']);
 const domScriptInjection=/(?:createElement\s*\(\s*['"]script['"]\s*\)|\.src\s*=\s*['"][^'"]+\.js|appendChild\s*\([^\n]*script)/i;
 const mutationObserver=/\bMutationObserver\b/;
 const offenders=new Set();
