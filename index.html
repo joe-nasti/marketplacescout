@@ -38,6 +38,32 @@
 <body>
   <main id="collectishBootFallback"><div><strong>collectish</strong><span>Loading Collectish…</span></div></main>
   <noscript>Collectish requires JavaScript.</noscript>
-  <script type="module" src="./src/main.js"></script>
+  <script type="module">
+    async function waitForController(timeout=2500){
+      if(navigator.serviceWorker?.controller)return true;
+      return await new Promise(resolve=>{
+        let done=false;
+        const finish=value=>{if(done)return;done=true;clearTimeout(timer);navigator.serviceWorker?.removeEventListener('controllerchange',onChange);resolve(value)};
+        const onChange=()=>finish(true);
+        const timer=setTimeout(()=>finish(!!navigator.serviceWorker?.controller),timeout);
+        navigator.serviceWorker?.addEventListener('controllerchange',onChange,{once:true});
+      });
+    }
+    async function boot(){
+      const nonce=Date.now();
+      if('serviceWorker' in navigator){
+        try{
+          await navigator.serviceWorker.register(`./sw.js?boot=${nonce}`,{scope:'./',updateViaCache:'none'});
+          await navigator.serviceWorker.ready;
+          await waitForController();
+        }catch(error){window.__collectishBootErrors?.push(`fresh-loader: ${error?.message||error}`)}
+      }
+      await import(`./src/main.js?boot=${nonce}`);
+    }
+    boot().catch(error=>{
+      window.__collectishBootErrors?.push(String(error?.message||error));
+      throw error;
+    });
+  </script>
 </body>
 </html>
