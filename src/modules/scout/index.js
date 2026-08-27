@@ -19,6 +19,7 @@ export async function installScoutRenderer(){
   void import('./oracle-printings.js');
   void import('./oracle-bulk-refresh.js');
   void import('./oracle-detail-context.js');
+  void import('./oracle-family-confidence.js');
 
   // These remain interaction/state enhancers and cannot reshape first paint.
   void Promise.all([
