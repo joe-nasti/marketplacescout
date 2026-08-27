@@ -16,6 +16,7 @@ on:
       - "cloud-worker/marketplace-worker.mjs"
       - "cloud-worker/ask-investigate-worker.mjs"
       - "cloud-worker/queue-configured-set-refresh.mjs"
+      - "cloud-worker/scout-universe-backfill.mjs"
       - "cloud-worker/validate-claim-rpc.mjs"
       - "cloud-worker/normalize-marketplace-jobs.mjs"
       - "cloud-worker/recover-stale-jobs.mjs"
@@ -73,6 +74,7 @@ jobs:
         continue-on-error: true
         run: |
           node --check cloud-worker/queue-configured-set-refresh.mjs
+          node --check cloud-worker/scout-universe-backfill.mjs
           node --check cloud-worker/validate-claim-rpc.mjs
           node --check cloud-worker/normalize-marketplace-jobs.mjs
           node --check cloud-worker/recover-stale-jobs.mjs
@@ -123,6 +125,8 @@ jobs:
         run: exit 1
       - name: Queue configured set scans
         run: node cloud-worker/queue-configured-set-refresh.mjs
+      - name: Queue Scout universe wake or baseline scan
+        run: node cloud-worker/scout-universe-backfill.mjs
       - name: Validate atomic claim RPC
         run: node cloud-worker/validate-claim-rpc.mjs
       - name: Normalize Marketplace executor capabilities
