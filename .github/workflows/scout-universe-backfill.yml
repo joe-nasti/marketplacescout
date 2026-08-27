@@ -10,6 +10,8 @@ on:
       - ".github/workflows/scout-universe-backfill.yml"
       - "cloud-worker/scout-universe-backfill.mjs"
       - "cloud-worker/scout-signal-wake.mjs"
+      - "cloud-worker/scout-target-refresh-worker.mjs"
+      - "cloud-worker/refresh-scout-rankings.mjs"
 
 permissions:
   contents: read
@@ -21,10 +23,12 @@ concurrency:
 jobs:
   admit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SCOUT_TARGET_MAX: "3"
+      SCOUT_RANKINGS_SOURCE: "targeted_wake_worker"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,8 +37,14 @@ jobs:
       - name: Validate
         run: |
           node --check cloud-worker/scout-signal-wake.mjs
+          node --check cloud-worker/scout-target-refresh-worker.mjs
           node --check cloud-worker/scout-universe-backfill.mjs
+          node --check cloud-worker/refresh-scout-rankings.mjs
       - name: Enqueue stale Signals candidates
         run: node cloud-worker/scout-signal-wake.mjs
-      - name: Admit wake or cold baseline
+      - name: Refresh queued Scout printings directly
+        run: node cloud-worker/scout-target-refresh-worker.mjs
+      - name: Promote targeted evaluations
+        run: node cloud-worker/refresh-scout-rankings.mjs
+      - name: Admit next cold baseline set
         run: node cloud-worker/scout-universe-backfill.mjs
