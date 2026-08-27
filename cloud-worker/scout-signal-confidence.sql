@@ -36,20 +36,22 @@ with recent as (
 ), scored as (
   select *,greatest(0,least(8,
     (case when independent_sources>=3 then 5 when independent_sources=2 then 3 when independent_sources=1 then 1 else 0 end)
-    +(case when leading_sources>=1 then 2 else 0 end)
+    +(case when leading_sources>=1 then 1 else 0 end)
     +(case when latest_signal_at>=now()-interval '3 days' then 1 else 0 end)))::int raw_priority_boost
   from agg
 )
 select user_id,product_id,oracle_id,canonical_name,signal_count,independent_sources,leading_sources,confirming_sources,
   bullish_signals,bearish_signals,inherited_signal_count,exact_signal_count,latest_signal_at,weighted_net,
   case when weighted_net>0 then raw_priority_boost else 0 end::int priority_boost,
-  case when weighted_net<=0 then 'mixed_or_bearish' when raw_priority_boost>=6 then 'strong_corroboration'
-       when raw_priority_boost>=4 then 'corroborated' when raw_priority_boost>=2 then 'emerging' else 'context' end::text confidence_label,
+  case when weighted_net<=0 then 'mixed_or_bearish'
+       when independent_sources>=3 and raw_priority_boost>=6 then 'strong_corroboration'
+       when independent_sources>=2 and raw_priority_boost>=4 then 'corroborated'
+       when raw_priority_boost>=2 then 'emerging' else 'context' end::text confidence_label,
   case when weighted_net<=0 then 'Recent Signals are mixed or bearish; no Scout priority boost.'
-       when raw_priority_boost>=6 then 'Multiple recent independent Signals strongly corroborate the underlying card thesis.'
-       when raw_priority_boost>=4 then 'Recent independent Signals corroborate the underlying card thesis.'
+       when independent_sources>=3 and raw_priority_boost>=6 then 'Multiple recent independent Signals strongly corroborate the underlying card thesis.'
+       when independent_sources>=2 and raw_priority_boost>=4 then 'Recent independent Signals corroborate the underlying card thesis.'
        when raw_priority_boost>=2 then 'Recent Signals provide emerging support for the underlying card thesis.'
-       else 'A recent Signal provides context, but not enough corroboration to materially raise priority.' end::text confidence_reason
+       else 'A recent Signal provides context, but not enough independent corroboration to materially raise priority.' end::text confidence_reason
 from scored;
 
 revoke all on public.market_intel_scout_confidence from public, anon;
