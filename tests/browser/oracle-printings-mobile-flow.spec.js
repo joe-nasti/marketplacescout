@@ -12,6 +12,7 @@ async function injectModule(page,path,replacements=[]){
   await page.addScriptTag({type:'module',content:source});
 }
 
+const ORACLE_ID='11111111-1111-1111-1111-111111111111';
 const family=[
   {sku_id:'sku-1',product_id:'p1',scryfall_id:'sf1',card_name:'Solphim, Mayhem Dominus',set_code:'ONE',collector_number:'150',printing:'Normal',condition:'Near Mint',last_evaluated_at:new Date().toISOString(),scout_score:82,scout_grade:'A',cheapest_buy:10,direct_net_profit:8,buylist_roi_pct:20,avg_daily_qty_sold:1.2},
   {sku_id:'sku-2',product_id:'p2',scryfall_id:'sf2',card_name:'Solphim, Mayhem Dominus',set_code:'ONE',collector_number:'400',printing:'Showcase',condition:'Near Mint',last_evaluated_at:'2026-07-01T00:00:00Z',scout_score:78,scout_grade:'B',cheapest_buy:8,direct_net_profit:9,buylist_roi_pct:25,avg_daily_qty_sold:2.3},
@@ -22,11 +23,6 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
   test.skip(!isMobile,'mobile Oracle flow');
   const rpcCalls=[];
   await page.goto('/');
-  await page.route('https://api.scryfall.com/**',async route=>{
-    const url=route.request().url();
-    if(url.includes('format=image'))return route.abort();
-    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({name:'Solphim, Mayhem Dominus',oracle_id:'11111111-1111-1111-1111-111111111111'})});
-  });
   await page.exposeFunction('__oracleTestRest',async(path,options={})=>{
     rpcCalls.push({path,body:options.body||null});
     if(path==='rpc/scout_catalog_by_oracle')return family.map(x=>({...x}));
@@ -43,8 +39,9 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
       </section>
     </main>
   `);
-  await page.evaluate(rows=>{
+  await page.evaluate(({rows,oracleId})=>{
     document.body.classList.add('cx-scout-detail-lock');
+    window.__oracleTestFetch=async url=>new Response(JSON.stringify({name:'Solphim, Mayhem Dominus',oracle_id:oracleId}),{status:200,headers:{'content-type':'application/json'}});
     window.__oracleTestState={scout:{selectedSku:'sku-1',rows:[{sku_id:'sku-1',product_id:'p1',scryfall_id:'sf1',set_code:'ONE',collector_number:'150',product_name:'Solphim, Mayhem Dominus'}]}};
     window.__oracleTestStore={get:()=>window.__oracleTestState};
     window.CollectishScoutRenderer={
@@ -57,7 +54,7 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
         document.dispatchEvent(new CustomEvent('collectish:scout-detail-rendered',{detail:{sku:row?.sku_id}}));
       }
     };
-  },family);
+  },{rows:family,oracleId:ORACLE_ID});
 
   const restReplacement=[["import { rest } from '../../core/rest.js';","const rest=window.__oracleTestRest;"]];
   await injectModule(page,'src/modules/scout/universal-search.js',restReplacement);
@@ -66,7 +63,8 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
   await injectModule(page,'src/modules/scout/oracle-family-confidence.js');
   await injectModule(page,'src/modules/scout/oracle-printings.js',[
     ["import store from '../../state/store.js';","const store=window.__oracleTestStore;"],
-    ["import { rest } from '../../core/rest.js';","const rest=window.__oracleTestRest;"]
+    ["import { rest } from '../../core/rest.js';","const rest=window.__oracleTestRest;"],
+    ["fetch(`https://api.scryfall.com/","window.__oracleTestFetch(`https://api.scryfall.com/"]
   ]);
 
   await page.evaluate(()=>document.dispatchEvent(new CustomEvent('collectish:scout-detail-rendered',{detail:{sku:'sku-1'}})));
@@ -76,7 +74,7 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
 
   await expect(page.locator('body')).not.toHaveClass(/cx-scout-detail-lock/);
   await expect(page.locator('#cxParityDetail')).not.toHaveClass(/cx-mobile-detail-open/);
-  await expect.poll(()=>new URL(page.url()).searchParams.get('oracle')).toBe('11111111-1111-1111-1111-111111111111');
+  await expect.poll(()=>new URL(page.url()).searchParams.get('oracle')).toBe(ORACLE_ID);
   await expect(page.locator('.cx-oracle-result')).toHaveCount(3);
   await expect(page.locator('.cx-oracle-confidence')).toContainText('50% · Medium');
 
@@ -97,11 +95,12 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
 
   await page.locator('.cx-oracle-result[data-universal-sku="sku-2"]').click();
   await expect(page.locator('#cxUniversalDetail .cx-universal-detail')).toBeVisible();
-  await expect(page.getByRole('button',{name:/Back to Solphim, Mayhem Dominus printings/})).toBeVisible();
-  await expect(page.locator('.cx-oracle-win-explain')).toContainText(/Why this printing (wins|currently leads)/);
   await expect.poll(()=>new URL(page.url()).searchParams.get('oracleOpenSku')).toBe('sku-2');
+  const back=page.getByRole('button',{name:/Back to Solphim, Mayhem Dominus printings/});
+  await expect(back).toBeVisible();
+  await expect(page.locator('.cx-oracle-win-explain')).toContainText(/Why this printing (wins|currently leads)/);
 
-  await page.getByRole('button',{name:/Back to Solphim, Mayhem Dominus printings/}).click();
+  await back.click();
   await expect(page.locator('#cxUniversalResults')).toBeVisible();
   await expect.poll(()=>new URL(page.url()).searchParams.get('oracleOpenSku')).toBe(null);
 
