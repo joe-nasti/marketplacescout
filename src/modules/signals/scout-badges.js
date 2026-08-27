@@ -15,11 +15,11 @@ async function load(){
   loading=Promise.all([
     rest('market_intel_items?select=intel_id,signal_stage,direction,title,source_name,source_url,observed_at&order=observed_at.desc&limit=500'),
     rest('market_intel_scout_signal_links?select=intel_id,entity_name,canonical_name,oracle_id,source_scryfall_id,source_product_id,matched_scryfall_id,product_id,family_match&limit=5000'),
-    rest('market_intel_scout_confidence?select=product_id,canonical_name,signal_count,independent_sources,leading_sources,confirming_sources,bullish_signals,bearish_signals,inherited_signal_count,exact_signal_count,latest_signal_at,weighted_net,priority_boost,confidence_label,confidence_reason&limit=5000').catch(()=>[])
+    rest('market_intel_scout_confidence_sku?select=sku_id,product_id,canonical_name,signal_count,independent_sources,leading_sources,confirming_sources,bullish_signals,bearish_signals,inherited_signal_count,exact_signal_count,latest_signal_at,weighted_net,priority_boost,confidence_label,confidence_reason,interest_exact_signal_count,interest_inherited_signal_count,interest_corroborating_printings,specificity_factor&limit=10000').catch(()=>[])
   ]).then(([itemRows,entityRows,confidenceRows])=>{
     items=new Map((itemRows||[]).map(x=>[x.intel_id,x]));
     links=(entityRows||[]).filter(x=>items.has(x.intel_id));
-    confidence=new Map((confidenceRows||[]).map(x=>[String(x.product_id||''),x]));
+    confidence=new Map((confidenceRows||[]).map(x=>[String(x.sku_id||''),x]));
     decorateList();
     decorateDetail(store.get().scout?.selectedSku||null);
   }).catch(()=>{}).finally(()=>{loading=null});
@@ -38,7 +38,7 @@ function matching(row){
   }
   return out.sort((a,b)=>new Date(b.observed_at||0)-new Date(a.observed_at||0));
 }
-function confidenceFor(row){return confidence.get(String(row?.product_id||''))||null}
+function confidenceFor(row){return confidence.get(String(row?.sku_id||''))||null}
 function summary(signals,c){
   const leading=signals.filter(x=>x.signal_stage==='leading').length;
   const confirming=signals.filter(x=>x.signal_stage==='confirming').length;
@@ -94,9 +94,10 @@ function decorateDetail(sku){
   const host=document.getElementById('cxParityDetail');if(!host||!sku)return;
   host.querySelector('.cx-intel-detail')?.remove();
   const row=(store.get().scout?.rows||[]).find(r=>String(r.sku_id)===String(sku)),signals=matching(row);if(!signals.length)return;
-  const c=confidenceFor(row),boost=Number(c?.priority_boost||0),inherited=Number(c?.inherited_signal_count||0),exact=Number(c?.exact_signal_count||0),leading=Number(c?.leading_sources||0),sources=Number(c?.independent_sources||0);
-  const whyNow=c?`${sources} independent source${sources===1?'':'s'} · ${leading} leading · latest ${relativeAge(c.latest_signal_at)}${inherited?' · Oracle-family context':exact?' · exact-printing context':''}`:'';
-  const confidenceBlock=c?`<div class="cx-v5-component"><strong>${esc(confidenceLabel(c))}${boost>0?` · +${boost} priority`:''}</strong><small><b>Why now:</b> ${esc(whyNow)}</small><small>${esc(exact)} exact-printing link${exact===1?'':'s'} · ${esc(inherited)} Oracle-family link${inherited===1?'':'s'}</small><small>${esc(c.confidence_reason||'Signals provide contextual support only.')}</small></div>`:'';
+  const c=confidenceFor(row),boost=Number(c?.priority_boost||0),inherited=Number(c?.inherited_signal_count||0),exact=Number(c?.exact_signal_count||0),leading=Number(c?.leading_sources||0),sources=Number(c?.independent_sources||0),interestExact=Number(c?.interest_exact_signal_count||0),interestInherited=Number(c?.interest_inherited_signal_count||0),interestPrintings=Number(c?.interest_corroborating_printings||0);
+  const interestScope=interestExact?` · Interests exact SKU${interestPrintings>=2?` · ${interestPrintings} printings moving`:''}`:interestInherited?' · Interests related-printing only':'';
+  const whyNow=c?`${sources} independent source${sources===1?'':'s'} · ${leading} leading · latest ${relativeAge(c.latest_signal_at)}${inherited?' · Oracle-family context':exact?' · exact-printing context':''}${interestScope}`:'';
+  const confidenceBlock=c?`<div class="cx-v5-component"><strong>${esc(confidenceLabel(c))}${boost>0?` · +${boost} priority`:''}</strong><small><b>Why now:</b> ${esc(whyNow)}</small><small>${esc(exact)} exact-SKU link${exact===1?'':'s'} · ${esc(inherited)} inherited/related-printing link${inherited===1?'':'s'}</small><small>${esc(c.confidence_reason||'Signals provide contextual support only.')}</small></div>`:'';
   const section=document.createElement('section');section.className='cx-v5-section cx-intel-detail';
   section.innerHTML=`<div class="cx-section-title">Underlying demand signals <span class="cx-intel-context">priority context · grade unchanged</span></div>${confidenceBlock}<div class="cx-intel-detail-list">${signals.slice(0,5).map(x=>`<a href="${esc(x.source_url)}" target="_blank" rel="noopener"><span class="cx-signal-stage ${esc(x.signal_stage)}">${esc(x.signal_stage)}</span><strong>${esc(x.title||x.source_name||'Market signal')}</strong><small>${esc(x.source_name||'External source')}${x._oracleFamily?` · underlying card: ${esc(x._signalCard)}`:' · exact/linked printing'}</small></a>`).join('')}</div>`;
   const anchor=host.querySelector('.cx-v5-components')||host.firstElementChild;if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor.nextSibling);else host.appendChild(section);
