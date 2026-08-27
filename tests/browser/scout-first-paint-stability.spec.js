@@ -42,13 +42,23 @@ test('Scout mobile first paint waits for route-owned IA and dense list',async()=
   expect(source).toContain("host.classList.remove('cx-scout-preparing')");
 });
 
-test('mobile utilities are normal-flow and advanced filters never alter row geometry',async()=>{
-  const theme=await read('src/core/theme.js');
-  const css=await read('src/styles/mobile-quality.css');
-  expect(theme).toContain("bar.id='cxTopUtilities'");
-  expect(theme).toContain('app.prepend(bar)');
-  expect(css).toContain('#app>.cx-top-utilities');
-  expect(css).toContain('position:static!important');
+test('mobile utility shelf stays outside Scout row geometry and snaps back to content origin',async()=>{
+  const [shell,theme,origin,utilityCss,css]=await Promise.all([
+    read('src/core/shell.js'),
+    read('src/core/theme.js'),
+    read('src/core/mobile-utility-origin.js'),
+    read('src/styles/utility-controls.css'),
+    read('src/styles/mobile-quality.css')
+  ]);
+  expect(shell).toContain('id="cxMobileUtilities"');
+  expect(shell).toContain('id="cxDesktopUtilities"');
+  expect(theme).toContain("document.getElementById('cxMobileUtilities')");
+  expect(theme).toContain("document.getElementById('cxDesktopUtilities')");
+  expect(origin).toContain("document.getElementById('cxMobileUtilities')");
+  expect(origin).toContain('scheduleShelfSnap');
+  expect(origin).toContain("behavior:'smooth'");
+  expect(utilityCss).toContain('.cx-mobile-utilities');
+  expect(utilityCss).toContain('.cx-desktop-utilities');
   expect(css).toContain('[data-cx-advanced-match="0"]{display:none!important}');
   expect(css).toContain('#cxParityCards.cx-scout-dense-list{overflow-x:hidden}');
 });
