@@ -46,6 +46,22 @@ jobs:
           echo "video=$(jq -r '.video_id // "none"' "$response_file") trigger_hits=$(jq -r '.trigger_hits // 0' "$response_file") events_saved=$(jq -r '.events_saved // 0' "$response_file") transcript_credits_used=$credits"
           test "$credits" = "0"
 
+      - name: Regression - recover Command Zone 759 strong synergies
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"video_id":"7XpHTfYG_X0","force":true}' "$SYNERGY_FUNCTION_URL"; } || true)"
+          cat "$response_file"; echo
+          [[ "$status" =~ ^2 ]] || exit 1
+          test "$(jq -r '.transcript_credits_used // 0' "$response_file")" = "0"
+          targets="$(jq -r '[.relationships[]?.target_card] | unique | join("|")' "$response_file")"
+          echo "recovered_targets=$targets"
+          for expected in "Training Grounds" "Outcaster Trailblazer" "Tasha's Hideous Laughter" "Extract" "Prime Speaker Vannifar"; do
+            echo "$targets" | grep -Fq "$expected" || { echo "missing expected synergy target: $expected"; exit 1; }
+          done
+          echo "$targets" | grep -Fq "Hardened Academic" && { echo "false positive returned: Hardened Academic"; exit 1; } || true
+
       - name: Extract new-card to existing-card synergies
         shell: bash
         run: |

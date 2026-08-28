@@ -12,14 +12,15 @@ const norm=(s:any)=>String(s||'').toLowerCase().normalize('NFKD').replace(/[^a-z
 const UUID=/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i;
 const TRIGGERS=[
  [/\bthis card is busted\b|\bcard is busted\b/i,.97,'busted'],
- [/\bone of the best cards? in the deck\b|\bbest card in the deck\b/i,.96,'best in deck'],
- [/\bthe perfect card\b|\bis perfect\b|\bperfect for\b/i,.93,'perfect fit'],
- [/\bis insane\b|\bthat's insane\b|\bpretty gross\b|\bsuper sick\b/i,.92,'exceptional synergy'],
+ [/\bone of the best cards? in the deck\b|\bbest card in the deck\b|\bone of the better cards? in the deck\b/i,.96,'best in deck'],
+ [/\bmight be the best\b|\bprobably the best\b/i,.95,'might be best'],
+ [/\bthe perfect card\b|\bis perfect\b|\bperfect for\b|\bexactly what the doctor ordered\b/i,.93,'perfect fit'],
+ [/\bis insane\b|\bthat's insane\b|\bpretty gross\b|\bsuper sick\b|\bfinally playable\b/i,.92,'exceptional synergy'],
  [/\breally powerful\b|\bvery powerful\b/i,.90,'powerful'],
- [/\breally good in this deck\b|\breally good with\b|\bworks? really well\b/i,.87,'strong synergy'],
- [/\byou(?:'|’)ll want\b|\byou will want\b|\bobvious include\b/i,.86,'explicit include'],
- [/\bi would (?:play|put|combine|include)\b/i,.82,'recommendation'],
- [/\bgood in this deck\b|\bgood option\b|\bpretty sweet in this deck\b/i,.78,'positive synergy']
+ [/\breally good in this deck\b|\breally good with\b|\bworks? really well\b|\bonly if you have\b/i,.87,'strong synergy'],
+ [/\byou(?:'|’)ll want\b|\byou will want\b|\bobvious include\b|\bmost obvious include\b/i,.86,'explicit include'],
+ [/\bi would (?:play|put|combine|include)\b|\bone of the better cards?\b/i,.82,'recommendation'],
+ [/\bgood in this deck\b|\bgood option\b|\bpretty sweet in this deck\b|\breally good card\b/i,.78,'positive synergy']
 ];
 
 async function rest(path:string,opt:any={}){
@@ -41,8 +42,8 @@ function parseJson(raw:string){
 async function resolveBatch(batch:any[],title:string){
  if(!batch.length)return [];
  const passages=batch.map(h=>`ID ${h.id} [${h.label}]\nSECTION CONTEXT: ${h.context}\nPRAISE PASSAGE: ${h.evidence}`).join('\n\n---\n\n');
- const prompt=`You extract Magic: The Gathering Commander-review card relationships. For each passage, identify ONLY when an existing card is directly praised/recommended because of the new commander/card currently being reviewed. Return compact JSON {"relationships":[{"id":integer,"source_card":string,"target_card":string,"relationship_type":"new_card_synergy"|"upgrade_for"|"combo_with"|"enabler_for"|"payoff_for"|"other","confidence":number,"summary":string}]}. TARGET CARD RULE: target_card must be the card that the praise phrase itself refers to. Example: if text says 'Wraith ... is one of the best cards in the deck', target is Wraith, not another card discussed earlier. If 'this card is busted' immediately follows a named card, target is that named card. SOURCE CARD RULE: source_card is the new commander/card whose deck or synergy section is being discussed; infer it from section context. Do not decide whether cards are released; downstream Scryfall validation does that. Skip generic praise of the new commander itself. One relationship max per passage. Do not invent names. Summary <= 14 words. Video=${title}\n\n${passages}`;
- const r=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${O}`,'Content-Type':'application/json'},body:JSON.stringify({model:M,store:false,input:prompt,reasoning:{effort:'minimal'},max_output_tokens:4200})});
+ const prompt=`You extract Magic: The Gathering Commander-review card relationships. For each passage, identify ONLY when an existing card is directly praised/recommended because of the new commander/card currently being reviewed. Return compact JSON {"relationships":[{"id":integer,"source_card":string,"target_card":string,"relationship_type":"new_card_synergy"|"upgrade_for"|"combo_with"|"enabler_for"|"payoff_for"|"other","confidence":number,"summary":string}]}. TARGET CARD RULE: target_card must be the card that the praise phrase itself refers to. Example: if text says 'Wraith ... is one of the best cards in the deck', target is Wraith, not another card discussed earlier. If 'this card is busted' immediately follows a named card, target is that named card. SOURCE CARD RULE: source_card is the new commander/card whose deck or synergy section is being discussed; infer it from section context. Do not decide whether cards are released; downstream Scryfall validation does that. Skip generic praise of the new commander itself. Skip negative or anti-synergy statements such as 'does not work'. One relationship max per passage. Do not invent names. Summary <= 14 words. Video=${title}\n\n${passages}`;
+ const r=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${O}`,'Content-Type':'application/json'},body:JSON.stringify({model:M,store:false,input:prompt,reasoning:{effort:'minimal'},max_output_tokens:3200})});
  const d=await r.json();if(!r.ok)throw Error(d?.error?.message||`OpenAI ${r.status}`);
  let out='';for(const x of d?.output||[])if(x.type==='message')for(const c of x.content||[])if(c.type==='output_text')out+=c.text;
  const parsed=parseJson(out);return Array.isArray(parsed?.relationships)?parsed.relationships:[];
@@ -68,13 +69,19 @@ Deno.serve(async req=>{
   const p=cap.payload_json,s=p.segments,owner=String(cap.user_id),date=String(p.published_at||new Date().toISOString()).slice(0,10),hits:any[]=[];
   for(let i=0;i<s.length;i++){
    const h=trigger(String(s[i]?.text||''));if(!h)continue;
-   const context=[];for(let k=Math.max(0,i-9);k<i;k++)context.push(s[k]?.text);
-   hits.push({i,start_ms:Math.max(0,Math.round(Number(s[i]?.offset)||0)),prominence:h.p,label:h.label,evidence:trim(s[i]?.text,1500),context:trim(context.filter(Boolean).join(' '),6200)});
+   const context=[];for(let k=Math.max(0,i-12);k<i;k++)context.push(s[k]?.text);
+   hits.push({i,start_ms:Math.max(0,Math.round(Number(s[i]?.offset)||0)),prominence:h.p,label:h.label,evidence:trim(s[i]?.text,1500),context:trim(context.filter(Boolean).join(' '),7600)});
   }
-  hits.sort((a,b)=>b.prominence-a.prominence||a.start_ms-b.start_ms);
-  const selected:any[]=[];for(const h of hits){if(selected.some(x=>Math.abs(x.start_ms-h.start_ms)<18000))continue;selected.push({...h,id:selected.length});if(selected.length>=18)break}
-  const mid=Math.ceil(selected.length/2);
-  const resolved=(await Promise.all([resolveBatch(selected.slice(0,mid),String(p.title||'')),resolveBatch(selected.slice(mid),String(p.title||''))])).flat();
+  hits.sort((a,b)=>a.start_ms-b.start_ms||b.prominence-a.prominence);
+  const selected:any[]=[];
+  for(const h of hits){
+    if(selected.some(x=>Math.abs(x.start_ms-h.start_ms)<12000)){const near=selected.find(x=>Math.abs(x.start_ms-h.start_ms)<12000);if(near&&h.prominence>near.prominence)Object.assign(near,h);continue}
+    selected.push({...h,id:0});
+    if(selected.length>=36)break;
+  }
+  selected.forEach((h,i)=>h.id=i);
+  const batches:any[][]=[];for(let i=0;i<selected.length;i+=6)batches.push(selected.slice(i,i+6));
+  const resolved=(await Promise.all(batches.map(b=>resolveBatch(b,String(p.title||''))))).flat();
 
   let saved=0,actionable=0,rejected=0;const output:any[]=[];
   for(const rel of resolved){
@@ -84,14 +91,14 @@ Deno.serve(async req=>{
    if(!targetExisting){rejected++;continue}
    const catalog=await rest(`scout_card_catalog?select=sku_id&scryfall_id=eq.${encodeURIComponent(tgt.id)}&limit=1`).catch(()=>[]);const isActionable=Array.isArray(catalog)&&catalog.length>0;
    const url=p.url||`https://www.youtube.com/watch?v=${p.video_id}`;const type=['new_card_synergy','upgrade_for','combo_with','enabler_for','payoff_for','other'].includes(String(rel.relationship_type))?String(rel.relationship_type):'new_card_synergy';const key=`synergy|${p.video_id}|${h.start_ms}|${norm(tgt.name)}|${norm(src.name)}`;
-   let intelId:any=null;const existing=await rest(`market_intel_items?select=intel_id,metadata_json&user_id=eq.${owner}&source_url=eq.${encodeURIComponent(url)}&limit=200`).catch(()=>[]);intelId=(existing||[]).find((q:any)=>q?.metadata_json?.video_event_key===key)?.intel_id||null;
-   if(!intelId){const ins=await rest('market_intel_items',{method:'POST',prefer:'return=representation',body:{user_id:owner,source_type:'youtube',source_name:cap.source||'YouTube',source_url:url,title:p.title||tgt.name,author:cap.source||null,summary:trim(rel.summary,500)||`${tgt.name} recommended for ${src.name}`,claim_type:'product',direction:'bullish',signal_stage:'leading',confidence:Math.max(.65,Math.min(.98,Number(rel.confidence)||.82)),published_at:p.published_at||null,source_profile:'creator_commander',source_subtype:'new_commander_synergy',metadata_json:{platform:'youtube',video_id:p.video_id,video_event_key:key,event_type:'new_commander_synergy',start_ms:h.start_ms,prominence:h.prominence,relationship_source_card:src.name,relationship_target_card:tgt.name,relationship_type:type,source_is_unreleased:sourceFuture,target_is_actionable:isActionable,resolution_method:'minimal_reasoning_direct_praise+scryfall'}}});intelId=ins?.[0]?.intel_id||null;if(intelId)await rest('market_intel_entities',{method:'POST',prefer:'return=minimal',body:{intel_id:intelId,user_id:owner,entity_type:'card',entity_name:tgt.name,scryfall_id:tgt.id,set_code:tgt.set,confidence:.94}}).catch(()=>null)}
+   let intelId:any=null;const existing=await rest(`market_intel_items?select=intel_id,metadata_json&user_id=eq.${owner}&source_url=eq.${encodeURIComponent(url)}&limit=300`).catch(()=>[]);intelId=(existing||[]).find((q:any)=>q?.metadata_json?.video_event_key===key)?.intel_id||null;
+   if(!intelId){const ins=await rest('market_intel_items',{method:'POST',prefer:'return=representation',body:{user_id:owner,source_type:'youtube',source_name:cap.source||'YouTube',source_url:url,title:p.title||tgt.name,author:cap.source||null,summary:trim(rel.summary,500)||`${tgt.name} recommended for ${src.name}`,claim_type:'product',direction:'bullish',signal_stage:'leading',confidence:Math.max(.65,Math.min(.98,Number(rel.confidence)||.82)),published_at:p.published_at||null,source_profile:'creator_commander',source_subtype:'new_commander_synergy',metadata_json:{platform:'youtube',video_id:p.video_id,video_event_key:key,event_type:'new_commander_synergy',start_ms:h.start_ms,prominence:h.prominence,relationship_source_card:src.name,relationship_target_card:tgt.name,relationship_type:type,source_is_unreleased:sourceFuture,target_is_actionable:isActionable,resolution_method:'section_coverage_minimal_reasoning+scryfall'}}});intelId=ins?.[0]?.intel_id||null;if(intelId)await rest('market_intel_entities',{method:'POST',prefer:'return=minimal',body:{intel_id:intelId,user_id:owner,entity_type:'card',entity_name:tgt.name,scryfall_id:tgt.id,set_code:tgt.set,confidence:.94}}).catch(()=>null)}
    await rest('market_intel_card_relationships',{method:'POST',prefer:'resolution=ignore-duplicates,return=minimal',body:{user_id:owner,source_intel_id:intelId,source_video_id:p.video_id,source_name:cap.source||'YouTube',source_url:url,source_card_name:src.name,source_scryfall_id:src.id,source_release_date:src.released_at||null,target_card_name:tgt.name,target_scryfall_id:tgt.id,target_release_date:tgt.released_at||null,relationship_type:type,direction:'bullish',conviction:Math.max(h.prominence,Math.min(.98,Number(rel.confidence)||.82)),start_ms:h.start_ms,evidence:h.evidence,summary:trim(rel.summary,500),source_is_unreleased:sourceFuture,target_is_actionable:isActionable}}).catch(()=>null);
    if(intelId)await rest('market_intel_video_events',{method:'POST',prefer:'resolution=ignore-duplicates,return=minimal',body:{intel_id:intelId,user_id:owner,video_id:p.video_id,channel_id:p.channel_id||null,channel_name:cap.source||null,creator_lane:p.creator_lane||'commander_product',event_type:'new_commander_synergy',start_ms:h.start_ms,end_ms:null,prominence:h.prominence,evidence:h.evidence,transcript_provider:'supadata',transcript_mode:'native'}}).catch(()=>null);
    saved++;if(isActionable)actionable++;output.push({source_card:src.name,target_card:tgt.name,relationship_type:type,conviction:h.prominence,source_unreleased:sourceFuture,target_actionable:isActionable,start_ms:h.start_ms});
   }
   if(saved){await rest('rpc/refresh_market_intel_entity_links',{method:'POST',body:{}}).catch(()=>null);await rest('rpc/refresh_market_intel_evaluations',{method:'POST',body:{}}).catch(()=>null)}
-  await rest(`source_captures?capture_id=eq.${cap.capture_id}&user_id=eq.${owner}`,{method:'PATCH',body:{metadata_json:{...(cap.metadata_json||{}),synergy_relationships_saved:saved,synergy_relationships_actionable:actionable,synergy_relationships_processed_at:new Date().toISOString(),synergy_relationship_trigger_hits:hits.length,synergy_relationship_candidates:selected.length,synergy_relationship_batch_version:9}}}).catch(()=>null);
+  await rest(`source_captures?capture_id=eq.${cap.capture_id}&user_id=eq.${owner}`,{method:'PATCH',body:{metadata_json:{...(cap.metadata_json||{}),synergy_relationships_saved:saved,synergy_relationships_actionable:actionable,synergy_relationships_processed_at:new Date().toISOString(),synergy_relationship_trigger_hits:hits.length,synergy_relationship_candidates:selected.length,synergy_relationship_batch_version:10}}}).catch(()=>null);
   return J({ok:true,processed:1,video_id:p.video_id,title:p.title,trigger_hits:hits.length,candidates:selected.length,rejected,relationships_saved:saved,actionable_relationships:actionable,relationships:output,transcript_credits_used:0});
  }catch(e){return J({error:(e as Error).message},502)}
 });
