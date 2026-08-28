@@ -1,4 +1,4 @@
-import { copyFile, stat, writeFile, readFile } from 'node:fs/promises';
+import { copyFile, cp, stat, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -18,6 +18,11 @@ for(const name of ['manifest.webmanifest','collectish-icon-192.png','sw.mjs']){
   const src=join(root,name),dst=join(dist,name);
   if(existsSync(src)&&!existsSync(dst))await copyFile(src,dst);
 }
+
+// Android WebViews can briefly retain a pre-Vite/raw-module shell across a Pages deploy.
+// Keep the canonical source tree available as a compatibility bridge so those stale shells
+// can resolve /src/app.js and finish booting into the current hosted build instead of hard-failing.
+await cp(join(root,'src'),join(dist,'src'),{recursive:true,force:true});
 
 let html=await readFile(targetHtml,'utf8');
 const marker=`  <meta name="collectish-build" content="${build}">\n  <meta name="collectish-revision" content="${revision}">`;
@@ -40,4 +45,5 @@ await writeFile(join(dist,'web-version.json'),JSON.stringify({
 const out=await stat(targetHtml).catch(()=>null);
 if(!out?.size)throw new Error('Vite build did not produce dist/index.html');
 if(!existsSync(join(dist,'sw.mjs')))throw new Error('Vite build did not include sw.mjs');
+if(!existsSync(join(dist,'src/app.js')))throw new Error('Vite build did not include Android raw-module compatibility bridge');
 if(!/name=["']collectish-revision["']/.test(html))throw new Error('Build metadata injection did not produce collectish-revision meta');
