@@ -3,7 +3,7 @@ import { rest } from '../../core/rest.js';
 
 let installed=false;
 const sfCache=new Map();
-const FAMILY_LIMIT=500;
+const FAMILY_LIMIT=2000;
 let compareContext=null,familyData=[],familyOracle='',familySeq=0;
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
