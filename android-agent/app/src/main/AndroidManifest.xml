@@ -9,12 +9,19 @@
         android:label="Collectish"
         android:icon="@drawable/collectish_launcher"
         android:roundIcon="@drawable/collectish_launcher">
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity
+            android:name=".FreshBootActivity"
+            android:exported="true"
+            android:noHistory="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:stateNotNeeded="true" />
         <activity
             android:name=".IntelShareActivity"
             android:exported="true"
