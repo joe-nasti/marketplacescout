@@ -1,0 +1,2 @@
+-- Catalyst shadow 1/3/7/30-day backtest views.
+-- Applied to production via Supabase migration catalyst_shadow_backtest_windows.
