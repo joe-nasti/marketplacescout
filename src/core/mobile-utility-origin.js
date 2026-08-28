@@ -3,6 +3,7 @@ let initialSettling=false;
 let userInteracted=false;
 let gestureActive=false;
 let snapTimer=0;
+let scrollEndTimer=0;
 
 function mobileOrigin(){
   if(!mobile.matches)return 0;
@@ -13,7 +14,7 @@ function mobileOrigin(){
 }
 
 function alignToOrigin({force=false,behavior='auto'}={}){
-  if(!mobile.matches)return;
+  if(!mobile.matches||gestureActive)return;
   if(initialSettling&&userInteracted&&!force)return;
   const top=mobileOrigin();
   if(top<=0)return;
@@ -25,8 +26,8 @@ function settleInitialOrigin(){
   initialSettling=true;
   userInteracted=false;
   requestAnimationFrame(()=>requestAnimationFrame(()=>alignToOrigin()));
-  for(const delay of [40,120,300,700,1200])setTimeout(()=>alignToOrigin(),delay);
-  setTimeout(()=>{initialSettling=false},1400);
+  for(const delay of [80,240,700])setTimeout(()=>alignToOrigin(),delay);
+  setTimeout(()=>{initialSettling=false},900);
 }
 
 function noteInteraction(){if(initialSettling)userInteracted=true}
@@ -38,23 +39,36 @@ function shelfIsPartlyRevealed(){
   return top>1&&origin>0&&top<origin-2;
 }
 
-function scheduleShelfSnap(delay=150){
+function snapIfNeeded(){
   clearTimeout(snapTimer);
-  snapTimer=setTimeout(()=>{
-    if(gestureActive||initialSettling)return;
-    if(shelfIsPartlyRevealed())alignToOrigin({force:true,behavior:'smooth'});
-  },delay);
+  if(gestureActive||initialSettling)return;
+  if(shelfIsPartlyRevealed())alignToOrigin({force:true,behavior:'smooth'});
 }
 
-function onGestureStart(){
+function scheduleShelfSnap(delay=140){
+  clearTimeout(snapTimer);
+  snapTimer=setTimeout(snapIfNeeded,delay);
+}
+
+function onPointerDown(event){
+  if(event.pointerType!=='touch'&&event.pointerType!=='pen')return;
   gestureActive=true;
   clearTimeout(snapTimer);
+  clearTimeout(scrollEndTimer);
   noteInteraction();
 }
 
-function onGestureEnd(){
+function onPointerEnd(event){
+  if(event.pointerType!=='touch'&&event.pointerType!=='pen')return;
   gestureActive=false;
-  scheduleShelfSnap(120);
+  scheduleShelfSnap(180);
+}
+
+function onScroll(){
+  if(gestureActive)return;
+  if('onscrollend' in window)return;
+  clearTimeout(scrollEndTimer);
+  scrollEndTimer=setTimeout(()=>scheduleShelfSnap(0),180);
 }
 
 function onUtilityUse(event){
@@ -63,24 +77,24 @@ function onUtilityUse(event){
   setTimeout(()=>alignToOrigin({force:true,behavior:'smooth'}),160);
 }
 
+function onPageChange(){
+  if(!mobile.matches)return;
+  if(document.querySelector('[data-collectish-startup]'))return;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>alignToOrigin({force:true})));
+}
+
 export function installMobileUtilityOrigin(){
   try{if('scrollRestoration' in history)history.scrollRestoration='manual'}catch{}
   document.addEventListener('collectish:ready',settleInitialOrigin);
-  document.addEventListener('collectish:page-change',()=>{
-    if(!mobile.matches)return;
-    if(document.querySelector('[data-collectish-startup]'))return;
-    requestAnimationFrame(()=>alignToOrigin({force:true}));
-  });
+  document.addEventListener('collectish:page-change',onPageChange);
   document.addEventListener('click',onUtilityUse,true);
   window.addEventListener('pageshow',()=>setTimeout(settleInitialOrigin,0));
   mobile.addEventListener?.('change',event=>{if(event.matches)setTimeout(settleInitialOrigin,0)});
-  window.addEventListener('scroll',()=>{if(!gestureActive)scheduleShelfSnap(180)},{passive:true});
-  window.addEventListener('pointerdown',event=>{if(event.pointerType==='touch'||event.pointerType==='pen')onGestureStart()},{passive:true});
-  window.addEventListener('pointerup',event=>{if(event.pointerType==='touch'||event.pointerType==='pen')onGestureEnd()},{passive:true});
-  window.addEventListener('pointercancel',event=>{if(event.pointerType==='touch'||event.pointerType==='pen')onGestureEnd()},{passive:true});
-  window.addEventListener('touchstart',onGestureStart,{passive:true});
-  window.addEventListener('touchend',onGestureEnd,{passive:true});
-  window.addEventListener('touchcancel',onGestureEnd,{passive:true});
+  window.addEventListener('pointerdown',onPointerDown,{passive:true});
+  window.addEventListener('pointerup',onPointerEnd,{passive:true});
+  window.addEventListener('pointercancel',onPointerEnd,{passive:true});
+  window.addEventListener('scroll',onScroll,{passive:true});
+  if('onscrollend' in window)window.addEventListener('scrollend',()=>scheduleShelfSnap(0),{passive:true});
 }
 
 installMobileUtilityOrigin();
