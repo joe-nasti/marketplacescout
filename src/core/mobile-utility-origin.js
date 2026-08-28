@@ -77,18 +77,12 @@ function onUtilityUse(event){
   setTimeout(()=>alignToOrigin({force:true,behavior:'smooth'}),160);
 }
 
-function onPageChange(){
-  if(!mobile.matches)return;
-  if(document.querySelector('[data-collectish-startup]'))return;
-  requestAnimationFrame(()=>requestAnimationFrame(()=>alignToOrigin({force:true})));
-}
-
 export function installMobileUtilityOrigin(){
-  try{if('scrollRestoration' in history)history.scrollRestoration='manual'}catch{}
+  // Navigation owns route scroll restoration. The utility shelf only settles
+  // initial load and partial shelf reveals; it never repositions every route.
   document.addEventListener('collectish:ready',settleInitialOrigin);
-  document.addEventListener('collectish:page-change',onPageChange);
   document.addEventListener('click',onUtilityUse,true);
-  window.addEventListener('pageshow',()=>setTimeout(settleInitialOrigin,0));
+  window.addEventListener('pageshow',event=>{if(!event.persisted)setTimeout(settleInitialOrigin,0)});
   mobile.addEventListener?.('change',event=>{if(event.matches)setTimeout(settleInitialOrigin,0)});
   window.addEventListener('pointerdown',onPointerDown,{passive:true});
   window.addEventListener('pointerup',onPointerEnd,{passive:true});
