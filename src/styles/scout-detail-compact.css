@@ -3,4 +3,51 @@
 .cx-v5-score-strip{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;margin:11px 0 2px;padding-bottom:2px;overscroll-behavior-inline:contain}.cx-v5-score-strip::-webkit-scrollbar{display:none}.cx-v5-score-chip{flex:0 0 auto;display:inline-flex;align-items:baseline;gap:5px;min-height:34px;padding:7px 9px;border:1px solid var(--color-border);border-radius:999px;background:var(--color-bg-surface);white-space:nowrap}.cx-v5-score-chip b{font-size:10px;color:var(--color-text-secondary)}.cx-v5-score-chip strong{font-size:12px;color:var(--color-text-primary)}.cx-v5-score-chip small{font-size:9px;color:var(--color-text-secondary)}
 .cx-v5-tier-best,.cx-v5-tier-cash{border-top:0!important;margin-top:12px!important;padding:11px!important;border-radius:13px}.cx-v5-tier-best{background:color-mix(in srgb,var(--color-accent-soft) 28%,var(--color-bg-surface));border:1px solid color-mix(in srgb,var(--color-accent) 35%,var(--color-border))!important}.cx-v5-tier-best>.cx-section-title{color:var(--color-accent)}.cx-v5-tier-cash{background:color-mix(in srgb,var(--color-bg-elevated) 78%,var(--color-bg-surface));border:1px solid var(--color-border)!important}.cx-v5-positive-exit{border-color:color-mix(in srgb,var(--color-success) 70%,var(--color-border))!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--color-success) 18%,transparent)}.cx-v5-instant-exit{display:inline-flex;align-items:center;margin:6px 0 1px;padding:5px 8px;border-radius:999px;background:color-mix(in srgb,var(--color-success) 16%,var(--color-bg-surface));border:1px solid color-mix(in srgb,var(--color-success) 50%,var(--color-border));color:var(--color-success);font-size:10px;font-weight:950;letter-spacing:.01em}.cx-v5-passive-reference{background:color-mix(in srgb,var(--color-bg-surface) 74%,var(--color-border))!important;opacity:.72}.cx-v5-passive-reference strong{font-weight:700!important;color:var(--color-text-secondary)!important}
 .cx-v5-links{display:flex!important;gap:8px!important;flex-wrap:nowrap!important;overflow-x:auto!important;scrollbar-width:none;margin-top:14px!important;padding:2px 0 4px;overscroll-behavior-inline:contain}.cx-v5-links::-webkit-scrollbar{display:none}.cx-v5-links a{display:inline-flex!important;align-items:center;justify-content:center;flex:0 0 auto;min-height:44px;padding:0 13px!important;border:1px solid var(--color-border);border-radius:999px;background:var(--color-bg-elevated);font-size:11px!important;font-weight:850!important;text-decoration:none!important;color:var(--color-accent)!important;white-space:nowrap}.cx-v5-links a:active{transform:scale(.98)}
-@media(max-width:640px){.cx-mobile-detail-open{padding-top:10px!important}.cx-mobile-detail-open .cx-mobile-detail-close{margin-bottom:5px!important}.cx-v5-compact-head{gap:10px}.cx-v5-compact-head .cx-scout-hero{width:80px!important;flex-basis:80px}.cx-v5-compact-title{font-size:16px}.cx-v5-score-strip{margin-top:9px}.cx-v5-tier-best,.cx-v5-tier-cash{padding:10px!important}.cx-v5-callout{gap:6px!important}.cx-v5-passive-reference{min-height:58px!important}}
+
+/* Phone detail is a progressive inspector sheet, not a desktop card stack. */
+@media(max-width:700px){
+  #cxScout .cx-scout-layout>aside.cx-mobile-detail-open{max-height:min(80dvh,720px)!important;padding:18px 14px calc(18px + env(safe-area-inset-bottom))!important;border-radius:10px 10px 0 0!important;box-shadow:0 -18px 44px color-mix(in srgb,#000 24%,transparent)!important}
+  #cxScout .cx-scout-layout>aside.cx-mobile-detail-open:before{content:"";display:block;width:38px;height:4px;margin:-9px auto 10px;border-radius:999px;background:var(--color-border-strong)}
+  #cxScout .cx-mobile-detail-close{position:absolute!important;top:12px!important;right:12px!important;width:36px!important;height:36px!important;min-height:36px!important;margin:0!important;padding:0!important;border:1px solid var(--color-border)!important;border-radius:3px!important;background:var(--color-bg-surface)!important;font-size:20px!important;line-height:1!important;z-index:2}
+
+  #cxScout .cx-v5-compact-head{gap:10px;padding-right:42px;align-items:flex-start}
+  #cxScout .cx-v5-compact-head .cx-scout-hero{width:62px!important;flex:0 0 62px!important;border-radius:3px!important}
+  #cxScout .cx-v5-compact-info{gap:3px}
+  #cxScout .cx-v5-compact-title{font-size:16px;line-height:1.12}
+  #cxScout .cx-v5-compact-set{font-size:10px}
+  #cxScout .cx-v5-compact-meta{gap:5px;margin-top:2px}
+  #cxScout .cx-v5-printing-chip{min-height:26px;padding:3px 6px;border-radius:2px;font-size:9px}
+  #cxScout .cx-v5-overall-chip{min-height:28px;padding:2px 6px 2px 2px;border-radius:2px;background:transparent}
+  #cxScout .cx-v5-overall-chip .cx-grade{width:24px;height:24px;border-radius:2px;font-size:13px}
+  #cxScout .cx-v5-overall-chip>strong{font-size:12px}
+  #cxScout .cx-v5-overall-chip small{font-size:8px}
+  #cxScout .cx-v5-compact-badges{display:flex;gap:4px;overflow:hidden;max-height:24px;margin-top:4px!important}
+
+  #cxScout .cx-scout-decision{padding:10px 0!important;margin-top:8px!important;border-top:var(--workbench-rule)!important;border-bottom:var(--workbench-rule)!important}
+  #cxScout .cx-scout-decision .cx-section-title{font-size:9px!important;letter-spacing:.08em}
+  #cxScout .cx-scout-decision strong{font-size:19px!important;line-height:1.12!important}
+  #cxScout .cx-scout-decision small{font-size:11px!important}
+
+  #cxScout .cx-v5-score-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin:0!important;padding:0;border-bottom:var(--workbench-rule);overflow:visible}
+  #cxScout .cx-v5-score-chip{min-width:0;min-height:42px;padding:8px 6px;border:0;border-right:var(--workbench-rule);border-radius:0;background:transparent;display:grid;gap:2px;align-content:center;white-space:normal}
+  #cxScout .cx-v5-score-chip:last-child{border-right:0}
+  #cxScout .cx-v5-score-chip b{font-size:8px;text-transform:uppercase;letter-spacing:.05em}
+  #cxScout .cx-v5-score-chip strong{font-size:12px}
+  #cxScout .cx-v5-score-chip small{font-size:8px}
+
+  #cxScout .cx-v5-tier-best,#cxScout .cx-v5-tier-cash{margin-top:0!important;padding:12px 0!important;border:0!important;border-bottom:var(--workbench-rule)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+  #cxScout .cx-v5-tier-best>.cx-section-title,#cxScout .cx-v5-tier-cash>.cx-section-title{margin:0 0 8px!important;color:var(--color-text-primary)!important;font-size:11px!important;letter-spacing:.08em}
+  #cxScout .cx-v5-callout{border-radius:2px!important;box-shadow:none!important;gap:6px!important}
+  #cxScout .cx-v5-tier-best .cx-v5-callout{border:1px solid color-mix(in srgb,var(--color-accent) 32%,var(--color-border))!important;background:color-mix(in srgb,var(--color-accent-soft) 18%,var(--color-bg-surface))!important}
+  #cxScout .cx-v5-tier-cash .cx-v5-callout{border:0!important;background:transparent!important;padding:0!important}
+  #cxScout .cx-v5-tier-cash .cx-v5-stats,#cxScout .cx-v5-tier-cash .cx-v5-grid{gap:0!important;border:var(--workbench-rule)!important;background:var(--color-bg-surface)!important}
+  #cxScout .cx-v5-tier-cash .cx-v5-stat{border:0!important;border-right:var(--workbench-rule)!important;border-bottom:var(--workbench-rule)!important;border-radius:0!important;background:transparent!important;padding:9px!important}
+  #cxScout .cx-v5-instant-exit{margin:0 0 8px;padding:3px 6px;border-radius:2px;font-size:9px}
+  #cxScout .cx-v5-passive-reference{min-height:0!important;opacity:.78}
+
+  #cxScout .cx-v5-section,#cxScout .cx-v5-details{margin-top:0!important;padding:12px 0!important;border-top:0!important;border-bottom:var(--workbench-rule)!important}
+  #cxScout .cx-v5-section>summary,#cxScout .cx-v5-details>summary{min-height:44px;display:flex;align-items:center;font-size:12px;font-weight:800}
+  #cxScout .cx-v5-links{gap:0!important;margin-top:8px!important;padding:0;border:var(--workbench-rule)}
+  #cxScout .cx-v5-links a{min-height:42px;padding:0 10px!important;border:0;border-right:var(--workbench-rule);border-radius:0;background:transparent;font-size:10px!important}
+  #cxScout .cx-v5-links a:last-child{border-right:0}
+}
