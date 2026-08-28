@@ -15,7 +15,12 @@ test('Scout keeps exact-SKU Signal specificity inside unified opportunity contex
   ]);
   expect(ui).toContain('scout_opportunity_context');
   expect(ui).toContain("context.get(String(row?.sku_id||''))");
-  expect(ui).toContain("return'related printing'");
+  expect(ui).toContain("return'MTGStocks · exact SKU moving'");
+  expect(ui).toContain("return'MTGStocks · related printing moved; this SKU did not'");
+  expect(ui).toContain("badge.dataset.signalScope='related-printing-only'");
+  expect(ui).toContain('<b>MTGStocks scope:</b>');
+  expect(ui).toContain('related-printing context does not mean this SKU spiked');
+  expect(ui).toContain('related printing/context, not proof this SKU moved');
   expect(skuSql).toContain('specificity_weight');
   expect(skuSql).toContain('isolated to another printing or finish');
   expect(contextSql).toContain('interest_exact_signal_count');
