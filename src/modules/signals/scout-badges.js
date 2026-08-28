@@ -49,12 +49,19 @@ function relativeAge(value){
 }
 function signalScope(c){
   const interestExact=Number(c?.interest_exact_signal_count||0),interestInherited=Number(c?.interest_inherited_signal_count||0),crossPrint=Number(c?.interest_corroborating_printings||0),exact=Number(c?.exact_signal_count||0),inherited=Number(c?.inherited_signal_count||0);
-  if(crossPrint>=2)return`${crossPrint} printings moving`;
-  if(interestExact>0)return'exact SKU';
-  if(interestInherited>0)return'related printing';
+  if(crossPrint>=2)return`MTGStocks · ${crossPrint} printings moving`;
+  if(interestExact>0)return'MTGStocks · exact SKU moving';
+  if(interestInherited>0)return'MTGStocks · related printing moved; this SKU did not';
   if(exact>0&&inherited===0)return'exact printing';
-  if(inherited>0)return'Oracle family';
+  if(inherited>0)return'Oracle-family context';
   return'underlying card';
+}
+function interestScopeDetail(c){
+  const exact=Number(c?.interest_exact_signal_count||0),related=Number(c?.interest_inherited_signal_count||0),moving=Number(c?.interest_corroborating_printings||0);
+  if(moving>=2)return`MTGStocks Interests matches this SKU and ${moving} exact printings are moving in the Oracle family.`;
+  if(exact>0)return`MTGStocks Interests matches this exact SKU${related>0?` · ${related} additional related-printing signal${related===1?'':'s'} retained as family context`:''}.`;
+  if(related>0)return`MTGStocks Interests is from ${related} related printing${related===1?'':'s'} only. This exact SKU is not currently identified as moving.`;
+  return'';
 }
 function printingDemandLabel(c){
   const cls=String(c?.printing_demand_class||'not_printing_specific');
@@ -114,8 +121,10 @@ function decorateList(){
     const why=compactWhyNow(c),urgency=String(c.urgency_state||'standard');
     if(!why&&urgency==='standard')return;
     const badge=document.createElement('span');badge.className=`cx-intel-mini cx-urgency-${urgency}`;
+    const inheritedInterest=Number(c.interest_inherited_signal_count||0)>0&&Number(c.interest_exact_signal_count||0)===0;
+    if(inheritedInterest)badge.dataset.signalScope='related-printing-only';
     badge.textContent=`◉ ${pretty(urgency)}${why?` · ${why}`:''}`;
-    badge.title=`Why now: ${c.urgency_reason||'External context only.'} Scout grade and economics are unchanged.`;top.appendChild(badge);
+    const scopeNote=interestScopeDetail(c);badge.title=`Why now: ${c.urgency_reason||'External context only.'}${scopeNote?` ${scopeNote}`:''} Scout grade and economics are unchanged.`;top.appendChild(badge);
   });
   applySignalPriorityView();
 }
@@ -123,11 +132,11 @@ function decorateDetail(sku){
   const host=document.getElementById('cxParityDetail');if(!host||!sku)return;
   host.querySelector('.cx-intel-detail')?.remove();
   const row=(store.get().scout?.rows||[]).find(r=>String(r.sku_id)===String(sku)),c=contextFor(row),signals=matching(row);if(!c&&!signals.length)return;
-  const boost=eligiblePriorityBoost(row),signalBoost=Number(c?.signal_priority_boost||0),catalystBoost=Number(c?.catalyst_priority_boost||0),exact=Number(c?.exact_signal_count||0),inherited=Number(c?.inherited_signal_count||0),risks=Array.isArray(c?.risk_flags)?c.risk_flags:[];
+  const boost=eligiblePriorityBoost(row),signalBoost=Number(c?.signal_priority_boost||0),catalystBoost=Number(c?.catalyst_priority_boost||0),exact=Number(c?.exact_signal_count||0),inherited=Number(c?.inherited_signal_count||0),interestExact=Number(c?.interest_exact_signal_count||0),interestRelated=Number(c?.interest_inherited_signal_count||0),risks=Array.isArray(c?.risk_flags)?c.risk_flags:[];
   const premium=Number(c?.printing_premium_ratio||0);const printingMeta=c&&printingDemandLabel(c)?`<div class="cx-v5-component"><strong>Printing thesis · ${esc(pretty(c.printing_demand_class))}</strong><small>${esc(c.printing_demand_reason||'Printing-specific movement detected.')}</small><small>${premium>0?`Price vs same-finish family median ${esc((premium*100).toFixed(0))}% · `:''}${c.current_printing_release_date?`printing ${esc(c.current_printing_release_date)} · `:''}${c.newest_family_release_date?`newest family release ${esc(c.newest_family_release_date)} · `:''}${esc(c.family_printing_count??0)} known family printings</small></div>`:'';
   const catalyst=c?.catalyst_impact_score!=null?`<div class="cx-v5-component"><strong>Creator catalyst · ${esc(c.catalyst_source_name||'creator')}</strong><small>Conviction ${esc(c.content_conviction_score??'—')} · Catalyst ${esc(c.catalyst_impact_score??'—')} · Expected ${esc(c.expected_market_reaction_score??'—')} · Market ${esc(c.market_response_score??'—')} · Gap ${esc(c.unpriced_catalyst_gap_score??'—')}</small><small>${esc(pretty(c.unpriced_catalyst_gap_state||c.catalyst_market_state||'watching'))} · ${esc(c.catalyst_title||c.primary_event_type||'')}</small></div>`:'';
-  const contextBlock=c?`<div class="cx-v5-component"><strong>${esc(pretty(c.urgency_state||'standard'))}${boost>0?` · +${boost} context priority`:''}</strong><small><b>Why now:</b> ${esc(compactWhyNow(c)||c.urgency_reason||'No elevated external urgency.')}</small><small>Signal +${esc(signalBoost)} · catalyst +${esc(catalystBoost)} · ${esc(exact)} exact-SKU link${exact===1?'':'s'} · ${esc(inherited)} inherited link${inherited===1?'':'s'}</small><small>${esc(c.urgency_reason||'Scout economics remain primary.')}${risks.length?` Risks: ${esc(risks.map(pretty).join(', '))}.`:''}</small></div>`:'';
-  const signalList=signals.length?`<div class="cx-intel-detail-list">${signals.slice(0,5).map(x=>`<a href="${esc(x.source_url)}" target="_blank" rel="noopener"><span class="cx-signal-stage ${esc(x.signal_stage)}">${esc(x.signal_stage)}</span><strong>${esc(x.title||x.source_name||'Market signal')}</strong><small>${esc(x.source_name||'External source')}${x._oracleFamily?` · underlying card: ${esc(x._signalCard)}`:' · exact/linked printing'}</small></a>`).join('')}</div>`:'';
+  const interestScope=interestScopeDetail(c);const contextBlock=c?`<div class="cx-v5-component"><strong>${esc(pretty(c.urgency_state||'standard'))}${boost>0?` · +${boost} context priority`:''}</strong><small><b>Why now:</b> ${esc(compactWhyNow(c)||c.urgency_reason||'No elevated external urgency.')}</small>${interestScope?`<small><b>MTGStocks scope:</b> ${esc(interestScope)}</small>`:''}<small>Signal +${esc(signalBoost)} · catalyst +${esc(catalystBoost)} · ${esc(exact)} exact-SKU link${exact===1?'':'s'} · ${esc(inherited)} inherited link${inherited===1?'':'s'}</small>${(interestExact||interestRelated)?`<small>Interests: ${esc(interestExact)} exact-SKU · ${esc(interestRelated)} related-printing${interestRelated===1?'':'s'}${interestExact===0&&interestRelated>0?' · related-printing context does not mean this SKU spiked':''}</small>`:''}<small>${esc(c.urgency_reason||'Scout economics remain primary.')}${risks.length?` Risks: ${esc(risks.map(pretty).join(', '))}.`:''}</small></div>`:'';
+  const signalList=signals.length?`<div class="cx-intel-detail-list">${signals.slice(0,5).map(x=>`<a href="${esc(x.source_url)}" target="_blank" rel="noopener"><span class="cx-signal-stage ${esc(x.signal_stage)}">${esc(x.signal_stage)}</span><strong>${esc(x.title||x.source_name||'Market signal')}</strong><small>${esc(x.source_name||'External source')}${x._oracleFamily?` · Oracle-family link · related printing/context, not proof this SKU moved · ${esc(x._signalCard)}`:' · exact/linked printing'}</small></a>`).join('')}</div>`:'';
   const section=document.createElement('section');section.className='cx-v5-section cx-intel-detail';
   section.innerHTML=`<div class="cx-section-title">Opportunity context <span class="cx-intel-context">priority/urgency only · grade unchanged</span></div>${contextBlock}${printingMeta}${catalyst}${signalList}`;
   const anchor=host.querySelector('.cx-v5-components')||host.firstElementChild;if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor.nextSibling);else host.appendChild(section);
