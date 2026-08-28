@@ -1,0 +1,39 @@
+name: Collectish synergy convergence refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17,47 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-synergy-convergence.yml"
+      - "supabase/functions/market-intel-synergy-convergence-refresh/**"
+      - "supabase/migrations/*synergy*convergence*.sql"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-synergy-convergence-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-synergy-convergence-refresh
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Refresh cross-source convergence cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"limit":60}' "$FUNCTION_URL"; } || true)"
+          cat "$response_file"; echo
+          [[ "$status" =~ ^2 ]] || exit 1
+          test "$(jq -r '.ok // false' "$response_file")" = "true"
+          echo "relationships_refreshed=$(jq -r '.relationships_refreshed // 0' "$response_file") corroborating_signals=$(jq -r '.corroborating_signals // 0' "$response_file") multi_source=$(jq -r '.multi_source // 0' "$response_file") strong_convergence=$(jq -r '.strong_convergence // 0' "$response_file")"

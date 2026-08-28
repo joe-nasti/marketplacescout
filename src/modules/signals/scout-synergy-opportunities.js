@@ -10,7 +10,7 @@ const lifecycleLabel=s=>({fresh_catalyst:'Fresh catalyst',still_unpriced_24h:'St
 
 async function load(){
   if(loading)return loading;
-  loading=rest('market_intel_scout_synergy_lifecycle?select=sku_id,target_card_name,source_card_name,source_name,source_url,relationship_type,conviction,summary,synergy_priority_score,lifecycle_priority_score,synergy_lifecycle_state,convergence_state,catalyst_age_hours,synergy_printing_rank,scout_grade,scout_score,cheapest_buy,cheapest_source,direct_low,direct_net_profit,avg_daily_qty_sold,direct_available,direct_listings,expected_market_reaction_score,expected_reaction_confidence,market_response_score,market_response_status,unpriced_catalyst_gap_score,unpriced_catalyst_gap_state,convergence_score,latest_horizon,risk_flags&order=lifecycle_priority_score.desc&limit=1000')
+  loading=rest('market_intel_scout_synergy_lifecycle?select=sku_id,target_card_name,source_card_name,source_name,source_url,relationship_type,conviction,summary,synergy_priority_score,lifecycle_priority_score,synergy_lifecycle_state,convergence_state,effective_convergence_score,corroborating_signal_count,cross_source_independent_sources,cross_source_type_count,cross_source_creator_count,cross_source_nonvideo_count,corroborating_sources,latest_corroboration_at,catalyst_age_hours,synergy_printing_rank,scout_grade,scout_score,cheapest_buy,cheapest_source,direct_low,direct_net_profit,avg_daily_qty_sold,direct_available,direct_listings,expected_market_reaction_score,expected_reaction_confidence,market_response_score,market_response_status,unpriced_catalyst_gap_score,unpriced_catalyst_gap_state,convergence_score,latest_horizon,risk_flags&order=lifecycle_priority_score.desc&limit=1000')
     .then(rows=>{
       bySku=new Map();
       for(const r of rows||[]){const k=String(r.sku_id||'');if(!k||bySku.has(k))continue;bySku.set(k,r)}
@@ -25,9 +25,9 @@ function decorateList(){
     const r=bySku.get(String(card.dataset.sku||''));if(!r)return;
     const top=card.querySelector('.cx-scout-card-top');if(!top)return;
     const badge=document.createElement('span');
-    const state=String(r.synergy_lifecycle_state||'fresh_catalyst');
+    const state=String(r.synergy_lifecycle_state||'fresh_catalyst'),sources=Number(r.cross_source_independent_sources||0);
     badge.className=`cx-intel-mini cx-synergy-mini ${state==='market_caught_up'?'cx-urgency-standard':'cx-urgency-elevated'}`;
-    badge.textContent=`↗ ${lifecycleLabel(state)} · ${r.lifecycle_priority_score} · gap ${r.unpriced_catalyst_gap_score??'—'}`;
+    badge.textContent=`↗ ${lifecycleLabel(state)} · ${r.lifecycle_priority_score} · gap ${r.unpriced_catalyst_gap_score??'—'}${sources?` · +${sources} src`:''}`;
     badge.title=`${r.target_card_name} is recommended because of ${r.source_card_name}. ${lifecycleLabel(state)}; ${pretty(r.convergence_state||'single_source')}. Scout grade ${r.scout_grade||'—'} is unchanged.`;
     top.appendChild(badge);
   });
@@ -38,12 +38,15 @@ function decorateDetail(sku){
   host.querySelector('.cx-synergy-detail')?.remove();
   const r=bySku.get(String(sku));if(!r)return;
   const section=document.createElement('section');section.className='cx-v5-section cx-synergy-detail';
-  const risks=Array.isArray(r.risk_flags)?r.risk_flags:[];
+  const risks=Array.isArray(r.risk_flags)?r.risk_flags:[],sources=Array.isArray(r.corroborating_sources)?r.corroborating_sources:[];
   const age=Math.max(0,Number(r.catalyst_age_hours||0));
   const ageLabel=age<24?`${Math.round(age)}h old`:`${(age/24).toFixed(age<72?1:0)}d old`;
+  const cross=Number(r.cross_source_independent_sources||0);
+  const convergenceLine=cross?`<small>Cross-source confirmation: ${esc(cross)} independent source${cross===1?'':'s'} · ${esc(r.cross_source_type_count??0)} source type${Number(r.cross_source_type_count||0)===1?'':'s'} · ${esc(r.cross_source_creator_count??0)} creator · ${esc(r.cross_source_nonvideo_count??0)} non-video${sources.length?` · ${esc(sources.slice(0,4).join(', '))}`:''}</small>`:`<small>Cross-source confirmation: none yet; this remains a single-source creator thesis.</small>`;
   section.innerHTML=`<div class="cx-section-title">Unpriced synergy <span class="cx-intel-context">time-aware discovery priority · Scout grade unchanged</span></div>
     <div class="cx-v5-component"><strong>${esc(r.target_card_name)} ← ${esc(r.source_card_name)} · ${esc(lifecycleLabel(r.synergy_lifecycle_state))}</strong>
-      <small>Lifecycle priority ${esc(r.lifecycle_priority_score)} · base synergy ${esc(r.synergy_priority_score)} · ${esc(ageLabel)} · ${esc(pretty(r.convergence_state||'single_source'))} (${esc(r.convergence_score??0)})</small>
+      <small>Lifecycle priority ${esc(r.lifecycle_priority_score)} · base synergy ${esc(r.synergy_priority_score)} · ${esc(ageLabel)} · ${esc(pretty(r.convergence_state||'single_source'))} (${esc(r.effective_convergence_score??r.convergence_score??0)})</small>
+      ${convergenceLine}
       <small>${esc(r.source_name||'Creator')} · conviction ${Math.round(Number(r.conviction||0)*100)} · ${esc(pretty(r.relationship_type))}</small>
       <small>Expected reaction ${esc(r.expected_market_reaction_score??'—')} · Market ${esc(r.market_response_score??'—')} · Gap ${esc(r.unpriced_catalyst_gap_score??'—')} · ${esc(pretty(r.unpriced_catalyst_gap_state||'watching'))}</small>
       <small>Scout ${esc(r.scout_grade||'—')} / ${esc(r.scout_score??'—')} · buy ${esc(money(r.cheapest_buy))} ${r.cheapest_source?`(${esc(r.cheapest_source)})`:''} · Direct ${esc(money(r.direct_low))} · est. profit ${esc(money(r.direct_net_profit))}</small>
