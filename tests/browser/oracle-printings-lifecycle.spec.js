@@ -90,3 +90,24 @@ test('Oracle comparison hardening clears stale UI, hydrates late imports, and re
   expect(compare).toContain('function hydrateNow()');
   expect(compare).toContain('setTimeout(hydrateNow,0)');
 });
+
+test('Oracle coverage semantics treat production baseline as evaluated and catalog as unevaluated',async()=>{
+  for(const path of ['src/modules/scout/oracle-printings.js','src/modules/scout/universal-search.js','src/modules/scout/oracle-bulk-refresh.js','src/modules/scout/oracle-family-confidence.js']){
+    const source=await read(path);
+    expect(source).toContain("raw.includes('catalog')");
+    expect(source).toContain('last_evaluated_at');
+    expect(source).not.toContain("else out.catalog++");
+  }
+});
+
+test('Oracle capped families are disclosed and mobile return stays inside the results overlay',async()=>{
+  const search=await read('src/modules/scout/universal-search.js');
+  const compare=await read('src/modules/scout/oracle-printings.js');
+  expect(search).toContain('cx-oracle-limit-note');
+  expect(search).toContain(`Showing the first ${'${FAMILY_LIMIT}'} Scout printings`);
+  expect(search).toContain('data-oracle-return');
+  expect(search).toContain('cx-oracle-return-inline');
+  expect(search).not.toContain('Loading every Scout printing');
+  expect(compare).toContain('comparison limit reached');
+  expect(compare).toContain('function onReturnClick');
+});
