@@ -5,7 +5,10 @@ const AUTO_CONFIRM_LIMIT=8;
 const BATCH_LIMIT=25;
 
 function stateOf(r){
-  if(!r?.last_evaluated_at)return'catalog';
+  const raw=String(r?.coverage_state||'').trim().toLowerCase();
+  if(raw.includes('catalog')||!r?.last_evaluated_at)return'catalog';
+  if(raw.includes('current')||raw.includes('active')||raw.includes('fresh'))return'current';
+  if(raw.includes('dormant')||raw.includes('stale'))return'dormant';
   const age=(Date.now()-new Date(r.last_evaluated_at).getTime())/86400000;
   return age<=7?'current':'dormant';
 }
