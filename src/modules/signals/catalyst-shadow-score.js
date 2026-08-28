@@ -5,6 +5,7 @@ const lower=s=>String(s||'').trim().toLowerCase();
 const STAGE_WEIGHT={leading:2.25,confirming:3.25,lagging:.75,neutral:0,unclassified:.25,noise:0};
 const DIRECTION={bullish:1,bearish:-1,neutral:0};
 const SOURCE_WEIGHT={official:1.25,article:1,youtube:1,x:.8,twitter:.8,reddit:.65,discord:.55,manual:.5,other:.5};
+const SCORER_VERSION='catalyst-shadow-v1';
 
 function hostname(value){try{return new URL(value).hostname.replace(/^www\./,'').toLowerCase()}catch{return''}}
 function sourceKey(item){return lower(hostname(item?.source_url)||item?.source_name||item?.author||item?.source_type||'unknown')}
@@ -30,7 +31,10 @@ function scoreCatalystShadow({row,signals=[],crossSource=[],competitive=[],comma
   const bounded=clamp(Math.round(raw),-8,12),base=n(row?.promoted_score??row?.v5_shadow_score??row?.opportunity_score),isFuture=futureRelease(row,now),applied=isFuture?0:bounded,shadow=clamp(base+applied,0,100);
   if(deduped.length){const bullish=deduped.filter(x=>lower(x.direction)==='bullish').length,bearish=deduped.filter(x=>lower(x.direction)==='bearish').length;reasons.unshift(`${deduped.length} unique catalyst${deduped.length===1?'':'s'} · ${bullish} bullish${bearish?` · ${bearish} bearish`:''}`)}
   if(isFuture)reasons.unshift('Future release · thesis tracked, no live Scout adjustment');
-  return {baseScore:base,baseGrade:row?.promoted_grade||row?.v5_shadow_grade||gradeFor(base),rawModifier:raw,modifier:bounded,appliedModifier:applied,shadowScore:shadow,shadowGrade:gradeFor(shadow),future:isFuture,sourceCount:sources.size,signalCount:deduped.length,reasons:reasons.slice(0,5)};
+  const sourceKeys=[...sources].sort(),intelIds=deduped.map(x=>String(x?.intel_id||'')).filter(Boolean).sort();
+  const signalTimes=deduped.map(x=>new Date(x?.observed_at||0).getTime()).filter(Number.isFinite).filter(x=>x>0),signalMaxAt=signalTimes.length?new Date(Math.max(...signalTimes)).toISOString():null;
+  const catalystKey=[...deduped.map(eventKey).sort(),...sourceKeys.map(x=>`source:${x}`),multi?`multi:${Number(multi.evidence_sources||0)}`:''].filter(Boolean).join('|').slice(0,4000);
+  return {baseScore:base,baseGrade:row?.promoted_grade||row?.v5_shadow_grade||gradeFor(base),rawModifier:raw,modifier:bounded,appliedModifier:applied,shadowScore:shadow,shadowGrade:gradeFor(shadow),future:isFuture,futureThesisModifier:isFuture?bounded:null,sourceCount:sources.size,signalCount:deduped.length,sourceKeys,intelIds,signalMaxAt,catalystKey,scorerVersion:SCORER_VERSION,reasons:reasons.slice(0,5)};
 }
 
-export {scoreCatalystShadow,gradeFor,uniqueSignals};
+export {scoreCatalystShadow,gradeFor,uniqueSignals,sourceKey,eventKey,SCORER_VERSION};
