@@ -20,7 +20,9 @@ function writeUrl({view,sku},{push=false}={}){
   if(view&&view!=='top')p.set('view',view);else p.delete('view');
   if(sku&&view!=='quick')p.set('sku',sku);else p.delete('sku');
   p.delete('overlay');
-  p.set('tab','scout');
+  // Scout is the canonical default route. Keeping ?tab=scout out of the URL
+  // prevents legacy Scout popstate reload hooks from fighting native Back.
+  p.delete('tab');
   const next=`${u.pathname}${p.toString()?`?${p}`:''}${u.hash}`;
   const current=`${location.pathname}${location.search}${location.hash}`;
   if(next===current)return false;
