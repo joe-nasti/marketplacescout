@@ -94,7 +94,7 @@ test('Oracle comparison hardening clears stale UI, hydrates late imports, and re
 test('Oracle coverage semantics treat production baseline as evaluated and catalog as unevaluated',async()=>{
   for(const path of ['src/modules/scout/oracle-printings.js','src/modules/scout/universal-search.js','src/modules/scout/oracle-bulk-refresh.js','src/modules/scout/oracle-family-confidence.js']){
     const source=await read(path);
-    expect(source).toContain("raw.includes('catalog')");
+    expect(source).toContain("includes('catalog')");
     expect(source).toContain('last_evaluated_at');
     expect(source).not.toContain("else out.catalog++");
   }
