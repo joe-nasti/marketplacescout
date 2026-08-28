@@ -1,7 +1,9 @@
 import { registerComponent } from '../../core/lifecycle.js';
+import store from '../../state/store.js';
 
 let started=false;
 let loading=null;
+let signalFastOpenLoading=null;
 
 export async function startScout(){
   if(started)return;
@@ -22,6 +24,22 @@ export async function startScout(){
   })();
   return loading;
 }
+
+function isSignalOpen(event){
+  const d=event.detail||{},source=String(d.source||''),page=store.get().navigation?.page||store.get().runtime?.page;
+  return source.startsWith('signals')||(page==='signals'&&Boolean(d.sku_id||d.product_id||d.scryfall_id||d.card_name));
+}
+function onSignalOpen(event){
+  if(!isSignalOpen(event))return;
+  event.preventDefault?.();event.stopImmediatePropagation?.();
+  const detail={...(event.detail||{})};
+  if(!signalFastOpenLoading)signalFastOpenLoading=import('./signal-fast-open.js');
+  void signalFastOpenLoading.then(module=>module.openSignalScoutFast(detail)).catch(()=>{
+    signalFastOpenLoading=null;
+    window.CollectishShell?.switchPage?.('scout');
+  });
+}
+document.addEventListener('collectish:open-scout-card',onSignalOpen,true);
 
 registerComponent('scout-bootstrap',{
   mount:()=>startScout().catch(()=>{}),

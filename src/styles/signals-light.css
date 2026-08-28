@@ -1,0 +1,69 @@
+/* Signals/Scout readability corrections for light surfaces. */
+:root:not([data-theme="dark"]),[data-theme="light"]{
+  --cx-signal-muted:#4f5b68;
+}
+:root:not([data-theme="dark"]) .cx-sv-card small,
+:root:not([data-theme="dark"]) .cx-sv-signal small,
+:root:not([data-theme="dark"]) .cx-sv-num small,
+:root:not([data-theme="dark"]) .cx-sv-price small,
+:root:not([data-theme="dark"]) .cx-sv-move small,
+:root:not([data-theme="dark"]) .cx-sv-head,
+:root:not([data-theme="dark"]) .cx-sv-metric span,
+:root:not([data-theme="dark"]) .cx-sv-metric small,
+:root:not([data-theme="dark"]) .cx-signal-meta,
+:root:not([data-theme="dark"]) .cx-signal-age,
+:root:not([data-theme="dark"]) .cx-signal-source-summary,
+:root:not([data-theme="dark"]) .cx-signal-proposal small,
+[data-theme="light"] .cx-sv-card small,
+[data-theme="light"] .cx-sv-signal small,
+[data-theme="light"] .cx-sv-num small,
+[data-theme="light"] .cx-sv-price small,
+[data-theme="light"] .cx-sv-move small,
+[data-theme="light"] .cx-sv-head,
+[data-theme="light"] .cx-sv-metric span,
+[data-theme="light"] .cx-sv-metric small,
+[data-theme="light"] .cx-signal-meta,
+[data-theme="light"] .cx-signal-age,
+[data-theme="light"] .cx-signal-source-summary,
+[data-theme="light"] .cx-signal-proposal small{color:var(--cx-signal-muted)}
+
+:root:not([data-theme="dark"]) .cx-universal-head,
+:root:not([data-theme="dark"]) .cx-universal-row small,
+:root:not([data-theme="dark"]) .cx-universal-note,
+:root:not([data-theme="dark"]) .cx-universal-empty,
+:root:not([data-theme="dark"]) .cx-oracle-controls label,
+:root:not([data-theme="dark"]) .cx-oracle-metric span,
+:root:not([data-theme="dark"]) .cx-oracle-win-confidence,
+:root:not([data-theme="dark"]) .cx-oracle-win-item small,
+[data-theme="light"] .cx-universal-head,
+[data-theme="light"] .cx-universal-row small,
+[data-theme="light"] .cx-universal-note,
+[data-theme="light"] .cx-universal-empty,
+[data-theme="light"] .cx-oracle-controls label,
+[data-theme="light"] .cx-oracle-metric span,
+[data-theme="light"] .cx-oracle-win-confidence,
+[data-theme="light"] .cx-oracle-win-item small{opacity:1;color:var(--cx-signal-muted)}
+
+:root:not([data-theme="dark"]) .cx-universal-results,
+:root:not([data-theme="dark"]) .cx-universal-detail,
+:root:not([data-theme="dark"]) .cx-oracle-controls select,
+[data-theme="light"] .cx-universal-results,
+[data-theme="light"] .cx-universal-detail,
+[data-theme="light"] .cx-oracle-controls select{background:var(--cx-surface);color:var(--cx-text)}
+
+.cx-signal-fast-detail{display:grid;gap:12px;color:var(--cx-text)}
+.cx-signal-fast-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.cx-signal-fast-head>div>small,.cx-signal-fast-head>div>span{display:block;color:var(--cx-muted);font-size:10px}
+.cx-signal-fast-head .cx-section-title{margin:2px 0;font-size:18px}
+.cx-signal-fast-grade{display:flex;align-items:center;gap:8px}
+.cx-signal-fast-grade>strong{font-size:22px}.cx-signal-fast-grade>strong small{font-size:10px;color:var(--cx-muted)}
+.cx-signal-fast-decision{display:grid;gap:3px;padding:10px 12px;border:1px solid var(--cx-line);border-radius:11px;background:var(--cx-bg)}
+.cx-signal-fast-decision small,.cx-signal-fast-decision span{color:var(--cx-muted);font-size:10px}
+.cx-signal-fast-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.cx-signal-fast-grid>div{border:1px solid var(--cx-line);border-radius:10px;padding:8px;background:var(--cx-bg);min-width:0}
+.cx-signal-fast-grid span,.cx-signal-fast-grid small{display:block;color:var(--cx-muted);font-size:9px}
+.cx-signal-fast-grid strong{display:block;margin:2px 0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-signal-fast-enrich{display:flex;align-items:center;gap:7px;color:var(--cx-muted);font-size:10px}
+.cx-signal-fast-spinner{width:11px;height:11px;border:2px solid var(--cx-line);border-top-color:var(--cx-accent);border-radius:50%;animation:cx-signal-fast-spin .8s linear infinite}
+@keyframes cx-signal-fast-spin{to{transform:rotate(360deg)}}
+@media(max-width:520px){.cx-signal-fast-grid{grid-template-columns:1fr 1fr}.cx-signal-fast-head .cx-section-title{font-size:16px}}
