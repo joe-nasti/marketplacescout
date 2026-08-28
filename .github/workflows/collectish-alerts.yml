@@ -10,12 +10,14 @@ on:
       - "cloud-worker/collectish-alerts.mjs"
       - "cloud-worker/seller-orchestrator-watchdog.mjs"
       - "cloud-worker/watch-scout-rankings.mjs"
+      - "cloud-worker/pipeline-freshness-audit.mjs"
       - ".github/workflows/collectish-alerts.yml"
   pull_request:
     paths:
       - "cloud-worker/collectish-alerts.mjs"
       - "cloud-worker/seller-orchestrator-watchdog.mjs"
       - "cloud-worker/watch-scout-rankings.mjs"
+      - "cloud-worker/pipeline-freshness-audit.mjs"
       - ".github/workflows/collectish-alerts.yml"
 
 permissions:
@@ -33,6 +35,7 @@ jobs:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SCOUT_RANKINGS_STALE_MINUTES: "75"
+      TCGCSV_STALE_MINUTES: "1800"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,6 +46,7 @@ jobs:
           node --check cloud-worker/collectish-alerts.mjs
           node --check cloud-worker/seller-orchestrator-watchdog.mjs
           node --check cloud-worker/watch-scout-rankings.mjs
+          node --check cloud-worker/pipeline-freshness-audit.mjs
       - name: Validate alert secret
         if: github.event_name != 'pull_request'
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
@@ -55,3 +59,6 @@ jobs:
       - name: Verify and recover Scout score freshness
         if: github.event_name != 'pull_request'
         run: node cloud-worker/watch-scout-rankings.mjs
+      - name: Audit cross-pipeline source freshness
+        if: github.event_name != 'pull_request'
+        run: node cloud-worker/pipeline-freshness-audit.mjs
