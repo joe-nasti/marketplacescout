@@ -47,13 +47,17 @@ jobs:
           cat "$response_file"; echo
           [[ "$status" =~ ^2 ]]
           test "$(jq -r '.transcript_credits_used // 0' "$response_file")" = "0"
+
+          jq -e '.relationships | any(.source_card == "Sash and Waistcoat, Unmen" and .target_card == "Training Grounds")' "$response_file" >/dev/null
+          jq -e '.relationships | any(.source_card == "The Madcap Jester" and .target_card == "Tasha'"'"'s Hideous Laughter")' "$response_file" >/dev/null
+          jq -e '.relationships | any(.source_card == "The Madcap Jester" and .target_card == "Extract")' "$response_file" >/dev/null
+          jq -e '.relationships | any(.source_card == "The Muckslinger Gang" and .target_card == "Outcaster Trailblazer")' "$response_file" >/dev/null
+
           targets="$(jq -r '[.relationships[]?.target_card] | unique | join("|")' "$response_file")"
           echo "grounded_targets=$targets"
-          for expected in "Training Grounds" "Outcaster Trailblazer" "Tasha's Hideous Laughter" "Extract"; do
-            echo "$targets" | grep -Fq "$expected" || { echo "missing grounded target: $expected"; exit 1; }
+          for forbidden in "Hardened Academic" "Possibility Storm" "Dread" "Anoint" "Together as One" "Enrage" "Exile" "The Command Zone" "Onslaught" "Blink"; do
+            echo "$targets" | grep -Fq "$forbidden" && { echo "forbidden/noisy target returned: $forbidden"; exit 1; } || true
           done
-          echo "$targets" | grep -Fq "Hardened Academic" && { echo "false positive: Hardened Academic"; exit 1; } || true
-          echo "$targets" | grep -Fq "Possibility Storm" && { echo "negative anti-synergy promoted: Possibility Storm"; exit 1; } || true
 
       - name: Wake Scout for newly recovered synergies
         shell: bash
