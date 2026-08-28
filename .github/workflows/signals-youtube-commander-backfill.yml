@@ -11,6 +11,7 @@ on:
       - "supabase/functions/market-intel-video-commander-deterministic/**"
       - "supabase/functions/market-intel-video-speaker-enrichment/**"
       - "supabase/functions/market-intel-video-synergy-batch/**"
+      - "supabase/functions/market-intel-synergy-scout-wake/**"
       - "supabase/functions/market-intel-future-card-thesis-refresh/**"
 
 permissions:
@@ -28,6 +29,7 @@ jobs:
       FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-commander-deterministic
       SPEAKER_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-speaker-enrichment
       SYNERGY_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-synergy-batch
+      SYNERGY_WAKE_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-synergy-scout-wake
       FUTURE_THESIS_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-future-card-thesis-refresh
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
@@ -54,6 +56,16 @@ jobs:
           [[ "$status" =~ ^2 ]] || exit 1
           echo "relationships_saved=$(jq -r '.relationships_saved // 0' "$response_file") actionable=$(jq -r '.actionable_relationships // 0' "$response_file")"
           test "$(jq -r '.transcript_credits_used // 0' "$response_file")" = "0"
+
+      - name: Wake Scout for strong synergy targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error --max-time 120 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"min_conviction":0.85,"limit":12,"cooldown_hours":6}' "$SYNERGY_WAKE_FUNCTION_URL"; } || true)"
+          cat "$response_file"; echo
+          [[ "$status" =~ ^2 ]] || exit 1
+          echo "targets_woken=$(jq -r '.targets_woken // 0' "$response_file") skus_queued=$(jq -r '.skus_queued // 0' "$response_file") skipped_cooldown=$(jq -r '.skipped_cooldown // 0' "$response_file")"
 
       - name: Enrich speaker consensus from cached transcript
         shell: bash
