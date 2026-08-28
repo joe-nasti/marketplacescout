@@ -1,5 +1,11 @@
 let installed=false;
 
+function deferCatalystRecorder(){
+  const run=()=>void import('./catalyst-shadow-recorder.js');
+  if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:2000});
+  else setTimeout(run,700);
+}
+
 export async function installScoutRenderer(){
   if(installed)return;
   installed=true;
@@ -21,14 +27,15 @@ export async function installScoutRenderer(){
   void import('./oracle-detail-context.js');
   void import('./oracle-family-confidence.js');
 
-  // These remain interaction/state enhancers and cannot reshape first paint.
+  // Interaction/state enhancers cannot reshape first paint. The recorder is
+  // explicitly idle-deferred so analytics never consume Scout's startup budget.
   void Promise.all([
     import('./detail-navigation.js'),
     import('./route-state.js'),
     import('./score-explain.js'),
-    import('./catalyst-shadow-ui.js'),
-    import('./catalyst-shadow-recorder.js')
+    import('./catalyst-shadow-ui.js')
   ]).then(()=>document.dispatchEvent(new CustomEvent('collectish:scout-interactions-ready')));
+  document.addEventListener('collectish:ready',deferCatalystRecorder,{once:true});
 }
 
 export default installScoutRenderer;
