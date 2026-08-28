@@ -1,4 +1,5 @@
 const scoutCore=[
+  ()=>import('./scout/signal-fast-open.js'),
   ()=>import('./scout/detail-links.js'),
   ()=>import('./scout/detail-compact-header.js'),
   ()=>import('./scout/images.js'),
