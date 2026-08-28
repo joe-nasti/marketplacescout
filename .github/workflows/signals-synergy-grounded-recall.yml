@@ -1,0 +1,65 @@
+name: Collectish grounded Commander synergy recall
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 1,7,13,19 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-synergy-grounded-recall.yml"
+      - "supabase/functions/market-intel-video-synergy-grounded-recall/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-grounded-synergy-recall
+  cancel-in-progress: true
+
+jobs:
+  recall:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RECALL_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-synergy-grounded-recall
+      WAKE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-synergy-scout-wake
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Grounded recall for latest Commander review
+        if: github.event_name != 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{}' "$RECALL_URL")"
+          cat "$response_file"; echo
+          [[ "$status" =~ ^2 ]]
+          test "$(jq -r '.transcript_credits_used // 0' "$response_file")" = "0"
+
+      - name: Regression - Command Zone 759 grounded recall
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"video_id":"7XpHTfYG_X0"}' "$RECALL_URL")"
+          cat "$response_file"; echo
+          [[ "$status" =~ ^2 ]]
+          test "$(jq -r '.transcript_credits_used // 0' "$response_file")" = "0"
+          targets="$(jq -r '[.relationships[]?.target_card] | unique | join("|")' "$response_file")"
+          echo "grounded_targets=$targets"
+          for expected in "Training Grounds" "Outcaster Trailblazer" "Tasha's Hideous Laughter" "Extract"; do
+            echo "$targets" | grep -Fq "$expected" || { echo "missing grounded target: $expected"; exit 1; }
+          done
+          echo "$targets" | grep -Fq "Hardened Academic" && { echo "false positive: Hardened Academic"; exit 1; } || true
+          echo "$targets" | grep -Fq "Possibility Storm" && { echo "negative anti-synergy promoted: Possibility Storm"; exit 1; } || true
+
+      - name: Wake Scout for newly recovered synergies
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --max-time 120 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"min_conviction":0.78,"limit":20,"cooldown_hours":6}' "$WAKE_URL")"
+          cat "$response_file"; echo
+          [[ "$status" =~ ^2 ]]
