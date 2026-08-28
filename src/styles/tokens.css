@@ -25,7 +25,7 @@
   --row-selected:rgba(23,105,210,.085);
   --workbench-rule:1px solid var(--color-border);
   /* Compatibility aliases while legacy selectors are migrated screen by screen. */
-  --cx-bg:var(--color-bg-primary);--cx-card:var(--color-bg-surface);--cx-panel:var(--color-bg-elevated);--cx-text:var(--color-text-primary);--cx-muted:var(--color-text-secondary);--cx-line:var(--color-border);--cx-border:var(--color-border);--cx-blue:var(--color-accent);--cx-blue-soft:var(--color-accent-soft);--cx-accent:var(--color-accent);--cx-green:var(--color-success);--cx-red:var(--color-danger);--cx-amber:var(--color-warning);--cx-shadow:var(--shadow-card);--cx-soft:var(--color-accent-soft);
+  --cx-bg:var(--color-bg-primary);--cx-card:var(--color-bg-surface);--cx-panel:var(--color-bg-elevated);--cx-surface:var(--color-bg-elevated);--cx-text:var(--color-text-primary);--cx-muted:var(--color-text-secondary);--cx-line:var(--color-border);--cx-border:var(--color-border);--cx-blue:var(--color-accent);--cx-blue-soft:var(--color-accent-soft);--cx-accent:var(--color-accent);--cx-green:var(--color-success);--cx-red:var(--color-danger);--cx-amber:var(--color-warning);--cx-shadow:var(--shadow-card);--cx-soft:var(--color-accent-soft);
 }
 [data-theme="dark"]{
   color-scheme:dark;
