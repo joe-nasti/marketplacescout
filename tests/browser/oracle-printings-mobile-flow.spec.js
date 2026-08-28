@@ -14,15 +14,16 @@ async function injectModule(page,path,replacements=[]){
 
 const ORACLE_ID='11111111-1111-1111-1111-111111111111';
 const family=[
-  {sku_id:'sku-1',product_id:'p1',scryfall_id:'sf1',card_name:'Solphim, Mayhem Dominus',set_code:'ONE',collector_number:'150',printing:'Normal',condition:'Near Mint',last_evaluated_at:new Date().toISOString(),scout_score:82,scout_grade:'A',cheapest_buy:10,direct_net_profit:8,buylist_roi_pct:20,avg_daily_qty_sold:1.2},
-  {sku_id:'sku-2',product_id:'p2',scryfall_id:'sf2',card_name:'Solphim, Mayhem Dominus',set_code:'ONE',collector_number:'400',printing:'Showcase',condition:'Near Mint',last_evaluated_at:'2026-07-01T00:00:00Z',scout_score:78,scout_grade:'B',cheapest_buy:8,direct_net_profit:9,buylist_roi_pct:25,avg_daily_qty_sold:2.3},
-  {sku_id:'sku-3',product_id:'p3',scryfall_id:'sf3',card_name:'Solphim, Mayhem Dominus',set_code:'ONE',collector_number:'401',printing:'Foil',condition:'Near Mint',last_evaluated_at:null,scout_score:null,scout_grade:null,cheapest_buy:null,direct_net_profit:null,buylist_roi_pct:null,avg_daily_qty_sold:null}
+  {sku_id:'sku-1',product_id:'p1',scryfall_id:'sf1',card_name:'Solphim, Mayhem Dominus',set_code:'ONE',collector_number:'150',printing:'Normal',condition:'Near Mint',coverage_state:'baseline',last_evaluated_at:new Date().toISOString(),scout_score:82,scout_grade:'A',cheapest_buy:10,direct_net_profit:8,buylist_roi_pct:20,avg_daily_qty_sold:1.2},
+  {sku_id:'sku-2',product_id:'p2',scryfall_id:'sf2',card_name:'Solphim, Mayhem Dominus',set_code:'ONE',collector_number:'400',printing:'Showcase',condition:'Near Mint',coverage_state:'baseline',last_evaluated_at:'2026-07-01T00:00:00Z',scout_score:78,scout_grade:'B',cheapest_buy:8,direct_net_profit:9,buylist_roi_pct:25,avg_daily_qty_sold:2.3},
+  {sku_id:'sku-3',product_id:'p3',scryfall_id:'sf3',card_name:'Solphim, Mayhem Dominus',set_code:'ONE',collector_number:'401',printing:'Foil',condition:'Near Mint',coverage_state:'catalog',last_evaluated_at:null,scout_score:null,scout_grade:null,cheapest_buy:null,direct_net_profit:null,buylist_roi_pct:null,avg_daily_qty_sold:null}
 ];
 
 test('mobile Oracle compare survives the full interaction lifecycle',async({page,isMobile})=>{
   test.skip(!isMobile,'mobile Oracle flow');
   const rpcCalls=[];
-  await page.goto('/');
+  await page.route('**/__oracle-harness__',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><html><head></head><body></body></html>'}));
+  await page.goto('/__oracle-harness__');
   await page.exposeFunction('__oracleTestRest',async(path,options={})=>{
     rpcCalls.push({path,body:options.body||null});
     if(path==='rpc/scout_catalog_by_oracle')return family.map(x=>({...x}));
@@ -39,9 +40,9 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
       </section>
     </main>
   `);
-  await page.evaluate(({rows,oracleId})=>{
+  await page.evaluate(({oracleId})=>{
     document.body.classList.add('cx-scout-detail-lock');
-    window.__oracleTestFetch=async url=>new Response(JSON.stringify({name:'Solphim, Mayhem Dominus',oracle_id:oracleId}),{status:200,headers:{'content-type':'application/json'}});
+    window.__oracleTestFetch=async()=>new Response(JSON.stringify({name:'Solphim, Mayhem Dominus',oracle_id:oracleId}),{status:200,headers:{'content-type':'application/json'}});
     window.__oracleTestState={scout:{selectedSku:'sku-1',rows:[{sku_id:'sku-1',product_id:'p1',scryfall_id:'sf1',set_code:'ONE',collector_number:'150',product_name:'Solphim, Mayhem Dominus'}]}};
     window.__oracleTestStore={get:()=>window.__oracleTestState};
     window.CollectishScoutRenderer={
@@ -54,7 +55,7 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
         document.dispatchEvent(new CustomEvent('collectish:scout-detail-rendered',{detail:{sku:row?.sku_id}}));
       }
     };
-  },{rows:family,oracleId:ORACLE_ID});
+  },{oracleId:ORACLE_ID});
 
   const restReplacement=[["import { rest } from '../../core/rest.js';","const rest=window.__oracleTestRest;"]];
   await injectModule(page,'src/modules/scout/universal-search.js',restReplacement);
@@ -104,7 +105,9 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
   await expect(page.locator('#cxUniversalResults')).toBeVisible();
   await expect.poll(()=>new URL(page.url()).searchParams.get('oracleOpenSku')).toBe(null);
 
-  await page.getByRole('button',{name:'Back to this printing'}).click();
+  const returnInline=page.locator('#cxUniversalResults [data-oracle-return]');
+  await expect(returnInline).toBeVisible();
+  await returnInline.click();
   await expect(page.locator('#cxParitySearch')).toHaveValue('');
   await expect(page.locator('#cxUniversalResults')).toBeHidden();
   await expect(page.locator('#cxUniversalDetail')).toBeEmpty();
