@@ -10,7 +10,8 @@ test('Scout Signals flow through unified opportunity context without grade mutat
   expect(source).toContain('priority/urgency only · grade unchanged');
   expect(source).toContain('signal_independent_sources');
   expect(source).toContain("return'Oracle family'");
-  expect(source).toContain("return'related printing'");
+  expect(source).toContain("label:'exact SKU moving'");
+  expect(source).toContain("label:'related printing only'");
 });
 
 test('Signal confidence SQL requires independent corroboration for stronger labels',async()=>{
