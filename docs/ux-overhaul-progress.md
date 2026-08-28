@@ -41,10 +41,31 @@ This branch implements the approved Figma direction as one product system rather
 - Desktop detail becomes a sticky inspector separated by a hard rule.
 - Mobile stacks list then detail without inventing a second product language.
 
+### Sealed
+- Sealed now follows the same list + inspector grammar as Scout rather than a separate card-grid language.
+- Product rows are flattened into a ruled work surface with restrained selected state.
+- Buylist / Direct / risk badges use the same compact semantic markers as Singles.
+- Economics remain table-first and dense.
+- Mobile detail is treated as a transient bottom sheet rather than a full-screen bespoke navigation mode.
+
+### Admin / System
+- Admin tabs are text rails rather than pills.
+- Health and source status are compact semantic labels.
+- Summary metrics form a flat status strip.
+- Source and catalog rows use ruled operational surfaces.
+- Admin remains intentionally denser than end-user Scout, but uses the same shell, type, rules, and theme tokens.
+
+### Ask Collectish
+- Ask is treated as a utility inspector, not a floating consumer-chat experience.
+- Desktop panel docks hard to the right edge and shares the app's pane geometry.
+- Starter prompts are flattened into a text rail.
+- Messages, rich response surfaces, action cards, and compose controls use restrained geometry.
+- Mobile remains full-height when invoked, with safe-area handling and the same theme system.
+
 ## Still to finish before deployed checkpoint
 
-- Apply the same cleanup to Admin/System surfaces.
-- Review Sealed against the new Scout/ledger grammar.
-- Normalize Ask Collectish overlays/sheets with the same transient-layer rules.
-- Add/extend browser regression coverage for representative desktop and mobile states.
-- Run CI/build checks and address any cascade regressions before the first deployed test checkpoint.
+- Extend representative browser regression coverage across Scout, Signals, Sealed, Selling, Inventory, Admin and Ask in both desktop and mobile viewports.
+- Review cascade conflicts caused by older domain CSS overriding the new workbench layers.
+- Run build / hygiene / style checks and fix any failures.
+- Validate navigation unwind behavior for transient layers after the visual migration.
+- Then deploy the first coherent checkpoint for real PC + Android testing.
