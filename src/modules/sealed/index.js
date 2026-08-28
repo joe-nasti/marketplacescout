@@ -15,9 +15,11 @@ export async function install(){
     import('./cardtrader-links.js'),
     import('./url-state.js'),
     import('./mobile-economics.js'),
-    import('./renderer.js')
+    import('./renderer.js'),
+    import('./out-optimizer.js')
   ]);
-  const urlState=modules[5],renderer=modules[7];
+  const urlState=modules[5],renderer=modules[7],outOptimizer=modules[8];
   urlState.installSealedUrlState();
+  outOptimizer.installOutOptimizer();
   await renderer.install();
 }
