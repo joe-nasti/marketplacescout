@@ -1,5 +1,6 @@
-/* Canonical mobile treatment for the Signals scanner.
-   Prioritize the decision: card -> stage/reason -> buy/edge. Modeled metadata stays secondary. */
+/* Canonical mobile treatment for Signals.
+   Mobile is a prioritized intelligence feed, not a compressed desktop dashboard.
+   Decision order: what changed -> why it matters -> price/edge -> confidence/context. */
 #cxSignals .cx-sv-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
 #cxSignals .cx-sv-num strong{display:flex;align-items:center;gap:2px}
 #cxSignals .cx-sv-confirming{background:color-mix(in srgb,var(--color-accent) 18%,transparent);color:var(--color-accent)}
@@ -8,44 +9,127 @@
 #cxSignals .cx-sv-sales-confirm i{font-size:7px;color:var(--color-success);font-style:normal;white-space:nowrap}
 
 @media(max-width:900px){
+  /* Page composition */
+  #cxSignals .cx-page-head{display:grid;grid-template-columns:1fr;gap:8px;align-items:start;margin-bottom:12px}
+  #cxSignals .cx-page-head>div{min-width:0}
+  #cxSignals .cx-page-head h2{font-size:22px;line-height:1.1;margin-bottom:4px}
+  #cxSignals .cx-page-head p{font-size:13px;line-height:1.4;max-width:42rem}
+  #cxSignals .cx-page-head .cx-sub{font-size:10px;line-height:1.35}
+
+  #cxSignals .cx-signals-layout{grid-template-columns:minmax(0,1fr);gap:12px}
+  #cxSignals .cx-signal-add{position:static}
+  #cxSignals .cx-signal-tabs{gap:8px;margin-inline:-2px;padding:2px 2px 10px;scrollbar-width:none}
+  #cxSignals .cx-signal-tabs::-webkit-scrollbar{display:none}
+  #cxSignals .cx-signal-tabs button{min-height:40px;padding:8px 13px;font-size:12px}
+  #cxSignals .cx-signal-card{padding:14px;border-radius:14px}
+  #cxSignals .cx-signal-card h3{font-size:16px;line-height:1.25}
+  #cxSignals .cx-signal-card p{font-size:13px;line-height:1.5}
+  #cxSignals .cx-signal-actions{gap:10px;flex-wrap:wrap}
+  #cxSignals .cx-signal-actions a,
+  #cxSignals .cx-signal-actions button{min-height:40px;display:inline-flex;align-items:center;font-size:12px}
+
+  /* Scanner surface: one visual stream, no desktop table geometry. */
+  #cxSignals .cx-sv-nav{gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}
+  #cxSignals .cx-sv-nav::-webkit-scrollbar{display:none}
+  #cxSignals .cx-sv-nav button{min-height:40px;padding:8px 13px;font-size:12px;flex:0 0 auto}
+  #cxSignals .cx-sv-nav>span{display:none}
+
+  #cxSignals .cx-sv-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+  #cxSignals .cx-sv-metric{padding:10px 11px;min-width:0;border-radius:12px}
+  #cxSignals .cx-sv-metric span{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #cxSignals .cx-sv-metric strong{font-size:18px;line-height:1.05}
+  #cxSignals .cx-sv-metric small{font-size:9px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  #cxSignals .cx-sv-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:8px 0 10px}
+  #cxSignals .cx-sv-toolbar input{grid-column:1;min-height:42px;font-size:16px}
+  #cxSignals .cx-sv-toolbar>button{grid-column:2;min-height:42px;padding-inline:13px;font-size:12px}
+  #cxSignals .cx-sv-filters{grid-column:1/-1;display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  #cxSignals .cx-sv-filters::-webkit-scrollbar{display:none}
+  #cxSignals .cx-sv-filters button{min-height:38px;padding:7px 12px;font-size:11px;flex:0 0 auto}
+
+  #cxSignals .cx-sv-list{border:0;background:transparent;display:grid;gap:9px;overflow:visible}
   #cxSignals .cx-sv-row{
     grid-template-columns:minmax(0,1fr) auto auto;
     grid-template-areas:
       'card move move'
       'signal signal signal'
       'price conf scout';
-    row-gap:6px;
+    row-gap:7px;
     column-gap:8px;
-    min-height:78px;
-    padding:9px 10px;
+    min-height:96px;
+    padding:12px;
+    border:1px solid var(--cx-border);
+    border-radius:13px;
+    background:var(--cx-card);
+    box-shadow:0 1px 0 color-mix(in srgb,var(--cx-text) 4%,transparent);
   }
+  #cxSignals .cx-sv-row:first-child{border-top:1px solid var(--cx-border)}
+  #cxSignals .cx-sv-row:hover,
+  #cxSignals .cx-sv-row:focus-visible{background:color-mix(in srgb,var(--cx-accent) 6%,var(--cx-card));border-color:color-mix(in srgb,var(--cx-accent) 45%,var(--cx-border))}
+
   #cxSignals .cx-sv-num:nth-of-type(3){display:none}
-  #cxSignals .cx-sv-num:nth-of-type(4){grid-area:conf;justify-items:end;align-self:end;opacity:.72}
-  #cxSignals .cx-sv-num:nth-of-type(5){grid-area:scout;justify-items:end;align-self:end;opacity:.72}
+  #cxSignals .cx-sv-num:nth-of-type(4){grid-area:conf;justify-items:end;align-self:end;opacity:.7}
+  #cxSignals .cx-sv-num:nth-of-type(5){grid-area:scout;justify-items:end;align-self:end;opacity:.7}
   #cxSignals .cx-sv-num:nth-of-type(4) strong,
-  #cxSignals .cx-sv-num:nth-of-type(5) strong{justify-content:flex-end;width:100%;font-size:9px;font-weight:750}
+  #cxSignals .cx-sv-num:nth-of-type(5) strong{justify-content:flex-end;width:100%;font-size:10px;font-weight:750}
   #cxSignals .cx-sv-num:nth-of-type(4) small,
-  #cxSignals .cx-sv-num:nth-of-type(5) small{text-align:right;width:100%;font-size:7px}
+  #cxSignals .cx-sv-num:nth-of-type(5) small{text-align:right;width:100%;font-size:8px}
+
   #cxSignals .cx-sv-card{grid-area:card;align-self:start}
-  #cxSignals .cx-sv-card strong{font-size:12.5px;line-height:1.15}
-  #cxSignals .cx-sv-card small{margin-top:2px}
-  #cxSignals .cx-sv-signal{grid-area:signal;display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:5px;min-width:0}
-  #cxSignals .cx-sv-signal>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9.5px;color:var(--cx-text)}
-  #cxSignals .cx-sv-price{grid-area:price;display:flex;align-items:baseline;justify-content:flex-start;gap:6px;min-width:0}
-  #cxSignals .cx-sv-price strong{font-size:12px;flex:0 0 auto}
-  #cxSignals .cx-sv-price small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;color:var(--color-success);font-weight:800}
+  #cxSignals .cx-sv-card strong{font-size:14px;line-height:1.2;white-space:normal;overflow:visible}
+  #cxSignals .cx-sv-card small{margin-top:3px;font-size:9px}
+
+  #cxSignals .cx-sv-signal{grid-area:signal;display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:6px;min-width:0}
+  #cxSignals .cx-sv-chip{font-size:8px;padding:3px 6px}
+  #cxSignals .cx-sv-sales-confirm,
+  #cxSignals .cx-sv-sales-confirm b{font-size:9px}
+  #cxSignals .cx-sv-signal>small{min-width:0;overflow:visible;text-overflow:clip;white-space:normal;font-size:11px;line-height:1.35;color:var(--cx-text)}
+
+  #cxSignals .cx-sv-price{grid-area:price;display:flex;align-items:baseline;justify-content:flex-start;gap:7px;min-width:0}
+  #cxSignals .cx-sv-price strong{font-size:13px;flex:0 0 auto}
+  #cxSignals .cx-sv-price small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--color-success);font-weight:800}
+
   #cxSignals .cx-sv-move{grid-area:move;align-self:start;justify-items:end}
-  #cxSignals .cx-sv-move strong{line-height:1}
+  #cxSignals .cx-sv-move strong{font-size:16px;line-height:1}
+  #cxSignals .cx-sv-move small{font-size:9px}
   #cxSignals .cx-ui-evidence{padding-left:2px;min-width:auto;min-height:auto}
 }
 
 @media(max-width:600px){
-  #cxSignals .cx-sv-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
-  #cxSignals .cx-sv-metric{padding:7px 6px;min-width:0}
-  #cxSignals .cx-sv-metric span{font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #cxSignals .cx-sv-metric strong{font-size:14px}
-  #cxSignals .cx-sv-metric small{font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #cxSignals .cx-sv-row{min-height:76px;padding:8px}
+  #cxSignals{--cx-signals-mobile-gap:10px}
+  #cxSignals .cx-page-head{margin-bottom:10px}
+  #cxSignals .cx-page-head h2{font-size:21px}
+  #cxSignals .cx-page-head p{font-size:12.5px}
+
+  #cxSignals .cx-signal-analyze{grid-template-columns:1fr;gap:8px}
+  #cxSignals .cx-signal-analyze input,
+  #cxSignals .cx-signal-analyze button{min-height:44px}
+  #cxSignals .cx-signal-analysis-head{display:grid}
+  #cxSignals .cx-signal-form-grid,
+  #cxSignals .cx-signal-form-grid.three{grid-template-columns:1fr}
+
+  #cxSignals .cx-sv-nav{position:sticky;top:0;z-index:4;background:var(--cx-bg);padding:5px 0 8px}
+  #cxSignals .cx-sv-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  #cxSignals .cx-sv-metric{padding:9px 10px}
+  #cxSignals .cx-sv-metric strong{font-size:17px}
+  #cxSignals .cx-sv-metric span,
+  #cxSignals .cx-sv-metric small{font-size:8.5px}
+
+  #cxSignals .cx-sv-toolbar{grid-template-columns:minmax(0,1fr) auto;margin:7px 0 10px}
+  #cxSignals .cx-sv-toolbar input{min-height:44px}
+  #cxSignals .cx-sv-toolbar>button{min-height:44px}
+  #cxSignals .cx-sv-filters button{min-height:40px}
+
+  #cxSignals .cx-sv-row{min-height:100px;padding:12px 11px;row-gap:8px}
+  #cxSignals .cx-sv-card strong{font-size:14px}
   #cxSignals .cx-sv-sales-confirm i{display:none}
-  #cxSignals .cx-sv-signal>small{font-size:9px}
+  #cxSignals .cx-sv-signal>small{font-size:11px}
+  #cxSignals .cx-sv-price strong{font-size:13px}
+  #cxSignals .cx-sv-price small{font-size:10px}
+
+  #cxSignals .cx-intel-mini{font-size:9px;padding:3px 6px}
+  #cxSignals .cx-intelligence-mini{max-width:150px}
+  #cxSignals .cx-signal-card{padding:13px}
+  #cxSignals .cx-signal-group-claim .cx-signal-card-head{flex-wrap:wrap}
+  #cxSignals .cx-signal-claim-type{width:100%;margin-left:0}
 }
