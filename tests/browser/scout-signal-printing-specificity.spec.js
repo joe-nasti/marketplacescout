@@ -15,7 +15,12 @@ test('Scout keeps exact-SKU Signal specificity inside unified opportunity contex
   ]);
   expect(ui).toContain('scout_opportunity_context');
   expect(ui).toContain("context.get(String(row?.sku_id||''))");
-  expect(ui).toContain("return'related printing'");
+  expect(ui).toContain("label:'exact SKU moving'");
+  expect(ui).toContain("label:'related printing only'");
+  expect(ui).toContain('Another printing in this Oracle family moved; this exact SKU has not been observed moving.');
+  expect(ui).toContain("interest?.kind==='related'?'◌':'◉'");
+  expect(ui).toContain('inherited/related-printing link');
+  expect(ui).toContain('related Oracle-family printing');
   expect(skuSql).toContain('specificity_weight');
   expect(skuSql).toContain('isolated to another printing or finish');
   expect(contextSql).toContain('interest_exact_signal_count');
