@@ -49,9 +49,23 @@
         navigator.serviceWorker?.addEventListener('controllerchange',onChange,{once:true});
       });
     }
+    async function clearNativeWorkerState(){
+      try{
+        const regs=await navigator.serviceWorker?.getRegistrations?.()||[];
+        await Promise.allSettled(regs.map(reg=>reg.unregister()));
+      }catch(error){window.__collectishBootErrors?.push(`native-worker-clear: ${error?.message||error}`)}
+      try{
+        const keys=await caches?.keys?.()||[];
+        await Promise.allSettled(keys.map(key=>caches.delete(key)));
+      }catch(error){window.__collectishBootErrors?.push(`native-cache-clear: ${error?.message||error}`)}
+    }
     async function boot(){
       const nonce=Date.now();
-      if('serviceWorker' in navigator){
+      window.__collectishBootNonce=nonce;
+      const nativeAndroid=Boolean(window.CollectishAndroid);
+      if(nativeAndroid){
+        await clearNativeWorkerState();
+      }else if('serviceWorker' in navigator){
         try{
           await navigator.serviceWorker.register(`./sw.mjs?boot=${nonce}`,{scope:'./',type:'module',updateViaCache:'none'});
           await navigator.serviceWorker.ready;
