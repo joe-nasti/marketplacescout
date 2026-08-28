@@ -25,7 +25,8 @@ export async function installScoutRenderer(){
   void Promise.all([
     import('./detail-navigation.js'),
     import('./route-state.js'),
-    import('./score-explain.js')
+    import('./score-explain.js'),
+    import('./catalyst-shadow-ui.js')
   ]).then(()=>document.dispatchEvent(new CustomEvent('collectish:scout-interactions-ready')));
 }
 
