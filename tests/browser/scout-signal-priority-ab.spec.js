@@ -21,7 +21,8 @@ test('Scout cards expose compact Why now evidence',async()=>{
   expect(ui).toContain('signal_confirming_sources');
   expect(ui).toContain("return bits.join(' · ')");
   expect(ui).toContain("badge.title=`Why now:");
-  expect(ui).toContain("return'exact SKU'");
+  expect(ui).toContain("label:'exact SKU moving'");
+  expect(ui).toContain("label:'related printing only'");
   expect(ui).toContain("return'Oracle family'");
 });
 

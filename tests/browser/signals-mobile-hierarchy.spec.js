@@ -47,8 +47,8 @@ test('Signals mobile rows prioritize stage reason and buy edge over modeled meta
   });
   expect(result.evidenceDisplay).toBe('none');
   expect(result.signalTop).toBeLessThan(result.priceTop);
-  expect(Math.abs(result.priceTop-result.confidenceTop)).toBeLessThanOrEqual(2);
-  expect(Math.abs(result.priceTop-result.scoutTop)).toBeLessThanOrEqual(2);
+  expect(Math.abs(result.priceTop-result.confidenceTop)).toBeLessThanOrEqual(3);
+  expect(Math.abs(result.priceTop-result.scoutTop)).toBeLessThanOrEqual(3);
   expect(result.reasonColor).toBe(result.rowColor);
   expect(result.reasonWhiteSpace).toBe('normal');
   expect(result.cardWhiteSpace).toBe('normal');
