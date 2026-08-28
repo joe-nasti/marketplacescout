@@ -9,11 +9,13 @@ on:
     paths:
       - "cloud-worker/collectish-alerts.mjs"
       - "cloud-worker/seller-orchestrator-watchdog.mjs"
+      - "cloud-worker/watch-scout-rankings.mjs"
       - ".github/workflows/collectish-alerts.yml"
   pull_request:
     paths:
       - "cloud-worker/collectish-alerts.mjs"
       - "cloud-worker/seller-orchestrator-watchdog.mjs"
+      - "cloud-worker/watch-scout-rankings.mjs"
       - ".github/workflows/collectish-alerts.yml"
 
 permissions:
@@ -30,6 +32,7 @@ jobs:
     env:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SCOUT_RANKINGS_STALE_MINUTES: "75"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,6 +42,7 @@ jobs:
         run: |
           node --check cloud-worker/collectish-alerts.mjs
           node --check cloud-worker/seller-orchestrator-watchdog.mjs
+          node --check cloud-worker/watch-scout-rankings.mjs
       - name: Validate alert secret
         if: github.event_name != 'pull_request'
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
@@ -48,3 +52,6 @@ jobs:
       - name: Evaluate Seller orchestration backlog
         if: github.event_name != 'pull_request'
         run: node cloud-worker/seller-orchestrator-watchdog.mjs
+      - name: Verify and recover Scout score freshness
+        if: github.event_name != 'pull_request'
+        run: node cloud-worker/watch-scout-rankings.mjs
