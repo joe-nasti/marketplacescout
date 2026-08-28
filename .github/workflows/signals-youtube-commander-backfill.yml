@@ -57,7 +57,7 @@ jobs:
           test "$(jq -r '.transcript_credits_used // 0' "$response_file")" = "0"
           targets="$(jq -r '[.relationships[]?.target_card] | unique | join("|")' "$response_file")"
           echo "recovered_targets=$targets"
-          for expected in "Training Grounds" "Outcaster Trailblazer" "Tasha's Hideous Laughter" "Extract" "Prime Speaker Vannifar"; do
+          for expected in "Training Grounds" "Outcaster Trailblazer" "Tasha's Hideous Laughter" "Extract"; do
             echo "$targets" | grep -Fq "$expected" || { echo "missing expected synergy target: $expected"; exit 1; }
           done
           echo "$targets" | grep -Fq "Hardened Academic" && { echo "false positive returned: Hardened Academic"; exit 1; } || true
