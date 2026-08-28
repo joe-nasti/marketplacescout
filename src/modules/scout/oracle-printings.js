@@ -47,15 +47,18 @@ function metric(rows,selector,compare=(a,b)=>a-b){
   return values.sort((a,b)=>compare(Number(a.value),Number(b.value)))[0]||null;
 }
 
+function coverageState(r){
+  const raw=String(r?.coverage_state||'').trim().toLowerCase();
+  if(raw.includes('catalog')||!r?.last_evaluated_at)return'catalog';
+  if(raw.includes('current')||raw.includes('active')||raw.includes('fresh'))return'current';
+  if(raw.includes('dormant')||raw.includes('stale'))return'dormant';
+  const age=(Date.now()-new Date(r.last_evaluated_at).getTime())/86400000;
+  return age<=7?'current':'dormant';
+}
+
 function coverageCounts(rows){
   const out={current:0,dormant:0,catalog:0};
-  for(const r of rows){
-    let key=String(r.coverage_state||'').toLowerCase();
-    if(!key){if(!r.last_evaluated_at)key='catalog';else key=(Date.now()-new Date(r.last_evaluated_at).getTime())/86400000<=7?'current':'dormant'}
-    if(key.includes('current')||key.includes('active')||key.includes('fresh'))out.current++;
-    else if(key.includes('dormant')||key.includes('stale'))out.dormant++;
-    else out.catalog++;
-  }
+  for(const r of rows)out[coverageState(r)]++;
   return out;
 }
 
@@ -82,8 +85,7 @@ async function renderCompareSummary(force=false){
   if(!scout||!ctx)return;
   let panel=scout.querySelector('#cxOracleCompareSummary');
   if(!panel){panel=document.createElement('section');panel.id='cxOracleCompareSummary';panel.className='cx-oracle-compare-summary';const toolbar=scout.querySelector('.cx-scout-toolbar');toolbar?.insertAdjacentElement('afterend',panel)}
-  panel.innerHTML=`<div class="cx-oracle-compare-head"><div><small>Oracle comparison</small><strong>${esc(ctx.name)}</strong><span>Loading complete printing family…</span></div><button type="button" data-oracle-return>Back to this printing</button></div>`;
-  panel.querySelector('[data-oracle-return]')?.addEventListener('click',returnToPrinting);
+  panel.innerHTML=`<div class="cx-oracle-compare-head"><div><small>Oracle comparison</small><strong>${esc(ctx.name)}</strong><span>Loading Scout printings in this Oracle family…</span></div><button type="button" data-oracle-return>Back to this printing</button></div>`;
   const rows=await loadFamily(force);
   if(compareContext!==ctx||!panel.isConnected)return;
   const evaluated=rows.filter(r=>r.scout_score!=null||r.last_score!=null||r.promoted_score!=null||r.v5_shadow_score!=null||r.opportunity_score!=null),best=evaluated.slice().sort((a,b)=>score(b)-score(a))[0];
@@ -91,9 +93,8 @@ async function renderCompareSummary(force=false){
   const buylist=metric(rows,r=>({value:Number(r.buylist_roi_pct||0),row:r}),(a,b)=>b-a);
   const direct=metric(rows,r=>({value:Number(r.cheapest_buy)>0&&r.direct_net_profit!=null?Number(r.direct_net_profit)/Number(r.cheapest_buy)*100:0,row:r}),(a,b)=>b-a);
   const velocity=metric(rows,r=>({value:Number(r.avg_daily_qty_sold||0),row:r}),(a,b)=>b-a),coverage=coverageCounts(rows);
-  const status=[coverage.current?`${coverage.current} current`:'',coverage.dormant?`${coverage.dormant} dormant`:'',coverage.catalog?`${coverage.catalog} catalog-only`:''].filter(Boolean).join(' · ');
-  panel.innerHTML=`<div class="cx-oracle-compare-head"><div><small>Oracle comparison</small><strong>${esc(ctx.name)}</strong><span>${rows.length} printing${rows.length===1?'':'s'} in Scout${status?` · ${esc(status)}`:''}</span></div><button type="button" data-oracle-return>Back to this printing</button></div><div class="cx-oracle-compare-grid"><div><span>Best Scout</span><strong>${best?`${esc(grade(best))} · ${Math.round(score(best))}/100`:'—'}</strong><small>${best?esc(printingLabel(best)):'No evaluated printing'}</small></div><div><span>Cheapest buy</span><strong>${cheapest?money(cheapest.value):'—'}</strong><small>${cheapest?esc(printingLabel(cheapest.row)):'—'}</small></div><div><span>Best buylist ROI</span><strong>${buylist&&buylist.value>0?`${Number(buylist.value).toFixed(1)}%`:'—'}</strong><small>${buylist&&buylist.value>0?esc(printingLabel(buylist.row)):'—'}</small></div><div><span>Best Direct ROI</span><strong>${direct&&direct.value>0?`${Number(direct.value).toFixed(1)}%`:'—'}</strong><small>${direct&&direct.value>0?esc(printingLabel(direct.row)):'—'}</small></div><div><span>Highest velocity</span><strong>${velocity&&velocity.value>0?`${Number(velocity.value).toFixed(1)}/d`:'—'}</strong><small>${velocity&&velocity.value>0?esc(printingLabel(velocity.row)):'—'}</small></div></div>`;
-  panel.querySelector('[data-oracle-return]')?.addEventListener('click',returnToPrinting);
+  const status=[coverage.current?`${coverage.current} current`:'',coverage.dormant?`${coverage.dormant} dormant`:'',coverage.catalog?`${coverage.catalog} catalog-only`:''].filter(Boolean).join(' · '),capped=rows.length>=FAMILY_LIMIT;
+  panel.innerHTML=`<div class="cx-oracle-compare-head"><div><small>Oracle comparison</small><strong>${esc(ctx.name)}</strong><span>${rows.length} printing${rows.length===1?'':'s'} shown${capped?' · comparison limit reached':''}${status?` · ${esc(status)}`:''}</span></div><button type="button" data-oracle-return>Back to this printing</button></div><div class="cx-oracle-compare-grid"><div><span>Best Scout</span><strong>${best?`${esc(grade(best))} · ${Math.round(score(best))}/100`:'—'}</strong><small>${best?esc(printingLabel(best)):'No evaluated printing'}</small></div><div><span>Cheapest buy</span><strong>${cheapest?money(cheapest.value):'—'}</strong><small>${cheapest?esc(printingLabel(cheapest.row)):'—'}</small></div><div><span>Best buylist ROI</span><strong>${buylist&&buylist.value>0?`${Number(buylist.value).toFixed(1)}%`:'—'}</strong><small>${buylist&&buylist.value>0?esc(printingLabel(buylist.row)):'—'}</small></div><div><span>Best Direct ROI</span><strong>${direct&&direct.value>0?`${Number(direct.value).toFixed(1)}%`:'—'}</strong><small>${direct&&direct.value>0?esc(printingLabel(direct.row)):'—'}</small></div><div><span>Highest velocity</span><strong>${velocity&&velocity.value>0?`${Number(velocity.value).toFixed(1)}/d`:'—'}</strong><small>${velocity&&velocity.value>0?esc(printingLabel(velocity.row)):'—'}</small></div></div>`;
 }
 
 function markCurrentPrinting(){
@@ -145,8 +146,10 @@ function hydrateNow(){
   if(sku&&document.querySelector('#cxParityDetail .cx-v5-title'))void addLink({sku});
 }
 
+function onReturnClick(e){if(e.target.closest?.('[data-oracle-return]')){e.preventDefault();returnToPrinting()}}
+
 export function installOraclePrintingsLink(){
-  if(installed)return;installed=true;ensureStyle();document.addEventListener('collectish:scout-detail-rendered',e=>void addLink(e.detail));document.addEventListener('collectish:scout-structure-ready',restoreContextFromUrl);document.addEventListener('collectish:scout-list-rendered',refreshCompareDecorations);document.addEventListener('collectish:scout-universal-results',acceptFamilyResults);setTimeout(hydrateNow,0);
+  if(installed)return;installed=true;ensureStyle();document.addEventListener('collectish:scout-detail-rendered',e=>void addLink(e.detail));document.addEventListener('collectish:scout-structure-ready',restoreContextFromUrl);document.addEventListener('collectish:scout-list-rendered',refreshCompareDecorations);document.addEventListener('collectish:scout-universal-results',acceptFamilyResults);document.addEventListener('click',onReturnClick);setTimeout(hydrateNow,0);
 }
 
 installOraclePrintingsLink();
