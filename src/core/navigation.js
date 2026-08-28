@@ -30,9 +30,9 @@ function writeTransient(key,value,{push=true}={}){
   return true;
 }
 
-export function closeScoutDetail({history:true}={}){
+export function closeScoutDetail({history:useHistory=true}={}){
   const p=params();
-  if(history&&p.get('sku')){
+  if(useHistory&&p.get('sku')){
     history.back();
     return true;
   }
@@ -46,9 +46,9 @@ export function closeScoutDetail({history:true}={}){
   return true;
 }
 
-function closeScoutFilters({history:true}={}){
+function closeScoutFilters({history:useHistory=true}={}){
   const p=params();
-  if(history&&p.get('overlay')==='filters'){
+  if(useHistory&&p.get('overlay')==='filters'){
     history.back();
     return true;
   }
