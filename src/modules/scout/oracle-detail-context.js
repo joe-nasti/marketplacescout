@@ -40,7 +40,7 @@ function backToFamily(){
 function decorateDetail(sku,token,attempt=0){
   if(token!==decorateSeq||String(openedSku)!==String(sku))return;
   const detail=document.querySelector('#cxUniversalDetail .cx-universal-detail');
-  if(!detail){if(attempt<24)setTimeout(()=>decorateDetail(sku,token,attempt+1),100);return}
+  if(!detail){if(attempt<80)setTimeout(()=>decorateDetail(sku,token,attempt+1),100);return}
   const row=rowForSku(sku);if(!row)return;
   const actions=detail.querySelector('.cx-universal-actions');
   if(actions&&!actions.querySelector('[data-oracle-detail-back]')){const b=document.createElement('button');b.type='button';b.className='cx-oracle-detail-back';b.dataset.oracleDetailBack='1';b.textContent=`‹ Back to ${familyName()} printings`;b.addEventListener('click',backToFamily);actions.prepend(b)}

@@ -52,3 +52,12 @@ test('final hardening remains theme-token driven',async()=>{
   }
   expect(inlineSealed).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
 });
+
+test('secondary workbench migration covers Sealed Admin and Ask on desktop and mobile',async()=>{
+  const css=await read('src/core/workbench-secondary.css');
+  const app=await read('src/app.js');
+  for(const selector of ['.cx-sealed-layout','#cxAdminConsole','.cx-ask-panel'])expect(css).toContain(selector);
+  expect(css).toContain('@media(max-width:700px)');
+  expect(css).toContain('env(safe-area-inset-bottom)');
+  expect(app).toContain("import './core/workbench-secondary.css';");
+});
