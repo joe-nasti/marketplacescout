@@ -54,6 +54,11 @@ function setStatus(text,kind=''){
   if(status){status.textContent=text;status.dataset.kind=kind}
 }
 
+function showNativeActiveHistory(){
+  archiveMode=false;
+  document.querySelector('#cxAskCollectish .cx-ask-history')?.click();
+}
+
 function historyTabs(host){
   let tabs=host.querySelector('.cx-ask-history-tabs');
   if(tabs)return tabs;
@@ -64,8 +69,10 @@ function historyTabs(host){
   welcome?.after(tabs);
   tabs.addEventListener('click',e=>{
     const b=e.target.closest('[data-history-mode]');if(!b)return;
-    archiveMode=b.dataset.historyMode==='archived';
-    renderHistoryMode().catch(err=>{console.error('Ask history mode failed',err);setStatus('History unavailable','bad')});
+    const wantsArchived=b.dataset.historyMode==='archived';
+    if(!wantsArchived){showNativeActiveHistory();return}
+    archiveMode=true;
+    renderArchivedHistory().catch(err=>{console.error('Ask archived history failed',err);setStatus('History unavailable','bad')});
   });
   return tabs;
 }
@@ -76,11 +83,11 @@ async function archiveConversation(c,row,archived){
   try{
     await window.rest(`ask_collectish_conversations?id=eq.${encodeURIComponent(c.id)}`,{method:'PATCH',body:{archived_at:archived?null:new Date().toISOString(),updated_at:new Date().toISOString()}});
     if(!archived&&c.id===activeId())document.querySelector('#cxAskCollectish .cx-ask-new')?.click();
-    await renderHistoryMode();
+    if(archived)await renderArchivedHistory();else showNativeActiveHistory();
   }catch(err){control.textContent=archived?'Unarchive':'Archive';control.removeAttribute('aria-disabled');setStatus(archived?'Unarchive failed':'Archive failed','bad');console.error('Ask history archive failed',err)}
 }
 
-async function deleteConversation(c,row,preview){
+async function deleteConversation(c,row,preview,archived=false){
   const del=row.querySelector('.cx-ask-history-delete');
   const label=clip(c.title||preview||'this conversation',50);
   if(!window.confirm(`Delete \"${label}\"? This permanently removes the saved Ask session and its messages.`))return;
@@ -88,7 +95,7 @@ async function deleteConversation(c,row,preview){
   try{
     await window.rest(`ask_collectish_conversations?id=eq.${encodeURIComponent(c.id)}`,{method:'DELETE'});
     if(c.id===activeId())document.querySelector('#cxAskCollectish .cx-ask-new')?.click();
-    await renderHistoryMode();
+    if(archived)await renderArchivedHistory();else showNativeActiveHistory();
   }catch(err){del.textContent='Delete';del.removeAttribute('aria-disabled');setStatus('Delete failed','bad');console.error('Ask history delete failed',err)}
 }
 
@@ -97,42 +104,39 @@ function wireAction(control,handler){
   control?.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();handler(e)}});
 }
 
-async function renderHistoryMode(){
+async function renderArchivedHistory(){
+  archiveMode=true;
   const host=document.getElementById('cxAskMessages');if(!host)return;
-  const data=await historyData(archiveMode);
-  host.innerHTML=`<div class="cx-ask-welcome"><strong>${archiveMode?'Archived Ask sessions':'Recent Ask sessions'}</strong><span>${archiveMode?'Archived sessions stay on your Collectish account until you unarchive or delete them.':'Saved to your Collectish account and available after local site data is cleared.'}</span></div>`;
+  const data=await historyData(true);
+  host.innerHTML='<div class="cx-ask-welcome"><strong>Archived Ask sessions</strong><span>Archived sessions stay on your Collectish account until you unarchive or delete them.</span></div>';
   const tabs=historyTabs(host);
-  tabs.querySelectorAll('[data-history-mode]').forEach(b=>b.classList.toggle('is-active',(b.dataset.historyMode==='archived')===archiveMode));
-  if(!data.conversations.length){const empty=document.createElement('div');empty.className='cx-empty';empty.textContent=archiveMode?'No archived conversations.':'No saved conversations yet.';host.append(empty);setStatus(empty.textContent);return}
+  tabs.querySelectorAll('[data-history-mode]').forEach(b=>b.classList.toggle('is-active',b.dataset.historyMode==='archived'));
+  if(!data.conversations.length){const empty=document.createElement('div');empty.className='cx-empty';empty.textContent='No archived conversations.';host.append(empty);setStatus(empty.textContent);return}
   for(const c of data.conversations){
     const preview=data.firstUser.get(c.id)||'';
     const row=document.createElement('button');row.type='button';row.className='cx-ask-starter cx-ask-history-row';
-    if(!archiveMode&&c.id===activeId())row.classList.add('is-active');
-    row.innerHTML=rowMarkup(c,preview,archiveMode);
-    if(archiveMode){row.addEventListener('click',e=>{if(e.target.closest('.cx-ask-history-actions'))return;archiveConversation(c,row,true)})}
-    else row.addEventListener('click',()=>{});
-    wireAction(row.querySelector('.cx-ask-history-archive'),()=>archiveConversation(c,row,archiveMode));
-    wireAction(row.querySelector('.cx-ask-history-delete'),()=>deleteConversation(c,row,preview));
+    row.innerHTML=rowMarkup(c,preview,true);
+    row.addEventListener('click',e=>{if(e.target.closest('.cx-ask-history-actions'))return;archiveConversation(c,row,true)});
+    wireAction(row.querySelector('.cx-ask-history-archive'),()=>archiveConversation(c,row,true));
+    wireAction(row.querySelector('.cx-ask-history-delete'),()=>deleteConversation(c,row,preview,true));
     host.append(row);
   }
-  host.scrollTop=0;setStatus(`${data.conversations.length} ${archiveMode?'archived':'saved'} conversation${data.conversations.length===1?'':'s'}`,'ok');
+  host.scrollTop=0;setStatus(`${data.conversations.length} archived conversation${data.conversations.length===1?'':'s'}`,'ok');
 }
 
 async function enhanceHistory(){
   const host=document.getElementById('cxAskMessages');
-  if(!host)return;
-  archiveMode=false;
+  if(!host||archiveMode)return;
   const data=await historyData(false).catch(()=>null);if(!data)return;
   const buttons=[...host.querySelectorAll(':scope > .cx-ask-starter')];
-  if(!buttons.length&&data.conversations.length){await renderHistoryMode();return}
   historyTabs(host).querySelector('[data-history-mode="active"]')?.classList.add('is-active');
-  if(buttons.length!==data.conversations.length){await renderHistoryMode();return}
+  if(buttons.length!==data.conversations.length)return;
   buttons.forEach((b,i)=>{
     const c=data.conversations[i];if(!c)return;
     b.classList.add('cx-ask-history-row');if(c.id===activeId())b.classList.add('is-active');
     const preview=data.firstUser.get(c.id)||'';b.innerHTML=rowMarkup(c,preview,false);
     wireAction(b.querySelector('.cx-ask-history-archive'),()=>archiveConversation(c,b,false));
-    wireAction(b.querySelector('.cx-ask-history-delete'),()=>deleteConversation(c,b,preview));
+    wireAction(b.querySelector('.cx-ask-history-delete'),()=>deleteConversation(c,b,preview,false));
   });
 }
 
