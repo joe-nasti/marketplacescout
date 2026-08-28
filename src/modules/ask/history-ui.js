@@ -68,6 +68,7 @@ export function installAskHistoryUi(){
     return true;
   };
   if(hook())return;
-  const obs=new MutationObserver(()=>{if(hook())obs.disconnect()});
-  obs.observe(document.documentElement,{childList:true,subtree:true});
+  // Ask is route-lazy. Retry briefly after install rather than owning DOM lifecycle with an observer.
+  for(const delay of [80,220,500,1000,1800])setTimeout(hook,delay);
+  document.addEventListener('collectish:ready',hook,{once:true});
 }
