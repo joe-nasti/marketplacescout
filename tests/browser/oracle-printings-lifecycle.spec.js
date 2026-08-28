@@ -80,8 +80,8 @@ test('Oracle family confidence weights current, dormant, and catalog coverage ex
 test('Oracle comparison hardening clears stale UI, hydrates late imports, and requests the full supported family',async()=>{
   const compare=await read('src/modules/scout/oracle-printings.js');
   const search=await read('src/modules/scout/universal-search.js');
-  expect(compare).toContain('const FAMILY_LIMIT=500');
-  expect(search).toContain('const FAMILY_LIMIT=500');
+  expect(compare).toContain('const FAMILY_LIMIT=2000');
+  expect(search).toContain('const FAMILY_LIMIT=2000');
   expect(compare).toContain('p_limit:FAMILY_LIMIT');
   expect(search).toContain('p_limit:FAMILY_LIMIT');
   expect(compare).toContain("input.dispatchEvent(new Event('input',{bubbles:true}))");
@@ -110,4 +110,14 @@ test('Oracle capped families are disclosed and mobile return stays inside the re
   expect(search).not.toContain('Loading every Scout printing');
   expect(compare).toContain('comparison limit reached');
   expect(compare).toContain('function onReturnClick');
+});
+
+test('large Oracle families keep full winner data but progressively render rows',async()=>{
+  const source=await read('src/modules/scout/universal-search.js');
+  expect(source).toContain('const FAMILY_RENDER_BATCH=100');
+  expect(source).toContain('sorted.slice(0,visible)');
+  expect(source).toContain('data-oracle-load-more');
+  expect(source).toContain('h._familyVisible');
+  expect(source).toContain('familyAwards(list)');
+  expect(source).toContain('rows:list,capped,visible');
 });
