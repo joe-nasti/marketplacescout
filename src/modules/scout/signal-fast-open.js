@@ -1,7 +1,6 @@
 import store from '../../state/store.js';
 import { readScoutDetail } from './cache-read.js';
 
-let installed=false;
 let openSeq=0;
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const money=n=>n==null||n===''||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
@@ -41,7 +40,7 @@ function markSelected(row){
   store.update('scout',{selectedSku:row.sku_id||null});
   document.querySelectorAll('#cxParityCards .cx-scout-card').forEach(el=>el.classList.toggle('selected',String(el.dataset.sku)===String(row.sku_id)));
 }
-async function openFast(detail){
+export async function openSignalScoutFast(detail={}){
   const seq=++openSeq,start=performance.now();
   window.CollectishShell?.switchPage?.('scout');
   let row=match(detail);
@@ -71,17 +70,3 @@ async function openFast(detail){
     document.dispatchEvent(new CustomEvent('collectish:signal-scout-enriched-detail',{detail:{sku:row.sku_id,ms:Math.round(performance.now()-start)}}));
   }
 }
-function shouldHandle(event){
-  const d=event.detail||{},source=String(d.source||'');
-  return source.startsWith('signals')||(store.get().navigation?.page==='signals'&&Boolean(d.sku_id||d.product_id||d.scryfall_id||d.card_name));
-}
-function onOpen(event){
-  if(!shouldHandle(event))return;
-  event.preventDefault?.();event.stopImmediatePropagation?.();
-  void openFast(event.detail||{});
-}
-export function installSignalFastOpen(){
-  if(installed)return;installed=true;
-  document.addEventListener('collectish:open-scout-card',onOpen,true);
-}
-installSignalFastOpen();
