@@ -1,10 +1,10 @@
 let installed=false,lastRows=[],lastOracle='';
 
 function stateOf(r){
-  const explicit=String(r?.coverage_state||'').toLowerCase();
+  const explicit=String(r?.coverage_state||'').trim().toLowerCase();
+  if(explicit.includes('catalog')||!r?.last_evaluated_at)return'catalog';
   if(explicit.includes('current')||explicit.includes('active')||explicit.includes('fresh'))return'current';
   if(explicit.includes('dormant')||explicit.includes('stale'))return'dormant';
-  if(!r?.last_evaluated_at)return'catalog';
   return (Date.now()-new Date(r.last_evaluated_at).getTime())/86400000<=7?'current':'dormant';
 }
 function counts(rows){
