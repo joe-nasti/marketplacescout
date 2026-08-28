@@ -107,6 +107,65 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .cx-v5-section{border-top:var(--workbench-rule)!important}
 .cx-v5-details{border-top:var(--workbench-rule)!important}
 
+/* Signals is an intelligence tape: compact metrics, text tabs, hard-edged evidence rows. */
+.cx-signals-vnext{margin:0 0 12px!important}
+.cx-sv-nav,.cx-signal-tabs{gap:16px!important;border-bottom:var(--workbench-rule);padding:0!important;margin:0 0 10px!important}
+.cx-sv-nav button,.cx-signal-tabs button,.cx-sv-filters button{position:relative;border:0!important;background:transparent!important;border-radius:0!important;color:var(--color-text-secondary)!important;padding:7px 0 9px!important;font-size:10px!important;font-weight:700!important}
+.cx-sv-nav button.active,.cx-signal-tabs button.active,.cx-sv-filters button.active{color:var(--color-text-primary)!important;background:transparent!important}
+.cx-sv-nav button.active:after,.cx-signal-tabs button.active:after,.cx-sv-filters button.active:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--color-accent)}
+.cx-sv-metrics{gap:0!important;border:var(--workbench-rule);background:var(--color-bg-surface);margin-bottom:10px!important}
+.cx-sv-metric{border:0!important;border-right:var(--workbench-rule)!important;border-radius:0!important;background:transparent!important;padding:9px 10px!important}
+.cx-sv-metric:last-child{border-right:0!important}
+.cx-sv-metric strong{font-variant-numeric:tabular-nums}
+.cx-sv-toolbar{border-bottom:var(--workbench-rule);padding-bottom:10px;margin-bottom:0!important}
+.cx-sv-toolbar input,.cx-signal-analyze input,.cx-signal-add input,.cx-signal-add select,.cx-signal-add textarea{border-radius:3px!important;border:var(--workbench-rule)!important;background:var(--color-bg-input)!important}
+.cx-sv-toolbar>button{border-radius:3px!important;background:transparent!important;border:var(--workbench-rule)!important}
+.cx-sv-list{border-radius:2px!important;border:var(--workbench-rule)!important;background:var(--color-bg-surface)!important}
+.cx-sv-row{border-top:var(--workbench-rule)!important;padding:8px 10px!important}
+.cx-sv-row:hover,.cx-sv-row:focus-visible{background:var(--row-hover)!important}
+.cx-sv-chip,.cx-signal-stage,.cx-signal-direction,.cx-intel-mini{border-radius:2px!important;background:transparent!important;border:1px solid var(--color-border)!important;padding:2px 4px!important;font-size:8px!important}
+.cx-sv-action,.cx-signal-stage.leading,.cx-signal-direction.bullish{color:var(--color-success)!important;border-color:color-mix(in srgb,var(--color-success) 38%,var(--color-border))!important}
+.cx-sv-emerging,.cx-signal-stage.confirming{color:var(--color-accent)!important;border-color:color-mix(in srgb,var(--color-accent) 38%,var(--color-border))!important}
+.cx-sv-watch,.cx-signal-stage.noise{color:var(--color-text-secondary)!important}
+.cx-signal-stage.lagging{color:var(--color-warning)!important;border-color:color-mix(in srgb,var(--color-warning) 38%,var(--color-border))!important}
+.cx-signal-card,.cx-signal-proposal,.cx-intel-detail,.cx-intelligence-detail{border-radius:3px!important;box-shadow:none!important;background:var(--color-bg-surface)!important}
+.cx-signal-card{padding:12px!important}
+.cx-signal-card+.cx-signal-card{margin-top:0}
+.cx-signals-feed{gap:0!important;border:var(--workbench-rule);background:var(--color-bg-surface)}
+.cx-signals-feed>.cx-signal-card{border:0!important;border-bottom:var(--workbench-rule)!important}
+.cx-signals-feed>.cx-signal-card:last-child{border-bottom:0!important}
+.cx-signal-entities span,.cx-signal-entity-chip{border-radius:2px!important;padding:3px 5px!important;font-size:9px!important}
+.cx-signal-actions{border-top:var(--workbench-rule)!important}
+.cx-signals-layout{gap:0!important;grid-template-columns:minmax(300px,.9fr) minmax(430px,1.4fr)!important;border:var(--workbench-rule);background:var(--color-bg-surface)}
+.cx-signals-layout>*{min-width:0}
+.cx-signals-layout>.cx-card:first-child,.cx-signals-layout>.cx-signal-add{border:0!important;border-right:var(--workbench-rule)!important;border-radius:0!important}
+.cx-signals-layout>.cx-card:last-child{border:0!important;border-radius:0!important}
+
+/* Selling, SYP and inventory behave as ledgers and operational workspaces. */
+.cx-seller-tabs,.cx-syp-tabs{gap:16px!important;border-bottom:var(--workbench-rule);padding:0!important;margin:0 0 12px!important}
+.cx-seller-tabs button,.cx-syp-tabs button{position:relative;border:0!important;background:transparent!important;border-radius:0!important;color:var(--color-text-secondary)!important;padding:7px 0 9px!important;font-size:10px!important;font-weight:700!important}
+.cx-seller-tabs button.active,.cx-syp-tabs button.active{color:var(--color-text-primary)!important;background:transparent!important}
+.cx-seller-tabs button.active:after,.cx-syp-tabs button.active:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--color-accent)}
+.cx-syp-filtergrid,.cx-inventory-toolbar{border-bottom:var(--workbench-rule);padding-bottom:10px;margin-bottom:10px!important}
+.cx-syp-filtergrid input,.cx-syp-filtergrid select,.cx-inventory-toolbar input,.cx-inventory-toolbar select{border-radius:3px!important;border:var(--workbench-rule)!important}
+.cx-syp-event{border-radius:2px!important;padding:2px 4px!important;font-size:8px!important}
+.cx-inventory-kpis{gap:0!important;border:var(--workbench-rule);background:var(--color-bg-surface)}
+.cx-inventory-stat{border:0!important;border-right:var(--workbench-rule)!important;border-radius:0!important;background:transparent!important;padding:10px 11px!important}
+.cx-inventory-stat:last-child{border-right:0!important}
+.cx-inventory-stat strong{font-variant-numeric:tabular-nums}
+.cx-inventory-layout{gap:0!important;border:var(--workbench-rule);background:var(--color-bg-surface)}
+.cx-inventory-list{grid-template-columns:1fr!important;gap:0!important}
+.cx-inventory-row{border:0!important;border-bottom:var(--workbench-rule)!important;border-radius:0!important;padding:9px 10px!important;background:transparent!important;box-shadow:none!important}
+.cx-inventory-row:hover{background:var(--row-hover)!important}
+.cx-inventory-row.selected{background:var(--row-selected)!important;box-shadow:inset 2px 0 0 var(--color-accent)!important}
+.cx-inventory-row>img,.cx-inventory-detail-head>img{border-radius:3px!important}
+.cx-inventory-detail{top:12px!important;border-left:var(--workbench-rule);padding:12px!important;background:var(--color-bg-surface)}
+.cx-inventory-condition,.cx-inventory-pricegrid>span,.cx-inventory-progress{border-radius:3px!important;box-shadow:none!important}
+.cx-inventory-context{gap:0!important;border:var(--workbench-rule)}
+.cx-inventory-context>*{border:0!important;border-right:var(--workbench-rule)!important;border-radius:0!important}
+.cx-inventory-context>*:last-child{border-right:0!important}
+.cx-inventory-progress-bar{border-radius:2px!important;height:5px!important}
+
 /* Filter sheets are temporary layers with explicit depth. */
 .cx-scout-filter-sheet{border-radius:4px!important;box-shadow:var(--shadow-float)!important}
 .cx-scout-filter-sheet input,.cx-scout-filter-sheet select{border-radius:3px!important}
@@ -119,6 +178,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(max-width:980px){
   #collectishUxShell{grid-template-columns:164px minmax(0,1fr)}
   .cx-main{padding:18px}
+  .cx-signals-layout{grid-template-columns:1fr!important;border:0!important;background:transparent!important}
+  .cx-signals-layout>.cx-card:first-child,.cx-signals-layout>.cx-signal-add{border:var(--workbench-rule)!important;border-radius:3px!important;margin-bottom:10px}
+  .cx-signals-layout>.cx-card:last-child{border:var(--workbench-rule)!important;border-radius:3px!important}
 }
 
 @media(max-width:700px){
@@ -146,6 +208,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .cx-scout-layout>aside.cx-mobile-detail-open{transform:translateY(0)}
   .cx-mobile-detail-close{border-radius:2px!important}
   .cx-scout-filter-sheet{border-radius:6px 6px 0 0!important}
+  .cx-sv-metrics,.cx-inventory-kpis{margin-left:-10px;margin-right:-10px;border-left:0!important;border-right:0!important;overflow-x:auto}
+  .cx-sv-metric,.cx-inventory-stat{min-width:125px;flex:0 0 auto}
+  .cx-signals-feed{margin-left:-10px;margin-right:-10px;border-left:0!important;border-right:0!important}
+  .cx-signal-card{border-radius:0!important}
+  .cx-seller-tabs,.cx-syp-tabs{overflow-x:auto!important;display:flex!important;grid-template-columns:none!important;scrollbar-width:none}
+  .cx-seller-tabs::-webkit-scrollbar,.cx-syp-tabs::-webkit-scrollbar{display:none}
+  .cx-seller-tabs button,.cx-syp-tabs button{min-width:max-content!important;width:auto!important;padding:7px 0 9px!important}
+  .cx-inventory-layout{border-left:0!important;border-right:0!important;margin-left:-10px;margin-right:-10px}
+  .cx-inventory-detail{border-left:0!important;border-top:var(--workbench-rule);padding:12px 10px!important}
+  .cx-inventory-row{padding-left:10px!important;padding-right:10px!important}
 }
 
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition-duration:.001ms!important;animation-duration:.001ms!important}}
