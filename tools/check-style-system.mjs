@@ -55,4 +55,9 @@ for(const file of expected.filter(x=>x.endsWith('.css'))){
   if(css.includes('prefers-color-scheme'))throw new Error(`Theme branching via prefers-color-scheme is forbidden in ${file}`);
 }
 if(/document\.documentElement\.dataset\.cxTheme\b/.test(themeJs))throw new Error('Legacy root cxTheme dataset is forbidden');
-console.log('Collectish token/theme style system OK');
+const workbench=await readFile(join(styles,'workbench.css'),'utf8');
+for(const required of ['.cx-scout-layout','.cx-signals-vnext','.cx-seller-tabs','.cx-inventory-layout','.cx-mobile-nav']){
+  if(!workbench.includes(required))throw new Error(`Workbench layer missing cross-screen coverage: ${required}`);
+}
+if(!workbench.includes('@media(max-width:700px)'))throw new Error('Workbench layer must define a mobile/Android breakpoint contract');
+console.log('Collectish token/theme/workbench style system OK');
