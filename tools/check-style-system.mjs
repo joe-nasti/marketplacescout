@@ -7,6 +7,7 @@ const expected=[
   'activity-bar.css',
   'admin-alerts.css',
   'admin.css',
+  'ask-history.css',
   'ask-readable.css',
   'ask-session-history.css',
   'ask.css',
