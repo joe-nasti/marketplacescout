@@ -1,0 +1,96 @@
+/* Secondary workbench migration: Sealed, Admin/System, Ask Collectish. */
+
+/* Sealed follows Scout's list + inspector grammar. */
+.cx-sealed-toolbar{display:grid!important;grid-template-columns:minmax(240px,1fr) repeat(3,minmax(130px,.45fr));gap:8px!important;margin:0 0 10px!important;padding-bottom:10px;border-bottom:var(--workbench-rule)}
+.cx-sealed-toolbar input,.cx-sealed-toolbar select{border-radius:3px!important;border:var(--workbench-rule)!important;min-height:38px!important;background:var(--color-bg-input)!important}
+.cx-sealed-layout{gap:0!important;align-items:start}
+.cx-sealed-layout>section{border:var(--workbench-rule);border-right:0;background:var(--color-bg-surface)}
+.cx-sealed-list{display:block!important}
+.cx-sealed-row{display:grid!important;grid-template-columns:minmax(240px,1.5fr) repeat(5,minmax(72px,.65fr))!important;gap:8px!important;border:0!important;border-bottom:var(--workbench-rule)!important;border-radius:0!important;padding:10px!important;background:transparent!important;box-shadow:none!important}
+.cx-sealed-row:hover{background:var(--row-hover)!important}
+.cx-sealed-row.selected{background:var(--row-selected)!important;box-shadow:inset 2px 0 0 var(--color-accent)!important}
+.cx-sealed-row:last-child{border-bottom:0!important}
+.cx-sealed-product-image,.cx-sealed-scout-thumb,.cx-sealed-product-image-detail{border-radius:3px!important}
+.cx-sealed-badge,.cx-econ-legend span,.cx-sealed-freshness span,.cx-sealed-lang-badge{border-radius:2px!important;background:transparent!important;border:1px solid var(--color-border)!important;padding:2px 4px!important;font-size:8px!important}
+.cx-sealed-badge.buylist,.cx-econ-legend .exit{color:var(--color-success)!important;border-color:color-mix(in srgb,var(--color-success) 38%,var(--color-border))!important}
+.cx-sealed-badge.direct,.cx-econ-legend .retail{color:var(--color-accent)!important;border-color:color-mix(in srgb,var(--color-accent) 38%,var(--color-border))!important}
+.cx-sealed-badge.risk,.cx-sealed-lang-badge{color:var(--color-warning)!important;border-color:color-mix(in srgb,var(--color-warning) 38%,var(--color-border))!important}
+.cx-sealed-detail{position:sticky!important;top:14px!important;margin:0!important;border:var(--workbench-rule)!important;border-radius:0!important;box-shadow:none!important;background:var(--color-bg-surface)!important}
+.cx-sealed-grid{gap:0!important;border:var(--workbench-rule);background:var(--color-bg-surface)}
+.cx-sealed-stat{border:0!important;border-right:var(--workbench-rule)!important;border-bottom:var(--workbench-rule)!important;border-radius:0!important;background:transparent!important}
+.cx-sealed-stat:nth-child(2n){border-right:0!important}
+.cx-sealed-summary{border-radius:2px!important;background:transparent!important;border:var(--workbench-rule)!important}
+.cx-sealed-econ-wrap{border-radius:2px!important;border:var(--workbench-rule)!important}
+.cx-sealed-econ th,.cx-sealed-econ td{border-bottom:var(--workbench-rule)!important}
+
+/* Admin is a control room: status rails, source rows, and catalog tables. */
+#cxAdminConsole{gap:10px!important}
+.cx-admin-console-head{padding-bottom:12px;border-bottom:var(--workbench-rule)}
+.cx-admin-console-state,.cx-admin-status,.cx-admin-sealed-tag{border-radius:2px!important;background:transparent!important;border:1px solid var(--color-border)!important;padding:3px 5px!important;font-size:8px!important}
+.cx-admin-console-state.healthy,.cx-admin-status.good,.cx-admin-sealed-tag.good{color:var(--color-success)!important;border-color:color-mix(in srgb,var(--color-success) 38%,var(--color-border))!important}
+.cx-admin-console-state.attention,.cx-admin-status.warn,.cx-admin-sealed-tag.warn{color:var(--color-warning)!important;border-color:color-mix(in srgb,var(--color-warning) 38%,var(--color-border))!important}
+.cx-admin-status.bad{color:var(--color-danger)!important;border-color:color-mix(in srgb,var(--color-danger) 38%,var(--color-border))!important}
+.cx-admin-tabs{gap:16px!important;padding:0!important;margin:0 0 10px!important;border-bottom:var(--workbench-rule);background:var(--color-bg-primary)!important;box-shadow:none!important}
+.cx-admin-tabs button{position:relative;border:0!important;background:transparent!important;border-radius:0!important;padding:8px 0 10px!important;color:var(--color-text-secondary)!important;font-size:10px!important}
+.cx-admin-tabs button.active{background:transparent!important;color:var(--color-text-primary)!important}
+.cx-admin-tabs button.active:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--color-accent)}
+.cx-admin-summary-grid{gap:0!important;border:var(--workbench-rule);background:var(--color-bg-surface)}
+.cx-admin-summary-card{border:0!important;border-right:var(--workbench-rule)!important;border-radius:0!important;min-height:76px!important;background:transparent!important;padding:10px 11px!important}
+.cx-admin-summary-card:last-child{border-right:0!important}
+.cx-admin-summary-card.good,.cx-admin-summary-card.warn,.cx-admin-summary-card.bad{background:transparent!important}
+.cx-admin-source-list{gap:0!important;border:var(--workbench-rule);background:var(--color-bg-surface)}
+.cx-admin-source-row{border:0!important;border-bottom:var(--workbench-rule)!important;border-radius:0!important;padding:10px 11px!important}
+.cx-admin-source-row:last-child{border-bottom:0!important}
+.cx-admin-catalog-card{border-radius:3px!important;box-shadow:none!important}
+.cx-admin-sealed-set{border-radius:2px!important;background:var(--color-bg-surface)!important}
+.cx-admin-sealed-product{border-radius:2px!important}
+.cx-admin-sealed-tools input,.cx-admin-sealed-tools select{border-radius:3px!important}
+.cx-admin-top{border-radius:2px!important;box-shadow:none!important}
+
+/* Ask is a utility inspector, not a floating consumer-chat bubble. */
+.cx-ask-fab{border-radius:3px!important;box-shadow:none!important;height:40px!important;padding:0 12px!important;font-size:11px!important}
+.cx-ask-inline{border-radius:3px!important;background:transparent!important;padding:7px 9px!important;font-size:11px!important}
+.cx-ask-panel{right:0!important;top:0!important;bottom:0!important;width:min(460px,100vw)!important;border-radius:0!important;border-top:0!important;border-bottom:0!important;box-shadow:var(--shadow-float)!important;background:var(--color-bg-primary)!important}
+.cx-ask-head{padding:12px 13px!important;border-bottom:var(--workbench-rule)!important}
+.cx-ask-mark{width:28px!important;height:28px!important;border-radius:2px!important;font-size:15px!important}
+.cx-ask-new,.cx-ask-pref,.cx-ask-close{border-radius:2px!important}
+.cx-ask-context-row{padding:7px 13px!important;border-bottom:var(--workbench-rule)!important;background:var(--color-bg-surface)!important}
+.cx-ask-starters{gap:14px!important;padding:0 13px!important;border-bottom:var(--workbench-rule)!important}
+.cx-ask-starter{position:relative;border:0!important;background:transparent!important;border-radius:0!important;padding:9px 0 10px!important;color:var(--color-text-secondary)!important;font-size:10px!important}
+.cx-ask-starter:hover{color:var(--color-text-primary)!important}
+.cx-ask-messages{padding:12px 13px 18px!important;gap:9px!important}
+.cx-ask-welcome,.cx-ask-prefbox,.cx-ai-filter-results,.cx-ai-result-list>button,.cx-v3-action-card,.cx-v3-purchase-card,.cx-ask-surface{border-radius:3px!important;box-shadow:none!important}
+.cx-ask-msg-body{border-radius:3px!important;padding:9px 10px!important}
+.cx-ask-user .cx-ask-msg-body{border-bottom-right-radius:3px!important}
+.cx-ask-assistant .cx-ask-msg-body{border-bottom-left-radius:3px!important}
+.cx-ask-compose{border-top:var(--workbench-rule)!important;padding:9px 10px calc(9px + env(safe-area-inset-bottom))!important}
+.cx-ask-compose textarea,.cx-ask-compose button,.cx-ask-investigate,.cx-ask-surface-action{border-radius:3px!important}
+.cx-ask-surface-metrics{gap:0!important;border:var(--workbench-rule);background:var(--color-bg-primary)}
+.cx-ask-surface-metrics span{border:0!important;border-right:var(--workbench-rule)!important;border-radius:0!important;background:transparent!important}
+.cx-ask-surface-metrics span:last-child{border-right:0!important}
+.cx-investigate-badge,.cx-v3-action-badge{border-radius:2px!important}
+
+@media(max-width:980px){
+  .cx-sealed-layout{grid-template-columns:1fr!important}
+  .cx-sealed-layout>section{border-right:var(--workbench-rule)}
+  .cx-sealed-detail{position:static!important}
+}
+
+@media(max-width:700px){
+  .cx-sealed-toolbar{grid-template-columns:1fr 1fr!important}
+  .cx-sealed-toolbar input{grid-column:1/-1}
+  .cx-sealed-layout>section{border-left:0!important;border-right:0!important;margin-left:-10px;margin-right:-10px}
+  .cx-sealed-row{grid-template-columns:1fr 1fr!important;padding:10px!important}
+  .cx-sealed-name{grid-column:1/-1}
+  .cx-sealed-detail.cx-sealed-detail-open{display:block!important;position:fixed!important;inset:auto 0 0 0!important;width:auto!important;height:auto!important;max-height:84dvh!important;z-index:12000!important;border-radius:6px 6px 0 0!important;border:var(--workbench-rule)!important;border-bottom:0!important;padding:12px max(12px,env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))!important;background:var(--color-bg-surface)!important}
+  .cx-sealed-detail-open .cx-sealed-detail-close{top:0!important;border-radius:2px!important}
+  .cx-admin-summary-grid{grid-template-columns:1fr 1fr!important}
+  .cx-admin-summary-card:nth-child(2n){border-right:0!important}
+  .cx-admin-source-row{display:grid!important;grid-template-columns:1fr!important}
+  .cx-admin-source-meta{text-align:left!important;max-width:none!important}
+  .cx-admin-tabs{overflow-x:auto!important;scrollbar-width:none}
+  .cx-admin-tabs button{flex:0 0 auto!important;padding-left:0!important;padding-right:0!important}
+  .cx-ask-fab{right:10px!important;bottom:calc(66px + env(safe-area-inset-bottom))!important}
+  .cx-ask-panel{inset:0!important;width:auto!important;height:100dvh!important;max-height:100dvh!important;border:0!important}
+  .cx-ask-head{padding-top:max(10px,env(safe-area-inset-top))!important}
+}
