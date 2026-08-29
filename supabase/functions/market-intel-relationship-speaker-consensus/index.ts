@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+// Relationship-centric same-video consensus; same-video voices never become convergence sources.
 const U=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
 const S=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const O=Deno.env.get('OPENAI_API_KEY')||'';
