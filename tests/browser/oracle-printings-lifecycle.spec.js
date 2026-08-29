@@ -121,3 +121,16 @@ test('large Oracle families keep full winner data but progressively render rows'
   expect(source).toContain('familyAwards(list)');
   expect(source).toContain('rows:list,capped,visible');
 });
+
+test('queued Oracle refreshes live-update family confidence winners and visible rows',async()=>{
+  const source=await read('src/modules/scout/oracle-bulk-refresh.js');
+  expect(source).toContain('WATCH_DELAYS');
+  expect(source).toContain('watchRefreshes');
+  expect(source).toContain("rpc/scout_catalog_by_oracle");
+  expect(source).toContain('stamp(row.last_evaluated_at)>');
+  expect(source).toContain('collectish:oracle-family-live-update');
+  expect(source).toContain("collectish:scout-universal-results");
+  expect(source).toContain('comparison updates automatically');
+  expect(source).toContain('data-oracle-detail-back');
+  expect(source).toContain('watch_skus');
+});
