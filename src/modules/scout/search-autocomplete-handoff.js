@@ -1,6 +1,22 @@
 let installed=false;
 
 function field(){return document.getElementById('cxParitySearch')}
+function ensureSearchAnchor(){
+  const input=field();
+  if(!input)return null;
+  const existing=input.closest('.cx-scout-search-anchor');
+  if(existing)return existing;
+  const parent=input.parentNode;
+  if(!parent)return null;
+  const anchor=document.createElement('div');
+  anchor.className='cx-scout-search-anchor';
+  anchor.style.position='relative';
+  anchor.style.minWidth='0';
+  anchor.style.width='100%';
+  parent.insertBefore(anchor,input);
+  anchor.appendChild(input);
+  return anchor;
+}
 function currentRenderedName(event){return String(event?.detail?.name||'').trim()}
 function composableValue(value,name){
   const raw=String(value||'');
@@ -51,6 +67,8 @@ function preserveComposition(event){
 export function installScoutAutocompleteHandoff(){
   if(installed)return;
   installed=true;
+  ensureSearchAnchor();
+  document.addEventListener('collectish:scout-v5-ready',ensureSearchAnchor);
   document.addEventListener('click',chooseSuggestion,true);
   document.addEventListener('collectish:scout-global-rendered',preserveComposition);
 }
