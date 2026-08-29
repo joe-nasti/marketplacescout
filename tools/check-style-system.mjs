@@ -14,6 +14,7 @@ const expected=[
   'base.css',
   'index.css',
   'mobile-quality.css',
+  'mobile-touch-targets.css',
   'product-navigation.css',
   'scout-compact.css',
   'scout-detail-compact.css',
@@ -31,6 +32,7 @@ const expected=[
   'signals.css',
   'tokens.css',
   'utility-controls.css',
+  'workbench-secondary.css',
   'workbench.css'
 ].sort();
 const files=(await readdir(styles)).sort();
