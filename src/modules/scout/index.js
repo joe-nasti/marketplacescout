@@ -26,6 +26,7 @@ export async function installScoutRenderer(){
   void import('./oracle-bulk-refresh.js');
   void import('./oracle-detail-context.js');
   void import('./oracle-family-confidence.js');
+  void import('./price-actionability.js');
 
   // Interaction/state enhancers cannot reshape first paint. The recorder is
   // explicitly idle-deferred so analytics never consume Scout's startup budget.
