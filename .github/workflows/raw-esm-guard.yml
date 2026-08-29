@@ -41,5 +41,5 @@ jobs:
           set -euo pipefail
           grep -q "./src/main.js" index.html
           grep -q "./app.js" src/main.js
-          grep -q "../core/workbench-secondary.css" src/styles/index.css
-          grep -q "../core/mobile-touch-targets.css" src/styles/index.css
+          grep -q "./workbench-secondary.css" src/styles/index.css
+          grep -q "./mobile-touch-targets.css" src/styles/index.css
