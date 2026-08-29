@@ -26,10 +26,9 @@
         var host=document.getElementById('collectishBootFallback'); if(!host)return;
         var span=host.querySelector('span'); if(span)span.textContent='Startup has not completed.';
         var d=host.querySelector('div'); if(!d)return;
-        var nativeVersion=''; try{nativeVersion=window.CollectishAndroid&&CollectishAndroid.getVersion?CollectishAndroid.getVersion():''}catch(_){}
         var details=document.createElement('small');
         details.id='collectishBootDiagnostic';
-        details.textContent=(window.__collectishBootErrors.length?window.__collectishBootErrors.join(' | '):'No JavaScript error surfaced')+(nativeVersion?' · Android '+nativeVersion:'')+' · '+location.pathname+location.search+' · '+navigator.userAgent;
+        details.textContent=(window.__collectishBootErrors.length?window.__collectishBootErrors.join(' | '):'No JavaScript error surfaced')+' · '+location.pathname+location.search+' · '+navigator.userAgent;
         d.appendChild(details);
       },7000);
     })();
