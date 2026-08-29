@@ -1,0 +1,27 @@
+name: Scout price actionability validation
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cloud-worker/scout-price-actionability-audit.sql"
+      - "src/modules/scout/price-actionability.js"
+      - "src/modules/scout/index.js"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate audit semantics
+        run: |
+          set -euo pipefail
+          grep -Fq 'security_invoker = true' cloud-worker/scout-price-actionability-audit.sql
+          grep -Fq 'lowest_listing_price' cloud-worker/scout-price-actionability-audit.sql
+          grep -Fq 'lowest_shipping' cloud-worker/scout-price-actionability-audit.sql
+          grep -Fq 'recent_transient_low_detected' cloud-worker/scout-price-actionability-audit.sql
+          grep -Fq "alternate_source_1d_old" cloud-worker/scout-price-actionability-audit.sql
+          grep -Fq 'actionability_shadow_grade' cloud-worker/scout-price-actionability-audit.sql
+          grep -Fq 'Official Scout grade unchanged' src/modules/scout/price-actionability.js
+          grep -Fq "import('./price-actionability.js')" src/modules/scout/index.js
