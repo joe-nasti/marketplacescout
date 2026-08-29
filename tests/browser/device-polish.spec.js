@@ -79,6 +79,36 @@ test('Scout mobile rows prioritize decision metrics instead of repeating score',
   expect(result.rects[4].width).toBeGreaterThan(result.rects[1].width*1.35);
 });
 
+test('Scout mobile detail resolves as a compact progressive inspector',async({page},testInfo)=>{
+  test.skip(testInfo.project.name==='desktop-chromium','mobile inspector contract');
+  await page.goto('/');
+  const metrics=await page.evaluate(()=>{
+    const scout=document.createElement('section');
+    scout.id='cxScout';
+    scout.innerHTML='<div class="cx-scout-layout"><section></section><aside class="cx-scout-detail cx-mobile-detail-open"><button class="cx-mobile-detail-close">×</button><div class="cx-v5-compact-head"><img class="cx-scout-hero"><div class="cx-v5-compact-info"><div class="cx-v5-compact-title">Card</div></div></div><div class="cx-v5-score-strip"><span class="cx-v5-score-chip"><b>Thesis</b><strong>10</strong></span><span class="cx-v5-score-chip"><b>Exec</b><strong>8</strong></span><span class="cx-v5-score-chip"><b>Floor</b><strong>5</strong></span><span class="cx-v5-score-chip"><b>Conf</b><strong>4</strong></span></div><section class="cx-v5-tier-best"><h3 class="cx-section-title">Best trade</h3></section><section class="cx-v5-tier-cash"><h3 class="cx-section-title">Cash floor</h3></section></aside></div>';
+    document.body.appendChild(scout);
+    const aside=scout.querySelector('aside'),art=scout.querySelector('.cx-scout-hero'),scores=scout.querySelector('.cx-v5-score-strip'),best=scout.querySelector('.cx-v5-tier-best'),cash=scout.querySelector('.cx-v5-tier-cash'),close=scout.querySelector('.cx-mobile-detail-close');
+    const result={
+      maxHeight:getComputedStyle(aside).maxHeight,
+      artWidth:art.getBoundingClientRect().width,
+      scoreDisplay:getComputedStyle(scores).display,
+      scoreColumns:getComputedStyle(scores).gridTemplateColumns.trim().split(/\s+/).length,
+      bestRadius:getComputedStyle(best).borderRadius,
+      cashRadius:getComputedStyle(cash).borderRadius,
+      closeWidth:close.getBoundingClientRect().width
+    };
+    scout.remove();
+    return result;
+  });
+  expect(parseFloat(metrics.maxHeight)).toBeLessThanOrEqual(720);
+  expect(metrics.artWidth).toBeLessThanOrEqual(64);
+  expect(metrics.scoreDisplay).toBe('grid');
+  expect(metrics.scoreColumns).toBe(4);
+  expect(parseFloat(metrics.bestRadius)).toBeLessThanOrEqual(1);
+  expect(parseFloat(metrics.cashRadius)).toBeLessThanOrEqual(1);
+  expect(metrics.closeWidth).toBeLessThanOrEqual(38);
+});
+
 test('reduced-motion preference disables decorative motion',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('/');
