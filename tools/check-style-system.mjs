@@ -6,6 +6,7 @@ const styles=join(root,'src/styles');
 const expected=[
   'activity-bar.css',
   'admin-alerts.css',
+  'admin-catalyst-calibration.css',
   'admin.css',
   'ask-history.css',
   'ask-readable.css',
