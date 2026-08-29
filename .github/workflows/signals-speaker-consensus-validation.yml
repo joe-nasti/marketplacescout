@@ -28,17 +28,20 @@ jobs:
         run: |
           set -euo pipefail
           response_file="$(mktemp)"
+          payload='{"video_id":"7XpHTfYG_X0","limit":20,"force":true,"benchmark_video_id":"9RCIT4xTn-w","pairs":[{"source_card":"Uugguu, the Omniplasm","target_card":"Cauldron of Essence"},{"source_card":"Grizzlegom, Hurloon Hero","target_card":"Dryad of the Ilysian Grove"},{"source_card":"Grizzlegom, Hurloon Hero","target_card":"Prismatic Omen"},{"source_card":"Massimo, the Magician","target_card":"Wraith, Vicious Vigilante"},{"source_card":"Massimo, the Magician","target_card":"Boltwave"},{"source_card":"Sash and Waistcoat, Unmen","target_card":"Training Grounds"},{"source_card":"The Madcap Jester","target_card":"Tasha'"'"'s Hideous Laughter"},{"source_card":"The Madcap Jester","target_card":"Extract"},{"source_card":"The Muckslinger Gang","target_card":"Outcaster Trailblazer"}]}'
           status="$(curl --silent --show-error --max-time 420 --output "$response_file" --write-out '%{http_code}' --request POST \
             --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             --header "Content-Type: application/json" \
-            --data '{"video_id":"7XpHTfYG_X0","limit":24,"benchmark_video_id":"9RCIT4xTn-w"}' "$CONSENSUS_URL")"
+            --data "$payload" "$CONSENSUS_URL")"
           cat "$response_file"; echo
           [[ "$status" =~ ^2 ]]
           test "$(jq -r '.transcript_credits_used // 0' "$response_file")" = "0"
-          test "$(jq -r '.relationships_refreshed // 0' "$response_file")" -ge 4
-          test "$(jq -r '.benchmark.speaker_count // 0' "$response_file")" -ge 3
-          jq -e '.results | any(.target_card == "Training Grounds")' "$response_file" >/dev/null
-          jq -e '.results | any(.target_card == "Tasha'"'"'s Hideous Laughter")' "$response_file" >/dev/null
-          jq -e '.results | any(.target_card == "Outcaster Trailblazer")' "$response_file" >/dev/null
-          jq -e '[.results[] | select(.consensus_bonus > 0)] | length >= 1' "$response_file" >/dev/null
+          test "$(jq -r '.relationships_selected // 0' "$response_file")" -ge 9
+          test "$(jq -r '.relationships_refreshed // 0' "$response_file")" -ge 9
+          test "$(jq -r '.benchmark.speaker_count // 0' "$response_file")" -ge 4
+          jq -e '.results | any(.source_card == "Sash and Waistcoat, Unmen" and .target_card == "Training Grounds")' "$response_file" >/dev/null
+          jq -e '.results | any(.source_card == "The Madcap Jester" and .target_card == "Tasha'"'"'s Hideous Laughter")' "$response_file" >/dev/null
+          jq -e '.results | any(.source_card == "The Madcap Jester" and .target_card == "Extract")' "$response_file" >/dev/null
+          jq -e '.results | any(.source_card == "The Muckslinger Gang" and .target_card == "Outcaster Trailblazer")' "$response_file" >/dev/null
+          jq -e '[.results[] | select(.consensus_bonus > 0)] | length >= 2' "$response_file" >/dev/null
