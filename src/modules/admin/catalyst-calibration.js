@@ -1,20 +1,22 @@
 import {rest} from '../../core/rest.js';
 
-let loading=false;
+let loading=false,deciding=false;
 const MIN_SAMPLE=8;
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num=v=>Number.isFinite(Number(v))?Number(v):0;
 const pct=v=>v==null||!Number.isFinite(Number(v))?'—':`${Number(v)>=0?'+':''}${Number(v).toFixed(1)}%`;
 const fmt=v=>v==null||!Number.isFinite(Number(v))?'—':Number(v).toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
+const key=s=>String(s||'').trim().toLowerCase();
 
 function ensure(){
   const parent=document.getElementById('cxAdminSinglesModules');if(!parent)return null;
   let host=document.getElementById('cxCatalystCalibration');
   if(!host){
     host=document.createElement('section');host.id='cxCatalystCalibration';host.className='cx-admin-module cx-catalyst-calibration';
-    host.innerHTML=`<div class="cx-cal-head"><div><span>SCOUT × SIGNALS</span><h3>Catalyst calibration</h3><p>Shadow-score validation and proposed source weights. Official Scout ranking and production source weights remain unchanged.</p></div><button type="button" class="cx-refresh" data-cal-refresh>Refresh</button></div><div class="cx-cal-status" data-cal-status>Loading calibration data…</div><div class="cx-cal-metrics" data-cal-metrics></div><div class="cx-cal-grid"><section><div class="cx-cal-section-head"><strong>Modifier bands</strong><small>Does more catalyst conviction produce better outcomes?</small></div><div data-cal-bands></div></section><section><div class="cx-cal-section-head"><strong>Sources & creators</strong><small>Current weight → proposed shadow weight. Nothing here changes production scoring.</small></div><div data-cal-sources></div></section></div>`;
+    host.innerHTML=`<div class="cx-cal-head"><div><span>SCOUT × SIGNALS</span><h3>Catalyst calibration</h3><p>Shadow validation and candidate promotion. Official Scout ranking and production source weights remain unchanged.</p></div><button type="button" class="cx-refresh" data-cal-refresh>Refresh</button></div><div class="cx-cal-status" data-cal-status>Loading calibration data…</div><div class="cx-cal-metrics" data-cal-metrics></div><div class="cx-cal-grid"><section><div class="cx-cal-section-head"><strong>Modifier bands</strong><small>Does more catalyst conviction produce better outcomes?</small></div><div data-cal-bands></div></section><section><div class="cx-cal-section-head"><strong>Sources & creators</strong><small>Proposals require ≥${MIN_SAMPLE} mature 7-day observations. Approval creates a candidate model only.</small></div><div data-cal-sources></div></section></div>`;
     parent.prepend(host);
     host.querySelector('[data-cal-refresh]')?.addEventListener('click',()=>load());
+    host.addEventListener('click',onDecisionClick);
   }
   return host;
 }
@@ -27,34 +29,46 @@ function bandRows(rows){
   const sorted=[...rows].sort((a,b)=>bandOrder(a.modifier_band)-bandOrder(b.modifier_band));
   return `<div class="cx-cal-table"><div class="cx-cal-tr head"><span>Modifier</span><span>Samples</span><span>1d</span><span>7d</span><span>30d</span><span>7d tx</span></div>${sorted.map(r=>{const n=maturity(r,'7d'),state=sampleState(n);return `<div class="cx-cal-tr ${state}"><strong>${esc(r.modifier_band)}</strong><span>${esc(r.snapshots)}</span><span>${pct(r.avg_market_change_1d_pct)}</span><span>${pct(r.avg_market_change_7d_pct)}</span><span>${pct(r.avg_market_change_30d_pct)}</span><span>${fmt(r.avg_transactions_7d)}</span><small>${state==='ready'?'usable sample':state==='early'?`${n}/${MIN_SAMPLE} mature 7d`:'awaiting maturity'}</small></div>`}).join('')}</div>`;
 }
-function proposalLabel(r){
-  if(r.proposed_weight==null)return `wait for ${MIN_SAMPLE} mature 7d`;
-  const delta=num(r.proposed_delta),verb=r.recommendation==='raise'?'raise':r.recommendation==='lower'?'lower':'hold';
-  return `${verb} ${delta>0?'+':''}${fmt(delta)}`;
+function proposalLabel(r,candidate){
+  if(candidate?.candidate_weight!=null)return `<span class="cx-cal-weight approved"><b>${fmt(r.current_weight)}</b><i>→</i><strong>${fmt(candidate.candidate_weight)}</strong><small>CANDIDATE</small></span>`;
+  if(r.proposed_weight!=null)return `<span class="cx-cal-weight"><b>${fmt(r.current_weight)}</b><i>→</i><strong>${fmt(r.proposed_weight)}</strong><small>${esc(String(r.recommendation||'proposal').toUpperCase())}</small></span>`;
+  return `<span class="cx-cal-weight pending"><b>${fmt(r.current_weight)}</b><i>→</i><strong>—</strong><small>WAIT</small></span>`;
 }
-function confidenceLabel(r){
-  const c=String(r.proposal_confidence||'').replace(/_/g,' ');
-  if(c==='insufficient shadow sample')return `${maturity(r,'7d')}/${MIN_SAMPLE}`;
-  return c||'pending';
+function governanceActions(r,candidate){
+  if(candidate?.candidate_weight!=null)return `<div class="cx-cal-governance"><button type="button" data-cal-decision="revoked" data-source="${esc(r.source_label)}">Revoke candidate</button><small>Production unchanged</small></div>`;
+  const eligible=maturity(r,'7d')>=MIN_SAMPLE&&r.proposed_weight!=null;
+  if(!eligible)return `<div class="cx-cal-governance locked"><span>${maturity(r,'7d')}/${MIN_SAMPLE} mature</span><small>Promotion locked</small></div>`;
+  return `<div class="cx-cal-governance"><button type="button" class="approve" data-cal-decision="approved_candidate" data-source="${esc(r.source_label)}">Approve candidate</button><button type="button" data-cal-decision="rejected" data-source="${esc(r.source_label)}">Reject</button></div>`;
 }
-function sourceRows(rows){
+function sourceRows(rows,candidates=[]){
   if(!rows.length)return '<div class="cx-cal-empty">Source/creator calibration will populate as shadow snapshots mature.</div>';
-  const sorted=[...rows].sort((a,b)=>maturity(b,'7d')-maturity(a,'7d')||num(b.snapshots)-num(a.snapshots)).slice(0,18);
-  return `<div class="cx-cal-sources">${sorted.map(r=>{const n=maturity(r,'7d'),state=sampleState(n),proposed=r.proposed_weight==null?'—':fmt(r.proposed_weight),current=fmt(r.current_weight),history=num(r.historical_measured_signals);return `<article class="cx-cal-source ${state}"><div><strong>${esc(r.source_label)}</strong><small>${esc(r.source_type)} · ${r.snapshots} snapshots · ${history} historical measured</small><div class="cx-cal-weight"><span><b>${current}</b><small>current</small></span><i>→</i><span><b>${proposed}</b><small>proposed</small></span><em class="${esc(r.recommendation||'wait')}">${esc(proposalLabel(r))}</em></div></div><div class="cx-cal-source-outcomes"><span><b>${pct(r.avg_market_change_7d_pct)}</b><small>7d price</small></span><span><b>${fmt(r.avg_transactions_7d)}</b><small>7d tx</small></span><span><b>${r.historical_predictive_pct==null?'—':`${fmt(r.historical_predictive_pct)}%`}</b><small>hist predictive</small></span><span class="cx-cal-sample ${state}" title="Proposal confidence: ${esc(r.proposal_confidence||'pending')}">${esc(confidenceLabel(r))}</span></div></article>`}).join('')}</div>`;
+  const candidateMap=new Map((candidates||[]).map(x=>[key(x.source_label),x]));
+  const sorted=[...rows].sort((a,b)=>maturity(b,'7d')-maturity(a,'7d')||num(b.snapshots)-num(a.snapshots)).slice(0,24);
+  return `<div class="cx-cal-sources">${sorted.map(r=>{const n=maturity(r,'7d'),state=sampleState(n),candidate=candidateMap.get(key(r.source_label));return `<article class="cx-cal-source ${state}${candidate?.candidate_weight!=null?' candidate':''}"><div class="cx-cal-source-main"><strong>${esc(r.source_label)}</strong><small>${esc(r.source_type)} · ${r.snapshots} snapshots · ${n} mature 7d · confidence ${esc(r.proposal_confidence||'pending')}</small>${proposalLabel(r,candidate)}</div><div class="cx-cal-source-outcomes"><span><b>${pct(r.avg_market_change_7d_pct)}</b><small>7d price</small></span><span><b>${fmt(r.avg_transactions_7d)}</b><small>7d tx</small></span><span><b>${r.historical_predictive_pct==null?'—':`${fmt(r.historical_predictive_pct)}%`}</b><small>historic predictive</small></span></div>${governanceActions(r,candidate)}</article>`}).join('')}</div>`;
 }
-async function load(){
-  const host=ensure();if(!host||loading)return;loading=true;host.querySelector('[data-cal-status]').textContent='Reading shadow outcomes…';
+async function decide(source,decision){
+  if(deciding||!source||!decision)return;
+  if(decision==='approved_candidate'&&!window.confirm(`Approve ${source}'s proposed weight into the candidate model? Production Scout will remain unchanged.`))return;
+  if(decision==='revoked'&&!window.confirm(`Revoke ${source} from the candidate model?`))return;
+  deciding=true;const host=ensure();if(host)host.querySelector('[data-cal-status]').textContent=`Recording ${decision.replace(/_/g,' ')} for ${source}…`;
+  try{await rest('rpc/review_catalyst_weight_proposal',{method:'POST',body:{p_source_label:source,p_decision:decision,p_note:null}});await load(true)}catch(error){if(host)host.querySelector('[data-cal-status]').textContent=`Decision failed: ${error?.message||error}`}finally{deciding=false}
+}
+function onDecisionClick(event){const b=event.target.closest?.('[data-cal-decision]');if(!b)return;void decide(b.dataset.source,b.dataset.calDecision)}
+async function load(force=false){
+  const host=ensure();if(!host||loading)return;loading=true;host.querySelector('[data-cal-status]').textContent='Reading shadow outcomes and governance state…';
   try{
-    const [bands,sources,shots]=await Promise.all([
-      rest('market_intel_catalyst_shadow_backtest_summary?select=*&order=scorer_version.desc'),
-      rest('market_intel_catalyst_shadow_weight_proposals?select=*&order=matured_7d.desc,snapshots.desc'),
-      rest('market_intel_catalyst_shadow_snapshots?select=snapshot_id,future_release,captured_at&order=captured_at.desc&limit=500')
+    const options=force?{force:true}:{};
+    const [bands,proposals,candidates,shots]=await Promise.all([
+      rest('market_intel_catalyst_shadow_backtest_summary?select=*&order=scorer_version.desc',options),
+      rest('market_intel_catalyst_shadow_weight_proposals?select=*&order=matured_7d.desc,snapshots.desc',options),
+      rest('market_intel_catalyst_candidate_weights?select=*&order=decided_at.desc',options),
+      rest('market_intel_catalyst_shadow_snapshots?select=snapshot_id,future_release,captured_at&order=captured_at.desc&limit=500',options)
     ]);
-    const total=(shots||[]).length,future=(shots||[]).filter(x=>x.future_release).length,mature7=(bands||[]).reduce((s,x)=>s+maturity(x,'7d'),0),mature30=(bands||[]).reduce((s,x)=>s+maturity(x,'30d'),0),readySources=(sources||[]).filter(x=>x.proposed_weight!=null).length;
-    host.querySelector('[data-cal-status]').textContent=total?`${total} shadow snapshot${total===1?'':'s'} recorded · ${mature7} have matured through 7 days · proposed weights remain shadow-only`:'Collection is armed; no snapshots have been recorded yet.';
-    host.querySelector('[data-cal-metrics]').innerHTML=[metric('Snapshots',String(total),`${future} future-thesis only`,total?'good':'neutral'),metric('7d mature',String(mature7),'primary calibration window',mature7>=MIN_SAMPLE?'good':mature7?'warn':'neutral'),metric('30d mature',String(mature30),'longer-term validation',mature30>=MIN_SAMPLE?'good':'neutral'),metric('Weight proposals',String(readySources),`≥${MIN_SAMPLE} mature 7d required`,readySources?'good':'neutral')].join('');
+    const total=(shots||[]).length,future=(shots||[]).filter(x=>x.future_release).length,mature7=(bands||[]).reduce((s,x)=>s+maturity(x,'7d'),0),mature30=(bands||[]).reduce((s,x)=>s+maturity(x,'30d'),0),ready=(proposals||[]).filter(x=>x.proposed_weight!=null&&maturity(x,'7d')>=MIN_SAMPLE).length,approved=(candidates||[]).filter(x=>x.candidate_weight!=null).length;
+    host.querySelector('[data-cal-status]').textContent=total?`${total} shadow snapshot${total===1?'':'s'} · ${mature7} mature through 7d · ${approved} approved candidate weight${approved===1?'':'s'}`:'Collection is armed; no snapshots have been recorded yet.';
+    host.querySelector('[data-cal-metrics]').innerHTML=[metric('Snapshots',String(total),`${future} future-thesis only`,total?'good':'neutral'),metric('7d mature',String(mature7),'primary calibration window',mature7>=MIN_SAMPLE?'good':mature7?'warn':'neutral'),metric('Promotion ready',String(ready),`proposal + ≥${MIN_SAMPLE} mature 7d`,ready?'good':'neutral'),metric('Candidate weights',String(approved),'approved shadow model only',approved?'warn':'neutral')].join('');
     host.querySelector('[data-cal-bands]').innerHTML=bandRows(bands||[]);
-    host.querySelector('[data-cal-sources]').innerHTML=sourceRows(sources||[]);
+    host.querySelector('[data-cal-sources]').innerHTML=sourceRows(proposals||[],candidates||[]);
   }catch(error){host.querySelector('[data-cal-status]').textContent=`Calibration data unavailable: ${error?.message||error}`}
   finally{loading=false}
 }
