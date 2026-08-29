@@ -25,5 +25,5 @@
 @import './mobile-quality.css';
 @import './utility-controls.css';
 @import './workbench.css';
-@import '../core/workbench-secondary.css';
-@import '../core/mobile-touch-targets.css';
+@import './workbench-secondary.css';
+@import './mobile-touch-targets.css';
