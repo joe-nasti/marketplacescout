@@ -30,9 +30,8 @@ async function recoverModuleGraph(){
 function showStartupError(error){
   const message=String(error?.message||error||'unknown startup error');
   console.error('Collectish bootstrap failed',error);
-  const nativeVersion=(()=>{try{return window.CollectishAndroid?.getVersion?.()||''}catch{return ''}})();
   const recovering=shouldRecoverModuleFailure(message);
-  document.body.innerHTML=`<main class="cx-auth" data-collectish-startup-error="${esc(message)}"><section class="cx-auth-card"><div class="cx-brand"><span class="cx-brand-collect">collect</span><span class="cx-brand-ish">ish</span></div><h1>${recovering?'Recovering Collectish…':'Could not start Collectish'}</h1><p>${recovering?'Clearing the stale frontend module graph and loading the current hosted build once.':'The frontend module graph failed to load. Reload to retry.'}</p><small id="cxStartupError" style="display:block">${esc(message)}</small>${nativeVersion?`<small style="display:block;margin-top:8px">Android ${esc(nativeVersion)}</small>`:''}</section></main>`;
+  document.body.innerHTML=`<main class="cx-auth" data-collectish-startup-error="${esc(message)}"><section class="cx-auth-card"><div class="cx-brand"><span class="cx-brand-collect">collect</span><span class="cx-brand-ish">ish</span></div><h1>${recovering?'Recovering Collectish…':'Could not start Collectish'}</h1><p>${recovering?'Clearing the stale frontend module graph and loading the current hosted build once.':'The frontend module graph failed to load. Reload to retry.'}</p><small id="cxStartupError" style="display:block">${esc(message)}</small></section></main>`;
   if(recovering)setTimeout(()=>recoverModuleGraph(),150);
 }
 

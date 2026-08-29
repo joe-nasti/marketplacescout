@@ -1,8 +1,6 @@
 import './core/build-info.js';
 import './core/health.js';
 import './core/theme.js';
-import './core/workbench-secondary.css';
-import './core/mobile-touch-targets.css';
 import './modules/scout/health.js';
 import './modules/scout/bootstrap.js';
 import './core/lazy-pages.js';
