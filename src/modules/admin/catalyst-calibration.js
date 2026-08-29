@@ -14,7 +14,7 @@ function ensure(){
     host=document.createElement('section');host.id='cxCatalystCalibration';host.className='cx-admin-module cx-catalyst-calibration';
     host.innerHTML=`<div class="cx-cal-head"><div><span>SCOUT × SIGNALS</span><h3>Catalyst calibration</h3><p>Shadow-score validation. Official Scout ranking remains unchanged until the evidence is strong enough.</p></div><button type="button" class="cx-refresh" data-cal-refresh>Refresh</button></div><div class="cx-cal-status" data-cal-status>Loading calibration data…</div><div class="cx-cal-metrics" data-cal-metrics></div><div class="cx-cal-grid"><section><div class="cx-cal-section-head"><strong>Modifier bands</strong><small>Does more catalyst conviction produce better outcomes?</small></div><div data-cal-bands></div></section><section><div class="cx-cal-section-head"><strong>Sources & creators</strong><small>Read-only evidence for future learned weights.</small></div><div data-cal-sources></div></section></div>`;
     parent.prepend(host);
-    host.querySelector('[data-cal-refresh]')?.addEventListener('click',()=>load(true));
+    host.querySelector('[data-cal-refresh]')?.addEventListener('click',()=>load());
   }
   return host;
 }
@@ -32,14 +32,13 @@ function sourceRows(rows){
   const sorted=[...rows].sort((a,b)=>maturity(b,'7d')-maturity(a,'7d')||num(b.snapshots)-num(a.snapshots)).slice(0,18);
   return `<div class="cx-cal-sources">${sorted.map(r=>{const n=maturity(r,'7d'),state=sampleState(n);return `<article class="cx-cal-source ${state}"><div><strong>${esc(r.source_label)}</strong><small>${esc(r.source_type)} · ${r.snapshots} snapshots · avg modifier ${num(r.avg_modifier)>0?'+':''}${fmt(r.avg_modifier)}</small></div><div class="cx-cal-source-outcomes"><span><b>${pct(r.avg_market_change_7d_pct)}</b><small>7d price</small></span><span><b>${fmt(r.avg_transactions_7d)}</b><small>7d tx</small></span><span class="cx-cal-sample ${state}">${state==='ready'?'CALIBRATING':state==='early'?`${n}/${MIN_SAMPLE}`:'PENDING'}</span></div></article>`}).join('')}</div>`;
 }
-async function load(force=false){
+async function load(){
   const host=ensure();if(!host||loading)return;loading=true;host.querySelector('[data-cal-status]').textContent='Reading shadow outcomes…';
   try{
-    const suffix=force?'&force=1':'';
     const [bands,sources,shots]=await Promise.all([
-      rest(`market_intel_catalyst_shadow_backtest_summary?select=*&order=scorer_version.desc${suffix}`),
-      rest(`market_intel_catalyst_shadow_source_backtest?select=*&order=matured_7d.desc,snapshots.desc${suffix}`),
-      rest(`market_intel_catalyst_shadow_snapshots?select=snapshot_id,future_release,captured_at&order=captured_at.desc&limit=500${suffix}`)
+      rest('market_intel_catalyst_shadow_backtest_summary?select=*&order=scorer_version.desc'),
+      rest('market_intel_catalyst_shadow_source_backtest?select=*&order=matured_7d.desc,snapshots.desc'),
+      rest('market_intel_catalyst_shadow_snapshots?select=snapshot_id,future_release,captured_at&order=captured_at.desc&limit=500')
     ]);
     const total=(shots||[]).length,future=(shots||[]).filter(x=>x.future_release).length,mature7=(bands||[]).reduce((s,x)=>s+maturity(x,'7d'),0),mature30=(bands||[]).reduce((s,x)=>s+maturity(x,'30d'),0),readySources=(sources||[]).filter(x=>maturity(x,'7d')>=MIN_SAMPLE).length;
     host.querySelector('[data-cal-status]').textContent=total?`${total} shadow snapshot${total===1?'':'s'} recorded · ${mature7} have matured through 7 days`:'Collection is armed; no snapshots have been recorded yet.';
