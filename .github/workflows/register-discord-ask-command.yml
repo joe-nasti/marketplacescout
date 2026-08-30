@@ -1,5 +1,6 @@
 name: Register Discord Ask Command
 
+# Guild-scoped registration for the current Collectish Discord test server.
 on:
   workflow_dispatch:
   push:
