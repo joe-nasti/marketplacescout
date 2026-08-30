@@ -18,6 +18,7 @@ export async function installScoutRenderer(){
   void import('./universal-search.js');
   void import('./freshness.js');
   void import('./oracle-printings.js');
+  void import('./oracle-better-printing.js');
   void import('./oracle-bulk-refresh.js');
   void import('./oracle-detail-context.js');
   void import('./oracle-family-confidence.js');
