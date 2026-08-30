@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - 'cloud-worker/discord-ask-worker.mjs'
+      - 'cloud-worker/discord-ask-entry.mjs'
       - 'cloud-worker/wrangler.discord-ask.json'
       - '.github/workflows/deploy-discord-ask-worker.yml'
 
