@@ -1,0 +1,30 @@
+{
+  "name": "collectish-discord-ask",
+  "main": "./discord-ask-worker.mjs",
+  "compatibility_date": "2026-08-29",
+  "workers_dev": true,
+  "keep_vars": true,
+  "kv_namespaces": [
+    {
+      "binding": "DISCORD_LINK_STATE",
+      "id": "__DISCORD_LINK_STATE_KV_ID__"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "DISCORD_ASK_QUEUE",
+        "queue": "collectish-discord-ask"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "collectish-discord-ask",
+        "max_batch_size": 5,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "max_concurrency": 5
+      }
+    ]
+  }
+}
