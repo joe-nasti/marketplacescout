@@ -1,0 +1,51 @@
+name: Register Discord Ask Command
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/register-discord-ask-command.yml'
+      - 'cloud-worker/register-discord-commands.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    env:
+      DISCORD_APPLICATION_ID: '1543448415734603876'
+      DISCORD_GUILD_ID: '802024601264979978'
+      DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Discord registration settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${DISCORD_BOT_TOKEN}" || { echo "Missing DISCORD_BOT_TOKEN repository secret"; exit 1; }
+          [[ "${DISCORD_APPLICATION_ID}" =~ ^[0-9]+$ ]] || { echo "Invalid DISCORD_APPLICATION_ID"; exit 1; }
+          [[ "${DISCORD_GUILD_ID}" =~ ^[0-9]+$ ]] || { echo "Invalid DISCORD_GUILD_ID"; exit 1; }
+
+      - name: Register guild-scoped slash command
+        run: node cloud-worker/register-discord-commands.mjs
+
+      - name: Verify guild-scoped slash command
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error \
+            -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" \
+            "https://discord.com/api/v10/applications/${DISCORD_APPLICATION_ID}/guilds/${DISCORD_GUILD_ID}/commands")"
+          echo "${response}" | jq -e 'map(select(.name == "ask")) | length == 1' >/dev/null
+          echo "Verified /ask in guild ${DISCORD_GUILD_ID}."
