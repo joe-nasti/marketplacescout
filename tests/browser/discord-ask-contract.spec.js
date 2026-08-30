@@ -10,7 +10,7 @@ test('Discord Ask remains a thin queued client of the stable Ask API', async()=>
   expect(worker).toContain('DISCORD_ASK_QUEUE.send');
   expect(worker).toContain('type: 5');
   expect(worker).toContain('flags: EPHEMERAL');
-  expect(worker).toContain("msg.retry({ delaySeconds:");
+  expect(worker).toContain("message.retry({ delaySeconds:");
   expect(worker).not.toMatch(/from\(['\"](?:scout|signals|seller)/i);
   expect(worker).not.toMatch(/\/rest\/v1\/(?:scout|signals|seller)/i);
 });
