@@ -124,14 +124,12 @@ test('large Oracle families keep full winner data but progressively render rows'
 
 test('Oracle bulk refresh watches queued SKUs and refreshes family winners as evaluations finish',async()=>{
   const bulk=await read('src/modules/scout/oracle-bulk-refresh.js');
-  const search=await read('src/modules/scout/universal-search.js');
-  expect(bulk).toContain('WATCH_INTERVAL_MS=2500');
-  expect(bulk).toContain('WATCH_MAX_POLLS=40');
-  expect(bulk).toContain('watchQueued');
-  expect(bulk).toContain('collectish:oracle-family-refreshed');
+  expect(bulk).toContain('WATCH_DELAYS=[1500,2500,4000,6000,9000,12000,15000,20000,30000]');
+  expect(bulk).toContain('watchRefreshes');
+  expect(bulk).toContain('collectish:oracle-family-live-update');
+  expect(bulk).toContain("collectish:scout-universal-results");
   expect(bulk).toContain('Refreshing…');
-  expect(search).toContain('collectish:oracle-family-refresh-requested');
-  expect(search).toContain('refreshFamily');
+  expect(bulk).toContain('stamp(row.last_evaluated_at)>Number(baseline[id]||0)');
 });
 
 test('normal Scout detail proactively surfaces materially better current sibling printings',async()=>{
@@ -148,5 +146,5 @@ test('normal Scout detail proactively surfaces materially better current sibling
   expect(source).toContain('bestScout.value-currentScore>=8');
   expect(source).toContain('compare.click()');
   expect(source).toContain('CACHE_TTL_MS=60_000');
-  expect(source).toContain('collectish:oracle-family-refreshed');
+  expect(source).toContain('collectish:oracle-family-live-update');
 });
