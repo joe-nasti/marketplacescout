@@ -1,0 +1,4 @@
+-- Flash-buy lane: surface live underpriced exact-SKU TCG listings independently of normal Scout grade/ranking.
+-- Includes stale-seller heuristic (market moves up while landed low stays flat), plausible buylist sanity bounds,
+-- transient/single-snapshot context, and direct-gap support only when Direct itself is plausible vs market.
+-- Production migration: recreate_scout_flash_buy_with_stale_seller
