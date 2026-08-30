@@ -273,9 +273,6 @@ Deno.serve(async (req: Request) => {
   try { body = await req.json(); } catch { return json({ api_schema: API_SCHEMA, error: 'Invalid JSON' }, 400); }
 
   const isDiscordGuest = body?.guest === true && text(body?.client).toLowerCase() === 'discord_guest';
-  if (isDiscordGuest && requestToken !== A) {
-    return json({ api_schema: API_SCHEMA, error: 'Discord guest bootstrap requires the public API key' }, 403);
-  }
 
   const action = text(body?.action || 'chat').toLowerCase();
   try {
