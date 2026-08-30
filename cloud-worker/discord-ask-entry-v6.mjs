@@ -4,6 +4,7 @@ import { commandQuestion, discordScope } from './discord-ask-worker.mjs';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const EPHEMERAL = 1 << 6;
+const DISCORD_API = 'https://discord.com/api/v10';
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -116,6 +117,51 @@ async function handleInteraction(request, env, ctx) {
     : json({ type: 5, data: {} });
 }
 
+function polishedButtonLabel(button) {
+  const url = String(button?.url || '');
+  if (/mtgstocks\.com\/interests/i.test(url)) return 'Open MTGStocks Interests';
+  if (/mtgstocks\.com\/news\//i.test(url)) return 'Open MTGStocks Article';
+  return clean(button?.label || 'Open source', 80);
+}
+
+async function polishOriginalDiscord(job) {
+  if (!job?.application_id || !job?.interaction_token) return;
+  const endpoint = `${DISCORD_API}/webhooks/${job.application_id}/${job.interaction_token}/messages/@original`;
+  const response = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+  if (!response.ok) return;
+  const message = await response.json().catch(() => null);
+  if (!message?.components?.length) return;
+
+  const seenUrls = new Set();
+  let changed = false;
+  const components = [];
+  for (const row of message.components) {
+    const children = [];
+    for (const button of row?.components || []) {
+      if (button?.style !== 5 || !button?.url) {
+        children.push(button);
+        continue;
+      }
+      if (seenUrls.has(button.url)) {
+        changed = true;
+        continue;
+      }
+      seenUrls.add(button.url);
+      const label = polishedButtonLabel(button);
+      if (label !== button.label) changed = true;
+      children.push({ ...button, label });
+    }
+    if (children.length) components.push({ ...row, components: children });
+  }
+  if (!changed) return;
+
+  await fetch(endpoint, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ components, allowed_mentions: { parse: [] } }),
+  }).catch(() => null);
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -124,7 +170,8 @@ export default {
     }
     return entry.fetch(request, env, ctx);
   },
-  queue(batch, env, ctx) {
-    return entry.queue(batch, env, ctx);
+  async queue(batch, env, ctx) {
+    await entry.queue(batch, env, ctx);
+    await Promise.all((batch?.messages || []).map((message) => polishOriginalDiscord(message.body || {}).catch(() => null)));
   },
 };
