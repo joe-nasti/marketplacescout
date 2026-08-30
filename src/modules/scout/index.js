@@ -6,6 +6,14 @@ function deferCatalystRecorder(){
   else setTimeout(run,700);
 }
 
+function deferSecondaryScoutEnhancers(){
+  setTimeout(()=>{
+    void import('./oracle-better-printing.js');
+    void import('./price-actionability.js');
+    void import('./flash-buy.js');
+  },900);
+}
+
 export async function installScoutRenderer(){
   if(installed)return;
   installed=true;
@@ -18,12 +26,9 @@ export async function installScoutRenderer(){
   void import('./universal-search.js');
   void import('./freshness.js');
   void import('./oracle-printings.js');
-  void import('./oracle-better-printing.js');
   void import('./oracle-bulk-refresh.js');
   void import('./oracle-detail-context.js');
   void import('./oracle-family-confidence.js');
-  void import('./price-actionability.js');
-  void import('./flash-buy.js');
 
   void Promise.all([
     import('./detail-navigation.js'),
@@ -32,6 +37,7 @@ export async function installScoutRenderer(){
     import('./catalyst-shadow-ui.js')
   ]).then(()=>document.dispatchEvent(new CustomEvent('collectish:scout-interactions-ready')));
   document.addEventListener('collectish:ready',deferCatalystRecorder,{once:true});
+  document.addEventListener('collectish:ready',deferSecondaryScoutEnhancers,{once:true});
 }
 
 export default installScoutRenderer;
