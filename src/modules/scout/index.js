@@ -10,16 +10,11 @@ export async function installScoutRenderer(){
   if(installed)return;
   installed=true;
 
-  // Guard stale/cached content, then let the route-owned renderer compose the
-  // complete first useful Scout surface in one pass. Retired mobile/dense
-  // compatibility modules are no longer structural dependencies.
   await import('./first-paint-guard.js');
   await import('./structure-style.js');
   await import('./renderer.js');
   document.dispatchEvent(new CustomEvent('collectish:scout-structure-ready'));
 
-  // Search now spans the universal Scout catalog while ranked cards remain the
-  // primary first-paint surface. Dormant/catalog-only opens enqueue a wake.
   void import('./universal-search.js');
   void import('./freshness.js');
   void import('./oracle-printings.js');
@@ -27,9 +22,8 @@ export async function installScoutRenderer(){
   void import('./oracle-detail-context.js');
   void import('./oracle-family-confidence.js');
   void import('./price-actionability.js');
+  void import('./flash-buy.js');
 
-  // Interaction/state enhancers cannot reshape first paint. The recorder is
-  // explicitly idle-deferred so analytics never consume Scout's startup budget.
   void Promise.all([
     import('./detail-navigation.js'),
     import('./route-state.js'),
