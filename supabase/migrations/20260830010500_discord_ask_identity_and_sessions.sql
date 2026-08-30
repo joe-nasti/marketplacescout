@@ -40,19 +40,37 @@ create table if not exists public.discord_ask_bindings (
   constraint discord_ask_bindings_thread_format check (thread_id is null or thread_id ~ '^[0-9]{5,32}$')
 );
 
+create table if not exists public.discord_ask_deliveries (
+  interaction_id text primary key,
+  discord_user_id text not null,
+  status text not null default 'queued'
+    check (status in ('queued','running','completed','failed','link_required')),
+  ask_session_id uuid references public.ask_collectish_conversations(id) on delete set null,
+  response_text text,
+  error_text text,
+  attempts integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  completed_at timestamptz,
+  constraint discord_ask_deliveries_user_id_format check (discord_user_id ~ '^[0-9]{5,32}$')
+);
+
 create unique index if not exists discord_ask_bindings_scope_unique
   on public.discord_ask_bindings (link_id, channel_id, coalesce(thread_id, ''));
 create index if not exists discord_ask_bindings_session_idx
   on public.discord_ask_bindings (ask_session_id)
   where ask_session_id is not null;
+create index if not exists discord_ask_deliveries_status_idx
+  on public.discord_ask_deliveries (status, created_at);
 
 alter table public.discord_collectish_links enable row level security;
 alter table public.discord_collectish_oauth_credentials enable row level security;
 alter table public.discord_ask_bindings enable row level security;
+alter table public.discord_ask_deliveries enable row level security;
 
--- Users may inspect/delete their own non-secret Discord link metadata. The OAuth
--- credential table intentionally has no authenticated policy: only the trusted bot
--- service (service role) may read or mutate encrypted refresh tokens.
+-- Users may inspect/delete their own non-secret Discord link metadata. OAuth
+-- credentials and transport deliveries intentionally have no authenticated policies:
+-- only the trusted bot service (service role) may read or mutate them.
 drop policy if exists discord_collectish_links_owner_select on public.discord_collectish_links;
 create policy discord_collectish_links_owner_select
   on public.discord_collectish_links for select to authenticated
@@ -84,5 +102,6 @@ create policy discord_ask_bindings_owner_delete
   ));
 
 revoke all on table public.discord_collectish_oauth_credentials from anon, authenticated;
+revoke all on table public.discord_ask_deliveries from anon, authenticated;
 grant select, delete on table public.discord_collectish_links to authenticated;
 grant select, delete on table public.discord_ask_bindings to authenticated;
