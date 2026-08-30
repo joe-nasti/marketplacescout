@@ -23,6 +23,7 @@ on:
       - 'cloud-worker/discord-ask-entry-v14.mjs'
       - 'cloud-worker/discord-ask-entry-v15.mjs'
       - 'cloud-worker/discord-ask-entry-v16.mjs'
+      - 'cloud-worker/discord-ask-entry-v17.mjs'
       - 'cloud-worker/wrangler.discord-ask.json'
       - '.github/workflows/deploy-discord-ask-worker.yml'
 
