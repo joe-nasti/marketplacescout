@@ -39,6 +39,7 @@ const scoutIntelligence=[
   ()=>import('./signals/source-rollups.js'),
   ()=>import('./signals/source-performance.js'),
   ()=>import('./signals/competitive.js'),
+  ()=>import('./signals/competitive-evidence.js'),
   ()=>import('./signals/competitive-paper.js'),
   ()=>import('./signals/commander.js'),
   ()=>import('./signals/cross-source.js'),
