@@ -2,6 +2,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const U = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
 const A = Deno.env.get('SUPABASE_ANON_KEY') || '';
+const S = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 const C = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -25,6 +28,12 @@ const headers = (accessToken: string) => ({
   'Content-Type': 'application/json',
 });
 
+const serviceHeaders = () => ({
+  apikey: S,
+  Authorization: `Bearer ${S}`,
+  'Content-Type': 'application/json',
+});
+
 async function rest(accessToken: string, path: string, init: { method?: string; body?: unknown; prefer?: string } = {}) {
   const response = await fetch(`${U}/rest/v1/${path}`, {
     method: init.method || 'GET',
@@ -39,6 +48,145 @@ async function rest(accessToken: string, path: string, init: { method?: string; 
   try { data = raw ? JSON.parse(raw) : null; } catch { data = raw; }
   if (!response.ok) throw new Error(data?.message || `REST failed (${response.status})`);
   return data;
+}
+
+async function serviceRest(path: string, init: { method?: string; body?: unknown; prefer?: string } = {}) {
+  if (!S) throw new Error('Guest auth service role is unavailable');
+  const response = await fetch(`${U}/rest/v1/${path}`, {
+    method: init.method || 'GET',
+    headers: {
+      ...serviceHeaders(),
+      ...(init.prefer ? { Prefer: init.prefer } : {}),
+    },
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+  });
+  const raw = await response.text();
+  let data: any;
+  try { data = raw ? JSON.parse(raw) : null; } catch { data = raw; }
+  if (!response.ok) throw new Error(data?.message || `Service REST failed (${response.status})`);
+  return data;
+}
+
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string) {
+  const binary = atob(String(value || ''));
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
+async function guestEncryptionKey() {
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(`collectish-discord-guest-v1:${S}`));
+  return crypto.subtle.importKey('raw', digest, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+async function encryptGuestRefreshToken(value: string) {
+  const iv = new Uint8Array(12);
+  crypto.getRandomValues(iv);
+  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await guestEncryptionKey(), encoder.encode(value));
+  return { ciphertext: bytesToBase64(new Uint8Array(cipher)), iv: bytesToBase64(iv) };
+}
+
+async function decryptGuestRefreshToken(ciphertext: string, iv: string) {
+  const plain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: base64ToBytes(iv) },
+    await guestEncryptionKey(),
+    base64ToBytes(ciphertext),
+  );
+  return decoder.decode(plain);
+}
+
+async function authRequest(path: string, body: unknown) {
+  const response = await fetch(`${U}/auth/v1/${path}`, {
+    method: 'POST',
+    headers: {
+      apikey: A,
+      Authorization: `Bearer ${A}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const raw = await response.text();
+  let data: any;
+  try { data = raw ? JSON.parse(raw) : {}; } catch { data = { message: raw }; }
+  if (!response.ok) {
+    const message = data?.msg || data?.message || data?.error_description || data?.error || `Auth HTTP ${response.status}`;
+    const error: any = new Error(message);
+    error.status = response.status;
+    error.code = data?.code || data?.error_code || null;
+    throw error;
+  }
+  return data;
+}
+
+async function guestDiscordUserId(body: any) {
+  const explicit = String(body?.context?.discord?.discord_user_id || '').trim();
+  if (explicit) return explicit;
+  const interactionId = String(body?.context?.discord?.interaction_id || '').trim();
+  if (!interactionId) throw new Error('Discord guest identity is missing');
+  const rows = await serviceRest(
+    `discord_ask_deliveries?interaction_id=eq.${encodeURIComponent(interactionId)}&select=discord_user_id&limit=1`,
+  );
+  const id = String(rows?.[0]?.discord_user_id || '').trim();
+  if (!id) throw new Error('Discord guest identity could not be resolved');
+  return id;
+}
+
+async function persistGuestSession(discordUserId: string, anonymousUserId: string | null, refreshToken: string) {
+  const encrypted = await encryptGuestRefreshToken(refreshToken);
+  await serviceRest('discord_guest_auth_sessions?on_conflict=discord_user_id', {
+    method: 'POST',
+    prefer: 'resolution=merge-duplicates',
+    body: [{
+      discord_user_id: discordUserId,
+      anonymous_user_id: anonymousUserId || null,
+      refresh_token_ciphertext: encrypted.ciphertext,
+      refresh_token_iv: encrypted.iv,
+      updated_at: new Date().toISOString(),
+    }],
+  });
+}
+
+async function refreshGuestSession(row: any) {
+  const refreshToken = await decryptGuestRefreshToken(row.refresh_token_ciphertext, row.refresh_token_iv);
+  const data = await authRequest('token?grant_type=refresh_token', { refresh_token: refreshToken });
+  if (!data?.access_token) throw new Error('Guest refresh did not return an access token');
+  if (data.refresh_token) {
+    await persistGuestSession(String(row.discord_user_id), data?.user?.id || row.anonymous_user_id || null, data.refresh_token);
+  }
+  return data.access_token as string;
+}
+
+async function createGuestSession(discordUserId: string) {
+  const data = await authRequest('signup', {
+    data: { source: 'discord_guest' },
+  });
+  if (!data?.access_token || !data?.refresh_token) {
+    throw new Error('Anonymous sign-in did not return a session. Enable anonymous sign-ins in Supabase Authentication settings.');
+  }
+  await persistGuestSession(discordUserId, data?.user?.id || null, data.refresh_token);
+  return data.access_token as string;
+}
+
+async function guestAccessToken(body: any) {
+  const discordUserId = await guestDiscordUserId(body);
+  const rows = await serviceRest(
+    `discord_guest_auth_sessions?discord_user_id=eq.${encodeURIComponent(discordUserId)}&select=discord_user_id,anonymous_user_id,refresh_token_ciphertext,refresh_token_iv&limit=1`,
+  );
+  const row = rows?.[0] || null;
+  if (row) {
+    try {
+      return await refreshGuestSession(row);
+    } catch {
+      await serviceRest(`discord_guest_auth_sessions?discord_user_id=eq.${encodeURIComponent(discordUserId)}`, { method: 'DELETE' }).catch(() => null);
+    }
+  }
+  return createGuestSession(discordUserId);
 }
 
 async function orchestrate(accessToken: string, body: any) {
@@ -118,14 +266,21 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: C });
   if (req.method !== 'POST') return json({ api_schema: API_SCHEMA, error: 'POST required' }, 405);
 
-  const accessToken = token(req);
-  if (!accessToken) return json({ api_schema: API_SCHEMA, error: 'Authentication required' }, 401);
+  const requestToken = token(req);
+  if (!requestToken) return json({ api_schema: API_SCHEMA, error: 'Authentication required' }, 401);
 
   let body: any;
   try { body = await req.json(); } catch { return json({ api_schema: API_SCHEMA, error: 'Invalid JSON' }, 400); }
 
+  const isDiscordGuest = body?.guest === true && text(body?.client).toLowerCase() === 'discord_guest';
+  if (isDiscordGuest && requestToken !== A) {
+    return json({ api_schema: API_SCHEMA, error: 'Discord guest bootstrap requires the public API key' }, 403);
+  }
+
   const action = text(body?.action || 'chat').toLowerCase();
   try {
+    const accessToken = isDiscordGuest ? await guestAccessToken(body) : requestToken;
+
     if (action === 'session.create') return json(await createSession(accessToken, body));
     if (action === 'session.list') return json(await listSessions(accessToken, body));
     if (action === 'session.get') {
@@ -134,8 +289,6 @@ Deno.serve(async (req: Request) => {
       return json(result);
     }
 
-    // Preserve the mature orchestrator contract internally, while external clients can use
-    // session_id consistently instead of knowing the historical conversation_id field name.
     const orchestratorBody = {
       ...body,
       ...(body?.conversation_id ? {} : body?.session_id ? { conversation_id: body.session_id } : {}),
@@ -149,13 +302,16 @@ Deno.serve(async (req: Request) => {
     return json({
       api_schema: API_SCHEMA,
       client: text(body?.client || 'web') || 'web',
+      guest: isDiscordGuest,
       session_id: sessionId,
       ...data,
     });
   } catch (error) {
+    const message = String((error as Error)?.message || error || 'Ask API request failed');
     return json({
       api_schema: API_SCHEMA,
-      error: String((error as Error)?.message || error || 'Ask API request failed'),
+      error: message,
+      ...(isDiscordGuest ? { guest_setup_required: /anonymous sign|anonymous provider|provider.*disabled/i.test(message) } : {}),
     }, 500);
   }
 });
