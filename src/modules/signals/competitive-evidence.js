@@ -49,6 +49,18 @@ function openShell(cardName){
 function headerHtml(cardName,subtitle='Competitive evidence · last 30 days'){
   return `<div class="cx-evidence-head"><div><div class="cx-evidence-kicker">Signal evidence</div><h2 id="cxEvidenceTitle">${esc(cardName)}</h2><p>${esc(subtitle)}</p></div><button class="cx-evidence-close" type="button" aria-label="Close evidence">×</button></div>`;
 }
+function mergeAppearances(cardRows,deckMap,eventMap){
+  const byDeck=new Map();
+  for(const row of cardRows||[]){
+    const deck=deckMap.get(row.deck_id);const event=deck?eventMap.get(deck.event_id):null;
+    if(!deck||!event)continue;
+    const current=byDeck.get(row.deck_id)||{deck,event,card_name:row.card_name,quantity:0,sections:new Set()};
+    current.quantity+=Number(row.quantity||0);
+    if(row.section)current.sections.add(row.section);
+    byDeck.set(row.deck_id,current);
+  }
+  return [...byDeck.values()].map(a=>({...a,sections:[...a.sections]}));
+}
 async function fetchEvidence(cardName){
   const encoded=encodeURIComponent(cardName);
   const cardRows=await rest(`competitive_deck_cards?select=deck_id,section,quantity,card_name&card_name=eq.${encoded}&limit=500`);
@@ -60,18 +72,15 @@ async function fetchEvidence(cardName){
   const eventMap=new Map((events||[]).map(e=>[e.event_id,e]));
   const deckMap=new Map((decks||[]).map(d=>[d.deck_id,d]));
   const since=Date.now()-DAYS*86400000;
-  const appearances=(cardRows||[]).map(c=>{
-    const deck=deckMap.get(c.deck_id);const event=deck?eventMap.get(deck.event_id):null;
-    return deck&&event?{...c,deck,event}:null;
-  }).filter(Boolean).filter(x=>{
+  const appearances=mergeAppearances(cardRows,deckMap,eventMap).filter(x=>{
     const t=x.event?.event_date?new Date(`${x.event.event_date}T12:00:00Z`).getTime():0;
     return !t||t>=since;
   }).sort((a,b)=>String(b.event.event_date||'').localeCompare(String(a.event.event_date||''))||Number(a.deck.placement||999)-Number(b.deck.placement||999));
-  return {cardName,appearances,decks:[...new Map(appearances.map(a=>[a.deck.deck_id,a.deck])).values()],events:[...new Map(appearances.map(a=>[a.event.event_id,a.event])).values()]};
+  return {cardName,appearances,decks:appearances.map(a=>a.deck),events:[...new Map(appearances.map(a=>[a.event.event_id,a.event])).values()]};
 }
 function metricHtml(value,label){return `<div class="cx-evidence-metric"><strong>${esc(value)}</strong><span>${esc(label)}</span></div>`}
 function overviewHtml(data){
-  const {appearances,decks,events}=data;
+  const {decks,events}=data;
   const pilots=unique(decks,'player_name');
   const top8=decks.filter(d=>Number(d.placement)>0&&Number(d.placement)<=8).length;
   const wins=decks.filter(d=>Number(d.placement)===1).length;
@@ -81,10 +90,16 @@ function overviewHtml(data){
   const summary=decks.length?`${plural(decks.length,'published deck')} across ${plural(events.length,'event')} and ${plural(pilots,'pilot')}${top8?`, including ${plural(top8,'Top 8')}`:''}.`:'No stored competitive deck evidence was found in this window.';
   return `<section class="cx-evidence-overview"><p class="cx-evidence-lede">${esc(summary)}</p><div class="cx-evidence-metrics">${metricHtml(decks.length,'decks')}${metricHtml(events.length,'events')}${metricHtml(pilots,'pilots')}${metricHtml(top8,'Top 8s')}</div><div class="cx-evidence-facts"><div><span>Formats</span><strong>${esc(formats.join(', ')||'Unknown')}</strong></div><div><span>Best finish</span><strong>${best<999?`#${best}`:'—'}${wins?` · ${wins} win${wins===1?'':'s'}`:''}</strong></div><div><span>Latest evidence</span><strong>${esc(fmtDate(latest))}</strong></div><div><span>Window</span><strong>${DAYS} days</strong></div></div><p class="cx-evidence-note">Deck counts reflect published lists we imported, not complete tournament metagame share unless the source explicitly reports complete coverage.</p></section>`;
 }
+function sectionSummary(a){
+  const main=a.sections.includes('main'),side=a.sections.includes('side');
+  if(main&&side)return 'main + side';
+  if(side)return 'sideboard';
+  return 'main';
+}
 function appearanceRow(a){
   const e=a.event,d=a.deck;
   const finish=Number(d.placement)>0?`#${d.placement}`:'Finish unknown';
-  return `<button type="button" class="cx-evidence-appearance" data-deck-id="${esc(d.deck_id)}"><span class="cx-evidence-source">${esc(sourceLabel(e))}</span><span class="cx-evidence-appearance-main"><strong>${esc(e.event_name||'Competitive event')}</strong><small>${esc(`${fmtDate(e.event_date)} · ${e.format||'Unknown format'} · ${d.player_name||'Unknown pilot'}`)}</small></span><span class="cx-evidence-finish"><strong>${esc(finish)}</strong><small>${esc(`${a.quantity||0}× ${a.section==='side'?'sideboard':'main'}`)}</small></span><span class="cx-evidence-chevron">›</span></button>`;
+  return `<button type="button" class="cx-evidence-appearance" data-deck-id="${esc(d.deck_id)}"><span class="cx-evidence-source">${esc(sourceLabel(e))}</span><span class="cx-evidence-appearance-main"><strong>${esc(e.event_name||'Competitive event')}</strong><small>${esc(`${fmtDate(e.event_date)} · ${e.format||'Unknown format'} · ${d.player_name||'Unknown pilot'}`)}</small></span><span class="cx-evidence-finish"><strong>${esc(finish)}</strong><small>${esc(`${a.quantity||0}× ${sectionSummary(a)}`)}</small></span><span class="cx-evidence-chevron">›</span></button>`;
 }
 function decksHtml(data){
   if(!data.appearances.length)return '<div class="cx-evidence-empty">No published deck appearances found in the last 30 days.</div>';
@@ -148,7 +163,10 @@ function cardNameForRow(row){
   return strong?.textContent?.trim()||'';
 }
 function enhanceRows(root=document){
-  root.querySelectorAll?.('#cxCompetitiveIntel .cx-detail-stat:not([data-evidence-ready])').forEach(row=>{
+  const candidates=[];
+  if(root.matches?.('#cxCompetitiveIntel .cx-detail-stat:not([data-evidence-ready])'))candidates.push(root);
+  root.querySelectorAll?.('#cxCompetitiveIntel .cx-detail-stat:not([data-evidence-ready])').forEach(row=>candidates.push(row));
+  candidates.forEach(row=>{
     const cardName=cardNameForRow(row);if(!cardName)return;
     row.dataset.evidenceReady='1';row.classList.add('cx-competitive-evidence-row');row.tabIndex=0;row.setAttribute('role','button');row.setAttribute('aria-label',`View competitive evidence for ${cardName}`);
     const action=document.createElement('button');action.type='button';action.className='cx-evidence-row-action';action.textContent='View evidence →';action.addEventListener('click',e=>{e.stopPropagation();void openEvidence(cardName)});row.appendChild(action);
@@ -158,10 +176,10 @@ function enhanceRows(root=document){
 }
 function install(){
   enhanceRows();
-  observer=new MutationObserver(muts=>{for(const m of muts)for(const n of m.addedNodes)if(n.nodeType===1)enhanceRows(n.matches?.('#cxCompetitiveIntel')?n:n)});
+  observer=new MutationObserver(muts=>{for(const m of muts)for(const n of m.addedNodes)if(n.nodeType===1)enhanceRows(n)});
   observer.observe(document.body,{childList:true,subtree:true});
   document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>enhanceRows())});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&drawer().classList.contains('open'))closeEvidence()});
+  document.addEventListener('keydown',e=>{const d=document.getElementById('cxCompetitiveEvidence');if(e.key==='Escape'&&d?.classList.contains('open'))closeEvidence()});
 }
 
 install();
