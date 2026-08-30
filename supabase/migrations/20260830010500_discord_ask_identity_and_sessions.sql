@@ -101,6 +101,60 @@ create policy discord_ask_bindings_owner_delete
       and l.user_id = (select auth.uid())
   ));
 
+-- Queue delivery is at-least-once. Claiming is atomic and allows a stale running job
+-- to be reclaimed after two minutes. A worker that already has response_text can retry
+-- Discord delivery without calling Ask a second time.
+create or replace function public.claim_discord_ask_delivery(
+  p_interaction_id text,
+  p_discord_user_id text
+)
+returns table (
+  claimed boolean,
+  delivery_status text,
+  saved_response_text text,
+  delivery_attempts integer
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_row public.discord_ask_deliveries%rowtype;
+begin
+  insert into public.discord_ask_deliveries (interaction_id, discord_user_id)
+  values (p_interaction_id, p_discord_user_id)
+  on conflict (interaction_id) do nothing;
+
+  update public.discord_ask_deliveries
+  set status = 'running',
+      attempts = attempts + 1,
+      updated_at = now(),
+      error_text = null
+  where interaction_id = p_interaction_id
+    and discord_user_id = p_discord_user_id
+    and (
+      status in ('queued', 'failed')
+      or (status = 'running' and updated_at < now() - interval '2 minutes')
+    )
+  returning * into v_row;
+
+  if found then
+    return query select true, v_row.status, v_row.response_text, v_row.attempts;
+    return;
+  end if;
+
+  select * into v_row
+  from public.discord_ask_deliveries
+  where interaction_id = p_interaction_id
+    and discord_user_id = p_discord_user_id;
+
+  return query select false, v_row.status, v_row.response_text, v_row.attempts;
+end;
+$$;
+
+revoke all on function public.claim_discord_ask_delivery(text, text) from public, anon, authenticated;
+grant execute on function public.claim_discord_ask_delivery(text, text) to service_role;
+
 revoke all on table public.discord_collectish_oauth_credentials from anon, authenticated;
 revoke all on table public.discord_ask_deliveries from anon, authenticated;
 grant select, delete on table public.discord_collectish_links to authenticated;
