@@ -71,10 +71,14 @@ async function decorate(sku,token,attempt=0){
 }
 function onDetail(e){const sku=e.detail?.sku;if(!sku)return;const token=++seq;setTimeout(()=>void decorate(sku,token),0)}
 function invalidateFamily(e){const oracle=e.detail?.oracle;if(oracle)familyCache.delete(String(oracle))}
+function onLiveFamily(e){
+  const oracle=String(e.detail?.oracle||'');if(!oracle)return;familyCache.delete(oracle);
+  const sku=store.get().scout?.selectedSku;if(sku&&document.getElementById('cxParityDetail'))onDetail({detail:{sku}});
+}
 function hydrate(){const sku=store.get().scout?.selectedSku;if(sku&&document.getElementById('cxParityDetail'))onDetail({detail:{sku}})}
 
 export function installOracleBetterPrinting(){
-  if(installed)return;installed=true;ensureStyle();document.addEventListener('collectish:scout-detail-rendered',onDetail);document.addEventListener('collectish:oracle-bulk-refresh-queued',invalidateFamily);document.addEventListener('collectish:oracle-family-refreshed',invalidateFamily);setTimeout(hydrate,0);
+  if(installed)return;installed=true;ensureStyle();document.addEventListener('collectish:scout-detail-rendered',onDetail);document.addEventListener('collectish:oracle-bulk-refresh-queued',invalidateFamily);document.addEventListener('collectish:oracle-family-live-update',onLiveFamily);setTimeout(hydrate,0);
 }
 
 installOracleBetterPrinting();
