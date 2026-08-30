@@ -12,6 +12,8 @@ test('Admin registers the catalyst calibration module',async()=>{
   expect(module).toContain('market_intel_catalyst_shadow_backtest_summary');
   expect(module).toContain('market_intel_catalyst_shadow_weight_proposals');
   expect(module).toContain('market_intel_catalyst_candidate_weights');
+  expect(module).toContain('market_intel_catalyst_candidate_model_metrics');
+  expect(module).toContain('Candidate model backtest');
   expect(module).toContain("rpc/review_catalyst_weight_proposal");
   expect(module).not.toContain("method:'PATCH'");
   expect(module).not.toContain("method:'DELETE'");
@@ -46,11 +48,26 @@ test('Candidate promotion is server gated auditable and does not mutate producti
   expect(sql).not.toMatch(/update\s+public\.market_intel_catalyst_shadow_weight_proposals/i);
 });
 
-test('Catalyst calibration styles retain mobile governance controls',async()=>{
+test('Candidate backtest preserves non-source points and only swaps approved source weights',async()=>{
+  const sql=await read('supabase/migrations/20260830003000_catalyst_candidate_model_backtest.sql');
+  expect(sql).toContain('with (security_invoker=true)');
+  expect(sql).toContain('market_intel_catalyst_candidate_weights');
+  expect(sql).toContain('preserved_non_source_points');
+  expect(sql).toContain('current_signal_points*candidate_weight');
+  expect(sql).toContain('candidate_model_active');
+  expect(sql).toContain('candidate_applied_modifier');
+  expect(sql).toContain('market_intel_catalyst_candidate_model_metrics');
+  expect(sql).toContain('separation_lift_7d');
+  expect(sql).toContain('where not future_release and matured_7d');
+  expect(sql).toContain('revoke all on public.market_intel_catalyst_candidate_backtest from anon');
+});
+
+test('Catalyst calibration styles retain mobile governance and candidate comparison controls',async()=>{
   const css=await read('src/styles/admin-catalyst-calibration.css');
   expect(css).toContain('.cx-cal-grid{display:grid');
+  expect(css).toContain('.cx-cal-model-grid{display:grid');
   expect(css).toContain('.cx-cal-weight{display:flex');
-  expect(css).toContain('.cx-cal-governance{grid-column:1/-1');
+  expect(css).toContain('.cx-cal-governance{display:flex');
   expect(css).toContain('@media(max-width:600px)');
-  expect(css).toContain('.cx-cal-governance button{min-height:40px}');
+  expect(css).toContain('.cx-cal-governance button{min-height:40px');
 });
