@@ -1,6 +1,6 @@
 {
   "name": "collectish-discord-ask",
-  "main": "./discord-ask-entry-v18.mjs",
+  "main": "./discord-ask-entry-v19.mjs",
   "compatibility_date": "2026-08-29",
   "workers_dev": true,
   "keep_vars": true,
