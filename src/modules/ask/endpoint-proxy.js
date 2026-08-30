@@ -1,5 +1,5 @@
 // Narrow transport bridge for Ask Collectish structured surfaces.
-// Only rewrites the exact Ask Edge Function endpoint and leaves every other fetch untouched.
+// Only rewrites the exact legacy Ask endpoint to the stable client-neutral API facade.
 (() => {
   if(window.__collectishAskEndpointProxyInstalled)return;
   window.__collectishAskEndpointProxyInstalled=true;
@@ -12,7 +12,7 @@
     try{
       const u=new URL(raw,location.href);
       if(!u.pathname.endsWith('/functions/v1/ask-collectish'))return null;
-      u.pathname=u.pathname.replace(/\/ask-collectish$/,'/ask-collectish-orchestrator');
+      u.pathname=u.pathname.replace(/\/ask-collectish$/,'/ask-collectish-api');
       return u.toString();
     }catch{return null}
   }
@@ -25,7 +25,7 @@
       if(String(body?.action||'chat')!=='chat')return init;
       const canonical=window.CollectishContext?.legacy?.();
       if(!canonical)return init;
-      return {...init,body:JSON.stringify({...body,context:{...canonical,...(body.context||{}),entity:canonical.entity,view:canonical.view}})};
+      return {...init,body:JSON.stringify({...body,client:body.client||'web',context:{...canonical,...(body.context||{}),entity:canonical.entity,view:canonical.view}})};
     }catch{return init}
   }
   function status(text,kind=''){
@@ -41,7 +41,7 @@
     const isExternal=String(body?.action||'chat')==='chat'&&externalResearch.test(String(body?.message||body?.question||''));
     if(isExternal)status('Searching external sources…');
     const response=input instanceof Request
-      ? await nativeFetch(input,nextInit)
+      ? await nativeFetch(new Request(url,input),nextInit)
       : await nativeFetch(url,nextInit);
     try{
       const data=await response.clone().json();
