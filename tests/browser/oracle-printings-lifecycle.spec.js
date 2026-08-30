@@ -122,15 +122,31 @@ test('large Oracle families keep full winner data but progressively render rows'
   expect(source).toContain('rows:list,capped,visible');
 });
 
-test('queued Oracle refreshes live-update family confidence winners and visible rows',async()=>{
-  const source=await read('src/modules/scout/oracle-bulk-refresh.js');
-  expect(source).toContain('WATCH_DELAYS');
-  expect(source).toContain('watchRefreshes');
-  expect(source).toContain("rpc/scout_catalog_by_oracle");
-  expect(source).toContain('stamp(row.last_evaluated_at)>');
-  expect(source).toContain('collectish:oracle-family-live-update');
-  expect(source).toContain("collectish:scout-universal-results");
-  expect(source).toContain('comparison updates automatically');
-  expect(source).toContain('data-oracle-detail-back');
-  expect(source).toContain('watch_skus');
+test('Oracle bulk refresh watches queued SKUs and refreshes family winners as evaluations finish',async()=>{
+  const bulk=await read('src/modules/scout/oracle-bulk-refresh.js');
+  const search=await read('src/modules/scout/universal-search.js');
+  expect(bulk).toContain('WATCH_INTERVAL_MS=2500');
+  expect(bulk).toContain('WATCH_MAX_POLLS=40');
+  expect(bulk).toContain('watchQueued');
+  expect(bulk).toContain('collectish:oracle-family-refreshed');
+  expect(bulk).toContain('Refreshing…');
+  expect(search).toContain('collectish:oracle-family-refresh-requested');
+  expect(search).toContain('refreshFamily');
+});
+
+test('normal Scout detail proactively surfaces materially better current sibling printings',async()=>{
+  const source=await read('src/modules/scout/oracle-better-printing.js');
+  const index=await read('src/modules/scout/index.js');
+  expect(index).toContain("import('./oracle-better-printing.js')");
+  expect(source).toContain('Better printing available');
+  expect(source).toContain("stateOf(current)!=='current'");
+  expect(source).toContain("stateOf(r)==='current'");
+  expect(source).toContain('bestDirect.value-currentDirect>=15');
+  expect(source).toContain('bestBuy.value<=currentBuy*.8');
+  expect(source).toContain('bestBuylist.value-currentBuylist>=15');
+  expect(source).toContain('bestVelocity.value>=currentVelocity*1.5');
+  expect(source).toContain('bestScout.value-currentScore>=8');
+  expect(source).toContain('compare.click()');
+  expect(source).toContain('CACHE_TTL_MS=60_000');
+  expect(source).toContain('collectish:oracle-family-refreshed');
 });
