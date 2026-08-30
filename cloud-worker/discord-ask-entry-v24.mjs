@@ -1,0 +1,60 @@
+import entry from './discord-ask-entry-v23.mjs';
+
+const DISCORD_API='https://discord.com/api/v10';
+const ACCENT=0x7c5cff;
+
+function supabaseBase(env){return String(env.SUPABASE_URL||'').replace(/\/$/,'')}
+function serviceHeaders(env){return{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,'Content-Type':'application/json'}}
+async function serviceRest(env,path,init={}){const r=await fetch(`${supabaseBase(env)}/rest/v1/${path}`,{method:init.method||'GET',headers:{...serviceHeaders(env),...(init.prefer?{Prefer:init.prefer}:{})},body:init.body===undefined?undefined:JSON.stringify(init.body)});const raw=await r.text();let d=null;try{d=raw?JSON.parse(raw):null}catch{d=raw}if(!r.ok)throw Error(d?.message||`Supabase REST ${r.status}`);return d}
+async function edit(job,payload){const r=await fetch(`${DISCORD_API}/webhooks/${job.application_id}/${job.interaction_token}/messages/@original`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({allowed_mentions:{parse:[]},...payload})});if(!r.ok)throw Error(`Discord edit ${r.status}: ${(await r.text()).slice(0,180)}`)}
+async function claim(env,job){const x=await serviceRest(env,'rpc/claim_discord_ask_delivery',{method:'POST',body:{p_interaction_id:job.interaction_id,p_discord_user_id:job.discord_user_id}});return Array.isArray(x)?x[0]:x}
+async function done(env,job,text,status='completed',err=null){await serviceRest(env,`discord_ask_deliveries?interaction_id=eq.${encodeURIComponent(job.interaction_id)}`,{method:'PATCH',body:{response_text:text?.slice(0,1900)||null,status,error_text:err,completed_at:new Date().toISOString(),updated_at:new Date().toISOString()}}).catch(()=>null)}
+
+function cohortPhrase(q){q=String(q||'').trim();for(const p of[/^why\s+are\s+(?:all\s+)?(.+?)(?:\s+cards?)?\s+(?:moving|spiking|rising|jumping|up)\??$/i,/^why\s+did\s+(?:all\s+)?(.+?)(?:\s+cards?)?\s+(?:move|spike|rise|jump)\??$/i,/^what(?:'s|\s+is)\s+driving\s+(?:all\s+)?(.+?)(?:\s+cards?)?\??$/i]){const m=q.match(p);if(m?.[1])return m[1].trim().replace(/[?.!,]+$/g,'')}return null}
+function subtypeCandidates(raw){const s=String(raw||'').trim().replace(/\s+tribal$/i,'');const irr={elves:'Elf',wolves:'Wolf',dwarves:'Dwarf',mice:'Mouse',geese:'Goose',oxen:'Ox'};const out=[];if(irr[s.toLowerCase()])out.push(irr[s.toLowerCase()]);if(/ies$/i.test(s))out.push(s.replace(/ies$/i,'y'));if(/s$/i.test(s))out.push(s.replace(/s$/i,''));out.push(s);return[...new Set(out.map(x=>x?x[0].toUpperCase()+x.slice(1):x).filter(Boolean))]}
+async function scryfallSubtype(raw){for(const subtype of subtypeCandidates(raw)){let url=`https://api.scryfall.com/cards/search?q=${encodeURIComponent(`t:${subtype} game:paper`)}`;const cards=[];for(let page=0;page<5&&url;page++){const r=await fetch(url,{headers:{Accept:'application/json','User-Agent':'Collectish/1.0 seller-map resolver'}});if(!r.ok){url=null;break}const d=await r.json();for(const c of d?.data||[])cards.push({name:c?.name,oracle_id:c?.oracle_id,id:c?.id,type_line:c?.type_line});url=d?.has_more?d?.next_page:null}if(cards.length)return{subtype,cards}}return null}
+const norm=v=>String(v||'').toLowerCase().replace(/\s*\/\/\s*.*/,'').replace(/\([^)]*\)\s*$/,'').replace(/[^a-z0-9]+/g,' ').trim();
+
+async function recentSignals(env){const cutoff=new Date(Date.now()-10*86400000).toISOString();return serviceRest(env,`market_intel_items?observed_at=gte.${encodeURIComponent(cutoff)}&source_name=eq.MTGStocks&select=source_name,source_url,title,summary,published_at,observed_at&order=observed_at.desc&limit=1000`).catch(()=>[])}
+function parseMoveSignal(s){
+  const title=String(s?.title||'');
+  const summary=String(s?.summary||'');
+  const tm=title.match(/^Interests\s*·\s*(average|market)\s*·\s*(foil|regular|nonfoil|non-foil)\s*·\s*\d+d\s*·\s*(.+)$/i);
+  const sm=summary.match(/MTGStocks Interests\s+(average|market)\s+(foil|regular|nonfoil|non-foil)\s+\d+d:\s*(.+?)\s+moved from \$([\d.]+) to \$([\d.]+) \(([+-]?[\d.]+)%\)/i);
+  if(!tm&&!sm)return null;
+  return {
+    metric:String(sm?.[1]||tm?.[1]||'').toLowerCase(),
+    finish:String(sm?.[2]||tm?.[2]||'').toLowerCase(),
+    card_name:String(sm?.[3]||tm?.[3]||'').trim(),
+    from:sm?Number(sm[4]):null,
+    to:sm?Number(sm[5]):null,
+    change:sm?Number(sm[6]):null,
+    source_url:s?.source_url||null,
+    observed_at:s?.observed_at||s?.published_at||null,
+  };
+}
+function cohortMoves(cards,signals){
+  const names=new Map((cards||[]).map(c=>[norm(c.name),c.name]));
+  const rows=[];
+  for(const s of signals||[]){const mv=parseMoveSignal(s);if(!mv?.card_name||!Number.isFinite(mv.change))continue;const n=norm(mv.card_name);let canonical=names.get(n);if(!canonical){for(const[k,v]of names){if(n===k||n.startsWith(`${k} `)||k.startsWith(`${n} `)){canonical=v;break}}}if(!canonical)continue;rows.push({...mv,card_name:canonical})}
+  const best=new Map();
+  for(const r of rows){const k=norm(r.card_name);const old=best.get(k);const score=(r.metric==='market'?10000:0)+Math.abs(r.change||0);const oldScore=old?((old.metric==='market'?10000:0)+Math.abs(old.change||0)):-1;if(score>oldScore)best.set(k,r)}
+  return[...best.values()];
+}
+async function internalEvidence(env,names){const out=[];for(let i=0;i<names.length;i+=50){const rows=await serviceRest(env,'rpc/ask_collectish_public_internal_card_evidence_v1',{method:'POST',body:{p_card_names:names.slice(i,i+50)}}).catch(()=>[]);if(Array.isArray(rows))out.push(...rows)}return out}
+
+function clamp(v,min=0,max=100){return Math.max(min,Math.min(max,v))}
+function demandPressure(r){let s=0;const rank=Number(r?.edhrec_rank);if(rank>0)s+=clamp(38-Math.log10(rank)*8,0,30);const vel=Number(r?.avg_daily_qty_sold);if(Number.isFinite(vel))s+=clamp(vel*2.5,0,22);const qty=Number(r?.sales_qty_14d);if(Number.isFinite(qty))s+=clamp(qty/18,0,16);const scout=Number(r?.scout_score);if(Number.isFinite(scout))s+=clamp((scout-35)*0.4,0,15);s+=clamp(Number(r?.signal_count_14d||0)*3,0,9);s+=clamp(Number(r?.independent_sources_14d||0)*4,0,8);if(r?.buylist_backed)s+=5;const supply=String(r?.supply_type||'').toLowerCase();if(/thin|tight|low|shallow/.test(supply))s+=8;const direct=Number(r?.direct_available);if(Number.isFinite(direct)){if(direct<=15)s+=8;else if(direct<=40)s+=5;else if(direct<=80)s+=2}return clamp(Math.round(s),0,100)}
+function pricedIn(move){if(!move||!Number.isFinite(Number(move.change)))return 0;const raw=Math.max(0,Number(move.change));return clamp(move.metric==='market'?raw:raw*0.42,0,180)}
+function classify(row,move){const demand=demandPressure(row),priced=pricedIn(move),catchup=clamp(Math.round(demand-priced*0.42),0,100);let bucket='LOW PRIORITY';if(priced>=115)bucket='EXTENDED';else if(demand>=52&&priced<30)bucket='CATCH-UP';else if(demand>=48&&priced>=30)bucket='REPRICE NOW';else if(demand>=38&&priced<45)bucket='WATCH';return{...row,move,demand,priced,catchup,bucket}}
+function scoreCards(evidence,moves){const mmap=new Map((moves||[]).map(m=>[norm(m.card_name),m]));return(evidence||[]).map(r=>classify(r,mmap.get(norm(r.card_name))||null)).sort((a,b)=>b.catchup-a.catchup)}
+function topByBucket(rows,bucket,n=4){return rows.filter(r=>r.bucket===bucket).sort((a,b)=>b.catchup-a.catchup).slice(0,n)}
+function topLeaders(rows,n=3){return rows.filter(r=>r.move).sort((a,b)=>Math.abs(Number(b.move?.change||0))-Math.abs(Number(a.move?.change||0))).slice(0,n)}
+function momentum(rows,cohortSize){const movers=rows.filter(r=>r.move),catchups=rows.filter(r=>r.bucket==='CATCH-UP').length;const breadth=cohortSize?movers.length/cohortSize:0;if(breadth<0.12&&catchups>=2)return{label:'EARLY / BROADENING',detail:`${movers.length}/${cohortSize} cards have confirmed move signals, while ${catchups} still screen as catch-up candidates.`};if(breadth<0.3&&catchups>0)return{label:'BROADENING',detail:`${movers.length}/${cohortSize} confirmed movers and ${catchups} catch-up candidates suggest the theme is still spreading.`};if(breadth>=0.3)return{label:'MATURE / WIDE',detail:`${movers.length}/${cohortSize} cards are already moving; prioritize repricing and avoid indiscriminate chasing.`};return{label:'NARROW',detail:`Movement is concentrated in ${movers.length} cards. Treat laggards selectively until more breadth appears.`}}
+function rowLine(r){const bits=[];if(r.move)bits.push(`${r.move.metric==='market'?'Market':'Avg'} ${r.move.change>=0?'+':''}${r.move.change.toFixed(0)}%`);if(Number(r.avg_daily_qty_sold)>0)bits.push(`${Number(r.avg_daily_qty_sold).toFixed(1)}/d`);if(r.edhrec_rank)bits.push(`EDHREC #${Number(r.edhrec_rank).toLocaleString()}`);if(r.direct_available!=null)bits.push(`${r.direct_available} Direct`);return `**${r.card_name}** — ${bits.join(' · ')||`demand ${r.demand}`}`}
+function lines(rows,empty){return rows.length?rows.map(rowLine).join('\n'):empty}
+function payload(subtype,rows,cohortSize,movers){const leaders=topLeaders(rows,3),reprice=topByBucket(rows,'REPRICE NOW',3),catchup=topByBucket(rows,'CATCH-UP',4),extended=topByBucket(rows,'EXTENDED',3),mom=momentum(rows,cohortSize);return{content:'',embeds:[{color:ACCENT,title:`↗ ${subtype} cohort · seller opportunity map`,description:`**${mom.label}** — ${mom.detail}`,fields:[{name:'🔥 LEADERS',value:lines(leaders,'No confirmed leaders.'),inline:false},{name:'⚡ REPRICE NOW',value:lines(reprice,'No clear public-market reprice alerts.'),inline:false},{name:'⏳ CATCH-UP WATCH',value:lines(catchup,'No strong catch-up candidates yet.'),inline:false},{name:'🧊 EXTENDED',value:lines(extended,'No obviously extended names.'),inline:false}],footer:{text:`Validated move join: ${movers.length} MTGStocks movers · Collectish-first seller evidence`} }],components:[]}}
+
+async function handle(env,job,message){const raw=cohortPhrase(job.question);if(!raw)return false;const c=await claim(env,job);if(!c?.claimed){message.ack();return true}try{await edit(job,{content:`🔎 Delvin is validating ${raw} movers and seller opportunities…`,embeds:[],components:[]}).catch(()=>null);const cohort=await scryfallSubtype(raw);if(!cohort?.cards?.length)throw Error(`Could not resolve “${raw}” as an MTG creature subtype.`);const[signals,evidence]=await Promise.all([recentSignals(env),internalEvidence(env,cohort.cards.map(c=>c.name))]);const movers=cohortMoves(cohort.cards,signals);const rows=scoreCards(evidence,movers);const p=payload(cohort.subtype,rows,cohort.cards.length,movers);await edit(job,p);const mom=momentum(rows,cohort.cards.length);await done(env,job,`${cohort.subtype}: ${mom.label}; ${movers.length} validated movers; leaders ${topLeaders(rows,3).map(x=>x.card_name).join(', ')}`);message.ack();return true}catch(e){const detail=String(e?.message||e).slice(0,500);await edit(job,{content:`Delvin couldn't build the validated seller map: ${detail}`,embeds:[],components:[]}).catch(()=>null);await done(env,job,null,'failed',detail);message.ack();return true}}
+
+export default{fetch(request,env,ctx){return entry.fetch(request,env,ctx)},async queue(batch,env,ctx){const fallback=[];for(const message of batch.messages){const job=message.body||{},raw=cohortPhrase(job.question),isPrivate=String(job.response_visibility||'').toLowerCase()==='ephemeral';if(!raw||isPrivate){fallback.push(message);continue}await handle(env,job,message)}if(fallback.length)return entry.queue({messages:fallback},env,ctx)}};
