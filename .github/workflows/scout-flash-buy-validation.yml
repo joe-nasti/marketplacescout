@@ -1,0 +1,48 @@
+name: Scout flash-buy validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/modules/scout/flash-buy.js"
+      - "src/modules/scout/cache-read.js"
+      - "src/modules/scout/price-actionability.js"
+      - "src/modules/scout/index.js"
+      - "cloud-worker/scout-flash-buy-opportunities.sql"
+      - ".github/workflows/scout-flash-buy-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Browser module syntax
+        run: |
+          node --check src/modules/scout/cache-read.js
+          node --check src/modules/scout/flash-buy.js
+          node --check src/modules/scout/price-actionability.js
+      - name: Production ranking and flash views
+        shell: bash
+        run: |
+          set -euo pipefail
+          ranked="$(mktemp)"
+          flash="$(mktemp)"
+          code="$(curl --silent --show-error --output "$ranked" --write-out '%{http_code}' \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            "$SUPABASE_URL/rest/v1/scout_opportunities_actionability_ranked?select=sku_id,promoted_grade,promoted_score,ranking_grade,ranking_score,actionability_status&promoted_grade=eq.A&order=ranking_score.desc&limit=20")"
+          [[ "$code" =~ ^2 ]]
+          jq -e 'length >= 1' "$ranked" >/dev/null
+          jq -e 'all(.[]; (.ranking_grade|length) > 0 and (.ranking_score != null))' "$ranked" >/dev/null
+          code="$(curl --silent --show-error --output "$flash" --write-out '%{http_code}' \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            "$SUPABASE_URL/rest/v1/scout_flash_buy_opportunities?select=sku_id,product_name,flash_buy_reason,flash_buy_score,persistence_state,stale_seller_suspected,official_landed_low,official_market&order=flash_buy_score.desc&limit=20")"
+          [[ "$code" =~ ^2 ]]
+          jq -e 'all(.[]; (.flash_buy_reason|length) > 0 and (.flash_buy_score != null) and (.official_landed_low != null))' "$flash" >/dev/null
