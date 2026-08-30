@@ -55,6 +55,12 @@ async function orchestrate(accessToken: string, body: any) {
 }
 
 const text = (value: unknown) => String(value ?? '').trim();
+const publicSession = (row: any) => row ? ({
+  id: row.id,
+  title: row.title ?? null,
+  updated_at: row.updated_at ?? null,
+  created_at: row.created_at ?? null,
+}) : null;
 
 async function createSession(accessToken: string, body: any) {
   const title = text(body?.title || body?.message || 'New conversation').slice(0, 90) || 'New conversation';
@@ -63,7 +69,7 @@ async function createSession(accessToken: string, body: any) {
     prefer: 'return=representation',
     body: [{ title }],
   });
-  const session = rows?.[0] || null;
+  const session = publicSession(rows?.[0]);
   if (!session?.id) throw new Error('Ask session was not created');
   return { api_schema: API_SCHEMA, session };
 }
@@ -75,7 +81,7 @@ async function listSessions(accessToken: string, body: any) {
     accessToken,
     `ask_collectish_conversations?select=id,title,updated_at,created_at&order=updated_at.desc&limit=${limit}`,
   );
-  return { api_schema: API_SCHEMA, sessions: Array.isArray(sessions) ? sessions : [] };
+  return { api_schema: API_SCHEMA, sessions: Array.isArray(sessions) ? sessions.map(publicSession) : [] };
 }
 
 async function getSession(accessToken: string, body: any) {
@@ -86,7 +92,7 @@ async function getSession(accessToken: string, body: any) {
     accessToken,
     `ask_collectish_conversations?id=eq.${encoded}&select=id,title,updated_at,created_at&limit=1`,
   );
-  const session = sessions?.[0] || null;
+  const session = publicSession(sessions?.[0]);
   if (!session) return { error: 'Ask session not found', status: 404 };
   const messages = await rest(
     accessToken,
@@ -128,16 +134,22 @@ Deno.serve(async (req: Request) => {
       return json(result);
     }
 
-    // Chat, health, and existing orchestrator actions intentionally retain their current
-    // request/response contract. The facade only adds a stable schema marker and client id.
-    const result = await orchestrate(accessToken, body);
+    // Preserve the mature orchestrator contract internally, while external clients can use
+    // session_id consistently instead of knowing the historical conversation_id field name.
+    const orchestratorBody = {
+      ...body,
+      ...(body?.conversation_id ? {} : body?.session_id ? { conversation_id: body.session_id } : {}),
+    };
+    const result = await orchestrate(accessToken, orchestratorBody);
     if (!result.ok) return json({ api_schema: API_SCHEMA, ...result.data }, result.status);
 
     const data = result.data || {};
-    if (action === 'chat') await touchSession(accessToken, data.conversation_id || body?.conversation_id);
+    const sessionId = data.conversation_id || orchestratorBody.conversation_id || null;
+    if (action === 'chat') await touchSession(accessToken, sessionId);
     return json({
       api_schema: API_SCHEMA,
       client: text(body?.client || 'web') || 'web',
+      session_id: sessionId,
       ...data,
     });
   } catch (error) {
