@@ -1,4 +1,4 @@
-import { copyFile, cp, stat, writeFile, readFile, readdir } from 'node:fs/promises';
+import { copyFile, cp, stat, writeFile, readFile, readdir, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
@@ -77,6 +77,16 @@ if(!/name=["']collectish-build["']/.test(html)){
 }
 await writeFile(targetHtml,html);
 
+// Supabase OAuth Server redirects to Site URL + /oauth/consent. GitHub Pages does
+// not provide SPA route fallback, so publish an explicit nested entry document. Vite's
+// root build uses base './'; rewrite its relative asset references two levels upward.
+const oauthDir=join(dist,'oauth','consent');
+await mkdir(oauthDir,{recursive:true});
+const oauthHtml=html
+  .replace(/(src|href)="\.\/([^"#]+)"/g,'$1="../../$2"')
+  .replace(/(src|href)='\.\/([^'#]+)'/g,"$1='../../$2'");
+await writeFile(join(oauthDir,'index.html'),oauthHtml);
+
 // Deployment identity is a build artifact only. Keep a single canonical file in dist/
 // rather than maintaining parallel build-version/web-version outputs or committing stamps.
 await writeFile(join(dist,'web-version.json'),JSON.stringify({
@@ -88,7 +98,9 @@ await writeFile(join(dist,'web-version.json'),JSON.stringify({
 })+'\n');
 
 const out=await stat(targetHtml).catch(()=>null);
+const oauthOut=await stat(join(oauthDir,'index.html')).catch(()=>null);
 if(!out?.size)throw new Error('Vite build did not produce dist/index.html');
+if(!oauthOut?.size)throw new Error('Vite build did not produce OAuth consent entry');
 if(!existsSync(join(dist,'sw.mjs')))throw new Error('Vite build did not include sw.mjs');
 if(!existsSync(join(rawSrc,'app.js')))throw new Error('Vite build did not include raw-module compatibility bridge');
 if(!/name=["']collectish-revision["']/.test(html))throw new Error('Build metadata injection did not produce collectish-revision meta');

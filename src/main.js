@@ -35,14 +35,19 @@ function showStartupError(error){
   if(recovering)setTimeout(()=>recoverModuleGraph(),150);
 }
 
-Promise.all([
-  import('./app.js'),
-  import('./modules/seller/inventory-session-status.js'),
-  import('./modules/signals/discovery-integration.js'),
-  import('./modules/ask/history-ui.js')
-]).then(([app,status,discovery,askHistory])=>{
-  status.installInventorySessionStatus();
-  discovery.installSignalsDiscovery();
-  askHistory.installAskHistoryUi();
-  return app.startCollectish();
-}).catch(showStartupError);
+const oauthConsent=/\/oauth\/consent\/?$/.test(location.pathname);
+if(oauthConsent){
+  import('./modules/oauth-consent/main.js').then(module=>module.startOAuthConsent()).catch(showStartupError);
+}else{
+  Promise.all([
+    import('./app.js'),
+    import('./modules/seller/inventory-session-status.js'),
+    import('./modules/signals/discovery-integration.js'),
+    import('./modules/ask/history-ui.js')
+  ]).then(([app,status,discovery,askHistory])=>{
+    status.installInventorySessionStatus();
+    discovery.installSignalsDiscovery();
+    askHistory.installAskHistoryUi();
+    return app.startCollectish();
+  }).catch(showStartupError);
+}
