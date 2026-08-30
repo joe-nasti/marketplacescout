@@ -58,6 +58,15 @@ jobs:
       - name: Deploy Worker and Queue consumer
         run: npx --yes wrangler@4 deploy --config cloud-worker/wrangler.discord-ask.runtime.json
 
+      - name: Audit live Worker binding names
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/collectish-discord-ask/settings" \
+            | jq -c '.result.bindings | map({name, type})'
+
       - name: Verify Worker health endpoint
         shell: bash
         run: |
