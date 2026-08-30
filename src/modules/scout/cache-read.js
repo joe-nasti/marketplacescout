@@ -4,12 +4,12 @@ import { readPersistentResource, writePersistentResource } from '../../state/per
 
 export const SCOUT_LIST_FIELDS=[
   'sku_id','product_id','product_name','set_name','set_code','collector_number','scryfall_id',
-  'printing','condition','language','promoted_score','promoted_grade','v5_shadow_score','v5_shadow_grade',
-  'opportunity_score','tcg_low','sku_market_price','direct_low','ck_buylist','direct_backed','near_direct_backed',
+  'printing','condition','language','promoted_score','promoted_grade','ranking_score','ranking_grade','actionability_status','actionability_shadow_grade',
+  'v5_shadow_score','v5_shadow_grade','opportunity_score','tcg_low','sku_market_price','direct_low','ck_buylist','direct_backed','near_direct_backed',
   'buylist_backed','source_verify','observation_count','v5_computed_at','computed_at','sales_rank','avg_daily_qty_sold'
 ].join(',');
-export const SCOUT_LIST_CACHE_PATH=`scout_opportunities_v5_cache?select=${SCOUT_LIST_FIELDS}&order=promoted_score.desc,observation_count.desc&limit=500`;
-export const SCOUT_LIST_LIVE_PATH=`scout_opportunities_v5?select=${SCOUT_LIST_FIELDS}&order=promoted_score.desc,observation_count.desc&limit=500`;
+export const SCOUT_LIST_CACHE_PATH=`scout_opportunities_actionability_ranked?select=${SCOUT_LIST_FIELDS}&order=ranking_score.desc,observation_count.desc&limit=500`;
+export const SCOUT_LIST_LIVE_PATH=`scout_opportunities_v5?select=${SCOUT_LIST_FIELDS.replace(',ranking_score,ranking_grade,actionability_status,actionability_shadow_grade','')}&order=promoted_score.desc,observation_count.desc&limit=500`;
 export const SCOUT_LIVE_PATH='scout_opportunities_v5?select=*&order=promoted_score.desc,observation_count.desc&limit=500';
 export const SCOUT_CACHE_PATH='scout_opportunities_v5_cache?select=*&order=promoted_score.desc,observation_count.desc&limit=500';
 
@@ -31,7 +31,7 @@ function health(patch){
 
 function persistentKey(){
   const userId=store.get()?.session?.user?.id||'anonymous';
-  return `user:${userId}:scout.rows`;
+  return `user:${userId}:scout.rows.actionability-v1`;
 }
 
 function freshRows(record){
@@ -44,7 +44,7 @@ async function readRecentPersisted(){
   persistedChecked=true;
   const started=performance.now();
 
-  const primed=freshRows(store.get()?.resources?.['scout.rows']);
+  const primed=freshRows(store.get()?.resources?.['scout.rows.actionability-v1']);
   if(primed){
     health({scout_persisted_used:true,scout_persisted_source:'primed-store',scout_persisted_age_ms:Math.round(primed.age),scout_persisted_read_ms:Math.round(performance.now()-started)});
     return primed.rows;
@@ -86,12 +86,12 @@ export async function readScoutRankings(options={}){
     try{
       const rows=await baseRest(SCOUT_LIST_CACHE_PATH,options);
       if(Array.isArray(rows)&&rows.length){
-        health({scout_cache_used:true,scout_cache_fallback:false,scout_cache_read_ms:Math.round(performance.now()-t0),scout_list_rows:rows.length});
+        health({scout_cache_used:true,scout_cache_fallback:false,scout_actionability_ranked:true,scout_cache_read_ms:Math.round(performance.now()-t0),scout_list_rows:rows.length});
         persistRows(rows);return rows;
       }
     }catch{}
     const rows=await baseRest(SCOUT_LIST_LIVE_PATH,options);
-    health({scout_cache_used:false,scout_cache_fallback:true,scout_cache_read_ms:Math.round(performance.now()-t0),scout_list_rows:Array.isArray(rows)?rows.length:0});
+    health({scout_cache_used:false,scout_cache_fallback:true,scout_actionability_ranked:false,scout_cache_read_ms:Math.round(performance.now()-t0),scout_list_rows:Array.isArray(rows)?rows.length:0});
     persistRows(rows);return rows;
   })().then(rows=>{lastRows=rows;lastAt=performance.now();return rows}).finally(()=>{inFlight=null});
   return inFlight;
