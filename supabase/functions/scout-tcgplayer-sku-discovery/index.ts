@@ -66,6 +66,56 @@ function finishMatches(printing: string | null, desired: string | null) {
   return p.includes(d);
 }
 
+function requestedLabel(desiredFinish: string | null) {
+  if (!desiredFinish) return "requested variant";
+  const d = desiredFinish.toLowerCase();
+  if (d.includes("etched")) return "etched foil";
+  if (d.includes("foil") && !d.includes("non")) return "foil";
+  if (d.includes("non") || d === "normal" || d === "regular") return "nonfoil";
+  return desiredFinish;
+}
+
+function discoveryOutcome(records: any[], wanted: any[], desiredFinish: string | null, desiredCondition: string | null, desiredLanguage: string | null) {
+  if (!desiredFinish) {
+    return {
+      code: "catalog_discovered",
+      provider_variant_available: null,
+      message: "TCGplayer SKU matrix checked and all available NM English siblings were discovered.",
+    };
+  }
+  if (wanted.length) {
+    return {
+      code: "matched",
+      provider_variant_available: true,
+      message: `TCGplayer exposes ${wanted.length} matching ${requestedLabel(desiredFinish)} SKU${wanted.length === 1 ? "" : "s"}.`,
+    };
+  }
+
+  const finishRows = records.filter((x: any) => finishMatches(x.printing, desiredFinish));
+  const exactConditionRows = finishRows.filter((x: any) => !desiredCondition || x.condition === desiredCondition);
+  if (!finishRows.length) {
+    return {
+      code: "provider_finish_absent",
+      provider_variant_available: false,
+      message: `TCGplayer does not expose a ${requestedLabel(desiredFinish)} SKU for this product.`,
+    };
+  }
+  if (!exactConditionRows.length || !finishRows.some((x: any) => (!desiredCondition || x.condition === desiredCondition) && (!desiredLanguage || x.language === desiredLanguage))) {
+    const condition = desiredCondition === "NEAR MINT" ? "NM" : desiredCondition || "requested-condition";
+    const language = desiredLanguage === "ENGLISH" ? "English" : desiredLanguage || "requested-language";
+    return {
+      code: "provider_condition_language_absent",
+      provider_variant_available: false,
+      message: `TCGplayer does not expose an ${condition} ${language} ${requestedLabel(desiredFinish)} SKU for this product.`,
+    };
+  }
+  return {
+    code: "provider_variant_absent",
+    provider_variant_available: false,
+    message: `TCGplayer does not expose the requested ${requestedLabel(desiredFinish)} SKU for this product.`,
+  };
+}
+
 function extractDetail(payload: any) {
   if (!payload) return {};
   if (payload?.result && typeof payload.result === "object") return payload.result;
@@ -81,7 +131,7 @@ function extractSkus(detail: any) {
 async function fetchDetails(productId: string) {
   const headers = {
     Accept: "application/json",
-    "User-Agent": "Mozilla/5.0 (compatible; Collectish/1.0)",
+    "User-Agent": "Mozilla/5.0 (compatible; Collectish/1.0; +https://collectish.com)",
     Origin: "https://www.tcgplayer.com",
     Referer: `https://www.tcgplayer.com/product/${productId}`,
   };
@@ -241,6 +291,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const wanted = english.filter((x: any) => finishMatches(x.printing, desiredFinish) && (!desiredCondition || x.condition === desiredCondition) && (!desiredLanguage || x.language === desiredLanguage));
+    const outcome = discoveryOutcome(records, wanted, desiredFinish, desiredCondition, desiredLanguage);
     const queued: any[] = [];
     const authHeader = req.headers.get("Authorization");
     for (const x of wanted) {
@@ -261,8 +312,10 @@ Deno.serve(async (req: Request) => {
       requested_finish: desiredFinish,
       requested_condition: desiredCondition,
       requested_language: desiredLanguage,
+      outcome,
       matches: wanted,
       queued_refreshes: queued,
+      available_nm_english_printings: [...new Set(english.filter((x: any) => x.condition === "NEAR MINT").map((x: any) => x.printing).filter(Boolean))],
     });
   } catch (e) {
     return json({ error: String((e as Error)?.message || e) }, 500);
