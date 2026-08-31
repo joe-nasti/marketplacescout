@@ -18,4 +18,18 @@ for (const token of [
 ]) {
   if (!resolverMigration.includes(token)) throw new Error(`missing canonical history resolver token: ${token}`);
 }
+const historyMigration=fs.readFileSync('supabase/migrations/20260831200700_make_ask_price_history_index_native.sql','utf8');
+for (const token of [
+  "p_sku_id::text end as sku_key",
+  'c.sku_id = p.sku_key',
+  'm.sku_id = p.sku_key',
+  'h.sku_id = t.sku_id',
+  'b.sku_id = t.sku_id',
+  'b.user_id = auth.uid()'
+]) {
+  if (!historyMigration.includes(token)) throw new Error(`missing index-native history token: ${token}`);
+}
+for (const forbidden of ['c.sku_id::bigint = p_sku_id','m.sku_id::bigint = p_sku_id','h.sku_id::bigint','b.sku_id::bigint']) {
+  if (historyMigration.includes(forbidden)) throw new Error(`history query reintroduced index-defeating cast: ${forbidden}`);
+}
 console.log('shared Ask history routing normalization guard passed');
