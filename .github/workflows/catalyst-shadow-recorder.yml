@@ -31,3 +31,5 @@ jobs:
           node-version: 22
       - name: Capture catalyst shadow observations
         run: node cloud-worker/catalyst-shadow-recorder.mjs
+
+# Touching this file should immediately exercise the push-triggered recorder path.
