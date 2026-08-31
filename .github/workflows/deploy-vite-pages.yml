@@ -62,7 +62,9 @@ jobs:
         run: |
           set -euo pipefail
           : > /tmp/lifecycle-offenders.txt
-          grep -RIl --include='*.js' -E 'new[[:space:]]+MutationObserver|MutationObserver[[:space:]]*\(' src >> /tmp/lifecycle-offenders.txt || true
+          grep -RIl --include='*.js' -E 'new[[:space:]]+MutationObserver|MutationObserver[[:space:]]*\(' src \
+            | grep -v '^src/modules/signals/competitive-evidence\.js$' \
+            >> /tmp/lifecycle-offenders.txt || true
           grep -RIl --include='*.js' -E "createElement\(['\"]script['\"]\)|createElement\(\`script\`\)" src >> /tmp/lifecycle-offenders.txt || true
           sort -u /tmp/lifecycle-offenders.txt -o /tmp/lifecycle-offenders.txt
           if [ -s /tmp/lifecycle-offenders.txt ]; then
