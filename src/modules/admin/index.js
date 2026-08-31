@@ -37,6 +37,7 @@ export function install(){
       import('./scout-universe.js'),
       import('./catalyst-calibration.js'),
       import('./catalyst-calibration-health.js'),
+      import('./catalyst-production-promotion.js'),
       import('./signals-video-audit.js'),
       import('./youtube-pipeline.js'),
       import('./sealed-catalog.js'),
