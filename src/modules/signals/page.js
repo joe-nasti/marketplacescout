@@ -10,4 +10,6 @@ export async function install(){
   await lifecycle.install();
   const details=await import('./secret-lair-row-details.js');
   await details.install();
+  const forward=await import('./secret-lair-forward-test.js');
+  await forward.install();
 }
