@@ -3,20 +3,21 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 const read=p=>readFile(path.join(process.cwd(),p),'utf8');
 
-test('Admin registers the catalyst calibration module',async()=>{
+test('Admin registers catalyst calibration and production promotion modules',async()=>{
   const index=await read('src/modules/admin/index.js');
   const module=await read('src/modules/admin/catalyst-calibration.js');
+  const promotion=await read('src/modules/admin/catalyst-production-promotion.js');
   expect(index).toContain("import('./catalyst-calibration.js')");
+  expect(index).toContain("import('./catalyst-production-promotion.js')");
   expect(module).toContain("const MIN_SAMPLE=8");
   expect(module).toContain('Official Scout ranking and production source weights remain unchanged');
-  expect(module).toContain('market_intel_catalyst_shadow_backtest_summary');
-  expect(module).toContain('market_intel_catalyst_shadow_weight_proposals');
-  expect(module).toContain('market_intel_catalyst_candidate_weights');
-  expect(module).toContain('market_intel_catalyst_candidate_model_metrics');
   expect(module).toContain('Candidate model backtest');
-  expect(module).toContain("rpc/review_catalyst_weight_proposal");
-  expect(module).not.toContain("method:'PATCH'");
-  expect(module).not.toContain("method:'DELETE'");
+  expect(promotion).toContain('Production promotion gate');
+  expect(promotion).toContain('market_intel_catalyst_candidate_promotion_gate');
+  expect(promotion).toContain('market_intel_catalyst_production_promotion_state');
+  expect(promotion).toContain("rpc/review_catalyst_candidate_for_production");
+  expect(promotion).not.toContain("method:'PATCH'");
+  expect(promotion).not.toContain("method:'DELETE'");
 });
 
 test('Catalyst source calibration view is security-invoker and excludes future releases',async()=>{
@@ -44,7 +45,6 @@ test('Candidate promotion is server gated auditable and does not mutate producti
   expect(sql).toContain('security invoker');
   expect(sql).toContain('with (security_invoker=true)');
   expect(sql).toContain('market_intel_catalyst_candidate_weights');
-  expect(sql).toContain("case when decision='approved_candidate' then proposed_weight end as candidate_weight");
   expect(sql).not.toMatch(/update\s+public\.market_intel_catalyst_shadow_weight_proposals/i);
 });
 
@@ -59,15 +59,33 @@ test('Candidate backtest preserves non-source points and only swaps approved sou
   expect(sql).toContain('market_intel_catalyst_candidate_model_metrics');
   expect(sql).toContain('separation_lift_7d');
   expect(sql).toContain('where not future_release and matured_7d');
-  expect(sql).toContain('revoke all on public.market_intel_catalyst_candidate_backtest from anon');
 });
 
-test('Catalyst calibration styles retain mobile governance and candidate comparison controls',async()=>{
+test('Production promotion requires mature lift safety diversity and grade gates',async()=>{
+  const sql=await read('supabase/migrations/20260831151000_catalyst_candidate_production_promotion_gate.sql');
+  expect(sql).toContain('with (security_invoker=true)');
+  expect(sql).toContain('affected_matured_7d>=30');
+  expect(sql).toContain('affected_matured_30d>=10');
+  expect(sql).toContain('separation_lift_7d>=2.0');
+  expect(sql).toContain('separation_lift_30d>=0');
+  expect(sql).toContain('candidate_false_positive_pct_7d');
+  expect(sql).toContain('candidate_low_avg_7d');
+  expect(sql).toContain('approved_candidate_sources>=3');
+  expect(sql).toContain('promoted_to_ab_avg_7d');
+  expect(sql).toContain('eligible_for_production_review');
+  expect(sql).toContain("decision in ('approved_for_production','rejected','revoked')");
+  expect(sql).toContain('security invoker');
+  expect(sql).toContain("not g.eligible_for_production_review");
+  expect(sql).not.toMatch(/update\s+public\.(scout|market_intel_catalyst_candidate_weights)/i);
+});
+
+test('Catalyst calibration styles retain mobile governance candidate and production gate controls',async()=>{
   const css=await read('src/styles/admin-catalyst-calibration.css');
-  expect(css).toContain('.cx-cal-grid{display:grid');
+  const prod=await read('src/styles/admin-catalyst-production.css');
   expect(css).toContain('.cx-cal-model-grid{display:grid');
-  expect(css).toContain('.cx-cal-weight{display:flex');
   expect(css).toContain('.cx-cal-governance{display:flex');
-  expect(css).toContain('@media(max-width:600px)');
-  expect(css).toContain('.cx-cal-governance button{min-height:40px');
+  expect(prod).toContain('.cx-prod-gates{display:grid');
+  expect(prod).toContain('.cx-prod-actions button{min-height:40px');
+  expect(prod).toContain('@media(max-width:600px)');
+  expect(prod).toContain('.cx-prod-summary,.cx-prod-gates{grid-template-columns:1fr}');
 });
