@@ -19,6 +19,7 @@ export function install(){
       import('./catalyst-calibration.js'),
       import('./signals-video-audit.js'),
       import('./youtube-pipeline.js'),
+      import('./secret-lair.js'),
       import('./sealed-catalog.js'),
       import('./sealed-health.js'),
       import('./cardtrader-health.js'),
