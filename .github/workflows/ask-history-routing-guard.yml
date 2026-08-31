@@ -4,6 +4,7 @@ on:
     paths:
       - 'supabase/functions/ask-collectish-route-intents/**'
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
+      - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'tools/check-ask-history-routing.mjs'
       - 'tools/check-ask-context-isolation.mjs'
@@ -13,6 +14,7 @@ on:
     paths:
       - 'supabase/functions/ask-collectish-route-intents/**'
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
+      - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'tools/check-ask-history-routing.mjs'
       - 'tools/check-ask-context-isolation.mjs'

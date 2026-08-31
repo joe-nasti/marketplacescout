@@ -3,8 +3,19 @@ const src=fs.readFileSync('supabase/functions/ask-collectish-route-intents/index
 for (const token of ['historyAlias(q)','ask_collectish_public_card_lookup_v1','ask_card_price_history_v1']) {
   if (!src.includes(token)) throw new Error(`missing shared history routing token: ${token}`);
 }
-const migration=fs.readFileSync('supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql','utf8');
+const lookupMigration=fs.readFileSync('supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql','utf8');
 for (const token of ["^/ask\\s+question", "show|give|find|get|open", 'maybe_set', 'maybe_collector']) {
-  if (!migration.includes(token)) throw new Error(`missing lookup normalization token: ${token}`);
+  if (!lookupMigration.includes(token)) throw new Error(`missing lookup normalization token: ${token}`);
+}
+const resolverMigration=fs.readFileSync('supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql','utf8');
+for (const token of [
+  'ask_collectish_public_card_lookup_v1(cleaned, 50)',
+  "wanted_finish := 'foil'",
+  "wanted_finish := 'nonfoil'",
+  "wanted_finish := 'etched'",
+  '(?:price|market)\\s+history\\s+(?:for|of)',
+  'where wanted_finish is null or m.finish_rank=0'
+]) {
+  if (!resolverMigration.includes(token)) throw new Error(`missing canonical history resolver token: ${token}`);
 }
 console.log('shared Ask history routing normalization guard passed');
