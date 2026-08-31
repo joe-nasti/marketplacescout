@@ -35,6 +35,7 @@ on:
       - 'cloud-worker/discord-ask-entry-v26.mjs'
       - 'cloud-worker/discord-ask-entry-v27.mjs'
       - 'cloud-worker/discord-ask-entry-v28.mjs'
+      - 'cloud-worker/discord-ask-entry-v29.mjs'
       - 'cloud-worker/wrangler.discord-ask.json'
       - '.github/workflows/deploy-discord-ask-worker.yml'
 
