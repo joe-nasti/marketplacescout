@@ -10,6 +10,7 @@ on:
       - 'vite.config.js'
       - 'src/**'
       - 'tools/finalize-vite-build.mjs'
+      - 'tools/check-source-hygiene.mjs'
       - 'tools/check-style-system.mjs'
       - 'manifest.webmanifest'
       - 'collectish-icon-*.png'
