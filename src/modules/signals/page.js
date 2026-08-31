@@ -6,6 +6,6 @@ export async function install(){
   await sl.install();
   const market=await import('./secret-lair-market-status.js');
   await market.install();
-  const timeline=await import('./secret-lair-market-timeline.js');
-  await timeline.install();
+  const lifecycle=await import('./secret-lair-row-lifecycle.js');
+  await lifecycle.install();
 }
