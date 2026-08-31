@@ -6,6 +6,12 @@
   window.__CollectishAskSurfaceQueue=window.__CollectishAskSurfaceQueue||[];
   const nativeFetch=window.fetch.bind(window);
   const externalResearch=/search (?:the )?web|research externally|look online|external research|latest (?:news|articles|discussion)|web research|search online|find (?:recent )?(?:news|articles|discussion)/i;
+  const explicitCardTarget=q=>{
+    const text=String(q||'');
+    return /\b[A-Z0-9]{2,8}\s*#\s*[A-Za-z0-9-]+\b/.test(text)
+      || /\b(?:sku|product(?:\s*id)?)\s*(?:#|:)?\s*\d+\b/i.test(text)
+      || /tcgplayer\.com\/product\/\d+/i.test(text);
+  };
 
   function rewritten(input){
     const raw=input instanceof Request?input.url:String(input||'');
@@ -25,7 +31,20 @@
       if(String(body?.action||'chat')!=='chat')return init;
       const canonical=window.CollectishContext?.legacy?.();
       if(!canonical)return init;
-      return {...init,body:JSON.stringify({...body,client:body.client||'web',context:{...canonical,...(body.context||{}),entity:canonical.entity,view:canonical.view}})};
+      const prompt=String(body?.message||body?.question||'');
+      const supplied=body.context||{};
+      const context={...canonical,...supplied,entity:canonical.entity,view:canonical.view};
+      if(explicitCardTarget(prompt)){
+        // An exact printing/SKU in the prompt is authoritative. The current Scout
+        // selection is only ambient UI state and must not redirect a cross-card Ask.
+        context.entity=null;
+        context.sku_id=null;
+        context.product_id=null;
+        context.product_name_hint=null;
+        context.set_name=null;
+        context.entity_context_mode='fallback_suppressed_explicit_target';
+      }
+      return {...init,body:JSON.stringify({...body,client:body.client||'web',context})};
     }catch{return init}
   }
   function status(text,kind=''){
