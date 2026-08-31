@@ -65,6 +65,7 @@
     setVisible('#cxAdminSinglesModules > #cxCatalystCalibration',scout);
     setVisible('#cxAdminSinglesModules > #cxSignalsVideoAuditAdmin',signals);
     setVisible('#cxAdminSinglesModules > #cxYoutubePipelineAdmin',signals);
+    setVisible('#cxAdminSinglesModules > #cxSecretLairAdmin',signals);
     const signature=`${document.getElementById('cxAdminConsole')?.dataset.activeSection||''}:${singlesView}`;
     if(emit&&signature!==lastApplied){lastApplied=signature;document.dispatchEvent(new CustomEvent('collectish:admin-singles-view-change',{detail:{view:singlesView}}))}
   }
@@ -91,17 +92,14 @@
   });
   document.addEventListener('collectish:admin-modules-ready',()=>{ensureSubnav();applyView({emit:false})});
   document.addEventListener('collectish:admin-section-change',e=>{if(e.detail?.section==='singles'){ensureSubnav();applyView({emit:false})}});
+  document.addEventListener('collectish:admin-singles-content-changed',()=>{if(document.getElementById('cxAdminConsole')?.dataset.activeSection==='singles')applyView({emit:false})});
   window.addEventListener('popstate',()=>setTimeout(()=>syncFromUrl({recover:true}),0));
-
-  const observer=new MutationObserver(()=>{if(document.getElementById('cxAdminConsole')?.dataset.activeSection==='singles')applyView({emit:false})});
-  const startObserver=()=>{const host=document.getElementById('cxAdminSinglesModules');if(host)observer.observe(host,{childList:true})};
-  document.addEventListener('collectish:admin-modules-ready',startObserver);
 
   const style=document.createElement('style');style.id='cxAdminSinglesNavigationStyle';style.textContent=`
     .cx-admin-singles-subnav{margin:0!important;padding:2px 0 0}.cx-admin-singles-note{margin:0!important}.cx-admin-singles-subnav button{min-width:92px;text-align:center}
     @media(max-width:700px){.cx-admin-singles-subnav{position:sticky!important;top:48px!important;z-index:19!important;background:var(--color-bg-primary)!important;padding:7px 0 6px!important;margin:0!important;overflow-x:visible!important;box-shadow:0 8px 14px -14px var(--color-overlay)}.cx-admin-singles-subnav button{flex:1 1 0!important;min-width:0!important;padding:8px 7px!important;font-size:10px!important}.cx-admin-singles-note{font-size:9px!important;line-height:1.3!important;padding:1px 1px 2px}}
   `;if(!document.getElementById(style.id))document.head.appendChild(style);
 
-  ensureSubnav();syncFromUrl();startObserver();
+  ensureSubnav();syncFromUrl();
   window.CollectishAdminSinglesNavigation={show:view=>selectView(view,{history:true,scroll:true}),state:()=>({view:singlesView})};
 })();
