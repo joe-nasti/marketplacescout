@@ -27,6 +27,7 @@ const scoutIntelligence=[
   ()=>import('./signals/scout-badges.js'),
   ()=>import('./signals/scout-synergy-opportunities.js'),
   ()=>import('./signals/scout-intelligence-bridge.js'),
+  ()=>import('./signals/card-evidence.js'),
   ()=>import('./signals/video-events-ui.js'),
   ()=>import('./signals/future-card-theses.js'),
   ()=>import('./signals/synergy-relationships.js'),
