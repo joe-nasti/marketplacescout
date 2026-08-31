@@ -3,7 +3,10 @@ let secretLairPromise=null;
 
 function loadSecretLair(){
   if(secretLairPromise)return secretLairPromise;
-  secretLairPromise=import('./secret-lair.js');
+  secretLairPromise=(async()=>{
+    await import('./secret-lair.js');
+    await import('./secret-lair-scoring.js');
+  })();
   return secretLairPromise;
 }
 
