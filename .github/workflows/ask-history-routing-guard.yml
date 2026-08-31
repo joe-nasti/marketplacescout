@@ -4,13 +4,19 @@ on:
     paths:
       - 'supabase/functions/ask-collectish-route-intents/**'
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
+      - 'src/modules/ask/endpoint-proxy.js'
       - 'tools/check-ask-history-routing.mjs'
+      - 'tools/check-ask-context-isolation.mjs'
+      - '.github/workflows/ask-history-routing-guard.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/functions/ask-collectish-route-intents/**'
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
+      - 'src/modules/ask/endpoint-proxy.js'
       - 'tools/check-ask-history-routing.mjs'
+      - 'tools/check-ask-context-isolation.mjs'
+      - '.github/workflows/ask-history-routing-guard.yml'
 jobs:
   guard:
     runs-on: ubuntu-latest
@@ -20,3 +26,4 @@ jobs:
         with:
           node-version: 22
       - run: node tools/check-ask-history-routing.mjs
+      - run: node tools/check-ask-context-isolation.mjs
