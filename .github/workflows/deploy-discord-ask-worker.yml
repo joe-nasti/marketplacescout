@@ -38,6 +38,10 @@ on:
       - 'cloud-worker/discord-ask-entry-v29.mjs'
       - 'cloud-worker/discord-ask-entry-v30.mjs'
       - 'cloud-worker/wrangler.discord-ask.json'
+      - 'tools/check-discord-ask-routing.mjs'
+      - 'supabase/functions/ask-collectish-api/index.ts'
+      - 'supabase/functions/ask-collectish-identity-recovery/index.ts'
+      - 'supabase/functions/ask-collectish-route-intents/index.ts'
       - '.github/workflows/deploy-discord-ask-worker.yml'
 
 permissions:
@@ -59,6 +63,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Validate shared Ask routing ownership
+        run: node tools/check-discord-ask-routing.mjs
 
       - name: Validate Cloudflare deployment settings
         shell: bash
