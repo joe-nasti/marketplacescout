@@ -29,6 +29,7 @@ export function install(){
       import('./marketplace-health.js'),
       import('./scout-universe.js'),
       import('./catalyst-calibration.js'),
+      import('./catalyst-calibration-health.js'),
       import('./signals-video-audit.js'),
       import('./youtube-pipeline.js'),
       import('./sealed-catalog.js'),
