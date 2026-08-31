@@ -189,9 +189,9 @@ async function guestAccessToken(body: any) {
   return createGuestSession(discordUserId);
 }
 
-async function recoverIdentity(accessToken: string, body: any) {
+async function callSharedFunction(accessToken: string, functionName: string, body: any) {
   try {
-    const response = await fetch(`${U}/functions/v1/ask-collectish-identity-recovery`, {
+    const response = await fetch(`${U}/functions/v1/${functionName}`, {
       method: 'POST',
       headers: headers(accessToken),
       body: JSON.stringify(body),
@@ -199,11 +199,19 @@ async function recoverIdentity(accessToken: string, body: any) {
     const raw = await response.text();
     let data: any;
     try { data = raw ? JSON.parse(raw) : {}; } catch { data = { error: raw || `HTTP ${response.status}` }; }
-    if (!response.ok) return { ok: false, error: data?.error || `Identity recovery HTTP ${response.status}` };
+    if (!response.ok) return { ok: false, error: data?.error || `${functionName} HTTP ${response.status}` };
     return data;
   } catch (error) {
     return { ok: false, error: String((error as Error)?.message || error) };
   }
+}
+
+async function recoverIdentity(accessToken: string, body: any) {
+  return callSharedFunction(accessToken, 'ask-collectish-identity-recovery', body);
+}
+
+async function routeIntent(accessToken: string, body: any) {
+  return callSharedFunction(accessToken, 'ask-collectish-route-intents', body);
 }
 
 async function orchestrate(accessToken: string, body: any) {
@@ -290,7 +298,6 @@ Deno.serve(async (req: Request) => {
   try { body = await req.json(); } catch { return json({ api_schema: API_SCHEMA, error: 'Invalid JSON' }, 400); }
 
   const isDiscordGuest = body?.guest === true && text(body?.client).toLowerCase() === 'discord_guest';
-
   const action = text(body?.action || 'chat').toLowerCase();
   try {
     const accessToken = isDiscordGuest ? await guestAccessToken(body) : requestToken;
@@ -308,6 +315,28 @@ Deno.serve(async (req: Request) => {
       ...(body?.conversation_id ? {} : body?.session_id ? { conversation_id: body.session_id } : {}),
     };
     const identityRecovery = action === 'chat' ? await recoverIdentity(accessToken, orchestratorBody) : null;
+    const routed = action === 'chat' ? await routeIntent(accessToken, orchestratorBody) : null;
+
+    if (routed?.handled) {
+      const sessionId = orchestratorBody.conversation_id || null;
+      if (action === 'chat') await touchSession(accessToken, sessionId);
+      return json({
+        api_schema: API_SCHEMA,
+        client: text(body?.client || 'web') || 'web',
+        guest: isDiscordGuest,
+        session_id: sessionId,
+        conversation_id: sessionId,
+        response: routed.response || '',
+        model: null,
+        usage: null,
+        tools: routed.tools || [],
+        surface_schema: 'collectish.ask.surface.v10',
+        surfaces: routed.surfaces || [],
+        orchestration: { deterministic_route: routed.route || 'shared', shared_router: true },
+        identity_recovery: identityRecovery,
+      });
+    }
+
     const result = await orchestrate(accessToken, orchestratorBody);
     if (!result.ok) return json({ api_schema: API_SCHEMA, ...result.data, ...(identityRecovery ? { identity_recovery: identityRecovery } : {}) }, result.status);
 
