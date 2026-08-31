@@ -1,0 +1,112 @@
+name: Collectish Pages shell convergence
+
+on:
+  workflow_run:
+    workflows: ["Deploy Collectish web"]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pages-shell-smoke-retry.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: collectish-pages-shell-convergence
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PAGE_URL: https://joe-nasti.github.io/marketplacescout/
+      TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      REQUIRE_BUILD_MATCH: ${{ github.event_name == 'workflow_run' && '1' || '0' }}
+    steps:
+      - name: Wait for Pages edge convergence
+        run: sleep 15
+
+      - name: Find Chrome
+        id: chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$chrome"
+          echo "binary=$chrome" >> "$GITHUB_OUTPUT"
+
+      - name: Retry live shell render
+        id: shell
+        continue-on-error: true
+        shell: bash
+        env:
+          CHROME: ${{ steps.chrome.outputs.binary }}
+        run: |
+          set -euo pipefail
+          base="${PAGE_URL%/}"
+          for attempt in {1..6}; do
+            stamp="$(date +%s%N)"
+            echo "Shell smoke attempt ${attempt}/6"
+
+            if [ "$REQUIRE_BUILD_MATCH" = "1" ]; then
+              if ! curl -fsSL "$base/web-version.json?cb=$stamp" -o /tmp/web-version.json; then
+                echo "web-version.json not available yet"
+                sleep 8
+                continue
+              fi
+              if ! TARGET_SHA="$TARGET_SHA" node -e "const v=require('/tmp/web-version.json');process.exit(v.build===process.env.TARGET_SHA?0:1)"; then
+                echo "Pages version has not converged to $TARGET_SHA yet"
+                cat /tmp/web-version.json || true
+                sleep 8
+                continue
+              fi
+            fi
+
+            rm -f /tmp/dom.html /tmp/chrome.log
+            "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 --dump-dom "$base/?smokeRetry=${GITHUB_RUN_ID}-${attempt}&cb=$stamp" >/tmp/dom.html 2>/tmp/chrome.log || true
+
+            if test -s /tmp/dom.html \
+              && grep -Eq 'modernSignIn|collectish-product-shell|cx-auth-card' /tmp/dom.html \
+              && ! grep -q 'Could not start Collectish' /tmp/dom.html; then
+              echo "Collectish shell rendered successfully on attempt $attempt"
+              exit 0
+            fi
+
+            echo "Shell has not converged yet. Diagnostics:"
+            grep -oE 'data-collectish-startup-error="[^"]+"|id="cxStartupError"[^>]*>[^<]+' /tmp/dom.html 2>/dev/null | head -5 || true
+            tail -20 /tmp/chrome.log 2>/dev/null || true
+            sleep 8
+          done
+          exit 1
+
+      - name: Publish convergence status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ steps.shell.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          state=success
+          desc='Live Collectish shell rendered after Pages convergence'
+          if [ "$RESULT" != success ]; then
+            state=failure
+            desc='Live Collectish shell did not render after convergence retries'
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            for context in collectish/vite-shell-dom collectish/vite-browser-smoke collectish/vite-live-smoke; do
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${TARGET_SHA}" \
+                -f state="$state" -f context="$context" -f description="$desc" -f target_url="$PAGE_URL"
+            done
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${TARGET_SHA}" \
+              -f state="$state" -f context='collectish/pages-shell-convergence' -f description="$desc" -f target_url="$PAGE_URL"
+          fi
+
+          [ "$state" = success ]
