@@ -1,72 +1,12 @@
 const clamp=(v,min=0,max=100)=>Math.max(min,Math.min(max,Number(v)||0));
-const weighted=(pairs=[])=>{
-  let total=0,weight=0;
-  for(const [value,w] of pairs){
-    const n=Number(value),ww=Number(w);
-    if(!Number.isFinite(n)||!Number.isFinite(ww)||ww<=0)continue;
-    total+=clamp(n)*ww;weight+=ww;
-  }
-  return weight?Number((total/weight).toFixed(2)):null;
-};
-
-function recommendationFromExpertRating(rating){
-  const r=Number(rating);
-  if(!Number.isFinite(r))return 'watch';
-  if(r>=10)return 'pot_of_gold';
-  if(r>=9)return 'strong_buy';
-  if(r>=8)return 'buy';
-  if(r>=7)return 'selective_buy';
-  if(r>=6)return 'speculative';
-  if(r>=4)return 'personal_only';
-  return 'pass';
-}
-
-function expertRatingScore(rating){
-  const r=Math.max(1,Math.min(10,Number(rating)||1));
-  const curve={1:8,2:16,3:24,4:34,5:44,6:56,7:68,8:80,9:91,10:98};
-  return curve[Math.round(r)]||50;
-}
-
-function compressionAdjustedValue({normalBaseline=0,premiumComparable=0,compressionPenalty=0}={}){
-  const base=Math.max(0,Number(normalBaseline)||0),premium=Math.max(base,Number(premiumComparable)||0),penalty=Math.max(0,Math.min(1,(Number(compressionPenalty)||0)/100));
-  return Number((base+(premium-base)*(1-penalty)).toFixed(2));
-}
-
-function collectorScore({cards,treatment,audience,supply,versionOfChoice,blingGap}={}){
-  return weighted([[treatment,.34],[audience,.30],[versionOfChoice,.14],[blingGap,.10],[cards,.08],[supply,.04]]);
-}
-
-function opportunityScore({cards,treatment,audience,supply,adjustedEvScore,liquidity,confidence=.5,valueConcentrationRisk=0,reprintCompressionPenalty=0}={}){
-  const base=weighted([[cards,.20],[treatment,.14],[audience,.14],[supply,.14],[adjustedEvScore,.22],[liquidity,.16]]);
-  if(base==null)return null;
-  const riskPenalty=clamp(valueConcentrationRisk)*.08+clamp(reprintCompressionPenalty)*.08;
-  const confidenceFactor=.72+.28*Math.max(0,Math.min(1,Number(confidence)||0));
-  return Number(clamp((base-riskPenalty)*confidenceFactor).toFixed(2));
-}
-
-function blingGapScore({newTreatmentDesirability,bestExistingPremiumDesirability,premiumAvailabilityPenalty=0}={}){
-  const next=clamp(newTreatmentDesirability),existing=clamp(bestExistingPremiumDesirability),availability=clamp(premiumAvailabilityPenalty);
-  return Number(clamp(50+(next-existing)*.65+availability*.20).toFixed(2));
-}
-
-function evScore({cost,compressionAdjustedEv,expectedNetAfterFees}={}){
-  const c=Number(cost),gross=Number(compressionAdjustedEv),net=Number(expectedNetAfterFees);
-  if(!(c>0))return null;
-  const use=Number.isFinite(net)?net:gross;if(!Number.isFinite(use))return null;
-  return Number(clamp(45+((use-c)/c)*80).toFixed(2));
-}
-
-function recommendationFromOpportunity(score,{collectorScore:collector=null,confidence=.5}={}){
-  const s=Number(score),c=Number(collector),conf=Number(confidence)||0;
-  if(!Number.isFinite(s))return 'watch';
-  if(s>=92&&conf>=.72)return 'pot_of_gold';
-  if(s>=84)return 'strong_buy';
-  if(s>=74)return 'buy';
-  if(s>=64)return 'selective_buy';
-  if(s>=54)return 'speculative';
-  if(s<45&&Number.isFinite(c)&&c>=75)return 'personal_only';
-  if(s<45)return 'pass';
-  return 'watch';
-}
-
-export {blingGapScore,collectorScore,compressionAdjustedValue,evScore,expertRatingScore,opportunityScore,recommendationFromExpertRating,recommendationFromOpportunity};
+const weighted=(pairs=[])=>{let total=0,weight=0;for(const [value,w] of pairs){const n=Number(value),ww=Number(w);if(!Number.isFinite(n)||!Number.isFinite(ww)||ww<=0)continue;total+=clamp(n)*ww;weight+=ww}return weight?Number((total/weight).toFixed(2)):null};
+function recommendationFromExpertRating(rating){const r=Number(rating);if(!Number.isFinite(r))return'watch';if(r>=10)return'pot_of_gold';if(r>=9)return'strong_buy';if(r>=8)return'buy';if(r>=7)return'selective_buy';if(r>=6)return'speculative';if(r>=4)return'personal_only';return'pass'}
+function expertRatingScore(rating){const r=Math.max(1,Math.min(10,Number(rating)||1));const curve={1:8,2:16,3:24,4:34,5:44,6:56,7:68,8:80,9:91,10:98};return curve[Math.round(r)]||50}
+function compressionAdjustedValue({normalBaseline=0,premiumComparable=0,compressionPenalty=0}={}){const base=Math.max(0,Number(normalBaseline)||0),premium=Math.max(base,Number(premiumComparable)||0),penalty=Math.max(0,Math.min(1,(Number(compressionPenalty)||0)/100));return Number((base+(premium-base)*(1-penalty)).toFixed(2))}
+function collectorScore({cards,treatment,audience,supply,versionOfChoice,blingGap}={}){return weighted([[treatment,.34],[audience,.30],[versionOfChoice,.14],[blingGap,.10],[cards,.08],[supply,.04]])}
+function roiOpportunityFloor({roiPct,confidence=.5,valueConcentrationRisk=0}={}){const roi=Number(roiPct),conf=Number(confidence)||0,concentration=clamp(valueConcentrationRisk);if(conf<.70||!Number.isFinite(roi))return 0;let floor=roi>=100?74:roi>=60?68:roi>=35?62:roi>=20?56:roi>=10?52:roi>=0?47:0;if(concentration>=75)floor=Math.min(floor,68);return floor}
+function opportunityScore({cards,treatment,audience,supply,adjustedEvScore,liquidity,confidence=.5,valueConcentrationRisk=0,postFeeRoiPct=null}={}){const base=weighted([[cards,.20],[treatment,.14],[audience,.14],[supply,.14],[adjustedEvScore,.22],[liquidity,.16]]);if(base==null)return null;const confidenceFactor=.72+.28*Math.max(0,Math.min(1,Number(confidence)||0));let score=clamp((base-clamp(valueConcentrationRisk)*.08)*confidenceFactor);score=Math.max(score,roiOpportunityFloor({roiPct:postFeeRoiPct,confidence,valueConcentrationRisk}));return Number(score.toFixed(2))}
+function blingGapScore({newTreatmentDesirability,bestExistingPremiumDesirability,premiumAvailabilityPenalty=0}={}){const next=clamp(newTreatmentDesirability),existing=clamp(bestExistingPremiumDesirability),availability=clamp(premiumAvailabilityPenalty);return Number(clamp(50+(next-existing)*.65+availability*.20).toFixed(2))}
+function evScore({cost,compressionAdjustedEv,expectedNetAfterFees}={}){const c=Number(cost),gross=Number(compressionAdjustedEv),net=Number(expectedNetAfterFees);if(!(c>0))return null;const use=Number.isFinite(net)?net:gross;if(!Number.isFinite(use))return null;return Number(clamp(45+((use-c)/c)*80).toFixed(2))}
+function recommendationFromOpportunity(score,{collectorScore:collector=null,confidence=.5}={}){const s=Number(score),c=Number(collector),conf=Number(confidence)||0;if(!Number.isFinite(s))return'watch';if(s>=92&&conf>=.72)return'pot_of_gold';if(s>=84)return'strong_buy';if(s>=74)return'buy';if(s>=64)return'selective_buy';if(s>=54)return'speculative';if(s<45&&Number.isFinite(c)&&c>=75)return'personal_only';if(s<45)return'pass';return'watch'}
+export {blingGapScore,collectorScore,compressionAdjustedValue,evScore,expertRatingScore,opportunityScore,recommendationFromExpertRating,recommendationFromOpportunity,roiOpportunityFloor};
