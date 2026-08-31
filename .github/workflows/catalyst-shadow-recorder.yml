@@ -1,0 +1,33 @@
+name: Collectish catalyst shadow recorder
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/catalyst-shadow-recorder.yml"
+      - "cloud-worker/catalyst-shadow-recorder.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-catalyst-shadow-recorder
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Capture catalyst shadow observations
+        run: node cloud-worker/catalyst-shadow-recorder.mjs
