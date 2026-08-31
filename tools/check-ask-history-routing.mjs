@@ -29,7 +29,12 @@ for (const token of [
 ]) {
   if (!historyMigration.includes(token)) throw new Error(`missing index-native history token: ${token}`);
 }
-for (const forbidden of ['c.sku_id::bigint = p_sku_id','m.sku_id::bigint = p_sku_id','h.sku_id::bigint','b.sku_id::bigint']) {
-  if (historyMigration.includes(forbidden)) throw new Error(`history query reintroduced index-defeating cast: ${forbidden}`);
+for (const forbidden of [
+  /(?:c|m|h|b)\.sku_id::bigint\s*=/,
+  /=\s*(?:c|m|h|b)\.sku_id::bigint/,
+  /(?:c|m|h|b)\.product_id::bigint\s*=/,
+  /=\s*(?:c|m|h|b)\.product_id::bigint/
+]) {
+  if (forbidden.test(historyMigration)) throw new Error(`history query reintroduced index-defeating comparison cast: ${forbidden}`);
 }
 console.log('shared Ask history routing normalization guard passed');
