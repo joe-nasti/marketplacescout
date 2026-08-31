@@ -65,20 +65,15 @@ function onDecisionClick(event){const b=event.target.closest?.('[data-cal-decisi
 async function load(force=false){
   const host=ensure();if(!host||loading)return;loading=true;host.querySelector('[data-cal-status]').textContent='Reading shadow outcomes and governance state…';
   try{
-    const options=force?{force:true}:{};
-    const [bands,proposals,candidates,shots,candidateMetrics]=await Promise.all([
-      rest('market_intel_catalyst_shadow_backtest_summary?select=*&order=scorer_version.desc',options),
-      rest('market_intel_catalyst_shadow_weight_proposals?select=*&order=matured_7d.desc,snapshots.desc',options),
-      rest('market_intel_catalyst_candidate_weights?select=*&order=decided_at.desc',options),
-      rest('market_intel_catalyst_shadow_snapshots?select=snapshot_id,future_release,captured_at&order=captured_at.desc&limit=500',options),
-      rest('market_intel_catalyst_candidate_model_metrics?select=*',options)
-    ]);
-    const total=(shots||[]).length,future=(shots||[]).filter(x=>x.future_release).length,mature7=(bands||[]).reduce((s,x)=>s+maturity(x,'7d'),0),ready=(proposals||[]).filter(x=>x.proposed_weight!=null&&maturity(x,'7d')>=MIN_SAMPLE).length,approved=(candidates||[]).filter(x=>x.candidate_weight!=null).length;
+    const options=force?{method:'POST',body:{},force:true}:{method:'POST',body:{}};
+    const payload=await rest('rpc/get_catalyst_calibration',options);
+    const bands=payload?.bands||[],proposals=payload?.proposals||[],candidates=payload?.candidates||[],shots=payload?.shots||[],candidateMetrics=payload?.candidateMetrics||[];
+    const total=shots.length,future=shots.filter(x=>x.future_release).length,mature7=bands.reduce((s,x)=>s+maturity(x,'7d'),0),ready=proposals.filter(x=>x.proposed_weight!=null&&maturity(x,'7d')>=MIN_SAMPLE).length,approved=candidates.filter(x=>x.candidate_weight!=null).length;
     host.querySelector('[data-cal-status]').textContent=total?`${total} shadow snapshot${total===1?'':'s'} · ${mature7} mature through 7d · ${approved} approved candidate weight${approved===1?'':'s'}`:'Collection is armed; no snapshots have been recorded yet.';
     host.querySelector('[data-cal-metrics]').innerHTML=[metric('Snapshots',String(total),`${future} future-thesis only`,total?'good':'neutral'),metric('7d mature',String(mature7),'primary calibration window',mature7>=MIN_SAMPLE?'good':mature7?'warn':'neutral'),metric('Promotion ready',String(ready),`proposal + ≥${MIN_SAMPLE} mature 7d`,ready?'good':'neutral'),metric('Candidate weights',String(approved),'approved shadow model only',approved?'warn':'neutral')].join('');
-    host.querySelector('[data-cal-candidate-model]').innerHTML=candidateModel(candidateMetrics||[],candidates||[]);
-    host.querySelector('[data-cal-bands]').innerHTML=bandRows(bands||[]);
-    host.querySelector('[data-cal-sources]').innerHTML=sourceRows(proposals||[],candidates||[]);
+    host.querySelector('[data-cal-candidate-model]').innerHTML=candidateModel(candidateMetrics,candidates);
+    host.querySelector('[data-cal-bands]').innerHTML=bandRows(bands);
+    host.querySelector('[data-cal-sources]').innerHTML=sourceRows(proposals,candidates);
   }catch(error){host.querySelector('[data-cal-status]').textContent=`Calibration data unavailable: ${error?.message||error}`}
   finally{loading=false}
 }
