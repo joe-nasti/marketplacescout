@@ -30,7 +30,6 @@ function score(row,signals,now=Date.now()){
   const catalystKey=[...deduped.map(eventKey).sort(),...sourceKeys.map(x=>`source:${x}`)].filter(Boolean).join('|').slice(0,4000);
   return {base,bounded,shadow,sourceKeys,intelIds,signalMaxAt,catalystKey,signalCount:deduped.length,sourceCount:sources.size,raw};
 }
-
 async function req(path,{method='GET',body,prefer}={}){
   const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers:{Authorization:`Bearer ${KEY}`,apikey:KEY,'Content-Type':'application/json',...(prefer?{Prefer:prefer}:{})},body:body==null?undefined:JSON.stringify(body)});
   const text=await r.text();if(!r.ok)throw new Error(`${method} ${path} ${r.status}: ${text.slice(0,800)}`);return text?JSON.parse(text):[];
@@ -41,7 +40,6 @@ function indexLinks(entities,mentions){const bySf=new Map(),byPid=new Map(),byNa
 function linkedIds(row,idx){const set=new Set();const merge=s=>s&&s.forEach(x=>set.add(x));merge(idx.bySf.get(String(row.scryfall_id||'')));merge(idx.byPid.get(String(row.product_id||'')));merge(idx.byName.get(lower(baseName(row.product_name))));return set}
 async function startRun(){const rows=await req('market_intel_catalyst_shadow_recorder_runs',{method:'POST',prefer:'return=representation',body:{status:'running'}});return rows?.[0]?.run_id||null}
 async function finishRun(runId,patch){if(!runId)return;await req(`market_intel_catalyst_shadow_recorder_runs?run_id=eq.${runId}`,{method:'PATCH',prefer:'return=minimal',body:{completed_at:new Date().toISOString(),...patch}})}
-
 async function main(){
   const runId=await startRun();
   try{
@@ -58,7 +56,7 @@ async function main(){
       if(!signals.length)continue;const s=score(row,signals);if(!s.catalystKey||!s.signalCount)continue;
       payload.push({user_id:row.user_id,sku_id:Number(row.sku_id),product_id:row.product_id==null?null:Number(row.product_id),scryfall_id:row.scryfall_id||null,card_name:String(row.product_name||'Unknown card'),official_score:s.base,official_grade:row.promoted_grade||row.v5_shadow_grade||gradeFor(s.base),shadow_modifier:s.bounded,shadow_score:s.shadow,shadow_grade:gradeFor(s.shadow),raw_modifier:s.raw,future_release:false,future_thesis_modifier:null,independent_sources:s.sourceCount,unique_events:s.signalCount,source_keys:s.sourceKeys,intel_ids:s.intelIds,catalyst_key:s.catalystKey,scorer_version:SCORER_VERSION,signal_max_at:s.signalMaxAt});
     }
-    let inserted=0;for(let i=0;i<payload.length;i+=100){const rows=await req('market_intel_catalyst_shadow_snapshots',{method:'POST',prefer:'resolution=ignore-duplicates,return=representation',body:payload.slice(i,i+100)});inserted+=Array.isArray(rows)?rows.length:0}
+    let inserted=0;const conflict='on_conflict=user_id%2Csku_id%2Ccatalyst_key%2Cofficial_score%2Cscorer_version';for(let i=0;i<payload.length;i+=100){const rows=await req(`market_intel_catalyst_shadow_snapshots?${conflict}`,{method:'POST',prefer:'resolution=ignore-duplicates,return=representation',body:payload.slice(i,i+100)});inserted+=Array.isArray(rows)?rows.length:0}
     await finishRun(runId,{status:'ok',scout_rows:scout.length,recent_intel:items.length,candidates:payload.length,inserted});
     console.log(JSON.stringify({run_id:runId,scout_rows:scout.length,recent_intel:items.length,candidates:payload.length,inserted,cutoff}));
   }catch(error){await finishRun(runId,{status:'failed',error:String(error?.message||error).slice(0,2000)}).catch(()=>{});throw error}
