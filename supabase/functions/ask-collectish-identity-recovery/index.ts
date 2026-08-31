@@ -20,6 +20,16 @@ function finishFrom(value:any){
   if(/\bfoil\b/.test(s))return'foil';
   return null;
 }
+function moveAlias(question:string){
+  const q=text(question);
+  for(const p of[
+    /^why\s+(?:did|has)\s+(.+?)\s+(?:spike|spiked|move|moved|jump|jumped|rise|rose|rally|rallied)\??$/i,
+    /^why\s+is\s+(.+?)\s+(?:spiking|moving|rising|jumping|up)\??$/i,
+    /^what\s+(?:drove|is\s+driving|was\s+driving)\s+(.+?)(?:'s)?(?:\s+(?:spike|move|price|rise))?\??$/i,
+    /^what\s+happened\s+to\s+(.+?)\??$/i,
+  ]){const m=q.match(p);if(m?.[1])return m[1].trim().replace(/[?.!,]+$/g,'')}
+  return null;
+}
 function intentFor(question:string,ctx:any){
   const q=text(question);
   const contextualFinish=finishFrom(ctx?.desired_finish||ctx?.printing||ctx?.finish||ctx?.treatment||ctx?.entity?.printing||ctx?.entity?.finish||ctx?.entity?.treatment||ctx?.signal?.printing||ctx?.signal?.finish||ctx?.signal?.treatment);
@@ -28,14 +38,17 @@ function intentFor(question:string,ctx:any){
   const history=/\bprice history\b|\bprice chart\b|\bhistorical price\b|\bprice trend\b/i.test(q);
   const showTreatment=/\bshow me\b|\bfind\b|\blook up\b|\bopen\b|\bprice\b|\bmarket\b|\bsales\b|\bsupply\b/i.test(q);
   const signalTreatment=Boolean(ctx?.signal)&&(contextualFinish!=null||ctx?.signal?.treatment_missing===true||ctx?.signal?.identity_missing===true);
-  const recover=allPrintings||signalTreatment||Boolean(queryFinish&&(history||showTreatment));
-  return {recover,allPrintings,history,desiredFinish:contextualFinish||queryFinish,signalTreatment};
+  const move=moveAlias(q);
+  const recover=allPrintings||signalTreatment||Boolean(queryFinish&&(history||showTreatment))||Boolean(move);
+  return {recover,allPrintings,history,move:move||null,desiredFinish:contextualFinish||queryFinish,signalTreatment};
 }
 function contextProductIds(ctx:any){
   const values=[ctx?.product_id,ctx?.productId,ctx?.entity?.product_id,ctx?.entity?.productId,ctx?.signal?.product_id,ctx?.signal?.productId];
   return [...new Set(values.map(text).filter(x=>/^\d+$/.test(x)))];
 }
 function queryAlias(question:string){
+  const moved=moveAlias(question);
+  if(moved)return moved.slice(0,160);
   let q=text(question)
     .replace(/\b(price history|price chart|historical price|price trend)\b/ig,' ')
     .replace(/\b(all printings|all versions|every printing|other printings|printings of)\b/ig,' ')
@@ -84,7 +97,9 @@ Deno.serve(async(req:Request)=>{
   const failures=[] as any[];
   for(const productId of ids.slice(0,20)){
     try{
-      const result=await discover(h,productId,intent.allPrintings?null:intent.desiredFinish,'ask_missing_identity_recovery');
+      const desiredFinish=intent.allPrintings||intent.move?null:intent.desiredFinish;
+      const reason=intent.move?'ask_market_move_identity_recovery':'ask_missing_identity_recovery';
+      const result=await discover(h,productId,desiredFinish,reason);
       results.push({product_id:productId,outcome:result?.outcome||null,matches:result?.matches||[],queued_refreshes:result?.queued_refreshes||[],available_nm_english_printings:result?.available_nm_english_printings||[],materialized_nm_english_count:Number(result?.materialized_nm_english_count||0)});
     }catch(error){failures.push({product_id:productId,error:String((error as Error)?.message||error)})}
   }
