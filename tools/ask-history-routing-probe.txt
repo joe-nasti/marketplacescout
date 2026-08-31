@@ -1,0 +1,3 @@
+show me the foil price history for Optimus Prime, Hero BOT #13
+/ask question: show me the foil price history for Optimus Prime, Hero BOT #13
+expected sku: 6647138

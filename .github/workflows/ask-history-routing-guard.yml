@@ -1,0 +1,22 @@
+name: Ask history routing guard
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/ask-collectish-route-intents/**'
+      - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
+      - 'tools/check-ask-history-routing.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/ask-collectish-route-intents/**'
+      - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
+      - 'tools/check-ask-history-routing.mjs'
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/check-ask-history-routing.mjs
