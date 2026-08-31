@@ -163,9 +163,7 @@ async function refreshGuestSession(row: any) {
 }
 
 async function createGuestSession(discordUserId: string) {
-  const data = await authRequest('signup', {
-    data: { source: 'discord_guest' },
-  });
+  const data = await authRequest('signup', { data: { source: 'discord_guest' } });
   if (!data?.access_token || !data?.refresh_token) {
     throw new Error('Anonymous sign-in did not return a session. Enable anonymous sign-ins in Supabase Authentication settings.');
   }
@@ -278,6 +276,25 @@ async function getSession(accessToken: string, body: any) {
   };
 }
 
+async function ensureSession(accessToken: string, requestedId: unknown, title: string) {
+  const id = text(requestedId);
+  if (id) {
+    const rows = await rest(accessToken, `ask_collectish_conversations?id=eq.${encodeURIComponent(id)}&select=id&limit=1`).catch(() => []);
+    if (rows?.[0]?.id) return String(rows[0].id);
+  }
+  const created = await createSession(accessToken, { title });
+  return String(created?.session?.id || '');
+}
+
+async function saveMessage(accessToken: string, conversationId: string, role: string, content: string, metadata: any = {}) {
+  if (!conversationId || !content) return;
+  await rest(accessToken, 'ask_collectish_messages', {
+    method: 'POST',
+    prefer: 'return=minimal',
+    body: [{ conversation_id: conversationId, role, content, metadata }],
+  }).catch(() => null);
+}
+
 async function touchSession(accessToken: string, id: unknown) {
   const sessionId = text(id);
   if (!sessionId) return;
@@ -318,8 +335,21 @@ Deno.serve(async (req: Request) => {
     const routed = action === 'chat' ? await routeIntent(accessToken, orchestratorBody) : null;
 
     if (routed?.handled) {
-      const sessionId = orchestratorBody.conversation_id || null;
-      if (action === 'chat') await touchSession(accessToken, sessionId);
+      const question = text(orchestratorBody.message || orchestratorBody.question);
+      const sessionId = await ensureSession(accessToken, orchestratorBody.conversation_id, question || 'Ask Collectish');
+      await saveMessage(accessToken, sessionId, 'user', question, {
+        screen: orchestratorBody?.context?.screen || 'unknown',
+        route: routed.route || 'shared_deterministic',
+        deterministic: true,
+      });
+      await saveMessage(accessToken, sessionId, 'assistant', text(routed.response), {
+        route: routed.route || 'shared_deterministic',
+        deterministic: true,
+        surface_schema: 'collectish.ask.surface.v10',
+        surface_types: (routed.surfaces || []).map((surface: any) => surface?.type).filter(Boolean),
+        identity_recovery: identityRecovery || null,
+      });
+      await touchSession(accessToken, sessionId);
       return json({
         api_schema: API_SCHEMA,
         client: text(body?.client || 'web') || 'web',
