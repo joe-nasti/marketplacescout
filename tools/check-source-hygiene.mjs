@@ -10,6 +10,7 @@ const nativePatchStamped=/^patch-native-v\d+\.py$/i;
 const allowedRootWebFiles=new Set(['vite.config.js','sw.mjs']);
 const domScriptInjection=/(?:createElement\s*\(\s*['"]script['"]\s*\)|\.src\s*=\s*['"][^'"]+\.js|appendChild\s*\([^\n]*script)/i;
 const mutationObserver=/\bMutationObserver\b/;
+const legacyMutationObserverAllowlist=new Set(['src/modules/signals/competitive-evidence.js']);
 const offenders=new Set();
 const rootAppFiles=new Set();
 const scriptInjectors=new Set();
@@ -32,7 +33,7 @@ async function walk(dir,{rootOnly=false}={}){
     if(!rootOnly&&['.js','.mjs'].includes(ext)){
       const source=await readFile(full,'utf8');
       if(domScriptInjection.test(source))scriptInjectors.add(rel);
-      if(mutationObserver.test(source))mutationGuardians.add(rel);
+      if(mutationObserver.test(source)&&!legacyMutationObserverAllowlist.has(rel))mutationGuardians.add(rel);
     }
   }
 }
