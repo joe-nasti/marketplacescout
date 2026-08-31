@@ -27,6 +27,7 @@ const expected=[
   'seller-progress.css',
   'seller.css',
   'signals-discovery.css',
+  'signals-evidence.css',
   'signals-light.css',
   'signals-mobile-polish.css',
   'signals-rendered.css',
