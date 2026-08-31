@@ -1,0 +1,62 @@
+{
+  "release": {
+    "name": "Secret Lair: A Perfectly Normal Superdrop",
+    "release_slug": "a-perfectly-normal-superdrop-2026-08-31",
+    "official_url": "https://magic.wizards.com/en/news/announcements/secret-lair-a-perfectly-normal-superdrop",
+    "announced_at": "2026-08-27T00:00:00Z",
+    "sale_start_at": "2026-08-31T16:00:00Z",
+    "sale_format": "fixed_quantity",
+    "supply_confidence": 0.25,
+    "supply_notes": "Global print supply unknown. US, REU and UK storefront allocations can exhaust or be pulled independently; do not infer global exhaustion from one regional sellout.",
+    "preorder_or_queue_notes": "Pre-queue opens one hour before the sale; customers already in pre-queue are randomized when sale opens. Cart does not reserve inventory.",
+    "promo_notes": "Foil Command Tower promo for every $199 spent while supplies last.",
+    "lifecycle_state": "pre_sale"
+  },
+  "regions": [
+    {"region":"US","currency":"USD","sale_start_at":"2026-08-31T16:00:00Z","queue_start_at":"2026-08-31T15:00:00Z","storefront_url":"https://secretlair.wizards.com/us/en"},
+    {"region":"REU","currency":"EUR","regional_supply_notes":"Shared global product, separately allocated storefront inventory; exact allocation unknown."},
+    {"region":"UK","currency":"GBP","regional_supply_notes":"Shared global product, separately allocated storefront inventory; exact allocation unknown."}
+  ],
+  "drops": [
+    {
+      "name":"Artist Series: Ian Miller","artist_name":"Ian Miller","nonfoil_msrp":29.99,"foil_msrp":39.99,"currency":"USD",
+      "cards":[{"name":"Shivan Dragon"},{"name":"Animar, Soul of Elements"},{"name":"Korvold, Fae-Cursed King"},{"name":"Tsabo Tavoc"}],
+      "offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]
+    },
+    {
+      "name":"Featuring: Gene Luen Yang","artist_name":"Gene Luen Yang","nonfoil_msrp":29.99,"foil_msrp":39.99,"currency":"USD",
+      "cards":[{"name":"Kibo, Uktabi Prince","display_name":"Monkey, Awakened to Emptiness"},{"name":"Ilharg, the Raze-Boar","display_name":"Pigsy of the Eight Precepts"},{"name":"Kazuul, Tyrant of the Cliffs","display_name":"Sandy, Awakened to Purity"},{"name":"Dosan the Falling Leaf","display_name":"Tripitaka, Seeker from Tang"},{"name":"Quest for Renewal"}],
+      "offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]
+    },
+    {
+      "name":"Cosmic Chill by Robin Eisenberg","artist_name":"Robin Eisenberg","nonfoil_msrp":29.99,"foil_msrp":39.99,"currency":"USD",
+      "cards":[{"name":"Orvar, the All-Form"},{"name":"Sage of Hours"},{"name":"See Double"},{"name":"Slip Through Space"},{"name":"Sway of the Stars"}],
+      "offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]
+    },
+    {
+      "name":"Secret Lair x Lofi Girl: Beats to Cast To","ip_name":"Lofi Girl","nonfoil_msrp":29.99,"foil_msrp":39.99,"currency":"USD",
+      "cards":[{"name":"Felidar Guardian","display_name":"Lofi Cat"},{"name":"Starfield of Nyx","display_name":"Snowman Starfield"},{"name":"Careful Study"},{"name":"Merchant Scroll","display_name":"Grandma's Scroll"},{"name":"Paradise Mantle","display_name":"Cozy Headphones"}],
+      "offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]
+    },
+    {
+      "name":"Secret Lair x Marvel: Earth's Mightiest Pets","ip_name":"Marvel","nonfoil_msrp":29.99,"foil_msrp":39.99,"currency":"USD",
+      "cards":[{"name":"Ephemerate"},{"name":"Shark Typhoon"},{"name":"Lightning Bolt"},{"name":"Searing Blaze"},{"name":"Commune with Dinosaurs"},{"name":"Titanic Ultimatum"}],
+      "offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]
+    },
+    {
+      "name":"Secret Lair x Marvel: Hulk SMASH!","ip_name":"Marvel","nonfoil_msrp":29.99,"foil_msrp":39.99,"currency":"USD",
+      "cards":[{"name":"Anger"},{"name":"Gratuitous Violence"},{"name":"Rishkar's Expertise","display_name":"Joe Fixit's Expertise"},{"name":"Search for Tomorrow"},{"name":"Unnatural Growth"}],
+      "offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]
+    },
+    {
+      "name":"Secret Lair x Marvel: Dan Hipp","ip_name":"Marvel","artist_name":"Dan Hipp","nonfoil_msrp":29.99,"foil_msrp":39.99,"currency":"USD",
+      "cards":[{"name":"Mystical Dispute"},{"name":"An Offer You Can't Refuse"},{"name":"Training Grounds"},{"name":"Endrek Sahr, Master Breeder","display_name":"Mister Sinister, Hubris Unbound"},{"name":"Bristly Bill, Spine Sower","display_name":"Man-Thing, Marsh Protector"}],
+      "offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]
+    },
+    {
+      "name":"Secret Lair x Marvel: True Believers in Love","ip_name":"Marvel","nonfoil_msrp":29.99,"foil_msrp":39.99,"currency":"USD",
+      "cards":[{"name":"Happily Ever After"},{"name":"True Love's Kiss"},{"name":"Run Away Together"},{"name":"Savor the Moment"},{"name":"Grave Pact"},{"name":"Thrill of Possibility"}],
+      "offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "release_name": "Secret Lair: A Perfectly Normal Superdrop",
+  "reviewer": "Expert Review",
+  "reviewed_at": "2026-08-31T11:59:00Z",
+  "reviews": [
+    {
+      "drop_name": "Secret Lair x Marvel: Dan Hipp",
+      "rating": 10,
+      "thesis": "Bristly Bill alone anchors the economics, Dan Hipp's distinctive treatment lands well, Training Grounds should remain popular despite many recent printings, and the two playable blue instants add useful depth.",
+      "assertions": [
+        {"dimension":"anchor_strength","direction":"bullish","confidence":0.95,"summary":"Bristly Bill is viewed as worth the price of admission and then some."},
+        {"dimension":"art","direction":"bullish","confidence":0.92,"summary":"Dan Hipp's unique art treatment is viewed as especially successful."},
+        {"dimension":"version_of_choice","direction":"bullish","confidence":0.82,"summary":"Training Grounds is expected to remain popular in this treatment despite substantial recent reprinting."},
+        {"dimension":"reprint_risk","direction":"bearish","confidence":0.72,"summary":"Training Grounds has had many recent printings, creating reprint-fatigue pressure."},
+        {"dimension":"playable_depth","direction":"bullish","confidence":0.86,"summary":"Mystical Dispute and An Offer You Can't Refuse provide useful playable depth beyond the anchor cards."}
+      ]
+    },
+    {
+      "drop_name": "Secret Lair x Marvel: True Believers in Love",
+      "rating": 8,
+      "thesis": "Community buzz around the romantic/shipping theme appears stronger than expected; Grave Pact and Savor the Moment provide enough meaningful card value, and the Marvel treatment is seen as more successful than recent Hulk or Spider-Man executions.",
+      "assertions": [
+        {"dimension":"ip_heat","direction":"bullish","confidence":0.82,"summary":"The reviewer reports meaningful buzz from fans of the romantic pairings/theme."},
+        {"dimension":"anchor_strength","direction":"bullish","confidence":0.84,"summary":"Grave Pact and Savor the Moment are the two cards viewed as carrying the drop."},
+        {"dimension":"ip_fit","direction":"bullish","confidence":0.87,"summary":"The reviewer sees this as a strong model for how Marvel Secret Lairs should use the IP."},
+        {"dimension":"playable_depth","direction":"neutral","confidence":0.72,"summary":"Most of the economic thesis is concentrated in two cards rather than the full list."},
+        {"dimension":"value","direction":"bullish","confidence":0.79,"summary":"Two meaningful cards are considered sufficient to support the drop economics."}
+      ]
+    }
+  ],
+  "release_level_thesis": "Mixed overall release, but several drops are expected to sell out very quickly. Preferred selective buys are Dan Hipp, Lofi Girl, and Featuring: Gene Luen Yang. The reviewer recommends using bundles plus individual copies in each successful checkout to maximize exposure to the strongest drops. A foil Command Tower is the bonus for each $199 spent. Featuring: Gene Luen Yang is the reviewer's single Pot of Gold pick for the Superdrop.",
+  "release_assertions": [
+    {"dimension":"sell_through","direction":"bullish","confidence":0.86,"summary":"The reviewer expects some of the strongest drops to sell out very quickly."},
+    {"dimension":"bundle","direction":"bullish","confidence":0.8,"summary":"Bundles plus individual copies are viewed as the best way to maximize exposure to the strongest drops during multiple successful orders."},
+    {"dimension":"promo","direction":"neutral","confidence":0.95,"summary":"A foil Command Tower is earned for each $199 spent and should be treated as an order-optimization bonus rather than the core thesis."},
+    {"dimension":"value","direction":"bullish","confidence":0.9,"summary":"Dan Hipp, Lofi Girl, and Featuring: Gene Luen Yang are the reviewer's preferred selective buys."}
+  ],
+  "release_pick": {
+    "drop_name": "Featuring: Gene Luen Yang",
+    "designation": "pot_of_gold",
+    "note": "This is the reviewer's single favorite drop in the Superdrop, separate from the numeric 1-10 ratings."
+  }
+}

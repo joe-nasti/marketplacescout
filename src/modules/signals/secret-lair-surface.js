@@ -1,0 +1,42 @@
+import { rest } from '../../core/rest.js';
+
+const LIVE_NAME='Secret Lair: A Perfectly Normal Superdrop';
+const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct=n=>Number.isFinite(Number(n))?`${Math.round(Number(n))}`:'—';
+const money=n=>Number.isFinite(Number(n))?`$${Number(n).toFixed(2)}`:'—';
+const pretty=s=>String(s||'').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
+const latest=(rows,key)=>{const m=new Map();for(const r of rows||[]){const k=key(r),old=m.get(k);if(!old||new Date(r.evaluated_at||r.observed_at||r.created_at)>new Date(old.evaluated_at||old.observed_at||old.created_at))m.set(k,r)}return m};
+let loaded=false;
+
+function ensureStyle(){if(document.getElementById('cxSecretLairSignalsStyle'))return;const s=document.createElement('style');s.id='cxSecretLairSignalsStyle';s.textContent=`
+.cx-sl-event{border:1px solid var(--color-border);background:var(--color-bg-surface);border-radius:14px;padding:13px;margin:0 0 12px}.cx-sl-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.cx-sl-head h3{margin:0;font-size:16px}.cx-sl-head p{margin:3px 0 0;color:var(--color-text-secondary);font-size:10px}.cx-sl-badge{font-size:9px;font-weight:900;border:1px solid var(--color-border);border-radius:999px;padding:5px 8px;white-space:nowrap}.cx-sl-grid{display:grid;gap:7px;margin-top:10px}.cx-sl-drop{border-top:1px solid var(--color-border);padding-top:9px}.cx-sl-drop:first-child{border-top:0;padding-top:0}.cx-sl-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}.cx-sl-title{display:flex;align-items:center;gap:7px;min-width:0}.cx-sl-title strong{font-size:11px}.cx-sl-expert{font-size:8px;font-weight:900;border-radius:999px;padding:3px 6px;background:var(--color-accent-soft);color:var(--color-accent)}.cx-sl-finishes{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.cx-sl-pill{font-size:8.5px;border:1px solid var(--color-border);border-radius:8px;padding:4px 6px;background:var(--color-bg-primary)}.cx-sl-pill b{margin-left:3px}.cx-sl-meta{font-size:8.5px;color:var(--color-text-secondary);margin-top:4px}.cx-sl-drop details{margin-top:6px}.cx-sl-drop summary{font-size:9px;color:var(--color-accent);cursor:pointer}.cx-sl-cards{display:grid;gap:4px;margin-top:5px}.cx-sl-cardline{display:grid;grid-template-columns:minmax(0,1fr) repeat(3,auto);gap:7px;font-size:8.5px;padding:4px 0;border-top:1px solid var(--color-border)}.cx-sl-empty{font-size:10px;color:var(--color-text-secondary)}
+@media(max-width:700px){.cx-sl-head{align-items:center}.cx-sl-row{grid-template-columns:1fr}.cx-sl-finishes{justify-content:flex-start}.cx-sl-cardline{grid-template-columns:minmax(0,1fr) auto}.cx-sl-cardline span:nth-child(3),.cx-sl-cardline span:nth-child(4){display:none}}
+`;document.head.appendChild(s)}
+
+function mount(){const host=document.getElementById('cxSignals');if(!host)return null;let box=document.getElementById('cxSecretLairSignals');if(box)return box;box=document.createElement('section');box.id='cxSecretLairSignals';box.className='cx-sl-event';const head=host.querySelector('.cx-page-head');if(head?.nextSibling)host.insertBefore(box,head.nextSibling);else host.prepend(box);return box}
+
+function renderFinish(ev){if(!ev)return '<span class="cx-sl-pill">Pending</span>';const status=ev.evaluation_status==='scored'?pretty(ev.recommendation):'Research only';return `<span class="cx-sl-pill">${esc(ev.finish||'—')} <b>${esc(status)}</b> · O ${pct(ev.opportunity_score)} · C ${pct(ev.collector_score)}</span>`}
+
+async function load(){
+  const box=mount();if(!box)return;box.innerHTML='<div class="cx-sl-empty">Loading Secret Lair intelligence…</div>';
+  try{
+    const releases=await rest(`secret_lair_releases?select=release_id,release_name,sale_start_at,lifecycle_state,supply_confidence&release_name=eq.${encodeURIComponent(LIVE_NAME)}&limit=1`);const release=releases?.[0];
+    if(!release){box.innerHTML='<div class="cx-sl-empty">Secret Lair intelligence is ready but this release has not been seeded for the signed-in user yet.</div>';return}
+    const [drops,evals,preds,obs,evidence]=await Promise.all([
+      rest(`secret_lair_drops?select=drop_id,drop_name,ip_name,artist_name&release_id=eq.${release.release_id}&order=created_at.asc`),
+      rest(`secret_lair_evaluations?select=evaluation_id,drop_id,evaluated_at,evaluation_status,recommendation,opportunity_score,collector_score,confidence,compression_adjusted_ev,acquisition_cost,expected_roi_pct,region,finish&release_id=eq.${release.release_id}&order=evaluated_at.desc&limit=300`),
+      rest(`secret_lair_predictions?select=prediction_id,drop_id,prediction_label,prediction_type,predicted_rating,predicted_rating_scale,claim,frozen_at&release_id=eq.${release.release_id}&order=frozen_at.desc&limit=100`),
+      rest(`secret_lair_observations?select=drop_id,region,finish,availability_state,observation_type,observed_at,elapsed_minutes_from_sale&release_id=eq.${release.release_id}&order=observed_at.desc&limit=400`),
+      rest(`secret_lair_evidence?select=drop_id,source_type,raw_rating,raw_rating_scale,summary,observed_at&release_id=eq.${release.release_id}&source_type=eq.expert_review&order=observed_at.desc&limit=200`)
+    ]);
+    const evalMap=latest(evals,r=>`${r.drop_id}:${r.region||''}:${r.finish||''}`),obsMap=latest(obs,r=>`${r.drop_id||''}:${r.region||''}:${r.finish||''}`);
+    const cards=await rest(`secret_lair_card_valuations?select=evaluation_id,drop_id,card_name,naive_comparable_value,compression_adjusted_value,liquid_premium_comparable,bling_gap,reprint_compression_penalty,total_sales_90d&release_id=eq.${release.release_id}&order=created_at.desc&limit=500`).catch(()=>[]);
+    const cardsByEval=new Map();for(const c of cards||[]){if(!cardsByEval.has(c.evaluation_id))cardsByEval.set(c.evaluation_id,[]);cardsByEval.get(c.evaluation_id).push(c)}
+    const globalPred=(preds||[]).filter(p=>!p.drop_id),favorite=globalPred.find(p=>p.prediction_type==='favorite')||(preds||[]).find(p=>p.prediction_label==='POT OF GOLD');
+    box.innerHTML=`<div class="cx-sl-head"><div><h3>Secret Lair · Pre-sale</h3><p>${esc(release.release_name)} · global supply unknown · US / REU / UK storefront allocations tracked separately</p></div><span class="cx-sl-badge">${esc(favorite?.prediction_label||'Forward test')}</span></div><div class="cx-sl-grid">${(drops||[]).map(d=>{
+      const nf=evalMap.get(`${d.drop_id}:US:nonfoil`),fo=evalMap.get(`${d.drop_id}:US:foil`),expert=(evidence||[]).find(x=>x.drop_id===d.drop_id&&Number.isFinite(Number(x.raw_rating))),pred=(preds||[]).find(x=>x.drop_id===d.drop_id&&x.prediction_type==='favorite'),obsN=obsMap.get(`${d.drop_id}:US:nonfoil`),obsF=obsMap.get(`${d.drop_id}:US:foil`),best=[nf,fo].filter(Boolean).sort((a,b)=>Number(b.opportunity_score||-1)-Number(a.opportunity_score||-1))[0],cardRows=best?cardsByEval.get(best.evaluation_id)||[]:[];
+      return `<article class="cx-sl-drop"><div class="cx-sl-row"><div><div class="cx-sl-title"><strong>${esc(d.drop_name)}</strong>${expert?`<span class="cx-sl-expert">Expert ${esc(expert.raw_rating)}/${esc(expert.raw_rating_scale||10)}</span>`:''}${pred?`<span class="cx-sl-expert">${esc(pred.prediction_label)}</span>`:''}</div><div class="cx-sl-meta">${obsN||obsF?`US: ${esc(obsN?.availability_state||obsF?.availability_state||'observed')}${Number.isFinite(Number(obsN?.elapsed_minutes_from_sale||obsF?.elapsed_minutes_from_sale))?` · ${esc(obsN?.elapsed_minutes_from_sale||obsF?.elapsed_minutes_from_sale)}m from launch`:''}`:'No launch observation yet'}</div></div><div class="cx-sl-finishes">${renderFinish(nf)}${renderFinish(fo)}</div></div><details><summary>Card EV + provenance</summary>${cardRows.length?`<div class="cx-sl-cards">${cardRows.map(c=>`<div class="cx-sl-cardline"><strong>${esc(c.card_name)}</strong><span>Adj ${money(c.compression_adjusted_value)}</span><span>Naïve ${money(c.naive_comparable_value)}</span><span>Bling ${pct(c.bling_gap)}</span></div>`).join('')}</div>`:'<div class="cx-sl-empty">No scored card valuation snapshot yet.</div>'}</details></article>`}).join('')}</div>`;
+  }catch(err){box.innerHTML=`<div class="cx-sl-empty">Couldn’t load Secret Lair intelligence: ${esc(err.message||err)}</div>`}
+}
+
+export async function install(){ensureStyle();await load();document.addEventListener('collectish:intel-changed',()=>void load())}

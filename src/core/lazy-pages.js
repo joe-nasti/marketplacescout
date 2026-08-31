@@ -9,7 +9,7 @@ const prefetched=new Map();
 const prefetching=new Map();
 
 const pageModules={
-  signals:()=>import('../modules/signals/index.js'),
+  signals:()=>import('../modules/signals/page.js'),
   sealed:()=>import('../modules/sealed/index.js'),
   seller:()=>import('../modules/seller/index.js'),
   syp:()=>import('../modules/seller/syp.js'),

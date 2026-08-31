@@ -1,0 +1,61 @@
+{
+  "release_name": "Secret Lair: A Marvelous Mathoms™ Superdrop",
+  "reviewer": "Expert Review",
+  "reviews": [
+    {
+      "drop_name": "Secret Lair x The Hobbit: Second Breakfast and Beyond",
+      "rating": 4,
+      "thesis": "Attractive Food tokens with niche meme/local Food-deck appeal, but limited Hobbit resonance and weak broad resale thesis.",
+      "assertions": [
+        {"dimension":"art","direction":"bullish","summary":"The tokens are attractive looking."},
+        {"dimension":"ip_fit","direction":"bearish","summary":"The treatment does not strongly feature the expected Hobbit characters."},
+        {"dimension":"ip_heat","direction":"neutral","summary":"Demand is likely concentrated among meme buyers and Food-deck fans."}
+      ]
+    },
+    {
+      "drop_name": "Secret Lair x The Hobbit: Over the Edge of the Wild",
+      "rating": 3,
+      "thesis": "Claymation art may appeal emotionally, but card selection is too weak to support the product economics.",
+      "assertions": [
+        {"dimension":"art","direction":"bullish","summary":"Cute claymation treatment can create emotional appeal."},
+        {"dimension":"card_quality","direction":"bearish","summary":"Card choices are weak and fail to provide a meaningful anchor."},
+        {"dimension":"anchor_strength","direction":"bearish","summary":"No clear heavy-hitter card carries the drop."}
+      ]
+    },
+    {
+      "drop_name": "Secret Lair x The Hobbit: Smaug's Spoils",
+      "rating": 4,
+      "thesis": "Playable artifact staples help, but many already have numerous premium Secret Lair alternatives and the Hobbit-specific resonance is not strong enough.",
+      "assertions": [
+        {"dimension":"playable_depth","direction":"bullish","summary":"The drop contains multiple broadly playable artifact staples."},
+        {"dimension":"premium_competition","direction":"bearish","summary":"Cards such as Lightning Greaves already have many Secret Lair treatments competing to be the preferred version."},
+        {"dimension":"ip_fit","direction":"bearish","summary":"Several treatments do not strongly read as uniquely Hobbit-themed."},
+        {"dimension":"version_of_choice","direction":"bearish","summary":"Existing premium alternatives reduce confidence that these become the preferred versions."}
+      ]
+    },
+    {
+      "drop_name": "Secret Lair x The Hobbit: Desolation",
+      "rating": 6,
+      "thesis": "Distinctive metal-album-cover aesthetic and Diabolic Intent create a real anchor, but monochrome foil execution is a risk and the supporting cards are only mildly playable.",
+      "assertions": [
+        {"dimension":"anchor_strength","direction":"bullish","summary":"Diabolic Intent is a meaningful value and demand anchor."},
+        {"dimension":"art","direction":"bullish","summary":"The metal album-cover style is distinctive and has prior collector appeal."},
+        {"dimension":"treatment","direction":"bearish","summary":"Black-and-white execution may underperform specifically in foil."},
+        {"dimension":"playable_depth","direction":"neutral","summary":"The remaining cards are mildly playable but not strong enough to carry the drop independently."}
+      ]
+    },
+    {
+      "drop_name": "Secret Lair x The Hobbit: He Who Walks Unseen",
+      "rating": 3,
+      "thesis": "Excellent new treatment and attractive art are undermined by weak/obscure card selection and a premium price that lacks one or two heavy hitters.",
+      "assertions": [
+        {"dimension":"treatment","direction":"bullish","summary":"The new treatment is visually exciting and compelling in person."},
+        {"dimension":"card_quality","direction":"bearish","summary":"The featured cards are low-value or borderline bulk rather than proven staples."},
+        {"dimension":"obscurity","direction":"bearish","summary":"Cheap cards can succeed as Secret Lairs, but obscure cards are much less likely to command a sustained premium."},
+        {"dimension":"anchor_strength","direction":"bearish","summary":"At the higher price point, the drop needs one or two heavy hitters and does not have them."},
+        {"dimension":"value","direction":"bearish","summary":"Even optimistic premiums on Curiosity and Windfall may still leave the buyer underwater."}
+      ]
+    }
+  ],
+  "release_level_thesis": "Overall skip outside index/completion buyers: weak card choices, missed LotR reprint/treatment opportunities, and insufficient value anchors despite some strong art execution. Promo Arcane Signet estimated around a modest ~$10 and should only influence order rounding near the $199 threshold, not the underlying buy thesis."
+}

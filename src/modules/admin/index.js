@@ -1,4 +1,14 @@
 let installPromise=null;
+let secretLairPromise=null;
+
+function loadSecretLair(){
+  if(secretLairPromise)return secretLairPromise;
+  secretLairPromise=(async()=>{
+    await import('./secret-lair.js');
+    await import('./secret-lair-scoring.js');
+  })();
+  return secretLairPromise;
+}
 
 export function install(){
   if(installPromise)return installPromise;
@@ -31,3 +41,7 @@ export function install(){
   })();
   return installPromise;
 }
+
+document.addEventListener('collectish:admin-section-change',e=>{
+  if(e.detail?.section==='singles')void loadSecretLair();
+});
