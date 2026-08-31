@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   blingGapScore,
   collectorScore,
+  compressionAdjustedValue,
   evScore,
   expertRatingScore,
   opportunityScore,
@@ -25,6 +26,14 @@ test('bling gap rewards a clearly superior version with weak existing premium op
   const low=blingGapScore({newTreatmentDesirability:72,bestExistingPremiumDesirability:78,premiumAvailabilityPenalty:10});
   expect(high).toBeGreaterThan(80);
   expect(low).toBeLessThan(55);
+});
+
+test('reprint compression never increases a scarce premium comparable', async()=>{
+  const light=compressionAdjustedValue({normalBaseline:8,premiumComparable:100,compressionPenalty:25});
+  const heavy=compressionAdjustedValue({normalBaseline:8,premiumComparable:100,compressionPenalty:80});
+  expect(light).toBeLessThanOrEqual(100);
+  expect(heavy).toBeLessThan(light);
+  expect(heavy).toBeGreaterThanOrEqual(8);
 });
 
 test('collector score can remain high when economics are weak', async()=>{
