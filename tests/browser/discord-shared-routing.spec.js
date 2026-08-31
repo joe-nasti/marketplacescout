@@ -26,4 +26,13 @@ test('shared router owns history and seller surfaces with finish-aware moves',()
   expect(router).toContain("route:'named_family_seller_map'");
   expect(router).toContain("route:'cohort_seller_map'");
   expect(router).toContain('moveForRow');
+  expect(router).toContain('historyAlias');
+});
+
+test('web Ask converges on the stable API and renders shared surfaces',()=>{
+  const proxy=read('src/modules/ask/endpoint-proxy.js');
+  const renderer=read('src/modules/ask/structured-surfaces.js');
+  expect(proxy).toContain("/ask-collectish-api");
+  expect(renderer).toContain("surface?.type==='seller_opportunity_map'");
+  expect(renderer).toContain('surface.price_points');
 });
