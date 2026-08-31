@@ -22,6 +22,8 @@ export function install(){
 
     await Promise.all([
       import('./single-owner-style.js'),
+      import('./mobile-containment.js'),
+      import('./singles-navigation.js'),
       import('./alerts.js'),
       import('./scans.js'),
       import('./marketplace-health.js'),
