@@ -1,6 +1,8 @@
--- Secret Lair regional sales model
--- Secret Lair storefronts operate independently across US, REU and UK.
--- Product identity stays global; price, sale window, availability and sell-through are regional.
+-- Secret Lair regional storefront/allocation model
+-- Secret Lair has one global product supply, but inventory is allocated across US, REU and UK storefronts.
+-- Product identity and total print supply stay global. Price, storefront allocation, local demand,
+-- availability, sell-through and pull/end timing are observed regionally.
+-- A regional sellout is therefore evidence about allocation + local demand, not proof that global supply is exhausted.
 
 create table if not exists public.secret_lair_release_regions (
   release_region_id uuid primary key default gen_random_uuid(),
@@ -14,14 +16,15 @@ create table if not exists public.secret_lair_release_regions (
   queue_start_at timestamptz,
   order_limit_notes text,
   shipping_notes text,
-  regional_supply_notes text,
+  allocation_notes text,
+  local_demand_notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint secret_lair_release_regions_release_region_key unique (release_id, region)
 );
 
--- A drop can have multiple separately purchasable finishes/offers per region.
--- Keeping this separate avoids assuming US USD MSRP applies to REU/UK.
+-- A drop can have multiple separately purchasable finishes/offers per storefront.
+-- Keeping this separate avoids assuming US USD pricing or US availability applies to REU/UK.
 create table if not exists public.secret_lair_drop_offers (
   offer_id uuid primary key default gen_random_uuid(),
   release_id uuid not null references public.secret_lair_releases(release_id) on delete cascade,
@@ -42,10 +45,10 @@ create table if not exists public.secret_lair_drop_offers (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint secret_lair_drop_offers_unique key unique (drop_id, region, finish, distribution_channel)
+  constraint secret_lair_drop_offers_unique unique (drop_id, region, finish, distribution_channel)
 );
 
--- Bundle pricing/inventory can consume underlying drop inventory and must be observed separately.
+-- Bundle storefront availability can consume allocated underlying drop inventory and must be observed separately.
 create table if not exists public.secret_lair_bundles (
   bundle_id uuid primary key default gen_random_uuid(),
   release_id uuid not null references public.secret_lair_releases(release_id) on delete cascade,
@@ -88,6 +91,8 @@ alter table public.secret_lair_observations
   add column if not exists bundle_offer_id uuid references public.secret_lair_bundle_offers(bundle_offer_id) on delete set null;
 
 -- NULL region means the evaluation is intentionally global/cross-region.
+-- Regional evaluations adjust economics and market confirmation for storefront price/allocation/local demand;
+-- they must not reinterpret the global print supply as three separate supplies.
 alter table public.secret_lair_evaluations
   add column if not exists region text check (region in ('US','REU','UK'));
 
