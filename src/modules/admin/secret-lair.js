@@ -3,6 +3,7 @@ import { invokeFunction } from '../../core/functions.js';
 import perfectNormal from '../../../data/secret-lair/a-perfectly-normal-superdrop-2026-08-31.json';
 import marvelousMathoms from '../../../data/secret-lair/a-marvelous-mathoms-2026-08-17.json';
 import mathomsReview from '../../../data/secret-lair/expert-reviews/a-marvelous-mathoms.json';
+import perfectNormalReview from '../../../data/secret-lair/expert-reviews/a-perfectly-normal-superdrop.json';
 
 const LIVE_NAME='Secret Lair: A Perfectly Normal Superdrop';
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -35,6 +36,7 @@ async function seed(){
   await invokeFunction('secret-lair-import',perfectNormal);
   await invokeFunction('secret-lair-import',marvelousMathoms);
   await invokeFunction('secret-lair-expert-review-import',mathomsReview);
+  await invokeFunction('secret-lair-expert-review-import',perfectNormalReview);
 }
 
 async function liveContext(){
@@ -99,7 +101,7 @@ async function click(e){
   const refreshBtn=e.target.closest?.('[data-sl-refresh]');if(refreshBtn){void refresh(true);return}
   const seedBtn=e.target.closest?.('[data-sl-seed]');if(seedBtn){
     busy=true;seedBtn.disabled=true;setMessage('Seeding live + historical Secret Lair data…');
-    try{await seed();setMessage('V1 Secret Lair catalogs and historical expert review seeded.');await refresh(true)}catch(err){setMessage(`Seed failed: ${err.message||err}`,true)}finally{busy=false;seedBtn.disabled=false}return;
+    try{await seed();setMessage('V1 Secret Lair catalogs and expert reviews seeded.');await refresh(true)}catch(err){setMessage(`Seed failed: ${err.message||err}`,true)}finally{busy=false;seedBtn.disabled=false}return;
   }
   const researchBtn=e.target.closest?.('[data-sl-research]');if(researchBtn){
     busy=true;researchBtn.disabled=true;setMessage('Starting pre-sale research…');
