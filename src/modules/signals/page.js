@@ -8,4 +8,6 @@ export async function install(){
   await market.install();
   const lifecycle=await import('./secret-lair-row-lifecycle.js');
   await lifecycle.install();
+  const details=await import('./secret-lair-row-details.js');
+  await details.install();
 }
