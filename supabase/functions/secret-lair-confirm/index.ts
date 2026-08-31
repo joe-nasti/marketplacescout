@@ -2,50 +2,56 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const U=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
 const A=Deno.env.get('SUPABASE_ANON_KEY')||'';
-const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
+const S=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
+const CRON=Deno.env.get('TCGPLAYER_PRICE_CRON_KEY')||Deno.env.get('COLLECTISH_CRON_KEY')||'';
+const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, x-collectish-cron-key, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
 const J=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{...C,'Content-Type':'application/json','Cache-Control':'no-store'}});
 const bearer=(r:Request)=>{const h=r.headers.get('authorization')||'';return h.toLowerCase().startsWith('bearer ')?h.slice(7):''};
-const H=(t:string)=>({apikey:A,Authorization:`Bearer ${t}`,'Content-Type':'application/json'});
+const H=(t:string,api=A)=>({apikey:api,Authorization:`Bearer ${t}`,'Content-Type':'application/json'});
 async function auth(t:string){const r=await fetch(`${U}/auth/v1/user`,{headers:H(t)});if(!r.ok)throw Error('Unauthorized');const u=await r.json();if(!u?.id)throw Error('Unauthorized');return u}
-async function rest(t:string,path:string,opt:any={}){const r=await fetch(`${U}/rest/v1/${path}`,{method:opt.method||'GET',headers:{...H(t),...(opt.prefer?{Prefer:opt.prefer}:{})},body:opt.body===undefined?undefined:JSON.stringify(opt.body)});const raw=await r.text();let d:any;try{d=raw?JSON.parse(raw):null}catch{d=raw}if(!r.ok)throw Error(d?.message||`REST ${r.status}`);return d}
+async function rest(t:string,path:string,opt:any={},api=A){const r=await fetch(`${U}/rest/v1/${path}`,{method:opt.method||'GET',headers:{...H(t,api),...(opt.prefer?{Prefer:opt.prefer}:{})},body:opt.body===undefined?undefined:JSON.stringify(opt.body)});const raw=await r.text();let d:any;try{d=raw?JSON.parse(raw):null}catch{d=raw}if(!r.ok)throw Error(d?.message||`REST ${r.status}`);return d}
 
 function firstSold(rows:any[],dropId:string|null){return rows.filter(r=>(!dropId||r.drop_id===dropId)&&r.availability_state==='sold_out').sort((a,b)=>Number(a.elapsed_minutes_from_sale??1e9)-Number(b.elapsed_minutes_from_sale??1e9))[0]||null}
 function latestForDrop(rows:any[],dropId:string){return rows.filter(r=>r.drop_id===dropId).sort((a,b)=>new Date(b.observed_at).getTime()-new Date(a.observed_at).getTime())[0]||null}
-
-function judge(pred:any,obs:any[],drops:any[]){
-  const sold=obs.filter(r=>r.availability_state==='sold_out'&&Number.isFinite(Number(r.elapsed_minutes_from_sale)));
-  const distinctSold=new Map();for(const r of sold){const old=distinctSold.get(r.drop_id);if(!old||Number(r.elapsed_minutes_from_sale)<Number(old.elapsed_minutes_from_sale))distinctSold.set(r.drop_id,r)}
-  const ordered=[...distinctSold.values()].sort((a,b)=>Number(a.elapsed_minutes_from_sale)-Number(b.elapsed_minutes_from_sale));
-  const dropSold=pred.drop_id?firstSold(obs,pred.drop_id):null;
+function judge(pred:any,obs:any[]){
+  const sold=obs.filter(r=>r.drop_id&&r.availability_state==='sold_out'&&Number.isFinite(Number(r.elapsed_minutes_from_sale))),distinct=new Map();
+  for(const r of sold){const old=distinct.get(r.drop_id);if(!old||Number(r.elapsed_minutes_from_sale)<Number(old.elapsed_minutes_from_sale))distinct.set(r.drop_id,r)}
+  const ordered=[...distinct.values()].sort((a:any,b:any)=>Number(a.elapsed_minutes_from_sale)-Number(b.elapsed_minutes_from_sale)),dropSold=pred.drop_id?firstSold(obs,pred.drop_id):null;
   if(pred.prediction_type==='sellout_speed'){
-    const within30=ordered.filter(r=>Number(r.elapsed_minutes_from_sale)<=30).length,within60=ordered.filter(r=>Number(r.elapsed_minutes_from_sale)<=60).length;
-    if(within60>=2)return['strong_support',`${within60} distinct drops sold out within 60 minutes (${within30} within 30).`];
-    if(within60>=1)return['early_support',`${within60} drop sold out within 60 minutes; fast-sellout thesis has early support.`];
+    const w30=ordered.filter((r:any)=>Number(r.elapsed_minutes_from_sale)<=30).length,w60=ordered.filter((r:any)=>Number(r.elapsed_minutes_from_sale)<=60).length;
+    if(w60>=2)return['strong_support',`${w60} distinct drops sold out within 60 minutes (${w30} within 30).`];
+    if(w60>=1)return['early_support',`${w60} drop sold out within 60 minutes; fast-sellout thesis has early support.`];
     const latest=Math.max(0,...obs.map(r=>Number(r.elapsed_minutes_from_sale)||0));if(latest>=120&&!ordered.length)return['contradicted','Two hours of launch observations without a sold-out drop contradict the fast-sellout thesis.'];
     return['not_enough_evidence','No decisive sellout-speed evidence yet.'];
   }
-  if(pred.prediction_type==='favorite'||pred.prediction_type==='rating'||pred.prediction_type==='resale_opportunity'){
-    if(pred.drop_id&&dropSold){const rank=ordered.findIndex(r=>r.drop_id===pred.drop_id)+1;if(rank===1)return['strong_support',`Predicted drop was the first observed sellout at ${dropSold.elapsed_minutes_from_sale} minutes.`];if(rank>0&&rank<=3)return['early_support',`Predicted drop was among the first ${rank} observed sellouts at ${dropSold.elapsed_minutes_from_sale} minutes.`];return['mixed',`Predicted drop sold out, but only after ${rank-1} other drops.`]}
+  if(['favorite','rating','resale_opportunity'].includes(pred.prediction_type)){
+    if(pred.drop_id&&dropSold){const rank=ordered.findIndex((r:any)=>r.drop_id===pred.drop_id)+1;if(rank===1)return['strong_support',`Predicted drop was the first observed sellout at ${dropSold.elapsed_minutes_from_sale} minutes.`];if(rank>0&&rank<=3)return['early_support',`Predicted drop was among the first ${rank} observed sellouts at ${dropSold.elapsed_minutes_from_sale} minutes.`];return['mixed',`Predicted drop sold out, but only after ${rank-1} other drops.`]}
     if(pred.drop_id){const latest=latestForDrop(obs,pred.drop_id),soldOthers=ordered.length;if(latest?.availability_state==='available'&&soldOthers>=3)return['contradicted',`${soldOthers} other drops sold out while the predicted drop remained available.`];if(soldOthers)return['mixed',`${soldOthers} other drop${soldOthers===1?'':'s'} sold out; predicted drop has not yet sold out.`]}
   }
-  if(pred.prediction_type==='bundle_strategy')return['not_enough_evidence','Bundle-strategy outcome requires bundle availability and checkout observations.'];
+  if(pred.prediction_type==='bundle_strategy'){
+    const bundleSold=obs.filter(r=>r.observation_type==='bundle_status'&&r.availability_state==='sold_out');
+    return bundleSold.length?['early_support',`${bundleSold.length} bundle storefront offer${bundleSold.length===1?'':'s'} sold out; bundle-demand thesis has launch support.`]:['not_enough_evidence','Bundle-strategy outcome requires bundle sell-through observations.'];
+  }
   return['not_enough_evidence','No deterministic launch rule applies yet.'];
 }
 
 Deno.serve(async(req:Request)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method!=='POST')return J({error:'POST required'},405);
-  const t=bearer(req);if(!t)return J({error:'Authentication required'},401);let u:any;try{u=await auth(t)}catch{return J({error:'Authentication required'},401)}
+  const cronKey=req.headers.get('x-collectish-cron-key')||'',cronMode=Boolean(CRON&&cronKey===CRON);let token='',api=A,u:any=null;
+  if(cronMode){token=S;api=S}else{token=bearer(req);if(!token)return J({error:'Authentication required'},401);try{u=await auth(token)}catch{return J({error:'Authentication required'},401)}}
   let b:any;try{b=await req.json()}catch{return J({error:'Invalid JSON'},400)}const releaseId=String(b?.release_id||'');if(!releaseId)return J({error:'release_id required'},400);
   try{
-    const [preds,obs,drops,existing]=await Promise.all([
-      rest(t,`secret_lair_predictions?select=prediction_id,drop_id,prediction_type,prediction_label,claim,metadata&release_id=eq.${encodeURIComponent(releaseId)}&order=frozen_at.asc`),
-      rest(t,`secret_lair_observations?select=observation_id,drop_id,region,finish,availability_state,observation_type,observed_at,elapsed_minutes_from_sale&release_id=eq.${encodeURIComponent(releaseId)}&order=observed_at.asc`),
-      rest(t,`secret_lair_drops?select=drop_id,drop_name&release_id=eq.${encodeURIComponent(releaseId)}`),
-      rest(t,`secret_lair_prediction_updates?select=prediction_id,confirmation_state,observed_at&prediction_id=in.(${(await rest(t,`secret_lair_predictions?select=prediction_id&release_id=eq.${encodeURIComponent(releaseId)}`)).map((p:any)=>p.prediction_id).join(',')||'00000000-0000-0000-0000-000000000000'})&order=observed_at.desc`).catch(()=>[])
+    if(cronMode){const rel=await rest(token,`secret_lair_releases?select=user_id&release_id=eq.${encodeURIComponent(releaseId)}&limit=1`,{},api);u={id:rel?.[0]?.user_id};if(!u.id)throw Error('Release not found')}
+    const predIds=await rest(token,`secret_lair_predictions?select=prediction_id&release_id=eq.${encodeURIComponent(releaseId)}`,{},api);
+    const ids=(predIds||[]).map((p:any)=>p.prediction_id).join(',')||'00000000-0000-0000-0000-000000000000';
+    const [preds,obs,existing]=await Promise.all([
+      rest(token,`secret_lair_predictions?select=prediction_id,drop_id,prediction_type,prediction_label,claim,metadata&release_id=eq.${encodeURIComponent(releaseId)}&order=frozen_at.asc`,{},api),
+      rest(token,`secret_lair_observations?select=observation_id,drop_id,bundle_offer_id,region,finish,availability_state,observation_type,observed_at,elapsed_minutes_from_sale&release_id=eq.${encodeURIComponent(releaseId)}&order=observed_at.asc`,{},api),
+      rest(token,`secret_lair_prediction_updates?select=prediction_id,confirmation_state,observed_at&prediction_id=in.(${ids})&order=observed_at.desc`,{},api).catch(()=>[])
     ]);
     const last=new Map();for(const x of existing||[])if(!last.has(x.prediction_id))last.set(x.prediction_id,x);
-    const rows=[];for(const p of preds||[]){const [state,summary]=judge(p,obs||[],drops||[]),prev=last.get(p.prediction_id);if(prev?.confirmation_state===state)continue;rows.push({user_id:u.id,prediction_id:p.prediction_id,confirmation_state:state,evidence_summary:summary,observation_ids:(obs||[]).slice(-25).map((o:any)=>o.observation_id),metadata:{rule_version:'secret-lair-launch-v1'}})}
-    if(rows.length)await rest(t,'secret_lair_prediction_updates',{method:'POST',prefer:'return=minimal',body:rows});
-    return J({ok:true,predictions:(preds||[]).length,updates_written:rows.length,states:rows.map(r=>({prediction_id:r.prediction_id,state:r.confirmation_state,summary:r.evidence_summary}))});
+    const rows=[];for(const p of preds||[]){const [state,summary]=judge(p,obs||[]),prev=last.get(p.prediction_id);if(prev?.confirmation_state===state)continue;rows.push({user_id:u.id,prediction_id:p.prediction_id,confirmation_state:state,evidence_summary:summary,observation_ids:(obs||[]).slice(-25).map((o:any)=>o.observation_id),metadata:{rule_version:'secret-lair-launch-v1.1',cron_mode:cronMode}})}
+    if(rows.length)await rest(token,'secret_lair_prediction_updates',{method:'POST',prefer:'return=minimal',body:rows},api);
+    return J({ok:true,predictions:(preds||[]).length,updates_written:rows.length,cron_mode:cronMode,states:rows.map(r=>({prediction_id:r.prediction_id,state:r.confirmation_state,summary:r.evidence_summary}))});
   }catch(e){return J({error:(e as Error).message},502)}
 });
