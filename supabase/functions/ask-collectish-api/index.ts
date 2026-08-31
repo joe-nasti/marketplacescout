@@ -189,6 +189,23 @@ async function guestAccessToken(body: any) {
   return createGuestSession(discordUserId);
 }
 
+async function recoverIdentity(accessToken: string, body: any) {
+  try {
+    const response = await fetch(`${U}/functions/v1/ask-collectish-identity-recovery`, {
+      method: 'POST',
+      headers: headers(accessToken),
+      body: JSON.stringify(body),
+    });
+    const raw = await response.text();
+    let data: any;
+    try { data = raw ? JSON.parse(raw) : {}; } catch { data = { error: raw || `HTTP ${response.status}` }; }
+    if (!response.ok) return { ok: false, error: data?.error || `Identity recovery HTTP ${response.status}` };
+    return data;
+  } catch (error) {
+    return { ok: false, error: String((error as Error)?.message || error) };
+  }
+}
+
 async function orchestrate(accessToken: string, body: any) {
   const response = await fetch(`${U}/functions/v1/ask-collectish-orchestrator`, {
     method: 'POST',
@@ -290,8 +307,9 @@ Deno.serve(async (req: Request) => {
       ...body,
       ...(body?.conversation_id ? {} : body?.session_id ? { conversation_id: body.session_id } : {}),
     };
+    const identityRecovery = action === 'chat' ? await recoverIdentity(accessToken, orchestratorBody) : null;
     const result = await orchestrate(accessToken, orchestratorBody);
-    if (!result.ok) return json({ api_schema: API_SCHEMA, ...result.data }, result.status);
+    if (!result.ok) return json({ api_schema: API_SCHEMA, ...result.data, ...(identityRecovery ? { identity_recovery: identityRecovery } : {}) }, result.status);
 
     const data = result.data || {};
     const sessionId = data.conversation_id || orchestratorBody.conversation_id || null;
@@ -302,6 +320,7 @@ Deno.serve(async (req: Request) => {
       guest: isDiscordGuest,
       session_id: sessionId,
       ...data,
+      ...(identityRecovery ? { identity_recovery: identityRecovery } : {}),
     });
   } catch (error) {
     const message = String((error as Error)?.message || error || 'Ask API request failed');
