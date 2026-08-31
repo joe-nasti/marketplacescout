@@ -1,0 +1,26 @@
+{
+  "release": {
+    "name": "Secret Lair: A Marvelous Mathoms™ Superdrop",
+    "release_slug": "a-marvelous-mathoms-2026-08-17",
+    "official_url": "https://magic.wizards.com/en/news/announcements/secret-lair-a-marvelous-mathom-superdrop",
+    "announced_at": "2026-08-14T00:00:00Z",
+    "sale_start_at": "2026-08-17T16:00:00Z",
+    "sale_format": "fixed_quantity",
+    "supply_confidence": 0.25,
+    "supply_notes": "Global supply unknown; storefront allocations can exhaust independently.",
+    "promo_notes": "Arcane Signet as Heart of the Mountain for every $199 spent, while supplies last.",
+    "lifecycle_state": "post_release"
+  },
+  "regions": [
+    {"region":"US","currency":"USD","sale_start_at":"2026-08-17T16:00:00Z","queue_start_at":"2026-08-17T15:00:00Z","storefront_url":"https://secretlair.wizards.com/us/en"},
+    {"region":"REU","currency":"EUR","regional_supply_notes":"Shared global product, separately allocated storefront inventory; exact allocation unknown."},
+    {"region":"UK","currency":"GBP","regional_supply_notes":"Shared global product, separately allocated storefront inventory; exact allocation unknown."}
+  ],
+  "drops": [
+    {"name":"Secret Lair x The Hobbit: Second Breakfast and Beyond","ip_name":"The Hobbit","nonfoil_msrp":29.99,"foil_msrp":39.99,"cards":[{"name":"Food Token","is_token":true,"notes":"7 distinct Food tokens"}],"offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]},
+    {"name":"Secret Lair x The Hobbit: Over the Edge of the Wild","ip_name":"The Hobbit","nonfoil_msrp":29.99,"foil_msrp":39.99,"cards":[{"name":"Cloudshift"},{"name":"Tocasia's Welcome","display_name":"Quite a Merry Gathering"},{"name":"Stony Silence"},{"name":"Imp's Mischief"},{"name":"Seize the Spoils"}],"offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]},
+    {"name":"Secret Lair x The Hobbit: Smaug's Spoils","ip_name":"The Hobbit","nonfoil_msrp":29.99,"foil_msrp":39.99,"cards":[{"name":"Fellwar Stone","display_name":"Erebor Heirloom"},{"name":"Lightning Greaves"},{"name":"Liquimetal Torque"},{"name":"Sol Ring"},{"name":"Thought Vessel"}],"offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]},
+    {"name":"Secret Lair x The Hobbit: Desolation","ip_name":"The Hobbit","nonfoil_msrp":29.99,"foil_msrp":39.99,"cards":[{"name":"Defile"},{"name":"Diabolic Intent"},{"name":"Dread Return"},{"name":"Mirkwood Bats"},{"name":"Read the Bones"}],"offers":[{"region":"US","finish":"nonfoil","currency":"USD","price":29.99},{"region":"US","finish":"foil","currency":"USD","price":39.99}]},
+    {"name":"Secret Lair x The Hobbit: He Who Walks Unseen","ip_name":"The Hobbit","treatment_name":"Out of Sight Edition","cards":[{"name":"Arcane Heist"},{"name":"Contentious Plan"},{"name":"Curiosity"},{"name":"Solve the Equation"},{"name":"Windfall"}],"offers":[{"region":"US","finish":"other","currency":"USD","price":59.99}]}
+  ]
+}
