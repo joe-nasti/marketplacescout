@@ -42,23 +42,28 @@ async function refreshScout(){
 try{
   await writeState('running',{phase:'candidate_collection',limit:LIMIT});
   const candidates=await rpc('get_marketplace_sales_collection_candidates',{p_limit:LIMIT})||[];
-  const reasonCounts={signal:0,scout:0,overlap:0,other:0};
+  const reasonCounts={signal:0,scout:0,secretLair:0,overlap:0,other:0};
   for(const c of candidates){
     const reasons=Array.isArray(c.watch_reasons)?c.watch_reasons:[];
-    const hasSignal=reasons.includes('signal'),hasScout=reasons.includes('scout');
+    const hasSignal=reasons.includes('signal'),hasScout=reasons.includes('scout'),hasSecretLair=reasons.includes('secret_lair');
     if(hasSignal)reasonCounts.signal++;
     if(hasScout)reasonCounts.scout++;
+    if(hasSecretLair)reasonCounts.secretLair++;
     if(hasSignal&&hasScout)reasonCounts.overlap++;
-    if(!hasSignal&&!hasScout)reasonCounts.other++;
+    if(!hasSignal&&!hasScout&&!hasSecretLair)reasonCounts.other++;
   }
 
-  let fetched=0,appliedSkuRows=0,failed=0;
+  let fetched=0,appliedSkuRows=0,projectedSecretLairRows=0,failed=0;
   const failures=[];
   for(const c of candidates){
     try{
       const hist=await jsonFetch(`${INFINITE}/price/history/${encodeURIComponent(c.product_id)}/detailed?range=quarter`);
       const result=Array.isArray(hist?.result)?hist.result:[];
       const n=await rpc('apply_marketplace_sales_history',{p_user_id:c.user_id,p_product_id:String(c.product_id),p_result:result,p_source:'shared_sales_worker'});
+      if(Array.isArray(c.watch_reasons)&&c.watch_reasons.includes('secret_lair')){
+        const projected=await rpc('project_secret_lair_marketplace_sales',{p_user_id:c.user_id,p_product_id:String(c.product_id)});
+        projectedSecretLairRows+=Number(projected||0);
+      }
       fetched++;
       appliedSkuRows+=Number(n||0);
     }catch(e){
@@ -71,7 +76,7 @@ try{
 
   const includesScout=candidates.some(c=>Array.isArray(c.watch_reasons)&&c.watch_reasons.includes('scout'));
   const refresh=includesScout?await refreshScout():{aggregate:0,annotated:0,shadow:0,promotedCache:0};
-  const detail={subsystem:'marketplace-sales-history',candidateCount:candidates.length,reasonCounts,fetched,failed,appliedSkuRows,failures:failures.slice(0,20),...refresh,scoringVersion:'scout-v5',limit:LIMIT};
+  const detail={subsystem:'marketplace-sales-history',candidateCount:candidates.length,reasonCounts,fetched,failed,appliedSkuRows,projectedSecretLairRows,failures:failures.slice(0,20),...refresh,scoringVersion:'scout-v5',limit:LIMIT};
   const status=candidates.length>0&&fetched===0&&failed>0?'failed':failed>0?'complete_with_warnings':'complete';
   await writeState(status,detail,appliedSkuRows);
   console.log(JSON.stringify({...detail,status},null,2));
