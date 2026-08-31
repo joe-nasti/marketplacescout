@@ -1,15 +1,15 @@
-name: Collectish TCGCSV pricing sync
+name: Collectish TCGCSV pricing fallback sync
 
 on:
   workflow_dispatch:
     inputs:
       force:
-        description: Force sync even if TCGCSV timestamp is unchanged
+        description: Force fallback sync even if TCGCSV timestamp is unchanged
         required: false
         default: false
         type: boolean
   schedule:
-    # TCGCSV refreshes around 20:00 UTC; give the upstream build time to finish.
+    # TCGCSV is a daily bulk fallback/backfill. Official TCGplayer API pricing is the primary live source.
     - cron: "30 20 * * *"
   push:
     branches:
@@ -53,7 +53,7 @@ jobs:
       TCGCSV_FORCE: ${{ inputs.force && '1' || '0' }}
       PRECON_RELEASE_FROM: "2025-01-01"
       SCOUT_FORCE_FULL: "1"
-      SCOUT_RANKINGS_SOURCE: "tcgcsv_sync"
+      SCOUT_RANKINGS_SOURCE: "tcgcsv_fallback_sync"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,7 +61,7 @@ jobs:
           node-version: "24"
       - name: Require service role key
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
-      - name: Sync TCGplayer prices from TCGCSV
+      - name: Sync fallback TCGplayer prices from TCGCSV
         run: node cloud-worker/tcgcsv-sync.mjs
       - name: Refresh preferred TCGplayer price cache
         shell: bash
@@ -83,7 +83,7 @@ jobs:
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
             -d '{}'
-      - name: Rerun Scout rankings with TCGCSV prices
+      - name: Rerun Scout rankings after fallback refresh
         run: node cloud-worker/refresh-scout-rankings.mjs
       - name: Recalculate current precon EV with preferred TCGplayer prices
         run: node cloud-worker/refresh-precon-ev.mjs
