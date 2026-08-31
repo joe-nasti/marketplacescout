@@ -10,6 +10,13 @@ function loadSecretLair(){
   return secretLairPromise;
 }
 
+function secretLairNeededNow(){
+  const shell=document.getElementById('cxAdminConsole');
+  if(shell?.dataset.activeSection==='singles')return true;
+  const params=new URL(location.href).searchParams;
+  return params.get('tab')==='admin'&&params.get('admin')==='singles';
+}
+
 export function install(){
   if(installPromise)return installPromise;
   installPromise=(async()=>{
@@ -38,6 +45,7 @@ export function install(){
       import('./top.js')
     ]);
     document.dispatchEvent(new CustomEvent('collectish:admin-modules-ready'));
+    if(secretLairNeededNow())await loadSecretLair();
     if(document.getElementById('cxAdmin')?.classList.contains('active'))void window.CollectishAdminConsole?.refresh?.();
   })();
   return installPromise;
