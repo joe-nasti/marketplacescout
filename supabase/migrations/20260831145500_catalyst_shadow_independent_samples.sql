@@ -17,7 +17,7 @@ with ranked as (
 ), s as (
   select snapshot_id,user_id,sku_id,product_id,scryfall_id,card_name,official_score,official_grade,
     shadow_modifier,shadow_score,shadow_grade,raw_modifier,future_release,future_thesis_modifier,
-    independent_sources,unique_events,source_keys,intel_ids,catalyst_key,scorer_version,signal_max_at,captured_at
+    independent_sources,unique_events,source_keys,intel_ids,scorer_version,signal_max_at,captured_at
   from ranked where calibration_rank=1
 )
 select s.*,
