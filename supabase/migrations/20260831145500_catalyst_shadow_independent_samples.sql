@@ -15,7 +15,10 @@ with ranked as (
     ) as calibration_rank
   from public.market_intel_catalyst_shadow_snapshots s
 ), s as (
-  select * from ranked where calibration_rank=1
+  select snapshot_id,user_id,sku_id,product_id,scryfall_id,card_name,official_score,official_grade,
+    shadow_modifier,shadow_score,shadow_grade,raw_modifier,future_release,future_thesis_modifier,
+    independent_sources,unique_events,source_keys,intel_ids,catalyst_key,scorer_version,signal_max_at,captured_at
+  from ranked where calibration_rank=1
 )
 select s.*,
  p0.market_price baseline_market_price,p1.market_price market_price_1d,p3.market_price market_price_3d,p7.market_price market_price_7d,p30.market_price market_price_30d,
