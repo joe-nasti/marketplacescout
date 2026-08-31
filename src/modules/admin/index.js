@@ -1,4 +1,11 @@
 let installPromise=null;
+let secretLairPromise=null;
+
+function loadSecretLair(){
+  if(secretLairPromise)return secretLairPromise;
+  secretLairPromise=import('./secret-lair.js');
+  return secretLairPromise;
+}
 
 export function install(){
   if(installPromise)return installPromise;
@@ -19,7 +26,6 @@ export function install(){
       import('./catalyst-calibration.js'),
       import('./signals-video-audit.js'),
       import('./youtube-pipeline.js'),
-      import('./secret-lair.js'),
       import('./sealed-catalog.js'),
       import('./sealed-health.js'),
       import('./cardtrader-health.js'),
@@ -30,3 +36,7 @@ export function install(){
   })();
   return installPromise;
 }
+
+document.addEventListener('collectish:admin-section-change',e=>{
+  if(e.detail?.section==='singles')void loadSecretLair();
+});
