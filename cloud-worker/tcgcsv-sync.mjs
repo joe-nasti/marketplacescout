@@ -1,5 +1,5 @@
 // Collectish TCGCSV importer
-// Preferred daily TCGplayer product-level pricing feed with MTGJSON fallback handled in SQL.
+// Daily bulk fallback/backfill for product-level TCGplayer pricing. Official TCGplayer SKU pricing wins in the preferred-price cache.
 const SUPABASE_URL=(process.env.SUPABASE_URL||'').replace(/\/$/,'');
 const SERVICE_KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 const BASE=(process.env.TCGCSV_BASE_URL||'https://tcgcsv.com').replace(/\/$/,'');
