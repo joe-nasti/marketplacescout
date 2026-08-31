@@ -39,22 +39,28 @@ async function all(path,page=1000){const out=[];for(let from=0;;from+=page){cons
 function add(map,key,value){if(!key)return;const k=String(key);if(!map.has(k))map.set(k,new Set());map.get(k).add(value)}
 function indexLinks(entities,mentions){const bySf=new Map(),byPid=new Map(),byName=new Map();for(const x of [...entities,...mentions]){const id=x.intel_id;if(!id)continue;add(bySf,x.scryfall_id,id);add(byPid,x.product_id,id);add(byName,lower(baseName(x.entity_name||x.card_name)),id)}return{bySf,byPid,byName}}
 function linkedIds(row,idx){const set=new Set();const merge=s=>s&&s.forEach(x=>set.add(x));merge(idx.bySf.get(String(row.scryfall_id||'')));merge(idx.byPid.get(String(row.product_id||'')));merge(idx.byName.get(lower(baseName(row.product_name))));return set}
+async function startRun(){const rows=await req('market_intel_catalyst_shadow_recorder_runs',{method:'POST',prefer:'return=representation',body:{status:'running'}});return rows?.[0]?.run_id||null}
+async function finishRun(runId,patch){if(!runId)return;await req(`market_intel_catalyst_shadow_recorder_runs?run_id=eq.${runId}`,{method:'PATCH',prefer:'return=minimal',body:{completed_at:new Date().toISOString(),...patch}})}
 
 async function main(){
-  const cutoff=new Date(Date.now()-45*86400000).toISOString();
-  const [scout,items,entities,mentions]=await Promise.all([
-    all('scout_opportunities_v5_cache?select=user_id,sku_id,product_id,product_name,scryfall_id,promoted_score,promoted_grade,v5_shadow_score,v5_shadow_grade,opportunity_score&order=promoted_score.desc&limit=5000'),
-    all(`market_intel_items?select=intel_id,user_id,source_type,source_name,source_url,title,author,summary,direction,signal_stage,confidence,observed_at&observed_at=gte.${encodeURIComponent(cutoff)}&order=observed_at.desc`),
-    all(`market_intel_entities?select=intel_id,user_id,entity_name,scryfall_id,product_id,created_at&created_at=gte.${encodeURIComponent(cutoff)}`),
-    all(`market_intel_card_mentions?select=intel_id,user_id,card_name,scryfall_id,product_id,created_at&created_at=gte.${encodeURIComponent(cutoff)}`)
-  ]);
-  const itemById=new Map(items.map(x=>[x.intel_id,x])),idx=indexLinks(entities,mentions),payload=[];
-  for(const row of scout){
-    const ids=linkedIds(row,idx),signals=[...ids].map(id=>itemById.get(id)).filter(x=>x&&x.user_id===row.user_id);
-    if(!signals.length)continue;const s=score(row,signals);if(!s.catalystKey||!s.signalCount)continue;
-    payload.push({user_id:row.user_id,sku_id:Number(row.sku_id),product_id:row.product_id==null?null:Number(row.product_id),scryfall_id:row.scryfall_id||null,card_name:String(row.product_name||'Unknown card'),official_score:s.base,official_grade:row.promoted_grade||row.v5_shadow_grade||gradeFor(s.base),shadow_modifier:s.bounded,shadow_score:s.shadow,shadow_grade:gradeFor(s.shadow),raw_modifier:s.raw,future_release:false,future_thesis_modifier:null,independent_sources:s.sourceCount,unique_events:s.signalCount,source_keys:s.sourceKeys,intel_ids:s.intelIds,catalyst_key:s.catalystKey,scorer_version:SCORER_VERSION,signal_max_at:s.signalMaxAt});
-  }
-  let inserted=0;for(let i=0;i<payload.length;i+=100){const rows=await req('market_intel_catalyst_shadow_snapshots',{method:'POST',prefer:'resolution=ignore-duplicates,return=representation',body:payload.slice(i,i+100)});inserted+=Array.isArray(rows)?rows.length:0}
-  console.log(JSON.stringify({scout_rows:scout.length,recent_intel:items.length,candidates:payload.length,inserted,cutoff}));
+  const runId=await startRun();
+  try{
+    const cutoff=new Date(Date.now()-45*86400000).toISOString();
+    const [scout,items,entities,mentions]=await Promise.all([
+      all('scout_opportunities_v5_cache?select=user_id,sku_id,product_id,product_name,scryfall_id,promoted_score,promoted_grade,v5_shadow_score,v5_shadow_grade,opportunity_score&order=promoted_score.desc'),
+      all(`market_intel_items?select=intel_id,user_id,source_type,source_name,source_url,title,author,summary,direction,signal_stage,confidence,observed_at&observed_at=gte.${encodeURIComponent(cutoff)}&order=observed_at.desc`),
+      all(`market_intel_entities?select=intel_id,user_id,entity_name,scryfall_id,product_id,created_at&created_at=gte.${encodeURIComponent(cutoff)}`),
+      all(`market_intel_card_mentions?select=intel_id,user_id,card_name,scryfall_id,product_id,created_at&created_at=gte.${encodeURIComponent(cutoff)}`)
+    ]);
+    const itemById=new Map(items.map(x=>[x.intel_id,x])),idx=indexLinks(entities,mentions),payload=[];
+    for(const row of scout){
+      const ids=linkedIds(row,idx),signals=[...ids].map(id=>itemById.get(id)).filter(x=>x&&x.user_id===row.user_id);
+      if(!signals.length)continue;const s=score(row,signals);if(!s.catalystKey||!s.signalCount)continue;
+      payload.push({user_id:row.user_id,sku_id:Number(row.sku_id),product_id:row.product_id==null?null:Number(row.product_id),scryfall_id:row.scryfall_id||null,card_name:String(row.product_name||'Unknown card'),official_score:s.base,official_grade:row.promoted_grade||row.v5_shadow_grade||gradeFor(s.base),shadow_modifier:s.bounded,shadow_score:s.shadow,shadow_grade:gradeFor(s.shadow),raw_modifier:s.raw,future_release:false,future_thesis_modifier:null,independent_sources:s.sourceCount,unique_events:s.signalCount,source_keys:s.sourceKeys,intel_ids:s.intelIds,catalyst_key:s.catalystKey,scorer_version:SCORER_VERSION,signal_max_at:s.signalMaxAt});
+    }
+    let inserted=0;for(let i=0;i<payload.length;i+=100){const rows=await req('market_intel_catalyst_shadow_snapshots',{method:'POST',prefer:'resolution=ignore-duplicates,return=representation',body:payload.slice(i,i+100)});inserted+=Array.isArray(rows)?rows.length:0}
+    await finishRun(runId,{status:'ok',scout_rows:scout.length,recent_intel:items.length,candidates:payload.length,inserted});
+    console.log(JSON.stringify({run_id:runId,scout_rows:scout.length,recent_intel:items.length,candidates:payload.length,inserted,cutoff}));
+  }catch(error){await finishRun(runId,{status:'failed',error:String(error?.message||error).slice(0,2000)}).catch(()=>{});throw error}
 }
 main().catch(err=>{console.error(err);process.exit(1)});
