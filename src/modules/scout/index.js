@@ -24,6 +24,7 @@ export async function installScoutRenderer(){
   document.dispatchEvent(new CustomEvent('collectish:scout-structure-ready'));
 
   void import('./universal-search.js');
+  void import('./on-demand-sku-discovery.js');
   void import('./freshness.js');
   void import('./oracle-printings.js');
   void import('./oracle-bulk-refresh.js');
