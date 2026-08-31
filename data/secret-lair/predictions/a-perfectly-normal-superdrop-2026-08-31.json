@@ -1,0 +1,61 @@
+{
+  "release_name": "Secret Lair: A Perfectly Normal Superdrop",
+  "source_type": "expert_review",
+  "source_name": "Expert Review",
+  "source_observed_at": "2026-08-31T11:59:00Z",
+  "predictions": [
+    {
+      "drop_name": "Secret Lair x Marvel: Dan Hipp",
+      "prediction_type": "rating",
+      "prediction_label": "Expert rating 10",
+      "claim": "Dan Hipp is a 10/10 drop: Bristly Bill is worth the price of admission, the unique Hipp art lands well, Training Grounds should remain popular despite reprint fatigue, and the playable blue instants add depth.",
+      "predicted_rating": 10,
+      "predicted_rating_scale": 10,
+      "confidence": 0.9
+    },
+    {
+      "drop_name": "Secret Lair x Marvel: True Believers in Love",
+      "prediction_type": "rating",
+      "prediction_label": "Expert rating 8",
+      "claim": "True Believers in Love is an 8/10: shipping/fandom buzz is stronger than expected and Grave Pact plus Savor the Moment are sufficient anchors despite concentrated value.",
+      "predicted_rating": 8,
+      "predicted_rating_scale": 10,
+      "confidence": 0.85
+    },
+    {
+      "drop_name": "Featuring: Gene Luen Yang",
+      "prediction_type": "favorite",
+      "prediction_label": "POT OF GOLD",
+      "claim": "Featuring: Gene Luen Yang is the expert's single Pot of Gold pick for the Superdrop.",
+      "predicted_rank": 1,
+      "confidence": 0.92,
+      "metadata": {"designation": "pot_of_gold", "release_level_favorite": true}
+    },
+    {
+      "prediction_type": "sellout_speed",
+      "prediction_label": "Fast sellouts expected",
+      "claim": "The strongest drops are expected to sell out very quickly after launch.",
+      "confidence": 0.8
+    },
+    {
+      "prediction_type": "resale_opportunity",
+      "prediction_label": "Selective shortlist",
+      "claim": "Hipp, Lofi Girl, and Gene Luen Yang are the strongest pick-and-choose targets in the release.",
+      "confidence": 0.88,
+      "metadata": {"shortlist": ["Secret Lair x Marvel: Dan Hipp", "Secret Lair x Lofi Girl: Beats to Cast To", "Featuring: Gene Luen Yang"]}
+    },
+    {
+      "prediction_type": "bundle_strategy",
+      "prediction_label": "Bundle + individual strategy",
+      "claim": "To maximize access to the strongest Lairs amid fast sellouts, buy relevant bundles plus individual target drops in each successful checkout.",
+      "confidence": 0.78
+    },
+    {
+      "prediction_type": "bundle_strategy",
+      "prediction_label": "$199 promo optimization",
+      "claim": "The foil Command Tower promo should be treated as incremental order optimization at each $199 threshold, not as justification for otherwise weak purchases.",
+      "confidence": 0.95,
+      "metadata": {"promo_threshold_usd": 199}
+    }
+  ]
+}
