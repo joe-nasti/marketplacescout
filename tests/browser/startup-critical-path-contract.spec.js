@@ -17,7 +17,8 @@ test('startup hydrates the cache Scout actually consumes and defers feature enha
   const source=await read('src/app.js');
   expect(source).toContain("key:'scout.rows.actionability-v1'");
   expect(source).not.toContain("key:'scout.rows',scope:'user'");
-  expect(source).toContain("document.addEventListener('collectish:scout-v5-ready',run");
+  expect(source).toContain("document.addEventListener('collectish:scout-v5-ready',afterFirstPaint");
+  expect(source).toContain('timer=setTimeout(run,1800)');
 
   const beforeReady=source.slice(source.indexOf('startShell({beforeReady:'),source.indexOf('scheduleIdlePrime();'));
   expect(beforeReady).not.toContain('await installModules()');

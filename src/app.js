@@ -185,7 +185,8 @@ function scheduleFeatureModules(){
     const started=performance.now();
     void installModules().then(()=>recordTiming('deferred_feature_modules_ms',performance.now()-started)).catch(error=>console.warn('Collectish feature modules failed',error));
   };
-  document.addEventListener('collectish:scout-v5-ready',run,{once:true});
+  const afterFirstPaint=()=>{timer=setTimeout(run,1800)};
+  document.addEventListener('collectish:scout-v5-ready',afterFirstPaint,{once:true});
   document.addEventListener('collectish:ready',()=>{timer=setTimeout(run,5000)},{once:true});
 }
 
