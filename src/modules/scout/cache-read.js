@@ -20,6 +20,7 @@ export const SCOUT_CACHE_PATH='scout_opportunities_v5_cache?select=*&order=promo
 const KEY='collectishRuntimeHealth';
 const REUSE_MS=4000;
 const PERSISTED_FRESH_MS=5*60*1000;
+const PERSISTED_MAX_STALE_MS=24*60*60*1000;
 let inFlight=null,expansionInFlight=null,expansionScheduled=false,lastRows=null,lastAt=0,persistedChecked=false;
 const detailCache=new Map();
 const detailInflight=new Map();
@@ -39,9 +40,9 @@ function persistentKey(){
   return `user:${userId}:scout.rows.actionability-v1`;
 }
 
-function freshRows(record){
+function cachedRows(record){
   const age=record?Date.now()-Number(record.fetchedAt||0):Infinity;
-  return Array.isArray(record?.data)&&record.data.length&&age<=PERSISTED_FRESH_MS?{rows:record.data,age}:null;
+  return Array.isArray(record?.data)&&record.data.length&&age<=PERSISTED_MAX_STALE_MS?{rows:record.data,age,stale:age>PERSISTED_FRESH_MS}:null;
 }
 
 async function readRecentPersisted(){
@@ -49,18 +50,18 @@ async function readRecentPersisted(){
   persistedChecked=true;
   const started=performance.now();
 
-  const primed=freshRows(store.get()?.resources?.['scout.rows.actionability-v1']);
+  const primed=cachedRows(store.get()?.resources?.['scout.rows.actionability-v1']);
   if(primed){
-    health({scout_persisted_used:true,scout_persisted_source:'primed-store',scout_persisted_age_ms:Math.round(primed.age),scout_persisted_read_ms:Math.round(performance.now()-started)});
-    return primed.rows;
+    health({scout_persisted_used:true,scout_persisted_stale:primed.stale,scout_persisted_source:'primed-store',scout_persisted_age_ms:Math.round(primed.age),scout_persisted_read_ms:Math.round(performance.now()-started)});
+    return primed;
   }
 
   try{
     const record=await readPersistentResource(persistentKey());
-    const cached=freshRows(record);
+    const cached=cachedRows(record);
     if(cached){
-      health({scout_persisted_used:true,scout_persisted_source:'indexeddb',scout_persisted_age_ms:Math.round(cached.age),scout_persisted_read_ms:Math.round(performance.now()-started)});
-      return cached.rows;
+      health({scout_persisted_used:true,scout_persisted_stale:cached.stale,scout_persisted_source:'indexeddb',scout_persisted_age_ms:Math.round(cached.age),scout_persisted_read_ms:Math.round(performance.now()-started)});
+      return cached;
     }
   }catch{}
   health({scout_persisted_used:false,scout_persisted_read_ms:Math.round(performance.now()-started)});
@@ -72,17 +73,18 @@ function persistRows(rows){
   void writePersistentResource(persistentKey(),rows,{fetchedAt:Date.now()}).catch(()=>{});
 }
 
-async function expandScoutRankings(options={}){
+async function expandScoutRankings(options={},settings={}){
   if(expansionInFlight)return expansionInFlight;
   expansionInFlight=(async()=>{
     const started=performance.now();
     let rows=null;
     try{rows=await baseRest(SCOUT_LIST_CACHE_FULL_PATH,options)}catch{}
     if(!Array.isArray(rows)||!rows.length)rows=await baseRest(SCOUT_LIST_LIVE_FULL_PATH,options);
-    if(!Array.isArray(rows)||rows.length<=Number(lastRows?.length||0))return lastRows;
+    if(!Array.isArray(rows)||!rows.length)return lastRows;
+    if(!settings.forceApply&&rows.length<=Number(lastRows?.length||0))return lastRows;
     lastRows=rows;lastAt=performance.now();persistRows(rows);
-    health({scout_list_expanded:true,scout_list_expand_ms:Math.round(performance.now()-started),scout_list_rows:rows.length});
-    document.dispatchEvent(new CustomEvent('collectish:scout-rankings-expanded',{detail:{rows,count:rows.length}}));
+    health({scout_list_expanded:true,scout_list_expand_ms:Math.round(performance.now()-started),scout_list_rows:rows.length,scout_persisted_stale:false,scout_background_refreshed:Boolean(settings.forceApply)});
+    document.dispatchEvent(new CustomEvent('collectish:scout-rankings-expanded',{detail:{rows,count:rows.length,refreshed:Boolean(settings.forceApply)}}));
     return rows;
   })().catch(()=>{health({scout_list_expand_failed:true});return lastRows||[]}).finally(()=>{expansionInFlight=null});
   return expansionInFlight;
@@ -107,7 +109,12 @@ export async function readScoutRankings(options={}){
   }
 
   const persisted=await readRecentPersisted();
-  if(persisted){lastRows=persisted;lastAt=performance.now();scheduleRankingExpansion(options);return persisted}
+  if(persisted){
+    lastRows=persisted.rows;lastAt=performance.now();
+    if(persisted.stale){expansionScheduled=true;setTimeout(()=>void expandScoutRankings(options,{forceApply:true}),0)}
+    else scheduleRankingExpansion(options);
+    return persisted.rows;
+  }
 
   inFlight=(async()=>{
     const t0=performance.now();
