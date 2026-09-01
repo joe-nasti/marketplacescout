@@ -56,8 +56,14 @@ test('Signal Story and Raw Source restore their parent screens through browser B
   await page.evaluate(()=>document.dispatchEvent(new CustomEvent('collectish:open-card-evidence',{detail:{card_name:'Solphim, Mayhem Dominus'}})));
   await expect(page.getByRole('heading',{name:'Solphim, Mayhem Dominus'})).toBeVisible();
   await expect.poll(()=>new URL(page.url()).searchParams.get('story')).toBe('Solphim, Mayhem Dominus');
+  await expect.poll(()=>new URL(page.url()).searchParams.get('storyView')).toBe('timeline');
   expect(new URL(page.url()).searchParams.get('q')).toBe('solphim');
   expect(new URL(page.url()).searchParams.get('grade')).toBe('A');
+
+  await page.getByRole('button',{name:'All signals'}).click();
+  await expect(page.getByRole('dialog').getByText('Filter signals')).toBeVisible();
+  await page.getByRole('button',{name:'Competitive'}).click();
+  await expect(page.getByRole('button',{name:'Competitive'})).toBeVisible();
 
   await page.getByRole('button',{name:/Sources/}).click();
   await expect.poll(()=>new URL(page.url()).searchParams.get('storyView')).toBe('sources');
