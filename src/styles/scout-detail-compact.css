@@ -57,7 +57,7 @@
 }
 
 
-/* Approved full-screen Android drill-down: Scout → Card, with All printings in the scroll. Deployment retry marker. */
+/* Approved full-screen Android drill-down: Scout → Card, with All printings in the scroll. Card QA deployment retry marker. */
 @media(max-width:700px){
   body.cx-scout-detail-lock{overflow:hidden!important}
   #cxScout .cx-scout-layout>aside.cx-scout-detail{inset:0 0 calc(58px + env(safe-area-inset-bottom)) 0!important;top:0!important;max-height:none!important;width:100%!important;padding:0 max(14px,env(safe-area-inset-right)) 24px max(14px,env(safe-area-inset-left))!important;border:0!important;border-radius:0!important;background:var(--color-bg-primary)!important;box-shadow:none!important;transform:translateX(102%)!important;transition:transform .2s ease!important;overscroll-behavior:contain;scrollbar-width:none}
