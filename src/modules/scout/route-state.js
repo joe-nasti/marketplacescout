@@ -12,7 +12,7 @@ function onScout(){
 function urlState(){
   const p=new URL(location.href).searchParams;
   const view=VIEWS.has(p.get('view'))?p.get('view'):'top';
-  return {view,sku:p.get('sku')||''};
+  return {view,sku:p.get('sku')||'',product_id:p.get('product')||'',card_name:p.get('card')||'',set_code:p.get('set')||'',finish:p.get('finish')||''};
 }
 function writeUrl({view,sku},{push=false}={}){
   if(!onScout())return false;
@@ -20,8 +20,6 @@ function writeUrl({view,sku},{push=false}={}){
   if(view&&view!=='top')p.set('view',view);else p.delete('view');
   if(sku&&view!=='quick')p.set('sku',sku);else p.delete('sku');
   p.delete('overlay');
-  // Scout is the canonical default route. Keeping ?tab=scout out of the URL
-  // prevents legacy Scout popstate reload hooks from fighting native Back.
   p.delete('tab');
   const next=`${u.pathname}${p.toString()?`?${p}`:''}${u.hash}`;
   const current=`${location.pathname}${location.search}${location.hash}`;
@@ -51,16 +49,21 @@ function explicitOpen(event){
   const detail=event.detail||{};
   rememberExplicitSku(detail.sku_id||detail.sku);
 }
+function openLookup(state){
+  if(!state.product_id&&!state.card_name)return;
+  document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{source:'discord-deep-link',product_id:state.product_id||null,card_name:state.card_name||null,set_code:state.set_code||null,finish:state.finish||null}}));
+}
 function applyState(){
   if(!onScout())return;
   const renderer=window.CollectishScoutRenderer;
   if(!renderer?.setSaved||store.get().scout?.status!=='ready')return;
-  const {view,sku}=urlState();
+  const state=urlState(),{view,sku}=state;
   explicitSku=sku;
   applying=true;
   try{
     renderer.setSaved(view);
     if(sku&&view!=='quick')window.CollectishScoutDetailNavigation?.open?.({sku_id:sku});
+    else if((state.product_id||state.card_name)&&view!=='quick')openLookup(state);
     else window.CollectishNavigation?.closeScoutDetail?.({history:false});
   }finally{applying=false}
   writeUrl({view,sku});
