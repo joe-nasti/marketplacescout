@@ -55,3 +55,54 @@
   #cxScout .cx-scout-market-board{margin-top:0!important;padding:12px 0!important;border-bottom:var(--workbench-rule)!important}
   #cxScout .cx-market-board-row span small{display:block;font-size:7px;line-height:1;color:var(--color-text-secondary)}
 }
+
+
+/* Approved full-screen Android drill-down: Scout → Card, with All printings in the scroll. */
+@media(max-width:700px){
+  body.cx-scout-detail-lock{overflow:hidden!important}
+  #cxScout .cx-scout-layout>aside.cx-scout-detail{inset:0 0 calc(58px + env(safe-area-inset-bottom)) 0!important;top:0!important;max-height:none!important;width:100%!important;padding:0 max(14px,env(safe-area-inset-right)) 24px max(14px,env(safe-area-inset-left))!important;border:0!important;border-radius:0!important;background:var(--color-bg-primary)!important;box-shadow:none!important;transform:translateX(102%)!important;transition:transform .2s ease!important;overscroll-behavior:contain;scrollbar-width:none}
+  #cxScout .cx-scout-layout>aside.cx-scout-detail::-webkit-scrollbar{display:none}
+  #cxScout .cx-scout-layout>aside.cx-mobile-detail-open{transform:translateX(0)!important}
+  #cxScout .cx-scout-layout>aside.cx-mobile-detail-open:before{display:none!important}
+  #cxScout .cx-card-detail-nav{position:sticky;top:0;z-index:4;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:12px;min-height:58px;margin:0 -14px 14px;padding:7px 14px;border-bottom:1px solid var(--color-border);background:color-mix(in srgb,var(--color-bg-primary) 96%,transparent);backdrop-filter:blur(12px)}
+  #cxScout .cx-card-detail-nav .cx-mobile-detail-close{position:static!important;width:auto!important;height:40px!important;min-height:40px!important;padding:0 10px!important;border:0!important;background:transparent!important;color:var(--color-accent)!important;font-size:12px!important;font-weight:850!important}
+  #cxScout .cx-card-detail-nav>div{display:grid;gap:1px;min-width:0}
+  #cxScout .cx-card-detail-nav strong{font-size:12px;line-height:1.2}
+  #cxScout .cx-card-detail-nav small{font-size:10px;color:var(--color-text-secondary)}
+  #cxScout .cx-v5-compact-head{display:grid;grid-template-columns:124px minmax(0,1fr);gap:16px;padding:0 0 14px!important;border-bottom:1px solid var(--color-border)}
+  #cxScout .cx-v5-compact-head .cx-scout-hero{width:124px!important;flex:none!important;border-radius:5px!important;box-shadow:0 8px 28px color-mix(in srgb,#000 28%,transparent)}
+  #cxScout .cx-v5-compact-info{gap:6px;padding-top:3px}
+  #cxScout .cx-v5-compact-title{font-size:20px;line-height:1.08;letter-spacing:-.025em}
+  #cxScout .cx-v5-compact-set{font-size:11px;white-space:normal;line-height:1.3}
+  #cxScout .cx-v5-compact-meta{align-items:flex-start;margin-top:2px}
+  #cxScout .cx-v5-printing-chip{min-height:0;padding:0;border:0;background:transparent;color:var(--color-accent);font-size:11px}
+  #cxScout .cx-v5-overall-chip{min-height:30px}
+  #cxScout .cx-v5-compact-badges{display:none!important}
+  #cxScout .cx-card-detail-thesis{margin:8px 0 0;color:var(--color-text-secondary);font-size:11px;line-height:1.42}
+  #cxScout .cx-card-kpi-tape{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:0 -14px;border-bottom:1px solid var(--color-border)}
+  #cxScout .cx-card-kpi-tape>span{min-width:0;padding:11px 5px;text-align:center;border-right:1px solid var(--color-border)}
+  #cxScout .cx-card-kpi-tape>span:last-child{border-right:0}
+  #cxScout .cx-card-kpi-tape small,#cxScout .cx-card-kpi-tape b{display:block;white-space:nowrap}
+  #cxScout .cx-card-kpi-tape small{font-size:8px;color:var(--color-text-secondary)}
+  #cxScout .cx-card-kpi-tape b{margin-top:4px;font-size:13px;font-variant-numeric:tabular-nums}
+  #cxScout .cx-card-kpi-tape>span:first-child b{color:var(--color-accent)}
+  #cxScout .cx-card-kpi-tape .positive b{color:var(--color-success)}
+  #cxScout .cx-v5-score-strip,#cxScout .cx-v5-tier-best,#cxScout .cx-v5-tier-cash{display:none!important}
+  #cxScout .cx-scout-market-board{padding-top:14px!important}
+  #cxScout .cx-scout-market-board>.cx-section-title{font-size:16px!important;letter-spacing:-.01em!important;text-transform:none!important}
+  #cxScout .cx-market-board{margin-left:-14px;margin-right:-14px;border-left:0;border-right:0}
+  #cxScout .cx-market-board-head,#cxScout .cx-market-board-row{grid-template-columns:minmax(78px,1.15fr) repeat(2,minmax(70px,.9fr)) minmax(70px,.75fr)}
+  #cxScout .cx-market-board-row>strong{color:var(--color-accent);font-size:11px}
+  #cxScout .cx-market-board-row span b{font-size:12px}
+  #cxScout .cx-market-board-row.positive span:last-of-type b{color:var(--color-success)}
+  #cxScout .cx-card-best-opportunity{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;margin:0 -14px!important;padding:12px 14px!important;border-bottom:1px solid var(--color-border)!important;background:transparent!important}
+  #cxScout .cx-card-best-opportunity>small{grid-column:1;color:var(--color-accent);font-size:10px}
+  #cxScout .cx-card-best-opportunity>strong{grid-column:1;font-size:13px;white-space:normal}
+  #cxScout .cx-card-best-opportunity>span{grid-column:2;grid-row:1/3;align-self:center;color:var(--color-success);font-size:12px}
+  #cxScout .cx-scout-inline-printings{margin:0 -14px;padding:14px 14px;border-bottom:1px solid var(--color-border)}
+  #cxScout .cx-inline-printings-head strong{font-size:16px}
+  #cxScout .cx-inline-printings-columns,#cxScout .cx-inline-printing-row{grid-template-columns:minmax(0,1fr) 46px 62px 62px}
+  #cxScout .cx-inline-printing-row{min-height:52px}
+  #cxScout .cx-inline-printing-row span:first-child strong{font-size:11px}
+  #cxScout .cx-inline-printing-row span:not(:first-child) b{font-size:10px}
+}
