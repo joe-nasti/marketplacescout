@@ -12,13 +12,14 @@ function onScout(){
 function urlState(){
   const p=new URL(location.href).searchParams;
   const view=VIEWS.has(p.get('view'))?p.get('view'):'top';
-  return {view,sku:p.get('sku')||'',product_id:p.get('product')||'',card_name:p.get('card')||'',set_code:p.get('set')||'',finish:p.get('finish')||''};
+  return {view,sku:p.get('sku')||'',fromCard:p.get('fromCard')||'',product_id:p.get('product')||'',card_name:p.get('card')||'',set_code:p.get('set')||'',finish:p.get('finish')||''};
 }
-function writeUrl({view,sku},{push=false}={}){
+function writeUrl({view,sku,fromCard=''},{push=false}={}){
   if(!onScout())return false;
   const u=new URL(location.href),p=u.searchParams;
   if(view&&view!=='top')p.set('view',view);else p.delete('view');
   if(sku&&view!=='quick')p.set('sku',sku);else p.delete('sku');
+  if(sku&&fromCard&&String(fromCard)!==String(sku)&&view!=='quick')p.set('fromCard',fromCard);else p.delete('fromCard');
   p.delete('overlay');
   p.delete('tab');
   const next=`${u.pathname}${p.toString()?`?${p}`:''}${u.hash}`;
@@ -30,15 +31,15 @@ function writeUrl({view,sku},{push=false}={}){
 function writeView(){
   if(applying||!onScout())return;
   const scout=store.get().scout||{},view=VIEWS.has(scout.savedView)?scout.savedView:'top';
-  writeUrl({view,sku:view==='quick'?'':explicitSku||urlState().sku});
+  const current=urlState();writeUrl({view,sku:view==='quick'?'':explicitSku||current.sku,fromCard:view==='quick'?'':current.fromCard});
 }
-function rememberExplicitSku(value){
+function rememberExplicitSku(value,{fromCard=''}={}){
   const sku=String(value||'');
   if(!sku||!onScout())return;
   const prior=urlState().sku;
   explicitSku=sku;
   const scout=store.get().scout||{},view=VIEWS.has(scout.savedView)?scout.savedView:'top';
-  writeUrl({view,sku},{push:sku!==prior});
+  writeUrl({view,sku,fromCard},{push:sku!==prior});
 }
 function explicitClick(event){
   const hit=event.target.closest?.('#cxScout .cx-scout-card[data-sku], #cxScout [data-quick-turn-sku]');
@@ -47,7 +48,7 @@ function explicitClick(event){
 }
 function explicitOpen(event){
   const detail=event.detail||{};
-  rememberExplicitSku(detail.sku_id||detail.sku);
+  rememberExplicitSku(detail.sku_id||detail.sku,{fromCard:detail.from_card_sku||detail.fromCard||''});
 }
 function openLookup(state){
   if(!state.product_id&&!state.card_name)return;
@@ -57,16 +58,16 @@ function applyState(){
   if(!onScout())return;
   const renderer=window.CollectishScoutRenderer;
   if(!renderer?.setSaved||store.get().scout?.status!=='ready')return;
-  const state=urlState(),{view,sku}=state;
+  const state=urlState(),{view,sku,fromCard}=state;
   explicitSku=sku;
   applying=true;
   try{
     renderer.setSaved(view);
-    if(sku&&view!=='quick')window.CollectishScoutDetailNavigation?.open?.({sku_id:sku});
+    if(sku&&view!=='quick')window.CollectishScoutDetailNavigation?.open?.({sku_id:sku,from_card_sku:fromCard});
     else if((state.product_id||state.card_name)&&view!=='quick')openLookup(state);
     else window.CollectishNavigation?.closeScoutDetail?.({history:false});
   }finally{applying=false}
-  writeUrl({view,sku});
+  writeUrl({view,sku,fromCard});
 }
 
 export function installScoutRouteState(){
