@@ -1,10 +1,8 @@
 import store from '../../state/store.js';
-import { rest } from '../../core/rest.js';
+import { clearOracleFamily, readOracleFamily, seedOracleFamily } from './oracle-family-data.js';
 
 let installed=false,seq=0;
 const FAMILY_LIMIT=2000;
-const CACHE_TTL_MS=60_000;
-const familyCache=new Map();
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const money=n=>n==null||n===''||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
@@ -46,11 +44,6 @@ function materialAlternative(rows,sku){
   if(Number.isFinite(currentScore)&&bestScout&&bestScout.value-currentScore>=8)return{row:bestScout.row,metric:'Scout score',detail:`+${Math.round(bestScout.value-currentScore)} Scout points`};
   return null;
 }
-async function family(oracle){
-  const cached=familyCache.get(oracle);if(cached&&Date.now()-cached.at<CACHE_TTL_MS)return cached.rows;
-  const rows=await rest('rpc/scout_catalog_by_oracle',{method:'POST',body:{p_oracle_id:oracle,p_limit:FAMILY_LIMIT}})||[];
-  familyCache.set(oracle,{at:Date.now(),rows});return rows;
-}
 function ensureStyle(){
   if(document.getElementById('cxOracleBetterPrintingStyle'))return;
   const s=document.createElement('style');s.id='cxOracleBetterPrintingStyle';s.textContent=`.cx-oracle-better-printing{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center;width:100%;margin-top:8px;padding:8px 9px;border:1px solid rgba(113,213,154,.32);border-radius:10px;background:rgba(113,213,154,.07);color:inherit;text-align:left;cursor:pointer;font:inherit}.cx-oracle-better-printing strong{font-size:11px}.cx-oracle-better-printing span{font-size:10px;color:var(--cx-muted)}.cx-oracle-better-printing b{grid-column:2;grid-row:1/3;color:var(--cx-accent);font-size:15px}.cx-oracle-better-printing:hover strong,.cx-oracle-better-printing:focus-visible strong{text-decoration:underline}.cx-oracle-better-printing:focus-visible{outline:2px solid var(--cx-accent);outline-offset:2px}@media(max-width:520px){.cx-oracle-better-printing{padding:9px}}`;document.head.appendChild(s);
@@ -64,15 +57,15 @@ async function decorate(sku,token,attempt=0){
   host.querySelector('.cx-oracle-better-printing')?.remove();
   const oracle=String(compare.dataset.oracleId||'');if(!oracle)return;
   try{
-    const rows=await family(oracle);if(token!==seq||!host.isConnected||String(store.get().scout?.selectedSku||'')!==String(sku))return;
+    const rows=await readOracleFamily(oracle,{limit:FAMILY_LIMIT});if(token!==seq||!host.isConnected||String(store.get().scout?.selectedSku||'')!==String(sku))return;
     const alt=materialAlternative(rows,sku);if(!alt)return;
     const button=document.createElement('button');button.type='button';button.className='cx-oracle-better-printing';button.dataset.betterSku=String(alt.row.sku_id||'');button.innerHTML=`<strong>Better printing available</strong><span>${esc(alt.detail)} · ${esc(label(alt.row))}</span><b aria-hidden="true">→</b>`;button.title=`Compare all printings — ${alt.metric} currently favors ${label(alt.row)}`;button.addEventListener('click',()=>compare.click());compare.insertAdjacentElement('afterend',button);
   }catch{}
 }
 function onDetail(e){const sku=e.detail?.sku;if(!sku)return;const token=++seq;setTimeout(()=>void decorate(sku,token),0)}
-function invalidateFamily(e){const oracle=e.detail?.oracle;if(oracle)familyCache.delete(String(oracle))}
+function invalidateFamily(e){const oracle=e.detail?.oracle;if(oracle)clearOracleFamily(String(oracle),{limit:FAMILY_LIMIT})}
 function onLiveFamily(e){
-  const oracle=String(e.detail?.oracle||'');if(!oracle)return;familyCache.delete(oracle);
+  const oracle=String(e.detail?.oracle||'');if(!oracle)return;seedOracleFamily(oracle,Array.isArray(e.detail?.rows)?e.detail.rows:[],{limit:FAMILY_LIMIT});
   const sku=store.get().scout?.selectedSku;if(sku&&document.getElementById('cxParityDetail'))onDetail({detail:{sku}});
 }
 function hydrate(){const sku=store.get().scout?.selectedSku;if(sku&&document.getElementById('cxParityDetail'))onDetail({detail:{sku}})}
