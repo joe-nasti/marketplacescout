@@ -1,3 +1,4 @@
+# GitHub Pages source: GitHub Actions. Keep production on the validated Vite artifact.
 name: Deploy Collectish web
 
 on:
