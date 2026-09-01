@@ -19,6 +19,7 @@ const PERSISTED_FRESH_MS=5*60*1000;
 let inFlight=null,lastRows=null,lastAt=0,persistedChecked=false;
 const detailCache=new Map();
 const detailInflight=new Map();
+const oracleName=s=>String(s||'').replace(/\s*\([^)]*(foil|showcase|borderless|extended art|serialized|retro frame|etched|alternate art|halo foil|rainbow foil|surge foil|galaxy foil|fracture foil)[^)]*\)\s*/ig,' ').replace(/\s+/g,' ').trim();
 
 function health(patch){
   window.COLLECTISH_RUNTIME_HEALTH={...(window.COLLECTISH_RUNTIME_HEALTH||{}),...patch};
@@ -104,6 +105,21 @@ function detailPath(table,row){
   return `${table}?select=*&product_id=eq.${encodeURIComponent(row?.product_id||'')}&limit=1`;
 }
 
+async function enrichCanonicalEdhrec(detail){
+  if(Number(detail?.edhrec_rank||0)>0)return detail;
+  const cardName=oracleName(detail?.product_name);if(!cardName)return detail;
+  try{
+    const rows=await baseRest('rpc/scout_canonical_edhrec_rank',{method:'POST',body:{p_card_name:cardName}});
+    const rank=Number(rows?.[0]?.edhrec_rank||0);
+    if(rank>0){
+      health({scout_edhrec_canonical_hit:true});
+      return {...detail,edhrec_rank:rank,edhrec_observed_at:rows[0]?.observed_at||detail.edhrec_observed_at||null};
+    }
+  }catch{}
+  health({scout_edhrec_canonical_hit:false});
+  return detail;
+}
+
 export async function readScoutDetail(row){
   const key=detailKey(row);if(!key)return row||null;
   if(detailCache.has(key))return detailCache.get(key);
@@ -113,7 +129,7 @@ export async function readScoutDetail(row){
     let detail=null;
     try{const x=await baseRest(detailPath('scout_opportunities_v5_cache',row));detail=Array.isArray(x)?x[0]||null:null}catch{}
     if(!detail){const x=await baseRest(detailPath('scout_opportunities_v5',row));detail=Array.isArray(x)?x[0]||null:null}
-    const merged={...(row||{}),...(detail||{})};
+    const merged=await enrichCanonicalEdhrec({...(row||{}),...(detail||{})});
     detailCache.set(key,merged);
     health({scout_detail_read_ms:Math.round(performance.now()-started),scout_detail_reads:Number(window.COLLECTISH_RUNTIME_HEALTH?.scout_detail_reads||0)+1});
     return merged;
