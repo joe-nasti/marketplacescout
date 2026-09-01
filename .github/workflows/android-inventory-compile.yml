@@ -51,7 +51,7 @@ jobs:
           ! grep -q 'sessionState() != "authenticated"' app/src/main/java/com/collectish/agent/ReadOnlyProbeBridge.kt
           grep -q 'text = "← Collectish"' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'sellerReturn.visibility=View.VISIBLE' app/src/main/java/com/collectish/agent/MainActivity.kt
-          grep -q 'settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE' app/src/main/java/com/collectish/agent/MainActivity.kt
+          grep -q 'settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'runHostedBootDiagnostic(view)' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'agentWeb.saveState(outState)' app/src/main/java/com/collectish/agent/MainActivity.kt
           grep -q 'agentWeb.restoreState(savedInstanceState)' app/src/main/java/com/collectish/agent/MainActivity.kt
