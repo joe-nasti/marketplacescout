@@ -22,7 +22,9 @@ test('Signal Story, deck and Raw Source screens share browser and Android histor
   expect(source).toContain("u.searchParams.set('story',card)");
   expect(source).toContain("u.searchParams.set('storyItem',item)");
   expect(source).toContain("item:`deck:${deckId}`");
-  expect(source).toContain('<div class="cx-evidence-kicker">Raw Source</div>');
+  expect(source).toContain('<div class="cx-evidence-kicker">Signal Story · Raw Source</div>');
+  expect(source).toContain('What the source says');
+  expect(source).toContain('How Collectish uses it');
   expect(source).toContain("addEventListener('popstate',()=>void syncStoryRoute())");
 });
 
@@ -75,14 +77,18 @@ test('Signal Story and Raw Source restore their parent screens through browser B
 
   await page.getByRole('button',{name:/Sources/}).click();
   await expect.poll(()=>new URL(page.url()).searchParams.get('storyView')).toBe('sources');
-  await page.getByRole('button',{name:'View source ›'}).click();
-  await expect(page.getByText('Raw Source',{exact:true})).toBeVisible();
+  await page.locator('.cx-evidence-drawer').evaluate(el=>{el.style.height='120px';el.scrollTop=50});
+  await expect.poll(()=>page.locator('.cx-evidence-drawer').evaluate(el=>el.scrollTop)).toBe(50);
+  await page.getByRole('button',{name:'View source ›'}).evaluate(el=>el.click());
+  await expect(page.getByText('Signal Story · Raw Source',{exact:true})).toBeVisible();
   await expect(page.getByText('A stored summary of the observed signal.')).toBeVisible();
+  await expect(page.getByText('How Collectish uses it',{exact:true})).toBeVisible();
   await expect.poll(()=>new URL(page.url()).searchParams.get('storyItem')).toBe('intel:intel-1');
 
   await page.goBack();
   await expect(page.getByRole('button',{name:/Sources/})).toHaveClass(/active/);
   await expect(page.getByRole('button',{name:'View source ›'})).toBeVisible();
+  await expect.poll(()=>page.locator('.cx-evidence-drawer').evaluate(el=>el.scrollTop)).toBe(50);
   expect(new URL(page.url()).searchParams.get('storyItem')).toBeNull();
 
   await page.goBack();
