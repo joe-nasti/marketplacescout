@@ -5,18 +5,32 @@ let openSeq=0;
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const money=n=>n==null||n===''||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
 const lower=s=>String(s||'').trim().toLowerCase();
-const baseName=s=>String(s||'').replace(/\s*\([^)]*(foil|showcase|borderless|extended art|serialized|retro frame|etched|alternate art|halo foil|rainbow foil|surge foil|galaxy foil)[^)]*\)\s*/ig,' ').replace(/\s+/g,' ').trim();
+const baseName=s=>String(s||'')
+  .replace(/\s*\([^)]*(foil|showcase|borderless|extended art|serialized|retro frame|etched|alternate art|halo foil|rainbow foil|surge foil|galaxy foil)[^)]*\)\s*/ig,' ')
+  .replace(/\s*\(\d+[a-z]?\)\s*$/ig,' ')
+  .replace(/\s+/g,' ').trim();
 
 function rows(){return store.get().scout?.rows||[]}
 function score(r){return Number(r?.promoted_score??r?.v5_shadow_score??r?.opportunity_score??0)}
 function grade(r){return r?.promoted_grade||r?.v5_shadow_grade||(score(r)>=80?'A':score(r)>=70?'B':score(r)>=60?'C':score(r)>=50?'D':'F')}
+function finishMatches(row,wanted){
+  const w=lower(wanted);if(!w)return true;
+  const p=lower(row?.printing||row?.finish);
+  if(w==='foil')return p.includes('foil')&&!p.includes('non foil')&&!p.includes('non-foil');
+  if(w==='regular'||w==='nonfoil'||w==='non foil')return !p.includes('foil')||p.includes('non foil')||p.includes('non-foil');
+  return true;
+}
 function match(detail={}){
   const list=rows();
   if(detail.sku_id){const r=list.find(x=>String(x.sku_id)===String(detail.sku_id));if(r)return r}
   if(detail.scryfall_id){const r=list.find(x=>String(x.scryfall_id||'')===String(detail.scryfall_id));if(r)return r}
   if(detail.product_id){const r=list.find(x=>String(x.product_id||'')===String(detail.product_id));if(r)return r}
-  const wanted=lower(baseName(detail.card_name));
-  return wanted?list.find(x=>lower(baseName(x.product_name))===wanted)||null:null;
+  const wanted=lower(baseName(detail.card_name));if(!wanted)return null;
+  let candidates=list.filter(x=>lower(baseName(x.product_name))===wanted);
+  const setHint=lower(detail.set_code||detail.set_name);
+  if(setHint){const exact=candidates.filter(x=>lower(x.set_code)===setHint||lower(x.set_name)===setHint);if(exact.length)candidates=exact}
+  const exactFinish=candidates.filter(x=>finishMatches(x,detail.finish));if(exactFinish.length)candidates=exactFinish;
+  return candidates[0]||null;
 }
 function metric(label,value,sub=''){return `<div><span>${esc(label)}</span><strong>${esc(value)}</strong>${sub?`<small>${esc(sub)}</small>`:''}</div>`}
 function renderFast(row,detail=null){
