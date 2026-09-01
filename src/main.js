@@ -39,6 +39,18 @@ const oauthConsent=/\/oauth\/consent\/?$/.test(location.pathname);
 if(oauthConsent){
   import('./modules/oauth-consent/main.js').then(module=>module.startOAuthConsent()).catch(showStartupError);
 }else{
+  const installDeferredStyles=()=>{
+    if(import.meta.env?.PROD){
+      import('./styles/deferred.css').catch(error=>console.warn('Collectish deferred styles failed',error));
+      return;
+    }
+    if(document.getElementById('collectishDeferredStyles'))return;
+    const link=document.createElement('link');
+    link.id='collectishDeferredStyles';
+    link.rel='stylesheet';
+    link.href=new URL('./styles/deferred.css',import.meta.url).href;
+    document.head.appendChild(link);
+  };
   const installSecondaryEntryModules=()=>{
     const run=()=>Promise.allSettled([
       import('./modules/seller/inventory-session-status.js').then(module=>module.installInventorySessionStatus()),
@@ -48,6 +60,7 @@ if(oauthConsent){
     if('requestIdleCallback' in window)requestIdleCallback(()=>void run(),{timeout:3500});
     else setTimeout(()=>void run(),1200);
   };
+  document.addEventListener('collectish:ready',installDeferredStyles,{once:true});
   document.addEventListener('collectish:ready',installSecondaryEntryModules,{once:true});
   import('./app.js').then(app=>app.startCollectish()).catch(showStartupError);
 }
