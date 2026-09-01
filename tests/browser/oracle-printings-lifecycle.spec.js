@@ -130,6 +130,8 @@ test('Oracle bulk refresh watches queued SKUs and refreshes family winners as ev
   const bulk=await read('src/modules/scout/oracle-bulk-refresh.js');
   expect(bulk).toContain('WATCH_DELAYS=[1500,2500,4000,6000,9000,12000,15000,20000,30000]');
   expect(bulk).toContain('watchRefreshes');
+  expect(bulk).toContain('readOracleFamily(oracle,{limit:FAMILY_LIMIT,force:true})');
+  expect(bulk).toContain('seedOracleFamily(oracle,rows,{limit:FAMILY_LIMIT})');
   expect(bulk).toContain('collectish:oracle-family-live-update');
   expect(bulk).toContain("collectish:scout-universal-results");
   expect(bulk).toContain('Refreshing…');
@@ -149,6 +151,8 @@ test('normal Scout detail proactively surfaces materially better current sibling
   expect(source).toContain('bestVelocity.value>=currentVelocity*1.5');
   expect(source).toContain('bestScout.value-currentScore>=8');
   expect(source).toContain('compare.click()');
-  expect(source).toContain('CACHE_TTL_MS=60_000');
+  expect(source).toContain('readOracleFamily(oracle,{limit:FAMILY_LIMIT})');
+  expect(source).toContain('clearOracleFamily(String(oracle),{limit:FAMILY_LIMIT})');
+  expect(source).not.toContain('familyCache');
   expect(source).toContain('collectish:oracle-family-live-update');
 });
