@@ -7,6 +7,7 @@ const expected=[
   'activity-bar.css',
   'admin-alerts.css',
   'admin-catalyst-calibration.css',
+  'admin-catalyst-production.css',
   'admin.css',
   'ask-history.css',
   'ask-readable.css',
