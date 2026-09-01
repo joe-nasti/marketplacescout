@@ -6,10 +6,11 @@ const read=file=>readFile(path.join(process.cwd(),file),'utf8');
 
 test('Android boot does not block or cache-bust the hashed application entry',async()=>{
   const index=await read('index.html');
-  expect(index).toContain("void clearNativeWorkerState()");
+  expect(index).toContain("setTimeout(()=>void clearNativeWorkerState(),15_000)");
   expect(index).toContain("await import('./src/main.js')");
   expect(index).not.toContain('src/main.js?boot=${nonce}');
   expect(index).not.toContain('await clearNativeWorkerState()');
+  expect(index.indexOf("await import('./src/main.js')")).toBeLessThan(index.indexOf('setTimeout(()=>void clearNativeWorkerState()'));
 });
 
 test('Android reuses hosted assets and defers competing background loads',async()=>{
