@@ -5,10 +5,12 @@ on:
       - 'supabase/functions/ask-collectish-route-intents/**'
       - 'supabase/functions/ask-collectish-api/**'
       - 'supabase/functions/ask-collectish-identity-recovery/**'
+      - 'supabase/functions/ask-collectish-orchestrator/**'
       - 'supabase/functions/ask-collectish-web-research/**'
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
       - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'supabase/migrations/20260831200700_make_ask_price_history_index_native.sql'
+      - 'supabase/migrations/20260901140500_ask_market_research_scan_fallback.sql'
       - 'src/modules/index.js'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'src/modules/ask/structured-surfaces.js'
@@ -21,6 +23,7 @@ on:
       - 'tools/check-ask-causal-move-routing.mjs'
       - 'tools/check-ask-move-family-identity.mjs'
       - 'tools/check-ask-causal-evidence.mjs'
+      - 'tools/check-ask-market-research-fallback.mjs'
       - '.github/workflows/ask-history-routing-guard.yml'
   push:
     branches: [main]
@@ -28,10 +31,12 @@ on:
       - 'supabase/functions/ask-collectish-route-intents/**'
       - 'supabase/functions/ask-collectish-api/**'
       - 'supabase/functions/ask-collectish-identity-recovery/**'
+      - 'supabase/functions/ask-collectish-orchestrator/**'
       - 'supabase/functions/ask-collectish-web-research/**'
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
       - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'supabase/migrations/20260831200700_make_ask_price_history_index_native.sql'
+      - 'supabase/migrations/20260901140500_ask_market_research_scan_fallback.sql'
       - 'src/modules/index.js'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'src/modules/ask/structured-surfaces.js'
@@ -44,6 +49,7 @@ on:
       - 'tools/check-ask-causal-move-routing.mjs'
       - 'tools/check-ask-move-family-identity.mjs'
       - 'tools/check-ask-causal-evidence.mjs'
+      - 'tools/check-ask-market-research-fallback.mjs'
       - '.github/workflows/ask-history-routing-guard.yml'
 jobs:
   guard:
@@ -61,3 +67,4 @@ jobs:
       - run: node tools/check-ask-causal-move-routing.mjs
       - run: node tools/check-ask-move-family-identity.mjs
       - run: node tools/check-ask-causal-evidence.mjs
+      - run: node tools/check-ask-market-research-fallback.mjs
