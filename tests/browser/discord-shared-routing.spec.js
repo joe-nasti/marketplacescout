@@ -29,6 +29,18 @@ test('shared router owns history and seller surfaces with finish-aware moves',()
   expect(router).toContain('historyAlias');
 });
 
+test('named MTGStocks requests execute source lookup and refresh without clarification',()=>{
+  const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
+  expect(router).toContain("route:'named_source_snapshot'");
+  expect(router).toContain("type:'named_source_snapshot'");
+  expect(router).toContain("refresh:'market-intel-mtgstocks-interests-sync'");
+  expect(router).toContain('refresh_attempted:stale');
+  expect(router).toContain('fallback_used:Boolean(refresh_error&&after.rows.length)');
+  expect(router).toContain("scout_signal_required:false");
+  expect(router).toContain("source_scope:'same_source_same_feature'");
+  expect(router).toMatch(/routeSource\(q\).*priceHistoryIntent/s);
+});
+
 test('web Ask converges on the stable API and renders shared surfaces',()=>{
   const proxy=read('src/modules/ask/endpoint-proxy.js');
   const renderer=read('src/modules/ask/structured-surfaces.js');
