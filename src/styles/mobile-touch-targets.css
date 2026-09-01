@@ -1,3 +1,4 @@
 @media(max-width:700px){
   .cx-mobile-nav.cx-mobile-nav button{min-height:48px!important;height:auto!important}
+  .cx-evidence-shell{z-index:20000!important}
 }
