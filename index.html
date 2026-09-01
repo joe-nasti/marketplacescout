@@ -63,7 +63,9 @@
       window.__collectishBootNonce=nonce;
       const nativeAndroid=Boolean(window.CollectishAndroid);
       if(nativeAndroid){
-        await clearNativeWorkerState();
+        // Hashed Vite assets are immutable and safe to reuse. Retire any legacy
+        // worker without holding the Android first paint behind storage cleanup.
+        void clearNativeWorkerState();
       }else if('serviceWorker' in navigator){
         try{
           await navigator.serviceWorker.register(`./sw.mjs?boot=${nonce}`,{scope:'./',type:'module',updateViaCache:'none'});
@@ -71,7 +73,7 @@
           await waitForController();
         }catch(error){window.__collectishBootErrors?.push(`fresh-loader: ${error?.message||error}`)}
       }
-      await import(`./src/main.js?boot=${nonce}`);
+      await import('./src/main.js');
     }
     boot().catch(error=>{
       window.__collectishBootErrors?.push(String(error?.message||error));
