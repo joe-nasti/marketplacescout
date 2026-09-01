@@ -27,6 +27,7 @@ test('Signals decision taxonomy distinguishes Action Emerging Confirming and Wat
 
 test('Signals scan KPIs and filters use the same four decision stages',async()=>{
   const source=await read('src/modules/signals/scan-view.js');
+  const route=await read('src/modules/signals/index.js');
   expect(SIGNAL_SCAN_STAGES).toEqual([
     ['all','All'],['action','Action'],['emerging','Emerging'],['confirming','Confirming'],['watch','Watch']
   ]);
@@ -34,10 +35,10 @@ test('Signals scan KPIs and filters use the same four decision stages',async()=>
   expect(source).toContain("metric('Emerging',emerging,'early')");
   expect(source).toContain("metric('Confirming',confirming,'corroborated')");
   expect(source).toContain("metric('Watch',watch,'monitor only')");
-  expect(source).toContain('SIGNAL_SCAN_STAGES.map');
+  expect(route).toContain('SIGNAL_SCAN_STAGES.map');
   expect(source).not.toContain('verified cards');
   expect(source).not.toContain("metric('Sources'");
-  expect(source).toContain('<small>Evidence</small>');
+  expect(source).toContain("source${evidenceText==='1'?'':'s'}");
   expect(source).toContain('<small>Confidence</small>');
 });
 
