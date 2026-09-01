@@ -11,6 +11,9 @@
   window.rest=async function(path,options){
     const result=await nativeRest(path,options);
     if(!isMessageHistory(path)||!Array.isArray(result))return result;
+    // A restore is authoritative for the message list about to be rendered. Clear
+    // any stale transient live-response entry before rebuilding queue alignment.
+    window.__CollectishAskSurfaceQueue.length=0;
     // loadConversation renders only assistant bubbles through the structured-surface
     // listener. Queue one entry per assistant message, including empty placeholders,
     // so a later rich surface can never attach to an earlier plain-text answer.
