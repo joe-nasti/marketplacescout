@@ -8,15 +8,19 @@ export const SCOUT_LIST_FIELDS=[
   'v5_shadow_score','v5_shadow_grade','opportunity_score','tcg_low','sku_market_price','direct_low','ck_buylist','direct_backed','near_direct_backed',
   'buylist_backed','source_verify','observation_count','v5_computed_at','computed_at','sales_rank','avg_daily_qty_sold'
 ].join(',');
-export const SCOUT_LIST_CACHE_PATH=`scout_opportunities_actionability_ranked?select=${SCOUT_LIST_FIELDS}&order=ranking_score.desc,observation_count.desc&limit=500`;
-export const SCOUT_LIST_LIVE_PATH=`scout_opportunities_v5?select=${SCOUT_LIST_FIELDS.replace(',ranking_score,ranking_grade,actionability_status,actionability_shadow_grade','')}&order=promoted_score.desc,observation_count.desc&limit=500`;
+const INITIAL_ROWS=120;
+const FULL_ROWS=500;
+export const SCOUT_LIST_CACHE_PATH=`scout_opportunities_actionability_ranked?select=${SCOUT_LIST_FIELDS}&order=ranking_score.desc,observation_count.desc&limit=${INITIAL_ROWS}`;
+export const SCOUT_LIST_CACHE_FULL_PATH=`scout_opportunities_actionability_ranked?select=${SCOUT_LIST_FIELDS}&order=ranking_score.desc,observation_count.desc&limit=${FULL_ROWS}`;
+export const SCOUT_LIST_LIVE_PATH=`scout_opportunities_v5?select=${SCOUT_LIST_FIELDS.replace(',ranking_score,ranking_grade,actionability_status,actionability_shadow_grade','')}&order=promoted_score.desc,observation_count.desc&limit=${INITIAL_ROWS}`;
+export const SCOUT_LIST_LIVE_FULL_PATH=`scout_opportunities_v5?select=${SCOUT_LIST_FIELDS.replace(',ranking_score,ranking_grade,actionability_status,actionability_shadow_grade','')}&order=promoted_score.desc,observation_count.desc&limit=${FULL_ROWS}`;
 export const SCOUT_LIVE_PATH='scout_opportunities_v5?select=*&order=promoted_score.desc,observation_count.desc&limit=500';
 export const SCOUT_CACHE_PATH='scout_opportunities_v5_cache?select=*&order=promoted_score.desc,observation_count.desc&limit=500';
 
 const KEY='collectishRuntimeHealth';
 const REUSE_MS=4000;
 const PERSISTED_FRESH_MS=5*60*1000;
-let inFlight=null,lastRows=null,lastAt=0,persistedChecked=false;
+let inFlight=null,expansionInFlight=null,expansionScheduled=false,lastRows=null,lastAt=0,persistedChecked=false;
 const detailCache=new Map();
 const detailInflight=new Map();
 const oracleName=s=>String(s||'').replace(/\s*\([^)]*(foil|showcase|borderless|extended art|serialized|retro frame|etched|alternate art|halo foil|rainbow foil|surge foil|galaxy foil|fracture foil)[^)]*\)\s*/ig,' ').replace(/\s+/g,' ').trim();
@@ -68,6 +72,29 @@ function persistRows(rows){
   void writePersistentResource(persistentKey(),rows,{fetchedAt:Date.now()}).catch(()=>{});
 }
 
+async function expandScoutRankings(options={}){
+  if(expansionInFlight)return expansionInFlight;
+  expansionInFlight=(async()=>{
+    const started=performance.now();
+    let rows=null;
+    try{rows=await baseRest(SCOUT_LIST_CACHE_FULL_PATH,options)}catch{}
+    if(!Array.isArray(rows)||!rows.length)rows=await baseRest(SCOUT_LIST_LIVE_FULL_PATH,options);
+    if(!Array.isArray(rows)||rows.length<=Number(lastRows?.length||0))return lastRows;
+    lastRows=rows;lastAt=performance.now();persistRows(rows);
+    health({scout_list_expanded:true,scout_list_expand_ms:Math.round(performance.now()-started),scout_list_rows:rows.length});
+    document.dispatchEvent(new CustomEvent('collectish:scout-rankings-expanded',{detail:{rows,count:rows.length}}));
+    return rows;
+  })().catch(()=>{health({scout_list_expand_failed:true});return lastRows||[]}).finally(()=>{expansionInFlight=null});
+  return expansionInFlight;
+}
+
+function scheduleRankingExpansion(options={}){
+  const count=Number(lastRows?.length||0);
+  if(expansionScheduled||count<INITIAL_ROWS||count>=FULL_ROWS)return;
+  expansionScheduled=true;
+  setTimeout(()=>void expandScoutRankings(options),600);
+}
+
 export async function readScoutRankings(options={}){
   const now=performance.now();
   if(lastRows&&now-lastAt<REUSE_MS){
@@ -80,7 +107,7 @@ export async function readScoutRankings(options={}){
   }
 
   const persisted=await readRecentPersisted();
-  if(persisted){lastRows=persisted;lastAt=performance.now();return persisted}
+  if(persisted){lastRows=persisted;lastAt=performance.now();scheduleRankingExpansion(options);return persisted}
 
   inFlight=(async()=>{
     const t0=performance.now();
@@ -94,7 +121,7 @@ export async function readScoutRankings(options={}){
     const rows=await baseRest(SCOUT_LIST_LIVE_PATH,options);
     health({scout_cache_used:false,scout_cache_fallback:true,scout_actionability_ranked:false,scout_cache_read_ms:Math.round(performance.now()-t0),scout_list_rows:Array.isArray(rows)?rows.length:0});
     persistRows(rows);return rows;
-  })().then(rows=>{lastRows=rows;lastAt=performance.now();return rows}).finally(()=>{inFlight=null});
+  })().then(rows=>{lastRows=rows;lastAt=performance.now();scheduleRankingExpansion(options);return rows}).finally(()=>{inFlight=null});
   return inFlight;
 }
 
@@ -146,5 +173,5 @@ export async function scoutAwareRest(path,options={}){
 export function installScoutCacheBridge(){
   scoutAwareRest.__cxScoutCache=true;scoutAwareRest.__cxBase=baseRest;
   window.rest=scoutAwareRest;
-  window.CollectishScoutData={readRankings:readScoutRankings,readDetail:readScoutDetail,rest:scoutAwareRest,listPath:SCOUT_LIST_LIVE_PATH};
+  window.CollectishScoutData={readRankings:readScoutRankings,expandRankings:expandScoutRankings,readDetail:readScoutDetail,rest:scoutAwareRest,listPath:SCOUT_LIST_LIVE_PATH};
 }
