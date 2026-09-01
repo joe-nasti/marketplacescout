@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import {readFile} from 'node:fs/promises';
 
 const SESSION_KEY='collectishSession';
 function tokenWithFutureExpiry(){
@@ -48,4 +49,14 @@ test('authenticated Scout startup stays lean and defers noncritical pages',async
   const lazyPages=await page.evaluate(()=>window.__collectishPerf.lazy.map(x=>x.page));
   expect(lazyPages).toContain('inventory');
   expect(lazyPages).toContain('admin');
+});
+
+test('non-Scout route CSS does not block initial paint',async()=>{
+  const critical=await readFile('src/styles/index.css','utf8');
+  const entry=await readFile('src/main.js','utf8');
+  expect(entry).toContain("import('./styles/deferred.css')");
+  expect(entry.indexOf("document.addEventListener('collectish:ready',installDeferredStyles")).toBeGreaterThan(0);
+  expect(critical).not.toContain("@import './signals.css'");
+  expect(critical).not.toContain("@import './seller.css'");
+  expect(critical).not.toContain("@import './admin.css'");
 });
