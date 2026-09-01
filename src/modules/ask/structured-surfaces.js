@@ -27,7 +27,9 @@
     const times=obs.map((o,i)=>{const t=new Date(o?.observed_at||o?.observed_hour||'').getTime();return Number.isFinite(t)?t:i});const t0=times[0],t1=times.at(-1),tspan=t1-t0||Math.max(1,vals.length-1);
     const xAt=(i)=>left+(((times[i]-t0)||i)/(tspan||Math.max(1,vals.length-1)))*(right-left),yAt=v=>bottom-((v-lo)/span)*(bottom-top);
     const poly=vals.map((v,i)=>`${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(' ');
-    const yTicks=Array.from({length:4},(_,i)=>lo+(span*(i/3)));
+    const niceStep=range=>{const rough=Math.max(range/3,.01),pow=10**Math.floor(Math.log10(rough)),n=rough/pow,m=n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10;return m*pow};
+    const step=niceStep(span),tickLo=Math.floor(lo/step)*step,tickHi=Math.ceil(hi/step)*step;
+    const yTicks=[];for(let v=tickLo,i=0;v<=tickHi+step*.001&&i<8;v+=step,i++)yTicks.push(Number(v.toFixed(8)));
     const sameDay=times.length&&new Date(times[0]).toDateString()===new Date(times.at(-1)).toDateString();
     const xIndexes=[0,Math.floor((vals.length-1)/2),vals.length-1].filter((v,i,a)=>a.indexOf(v)===i);
     const xLabel=i=>{const d=new Date(times[i]);return Number.isFinite(d.getTime())?(sameDay?d.toLocaleTimeString(undefined,{hour:'numeric',minute:i===0||i===vals.length-1?'2-digit':undefined}):d.toLocaleDateString(undefined,{month:'short',day:'numeric'})):String(i+1)};
