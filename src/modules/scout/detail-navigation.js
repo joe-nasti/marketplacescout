@@ -1,6 +1,7 @@
 import store from '../../state/store.js';
 import { invokeFunction } from '../../core/functions.js';
 import { prefetchAskCardContext } from './ask-prefetch.js';
+import { readScoutDetail } from './cache-read.js';
 
 let installed=false;
 const skuOf=value=>String(value??'');
@@ -20,7 +21,24 @@ const productIdOf=row=>String(row?.product_id||row?.productId||row?.entity?.prod
 function shouldDiscover(row,force=false){const pid=productIdOf(row);if(!pid)return false;if(force)return true;const last=Number(discoveryRecent.get(pid)||0);if(Date.now()-last<DISCOVERY_TTL)return false;discoveryRecent.set(pid,Date.now());return true}
 async function discoverProduct(row,{desiredFinish=null,force=false,reason='scout_card_open_discovery'}={}){const pid=productIdOf(row);if(!pid||!shouldDiscover(row,force))return null;if(discoveryInflight.has(pid))return discoveryInflight.get(pid);const task=(async()=>{try{const data=await invokeFunction('scout-tcgplayer-sku-discovery',{product_id:pid,...(desiredFinish?{desired_finish:desiredFinish}:{}),desired_condition:'NEAR MINT',desired_language:'ENGLISH',persist:true,force,reason});document.dispatchEvent(new CustomEvent('collectish:scout-sku-discovery-complete',{detail:{productId:pid,skuId:skuOf(row?.sku_id),learned:Number(data?.materialized_nm_english_count||0),data}}));return data}catch(error){console.warn('Scout on-demand SKU discovery failed',error);document.dispatchEvent(new CustomEvent('collectish:scout-sku-discovery-failed',{detail:{productId:pid,skuId:skuOf(row?.sku_id),error:String(error?.message||error)}}));return null}finally{discoveryInflight.delete(pid)}})();discoveryInflight.set(pid,task);return task}
 
-export function openScoutDetail(detail={}){const renderer=window.CollectishScoutRenderer;if(!renderer?.renderDetail)return false;const row=resolveSummary(detail);if(!row?.sku_id)return false;const sku=skuOf(row.sku_id);store.update('scout',{selectedSku:row.sku_id});document.querySelectorAll('#cxParityCards .cx-scout-card[data-sku]').forEach(card=>card.classList.toggle('selected',skuOf(card.dataset.sku)===sku));void renderer.prefetchCard?.(row);void renderer.renderDetail(row,true);void prefetchAskCardContext(row);void discoverProduct(row);return true}
+async function hydrateAndRender(row){
+  const renderer=window.CollectishScoutRenderer;if(!renderer?.renderDetail||!row?.sku_id)return;
+  const detail=await readScoutDetail(row).catch(()=>row);
+  if(!detail)return;
+  await renderer.prefetchCard?.(detail);
+  await renderer.renderDetail(detail,true);
+  void prefetchAskCardContext(detail);
+  void discoverProduct(detail);
+}
+export function openScoutDetail(detail={}){
+  const renderer=window.CollectishScoutRenderer;if(!renderer?.renderDetail)return false;
+  const row=resolveSummary(detail);if(!row?.sku_id)return false;
+  const sku=skuOf(row.sku_id);store.update('scout',{selectedSku:row.sku_id});
+  document.querySelectorAll('#cxParityCards .cx-scout-card[data-sku]').forEach(card=>card.classList.toggle('selected',skuOf(card.dataset.sku)===sku));
+  void renderer.renderDetail(row,true);
+  void hydrateAndRender(row);
+  return true;
+}
 function click(e){const hit=e.target.closest?.('#cxScout .cx-scout-card[data-sku], #cxScout [data-quick-turn-sku]');if(!hit)return;const detail=hit.dataset.quickTurnSku?{sku_id:hit.dataset.quickTurnSku}:{sku_id:hit.dataset.sku};if(!openScoutDetail(detail))return;e.preventDefault();e.stopImmediatePropagation()}
 function openEvent(e){const detail=e.detail||{};if(!openScoutDetail(detail)&&detail?.product_id)void discoverProduct(detail)}
 export function installScoutDetailNavigation(){if(installed)return;installed=true;document.addEventListener('click',click,true);document.addEventListener('collectish:open-scout-card',openEvent)}
