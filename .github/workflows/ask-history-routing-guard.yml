@@ -11,6 +11,7 @@ on:
       - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'supabase/migrations/20260831200700_make_ask_price_history_index_native.sql'
       - 'supabase/migrations/20260901140500_ask_market_research_scan_fallback.sql'
+      - 'supabase/migrations/20260901144700_make_ask_market_research_shared_across_clients.sql'
       - 'src/modules/index.js'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'src/modules/ask/structured-surfaces.js'
@@ -24,6 +25,7 @@ on:
       - 'tools/check-ask-move-family-identity.mjs'
       - 'tools/check-ask-causal-evidence.mjs'
       - 'tools/check-ask-market-research-fallback.mjs'
+      - 'tools/check-ask-shared-market-evidence.mjs'
       - '.github/workflows/ask-history-routing-guard.yml'
   push:
     branches: [main]
@@ -37,6 +39,7 @@ on:
       - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'supabase/migrations/20260831200700_make_ask_price_history_index_native.sql'
       - 'supabase/migrations/20260901140500_ask_market_research_scan_fallback.sql'
+      - 'supabase/migrations/20260901144700_make_ask_market_research_shared_across_clients.sql'
       - 'src/modules/index.js'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'src/modules/ask/structured-surfaces.js'
@@ -50,6 +53,7 @@ on:
       - 'tools/check-ask-move-family-identity.mjs'
       - 'tools/check-ask-causal-evidence.mjs'
       - 'tools/check-ask-market-research-fallback.mjs'
+      - 'tools/check-ask-shared-market-evidence.mjs'
       - '.github/workflows/ask-history-routing-guard.yml'
 jobs:
   guard:
@@ -68,3 +72,4 @@ jobs:
       - run: node tools/check-ask-move-family-identity.mjs
       - run: node tools/check-ask-causal-evidence.mjs
       - run: node tools/check-ask-market-research-fallback.mjs
+      - run: node tools/check-ask-shared-market-evidence.mjs
