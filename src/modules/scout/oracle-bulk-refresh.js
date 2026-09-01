@@ -1,4 +1,5 @@
 import { rest } from '../../core/rest.js';
+import { readOracleFamily, seedOracleFamily } from './oracle-family-data.js';
 
 let installed=false,lastRows=[],lastOracle='',watchSeq=0,watchState=null;
 const AUTO_CONFIRM_LIMIT=8;
@@ -49,6 +50,7 @@ function updateControl(){
 }
 function publishLive(rows,oracle,completed,total,done=false){
   lastRows=rows;
+  seedOracleFamily(oracle,rows,{limit:FAMILY_LIMIT});
   const h=document.getElementById('cxUniversalResults');
   if(h){h._familyRows=rows;h._rows=new Map(rows.map(r=>[String(r.sku_id),r]))}
   document.dispatchEvent(new CustomEvent('collectish:oracle-family-live-update',{detail:{oracle,rows,completed,total,done}}));
@@ -64,7 +66,7 @@ async function watchRefreshes(oracle,watched,baseline){
     await sleep(delay);
     if(token!==watchSeq||oracle!==lastOracle||new URL(location.href).searchParams.get('oracle')!==oracle)return;
     try{
-      const rows=await rest('rpc/scout_catalog_by_oracle',{method:'POST',body:{p_oracle_id:oracle,p_limit:FAMILY_LIMIT}}),bySku=new Map((rows||[]).map(r=>[String(r.sku_id),r]));
+      const rows=await readOracleFamily(oracle,{limit:FAMILY_LIMIT,force:true}),bySku=new Map((rows||[]).map(r=>[String(r.sku_id),r]));
       let completed=0;
       for(const id of ids){const row=bySku.get(id);if(row&&stamp(row.last_evaluated_at)>Number(baseline[id]||0))completed++}
       watchState={oracle,total:ids.size,completed,active:completed<ids.size};
