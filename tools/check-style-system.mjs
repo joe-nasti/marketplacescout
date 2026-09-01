@@ -14,6 +14,7 @@ const expected=[
   'ask-session-history.css',
   'ask.css',
   'base.css',
+  'deferred.css',
   'index.css',
   'mobile-quality.css',
   'mobile-touch-targets.css',
@@ -44,11 +45,13 @@ if(JSON.stringify(files)!==JSON.stringify(expected)){
   throw new Error(`Style tree drifted. Expected ${expected.join(', ')}, found ${files.join(', ')}`);
 }
 const index=await readFile(join(styles,'index.css'),'utf8');
-const imports=index.match(/^@import\s+[^;]+;/gm)||[];
-const expectedImports=expected.filter(file=>file!=='index.css');
-if(imports.length!==expectedImports.length)throw new Error(`Expected ${expectedImports.length} style imports, found ${imports.length}`);
+const deferred=await readFile(join(styles,'deferred.css'),'utf8');
+const styleEntries=`${index}\n${deferred}`;
+const imports=styleEntries.match(/^@import\s+[^;]+;/gm)||[];
+const expectedImports=expected.filter(file=>!['index.css','deferred.css'].includes(file));
+if(imports.length!==expectedImports.length)throw new Error(`Expected ${expectedImports.length} style imports across canonical entries, found ${imports.length}`);
 for(const file of expectedImports){
-  if(!index.includes(`'./${file}'`)&&!index.includes(`"./${file}"`))throw new Error(`Missing canonical style import: ${file}`);
+  if(!styleEntries.includes(`'./${file}'`)&&!styleEntries.includes(`"./${file}"`))throw new Error(`Missing canonical style import: ${file}`);
 }
 const tokens=await readFile(join(styles,'tokens.css'),'utf8');
 for(const required of ['--color-bg-primary','--color-bg-surface','--color-text-primary','--color-accent','--font-scale-md','[data-theme="dark"]']){
