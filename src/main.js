@@ -39,15 +39,15 @@ const oauthConsent=/\/oauth\/consent\/?$/.test(location.pathname);
 if(oauthConsent){
   import('./modules/oauth-consent/main.js').then(module=>module.startOAuthConsent()).catch(showStartupError);
 }else{
-  Promise.all([
-    import('./app.js'),
-    import('./modules/seller/inventory-session-status.js'),
-    import('./modules/signals/discovery-integration.js'),
-    import('./modules/ask/history-ui.js')
-  ]).then(([app,status,discovery,askHistory])=>{
-    status.installInventorySessionStatus();
-    discovery.installSignalsDiscovery();
-    askHistory.installAskHistoryUi();
-    return app.startCollectish();
-  }).catch(showStartupError);
+  const installSecondaryEntryModules=()=>{
+    const run=()=>Promise.allSettled([
+      import('./modules/seller/inventory-session-status.js').then(module=>module.installInventorySessionStatus()),
+      import('./modules/signals/discovery-integration.js').then(module=>module.installSignalsDiscovery()),
+      import('./modules/ask/history-ui.js').then(module=>module.installAskHistoryUi())
+    ]).then(results=>results.forEach(result=>{if(result.status==='rejected')console.warn('Collectish secondary entry module failed',result.reason)}));
+    if('requestIdleCallback' in window)requestIdleCallback(()=>void run(),{timeout:3500});
+    else setTimeout(()=>void run(),1200);
+  };
+  document.addEventListener('collectish:ready',installSecondaryEntryModules,{once:true});
+  import('./app.js').then(app=>app.startCollectish()).catch(showStartupError);
 }
