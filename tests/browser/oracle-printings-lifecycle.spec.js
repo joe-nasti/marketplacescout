@@ -80,10 +80,14 @@ test('Oracle family confidence weights current, dormant, and catalog coverage ex
 test('Oracle comparison hardening clears stale UI, hydrates late imports, and requests the full supported family',async()=>{
   const compare=await read('src/modules/scout/oracle-printings.js');
   const search=await read('src/modules/scout/universal-search.js');
+  const familyData=await read('src/modules/scout/oracle-family-data.js');
   expect(compare).toContain('const FAMILY_LIMIT=2000');
   expect(search).toContain('const FAMILY_LIMIT=2000');
-  expect(compare).toContain('p_limit:FAMILY_LIMIT');
-  expect(search).toContain('p_limit:FAMILY_LIMIT');
+  expect(compare).toContain('readOracleFamily(oracle,{limit:FAMILY_LIMIT,force})');
+  expect(search).toContain('readOracleFamily(family.oracle,{limit:FAMILY_LIMIT})');
+  expect(familyData).toContain('p_limit:limit');
+  expect(familyData).toContain('if(inflight.has(key))return inflight.get(key)');
+  expect(familyData).toContain('inflight.set(key,job)');
   expect(compare).toContain("input.dispatchEvent(new Event('input',{bubbles:true}))");
   expect(compare).toContain("results.hidden=true;results.innerHTML=''");
   expect(compare).toContain("['oracle','fromSku','q','oracleSort','oracleFilter','oracleOpenSku']");
