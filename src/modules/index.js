@@ -52,7 +52,6 @@ const askEnhancers=[
   ()=>import('./ask/signals-starters.js'),
   ()=>import('./ask/investigate-presentation.js'),
   ()=>import('./ask/concise-view.js'),
-  ()=>import('./ask/structured-surfaces.js'),
   ()=>import('./ask/rich-surfaces.js'),
   ()=>import('./ask/investigate.js'),
   ()=>import('./ask/actions.js'),
@@ -91,7 +90,7 @@ function scheduleIdleEnhancers(){
     idlePromise=(async()=>{
       await Promise.all([
         loadParallel(scoutIntelligence),
-        (async()=>{await import('./ask/context.js');await import('./ask/endpoint-proxy.js');await import('./ask/main.js');await import('./ask/streaming.js');await import('./ask/sales-history-surface.js');await import('./ask/market-investigation-surface.js');await import('./ask/history-action-routing.js');await loadParallel(askEnhancers)})()
+        (async()=>{await import('./ask/context.js');await import('./ask/endpoint-proxy.js');await import('./ask/structured-surfaces.js');await import('./ask/main.js');await import('./ask/streaming.js');await import('./ask/sales-history-surface.js');await import('./ask/market-investigation-surface.js');await import('./ask/history-action-routing.js');await loadParallel(askEnhancers)})()
       ]);
       document.dispatchEvent(new CustomEvent('collectish:idle-modules-ready'));
     })();
