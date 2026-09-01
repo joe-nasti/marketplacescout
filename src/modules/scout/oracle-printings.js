@@ -1,5 +1,5 @@
 import store from '../../state/store.js';
-import { rest } from '../../core/rest.js';
+import { readOracleFamily, seedOracleFamily } from './oracle-family-data.js';
 
 let installed=false;
 const sfCache=new Map();
@@ -68,7 +68,7 @@ async function loadFamily(force=false){
   if(!force&&familyOracle===oracle&&familyData.length)return familyData;
   const n=++familySeq;
   try{
-    const data=await rest('rpc/scout_catalog_by_oracle',{method:'POST',body:{p_oracle_id:oracle,p_limit:FAMILY_LIMIT}});
+    const data=await readOracleFamily(oracle,{limit:FAMILY_LIMIT,force});
     if(n!==familySeq)return familyData;
     familyOracle=oracle;familyData=data||[];
   }catch{
@@ -133,7 +133,7 @@ function restoreContextFromUrl(){
 
 function acceptFamilyResults(e){
   if(!compareContext||!e.detail?.oracle||String(e.detail.oracle)!==String(compareContext.oracleId))return;
-  familyOracle=String(e.detail.oracle);familyData=Array.isArray(e.detail.rows)?e.detail.rows:[];familySeq++;void renderCompareSummary();setTimeout(markCurrentPrinting,0);
+  familyOracle=String(e.detail.oracle);familyData=Array.isArray(e.detail.rows)?e.detail.rows:[];seedOracleFamily(familyOracle,familyData,{limit:FAMILY_LIMIT});familySeq++;void renderCompareSummary();setTimeout(markCurrentPrinting,0);
 }
 
 function ensureStyle(){
