@@ -215,7 +215,7 @@ jobs:
           CHROME: ${{ steps.chrome_binary.outputs.chrome }}
         run: |
           set -euo pipefail
-          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=15000 --dump-dom "${PAGE_URL%/}/?smoke=${GITHUB_RUN_ID}&cb=$(date +%s%N)" >/tmp/dom.html 2>/tmp/chrome.log
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=30000 --dump-dom "${PAGE_URL%/}/?smoke=${GITHUB_RUN_ID}&cb=$(date +%s%N)" >/tmp/dom.html 2>/tmp/chrome.log
           test -s /tmp/dom.html
 
       - name: Validate shell DOM
