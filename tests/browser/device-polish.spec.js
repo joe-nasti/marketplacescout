@@ -51,7 +51,7 @@ test('navigation and Scout controls expose keyboard focus and touch-safe sizing'
   expect(mobile).toContain('env(safe-area-inset-bottom)');
 });
 
-test('Scout mobile rows prioritize decision metrics instead of repeating score',async({page},testInfo)=>{
+test('Scout mobile rows keep five decision metrics directly comparable',async({page},testInfo)=>{
   test.skip(testInfo.project.name==='desktop-chromium','mobile decision-density contract');
   await page.goto('/');
   const result=await page.evaluate(()=>{
@@ -71,12 +71,9 @@ test('Scout mobile rows prioritize decision metrics instead of repeating score',
     return measured;
   });
   expect(result.visible).toEqual(['Market','Direct','Premium','Velocity','CK BL']);
-  expect(result.columns).toBe(6);
-  expect(Math.max(...result.rects.slice(0,3).map(r=>r.top))-Math.min(...result.rects.slice(0,3).map(r=>r.top))).toBeLessThan(1);
-  expect(Math.abs(result.rects[3].top-result.rects[4].top)).toBeLessThan(1);
-  expect(result.rects[3].top).toBeGreaterThan(result.rects[0].top);
-  expect(result.rects[3].width).toBeGreaterThan(result.rects[0].width*1.35);
-  expect(result.rects[4].width).toBeGreaterThan(result.rects[1].width*1.35);
+  expect(result.columns).toBe(5);
+  expect(Math.max(...result.rects.map(r=>r.top))-Math.min(...result.rects.map(r=>r.top))).toBeLessThan(1);
+  expect(Math.max(...result.rects.map(r=>r.width))-Math.min(...result.rects.map(r=>r.width))).toBeLessThan(1);
 });
 
 test('Scout mobile detail resolves as a full-screen child surface above persistent navigation',async({page},testInfo)=>{
