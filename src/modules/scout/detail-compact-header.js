@@ -4,6 +4,8 @@ import { uiEvidenceMarker, directPremiumEvidence } from '../../core/ui-primitive
 
 const detail=()=>document.getElementById('cxParityDetail');
 const norm=s=>String(s||'').trim().toLowerCase();
+const money=n=>n==null||n===''||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
+const pct=n=>n==null||!Number.isFinite(Number(n))?'—':`\${Number(n).toFixed(0)}%`;
 const score=r=>Number(r?.promoted_score??r?.v5_shadow_score??r?.opportunity_score??0);
 const grade=r=>r?.promoted_grade||r?.v5_shadow_grade||(score(r)>=80?'A':score(r)>=70?'B':score(r)>=60?'C':score(r)>=50?'D':'F');
 const points=(label,value,max)=>{const chip=document.createElement('span');chip.className='cx-v5-score-chip';const v=Number(value||0);chip.innerHTML=`<b>${label}</b><strong>${Number.isInteger(v)?v:v.toFixed(1)}<small>/${max}</small></strong>`;return chip};
@@ -13,17 +15,21 @@ function addMarker(stat,html){if(!stat||!html||stat.querySelector('[data-cx-evid
 
 function compactHeader(h,row){
   const hero=h.querySelector('.cx-scout-hero'),oldTitle=h.querySelector('.cx-v5-title'),oldBadges=h.querySelector('.cx-v5-badges'),oldComponents=h.querySelector('.cx-v5-components');if(!oldTitle||!oldComponents)return;
+  const scout=store.get().scout||{},visible=scout.visible||scout.rows||[],position=Math.max(0,visible.findIndex(r=>String(r.sku_id)===String(row.sku_id)))+1,filters=scout.filters||{},filterCount=['grade','set','min','max','spread','foil','liquidity'].reduce((n,k)=>n+(filters[k]?1:0),0);
+  const nav=document.createElement('div');nav.className='cx-card-detail-nav';const close=h.querySelector('.cx-mobile-detail-close');if(close){close.textContent='Back';close.setAttribute('aria-label','Back to Scout results');nav.append(close)}const trail=document.createElement('div');trail.innerHTML=`<strong>Scout · ${position||1} of ${visible.length||1}</strong><small>${score(row)>=80?'HOT · ':''}score ↓ · filters ${filterCount}</small>`;nav.append(trail);h.prepend(nav);
   const head=document.createElement('div');head.className='cx-v5-compact-head';if(hero)head.append(hero);
   const info=document.createElement('div');info.className='cx-v5-compact-info';
   const title=document.createElement('div');title.className='cx-v5-compact-title';title.textContent=row.product_name||'Unknown card';
   const set=document.createElement('div');set.className='cx-v5-compact-set';set.textContent=`${row.set_name||'Unknown set'}${row.collector_number?` · #${row.collector_number}`:''}`;
   const meta=document.createElement('div');meta.className='cx-v5-compact-meta';
-  const printing=document.createElement('span');printing.className='cx-v5-printing-chip';printing.textContent=[row.printing,row.condition].filter(Boolean).join(' · ')||'Printing unknown';
+  const printing=document.createElement('span');printing.className='cx-v5-printing-chip';printing.textContent=[row.condition,row.printing,row.language].filter(Boolean).join(' · ')||'Printing unknown';
   const overall=document.createElement('span');overall.className='cx-v5-overall-chip';overall.innerHTML=`<span class="cx-grade cx-grade-${grade(row).toLowerCase()}">${grade(row)}</span><strong>${score(row)}<small>/100</small></strong>`;
   meta.append(printing,overall);
-  const edhrec=Number(row.edhrec_rank||0);if(edhrec>0){const chip=document.createElement('span');chip.className='cx-v5-printing-chip cx-v5-edhrec-chip';chip.textContent=`EDHREC #${edhrec.toLocaleString()}`;chip.title='Commander popularity rank from the shared Scryfall EDHREC-rank cache.';meta.append(chip)}
-  info.append(title,set,meta);if(oldBadges?.children.length){oldBadges.classList.add('cx-v5-compact-badges');info.append(oldBadges)}head.append(info);oldTitle.replaceWith(head);
+  const thesis=document.createElement('p');thesis.className='cx-card-detail-thesis';thesis.textContent=Number(row.avg_daily_qty_sold||0)>=1?'Rising attention with measurable velocity and a printing-specific execution gap.':row.buylist_backed?'The cash floor supports this exact printing while the market gap remains actionable.':'A printing-specific opportunity with market pricing and exit evidence.';
+  info.append(title,set,meta,thesis);if(oldBadges?.children.length){oldBadges.classList.add('cx-v5-compact-badges');info.append(oldBadges)}head.append(info);oldTitle.replaceWith(head);
+  const buy=Number(row.cheapest_buy||row.tcg_low||0),direct=Number(row.direct_low||0),roi=buy>0&&row.direct_net_profit!=null?Number(row.direct_net_profit)/buy*100:null,kpis=document.createElement('div');kpis.className='cx-card-kpi-tape';kpis.innerHTML=`<span><small>Market</small><b>${money(row.sku_market_price)}</b></span><span><small>Direct</small><b>${money(direct)}</b></span><span class="positive"><small>Cash floor</small><b>${money(row.ck_buylist)}</b></span><span><small>Buy target</small><b>${money(buy)}</b></span><span class="positive"><small>ROI</small><b>${pct(roi)}</b></span>`;head.after(kpis);
   const execution=Number(row.direct_execution_points||0)+Number(row.buylist_backing_points||0),strip=document.createElement('div');strip.className='cx-v5-score-strip';strip.append(points('Thesis',row.thesis_points,70),points('Exec',execution,20),points('Floor',row.exit_floor_points,5),points('Conf',row.confirmation_points,5));oldComponents.replaceWith(strip);
+  const market=sectionByTitle(h,'Across the market'),decision=h.querySelector('.cx-scout-decision');if(market&&decision){decision.classList.add('cx-card-best-opportunity');market.insertAdjacentElement('afterend',decision)}
 }
 
 function tierSpreads(h,row){
