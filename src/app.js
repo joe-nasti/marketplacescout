@@ -147,7 +147,7 @@ window.CollectishMobileUtilityOrigin={align:alignToOrigin,settle:settleInitialOr
 window.CollectishNavigation={closeScoutDetail,closeScoutFilters,rememberScroll,restoreScroll,sync:syncTransientUi,systemGestures:true,mobile:()=>routeMobile.matches};
 
 const STARTUP_PRIME=[
-  {key:'scout.rows',scope:'user',maxStale:24*60*60*1000}
+  {key:'scout.rows.actionability-v1',scope:'user',maxStale:24*60*60*1000}
 ];
 const IDLE_PRIME=[
   {key:'sealed.rows',scope:'user',maxStale:7*24*60*60*1000},
@@ -176,6 +176,18 @@ function loadNativeSellerAgent(){
   if(!window.CollectishAndroid||!window.CollectishReadOnly)return;
   import('./modules/seller/readonly-agent.js').catch(()=>{});
 }
+function scheduleFeatureModules(){
+  let scheduled=false,timer=0;
+  const run=()=>{
+    if(scheduled)return;
+    scheduled=true;
+    if(timer)clearTimeout(timer);
+    const started=performance.now();
+    void installModules().then(()=>recordTiming('deferred_feature_modules_ms',performance.now()-started)).catch(error=>console.warn('Collectish feature modules failed',error));
+  };
+  document.addEventListener('collectish:scout-v5-ready',run,{once:true});
+  document.addEventListener('collectish:ready',()=>{timer=setTimeout(run,5000)},{once:true});
+}
 
 export function startCollectish(){
   store.update('runtime',{phase:'starting'});
@@ -185,16 +197,13 @@ export function startCollectish(){
   installActivityBar();
   installScoutCacheBridge();
   loadNativeSellerAgent();
+  scheduleFeatureModules();
   startShell({beforeReady:async()=>{
     const cacheStarted=performance.now();
     store.update('runtime',{phase:'hydrating-cache'});
     await primeResources(STARTUP_PRIME).catch(()=>0);
     recordTiming('startup_cache_hydration_ms',performance.now()-cacheStarted);
 
-    const modulesStarted=performance.now();
-    store.update('runtime',{phase:'loading-modules'});
-    await installModules();
-    recordTiming('startup_scout_modules_ms',performance.now()-modulesStarted);
     store.update('runtime',{phase:'ready'});
     scheduleIdlePrime();
   }});
