@@ -51,7 +51,7 @@ function explicitOpen(event){
 }
 function openLookup(state){
   if(!state.product_id&&!state.card_name)return;
-  document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{source:'discord-deep-link',product_id:state.product_id||null,card_name:state.card_name||null,set_code:state.set_code||null,finish:state.finish||null}}));
+  document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{source:'signals-discord-deep-link',product_id:state.product_id||null,card_name:state.card_name||null,set_code:state.set_code||null,finish:state.finish||null}}));
 }
 function applyState(){
   if(!onScout())return;
