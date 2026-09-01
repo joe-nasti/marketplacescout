@@ -17,7 +17,8 @@ test('Scout detail opener primes compact Ask context through canonical core',asy
   const adapter=await source('src/modules/scout/ask-prefetch.js');
   const core=await source('src/modules/ask/prefetch.js');
   expect(nav).toContain("import { prefetchAskCardContext } from './ask-prefetch.js'");
-  expect(nav).toContain('void prefetchAskCardContext(summary)');
+  expect(nav).toContain('void renderer.prefetchCard?.(row)');
+  expect(nav).toContain('void prefetchAskCardContext(row)');
   expect(adapter).toContain("import { prefetchAskContext, abortAskPrefetch } from '../ask/prefetch.js'");
   expect(adapter).toContain('name:row.name??row.product_name');
   expect(adapter).toContain('low:num(');
