@@ -32,6 +32,14 @@ test('mobile Signal Story is a full screen above persistent bottom navigation',a
   expect(css).toContain('.cx-evidence-drawer{inset:0;width:100%;height:auto;border:0;border-radius:0');
 });
 
+test('published deck mainboards are grouped by MTGO-style card type',async()=>{
+  const source=await readFile('src/modules/signals/competitive-evidence.js','utf8');
+  expect(source).toContain("const DECK_TYPE_ORDER=['Creatures','Planeswalkers','Instants','Sorceries','Artifacts','Enchantments','Battles','Lands','Other']");
+  expect(source).toContain("fetch('https://api.scryfall.com/cards/collection'");
+  expect(source).toContain('mainDeckSection(cards)');
+  expect(source).toContain('sideboardSection(cards)');
+});
+
 test('Signal Story and Raw Source restore their parent screens through browser Back',async({page})=>{
   await page.route('**/__signal-story-harness__',route=>route.fulfill({
     status:200,
