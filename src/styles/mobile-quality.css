@@ -55,6 +55,7 @@
   #cxParityCards .cx-scout-dense-name>strong{font-size:10.5px}
 }
 
+@media(max-width:700px){
   /* Approved Collectish direction: score-first Scout tape with calm, comparable data. */
   #cxScout .cx-page-head{margin:2px 2px 14px;align-items:flex-start}
   #cxScout .cx-page-head h2{font-size:24px;line-height:1.05;letter-spacing:-.035em}
