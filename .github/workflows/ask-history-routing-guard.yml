@@ -6,11 +6,13 @@ on:
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
       - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'supabase/migrations/20260831200700_make_ask_price_history_index_native.sql'
+      - 'src/modules/index.js'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'src/modules/ask/structured-surfaces.js'
       - 'tools/check-ask-history-routing.mjs'
       - 'tools/check-ask-context-isolation.mjs'
       - 'tools/check-ask-price-history-chart.mjs'
+      - 'tools/check-ask-surface-boot-order.mjs'
       - '.github/workflows/ask-history-routing-guard.yml'
   push:
     branches: [main]
@@ -19,11 +21,13 @@ on:
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
       - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'supabase/migrations/20260831200700_make_ask_price_history_index_native.sql'
+      - 'src/modules/index.js'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'src/modules/ask/structured-surfaces.js'
       - 'tools/check-ask-history-routing.mjs'
       - 'tools/check-ask-context-isolation.mjs'
       - 'tools/check-ask-price-history-chart.mjs'
+      - 'tools/check-ask-surface-boot-order.mjs'
       - '.github/workflows/ask-history-routing-guard.yml'
 jobs:
   guard:
@@ -36,3 +40,4 @@ jobs:
       - run: node tools/check-ask-history-routing.mjs
       - run: node tools/check-ask-context-isolation.mjs
       - run: node tools/check-ask-price-history-chart.mjs
+      - run: node tools/check-ask-surface-boot-order.mjs
