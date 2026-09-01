@@ -140,7 +140,7 @@ async function renderInlinePrintings(host,row,card,detail){
   const saved=detailScrollBySku.get(String(detail.sku));if(saved!=null)requestAnimationFrame(()=>{if(host.isConnected)host.scrollTop=saved});
 }
 
-function openInlinePrinting(event){const hit=event.target.closest?.('[data-inline-printing-sku]');if(!hit?.dataset.inlinePrintingSku)return;const current=store.get().scout?.selectedSku;detailScrollBySku.set(String(current||''),document.getElementById('cxParityDetail')?.scrollTop||0);document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{sku_id:hit.dataset.inlinePrintingSku}}))}
+function openInlinePrinting(event){const hit=event.target.closest?.('[data-inline-printing-sku]');if(!hit?.dataset.inlinePrintingSku)return;const current=store.get().scout?.selectedSku,target=hit.dataset.inlinePrintingSku;if(String(target)===String(current))return;detailScrollBySku.set(String(current||''),document.getElementById('cxParityDetail')?.scrollTop||0);document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{sku_id:target,from_card_sku:current}}))}
 
 async function addLink(detail){
   const host=document.getElementById('cxParityDetail');if(!host||!detail?.sku)return;const row=selectedRow(detail.sku),card=await canonicalCard(row);if(!host.isConnected||String(store.get().scout?.selectedSku||'')!==String(detail.sku))return;void renderInlinePrintings(host,row,card,detail);
