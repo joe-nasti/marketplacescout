@@ -64,13 +64,14 @@ class MainActivity : Activity() {
     @Volatile private var sellerOrdersProbeState = "idle"
     @Volatile private var sellerOrdersSnapshot = "{}"
     private var lastHostedRefreshAt = 0L
+    private var hostedBackgroundStarted = false
     private val hostedAgentKick = object : Runnable {
         override fun run() {
             if (::seller.isInitialized) verifySellerSession()
             mainHandler.postDelayed(this, 15_000L)
         }
     }
-    private val version = "0.2.15"
+    private val version = "0.2.16"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,11 +79,6 @@ class MainActivity : Activity() {
         configureWindowSafely()
         CookieManager.getInstance().setAcceptCookie(true)
         restoreSession()
-        try {
-            val syncIntent = Intent(this, SellerSyncService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(syncIntent) else startService(syncIntent)
-        } catch (_: Throwable) { }
-
         rootHost = FrameLayout(this).apply { setBackgroundColor(bg()) }
         installSafeInsets(rootHost)
         nativeShell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()) }
@@ -133,8 +129,6 @@ class MainActivity : Activity() {
             agentWeb.loadUrl(shellBootUrl)
         }
         lastHostedRefreshAt = System.currentTimeMillis()
-        seller.loadUrl("https://sellerportal.tcgplayer.com/")
-        mainHandler.postDelayed(hostedAgentKick, 5_000L)
         if (accessToken.isNullOrBlank()) showLogin() else showPage(currentPage)
     }
 
@@ -210,7 +204,9 @@ class MainActivity : Activity() {
         settings.displayZoomControls = false
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
-        settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+        // The hosted shell uses content-hashed Vite assets. Reusing those assets
+        // avoids downloading the complete application graph on every cold launch.
+        settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
         webChromeClient = WebChromeClient()
         webViewClient = WebViewClient()
         setBackgroundColor(Color.WHITE)
@@ -246,6 +242,7 @@ class MainActivity : Activity() {
 
         override fun onPageFinished(view: WebView, url: String) {
             super.onPageFinished(view, url)
+            startHostedBackgroundWork()
             mainHandler.postDelayed({ runHostedBootDiagnostic(view) }, 8_000L)
             val js = """
                 (function(){
@@ -267,6 +264,19 @@ class MainActivity : Activity() {
             """.trimIndent()
             view.evaluateJavascript(js, null)
         }
+    }
+
+    private fun startHostedBackgroundWork() {
+        if (hostedBackgroundStarted) return
+        hostedBackgroundStarted = true
+        mainHandler.postDelayed({
+            if (::seller.isInitialized && seller.url.isNullOrBlank()) seller.loadUrl("https://sellerportal.tcgplayer.com/")
+            try {
+                val syncIntent = Intent(this, SellerSyncService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(syncIntent) else startService(syncIntent)
+            } catch (_: Throwable) { }
+            mainHandler.post(hostedAgentKick)
+        }, 1_500L)
     }
 
     private fun runHostedBootDiagnostic(view: WebView) {
@@ -784,7 +794,7 @@ class MainActivity : Activity() {
     private fun money(v:Double)=NumberFormat.getCurrencyInstance(Locale.US).format(v)
     private fun kpiGrid(items:List<Pair<String,String>>)=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;items.chunked(2).forEach{rowItems->addView(LinearLayout(this@MainActivity).apply{orientation=LinearLayout.HORIZONTAL;rowItems.forEach{(k,v)->addView(card().apply{addView(text(k.uppercase(),10f,muted()));addView(text(v,19f,ink()).apply{setTypeface(typeface,1);setPadding(0,dp(4),0,0)})},LinearLayout.LayoutParams(0,-2,1f).apply{marginEnd=dp(6);bottomMargin=dp(7)})}},LinearLayout.LayoutParams(-1,-2))}}
 
-    private fun showSeller(){ nativeShell.visibility=View.GONE;agentWeb.visibility=View.GONE;seller.visibility=View.VISIBLE;if(::sellerReturn.isInitialized)sellerReturn.visibility=View.VISIBLE }
+    private fun showSeller(){ if(seller.url.isNullOrBlank())seller.loadUrl("https://sellerportal.tcgplayer.com/");nativeShell.visibility=View.GONE;agentWeb.visibility=View.GONE;seller.visibility=View.VISIBLE;if(::sellerReturn.isInitialized)sellerReturn.visibility=View.VISIBLE }
 
     private fun decodeJsString(raw:String):String=raw.replace("\\\"","\"").replace("\\n","\n").replace("\\\\","\\").trim('"')
     private fun verifySellerSession(after:(()->Unit)?=null){
