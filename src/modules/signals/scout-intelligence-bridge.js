@@ -8,6 +8,7 @@ let cedhCards=[];
 let corroborated=[];
 let loading=null;
 let originIntelId=null;
+const edhrecRankCache=new Map();
 const lower=s=>String(s||'').trim().toLowerCase();
 const baseName=s=>String(s||'').replace(/\s*\([^)]*(foil|showcase|borderless|extended art|serialized|retro frame|etched|alternate art|halo foil|rainbow foil|surge foil|galaxy foil)[^)]*\)\s*/ig,' ').replace(/\s+/g,' ').trim();
 const slug=s=>String(s||'').normalize('NFKD').replace(/[’']/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'').toLowerCase();
@@ -61,20 +62,28 @@ function detailFor(row){
   const multi=corroborated.filter(x=>match(x)||lower(baseName(x.card_name))===name);
   return{competitive:comp,commander:edh,cedh:c,cedhCards:cc,crossSource:multi,signals:signalCatalysts(row)};
 }
-function canonicalEdhrecRank(row,ctx){
+async function canonicalEdhrecRank(row,ctx){
   const exact=Number(row?.edhrec_rank||0);if(exact>0)return exact;
-  const oracle=lower(baseName(row?.product_name));
+  const oracle=lower(baseName(row?.product_name));if(!oracle)return 0;
   const sibling=scoutRows().find(x=>lower(baseName(x.product_name))===oracle&&Number(x.edhrec_rank||0)>0);
   if(Number(sibling?.edhrec_rank||0)>0)return Number(sibling.edhrec_rank);
   const intel=(ctx?.commander||[]).find(x=>Number(x.edhrec_rank||0)>0);
-  return Number(intel?.edhrec_rank||0);
+  if(Number(intel?.edhrec_rank||0)>0)return Number(intel.edhrec_rank);
+  if(!edhrecRankCache.has(oracle)){
+    const q=encodeURIComponent(baseName(row.product_name));
+    edhrecRankCache.set(oracle,rest(`marketplace_scan_rows?select=edhrec_rank,edhrec_observed_at,product_name&product_name=ilike.${q}*&edhrec_rank=not.is.null&order=edhrec_observed_at.desc&limit=1`).then(xs=>Number(xs?.[0]?.edhrec_rank||0)).catch(()=>0));
+  }
+  return Number(await edhrecRankCache.get(oracle)||0);
 }
-function hydrateOracleDetail(host,row,ctx){
+async function hydrateOracleDetail(host,row,ctx){
   if(!host||!row)return;
-  const rank=canonicalEdhrecRank(row,ctx);
-  if(rank>0){const tile=[...host.querySelectorAll('.cx-v5-stat')].find(x=>x.querySelector('span')?.textContent?.trim()==='EDHREC rank');const value=tile?.querySelector('strong');if(value)value.textContent=`#${rank.toLocaleString()}`}
+  const expectedSku=String(row.sku_id||'');
   const edh=slug(baseName(row.product_name));
   if(edh){const link=[...host.querySelectorAll('.cx-v5-links a')].find(a=>a.textContent?.trim().startsWith('EDHREC'));if(link)link.href=`https://edhrec.com/cards/${edh}`}
+  const rank=await canonicalEdhrecRank(row,ctx);
+  if(rank<=0||String(store.get().scout?.selectedSku||'')!==expectedSku)return;
+  const tile=[...host.querySelectorAll('.cx-v5-stat')].find(x=>x.querySelector('span')?.textContent?.trim()==='EDHREC rank');
+  const value=tile?.querySelector('strong');if(value)value.textContent=`#${rank.toLocaleString()}`;
 }
 function badgeSummary(ctx){
   const out=[];
@@ -107,7 +116,7 @@ function catalystMarkup(items){
 }
 function decorateScoutDetail(sku){
   const host=document.getElementById('cxParityDetail');if(!host||!sku)return;host.querySelector('.cx-intelligence-detail')?.remove();
-  const row=scoutRows().find(r=>String(r.sku_id)===String(sku)),ctx=detailFor(row);hydrateOracleDetail(host,row,ctx);if(!ctx.competitive.length&&!ctx.commander.length&&!ctx.cedh.length&&!ctx.cedhCards.length&&!ctx.crossSource.length&&!ctx.signals.length)return;
+  const row=scoutRows().find(r=>String(r.sku_id)===String(sku)),ctx=detailFor(row);void hydrateOracleDetail(host,row,ctx);if(!ctx.competitive.length&&!ctx.commander.length&&!ctx.cedh.length&&!ctx.cedhCards.length&&!ctx.crossSource.length&&!ctx.signals.length)return;
   const pieces=[];
   if(ctx.crossSource.length){const x=ctx.crossSource[0],dynamic=Number(x.dynamic_sources||0)>0?` · ${x.dynamic_sources} changing/new`:'';pieces.push(intelligenceRow('Cross-source',`${x.evidence_sources||2} evidence families · score ${x.corroboration_score||'—'}`,`${x.watch_reason||'Independent sources align'}${dynamic}`))}
   if(ctx.competitive.length){const x=ctx.competitive[0];pieces.push(intelligenceRow('Competitive',`${x.deck_count_30d||0} decks · ${x.top8_decks_30d||0} Top 8`,`${x.format||'Competitive'} · PLAYED + SCOUT`))}
