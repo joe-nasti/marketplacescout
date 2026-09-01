@@ -9,6 +9,12 @@ function onScout(){
   const state=store.get();
   return (state.runtime?.page||state.navigation?.page)==='scout';
 }
+function lookupSku(value=''){
+  const raw=String(value||'');
+  if(!raw.startsWith('lookup:'))return null;
+  const [card_name='',set_hint='',finish='']=raw.slice(7).split('|');
+  return {card_name,set_code:set_hint,set_name:set_hint,finish};
+}
 function urlState(){
   const p=new URL(location.href).searchParams;
   const view=VIEWS.has(p.get('view'))?p.get('view'):'top';
@@ -51,18 +57,19 @@ function explicitOpen(event){
 }
 function openLookup(state){
   if(!state.product_id&&!state.card_name)return;
-  document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{source:'signals-discord-deep-link',product_id:state.product_id||null,card_name:state.card_name||null,set_code:state.set_code||null,finish:state.finish||null}}));
+  document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{source:'signals-discord-deep-link',product_id:state.product_id||null,card_name:state.card_name||null,set_code:state.set_code||null,set_name:state.set_name||null,finish:state.finish||null}}));
 }
 function applyState(){
   if(!onScout())return;
   const renderer=window.CollectishScoutRenderer;
   if(!renderer?.setSaved||store.get().scout?.status!=='ready')return;
-  const state=urlState(),{view,sku}=state;
+  const state=urlState(),{view,sku}=state,lookup=lookupSku(sku);
   explicitSku=sku;
   applying=true;
   try{
     renderer.setSaved(view);
-    if(sku&&view!=='quick')window.CollectishScoutDetailNavigation?.open?.({sku_id:sku});
+    if(lookup&&view!=='quick')openLookup({...state,...lookup,sku:''});
+    else if(sku&&view!=='quick')window.CollectishScoutDetailNavigation?.open?.({sku_id:sku});
     else if((state.product_id||state.card_name)&&view!=='quick')openLookup(state);
     else window.CollectishNavigation?.closeScoutDetail?.({history:false});
   }finally{applying=false}
