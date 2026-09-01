@@ -5,7 +5,7 @@ import { uiEvidenceMarker, directPremiumEvidence } from '../../core/ui-primitive
 const detail=()=>document.getElementById('cxParityDetail');
 const norm=s=>String(s||'').trim().toLowerCase();
 const money=n=>n==null||n===''||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
-const pct=n=>n==null||!Number.isFinite(Number(n))?'—':`\${Number(n).toFixed(0)}%`;
+const pct=n=>n==null||!Number.isFinite(Number(n))?'—':`${Number(n).toFixed(0)}%`;
 const score=r=>Number(r?.promoted_score??r?.v5_shadow_score??r?.opportunity_score??0);
 const grade=r=>r?.promoted_grade||r?.v5_shadow_grade||(score(r)>=80?'A':score(r)>=70?'B':score(r)>=60?'C':score(r)>=50?'D':'F');
 const points=(label,value,max)=>{const chip=document.createElement('span');chip.className='cx-v5-score-chip';const v=Number(value||0);chip.innerHTML=`<b>${label}</b><strong>${Number.isInteger(v)?v:v.toFixed(1)}<small>/${max}</small></strong>`;return chip};
@@ -29,7 +29,7 @@ function compactHeader(h,row){
   info.append(title,set,meta,thesis);if(oldBadges?.children.length){oldBadges.classList.add('cx-v5-compact-badges');info.append(oldBadges)}head.append(info);oldTitle.replaceWith(head);
   const buy=Number(row.cheapest_buy||row.tcg_low||0),direct=Number(row.direct_low||0),roi=buy>0&&row.direct_net_profit!=null?Number(row.direct_net_profit)/buy*100:null,kpis=document.createElement('div');kpis.className='cx-card-kpi-tape';kpis.innerHTML=`<span><small>Market</small><b>${money(row.sku_market_price)}</b></span><span><small>Direct</small><b>${money(direct)}</b></span><span class="positive"><small>Cash floor</small><b>${money(row.ck_buylist)}</b></span><span><small>Buy target</small><b>${money(buy)}</b></span><span class="positive"><small>ROI</small><b>${pct(roi)}</b></span>`;head.after(kpis);
   const execution=Number(row.direct_execution_points||0)+Number(row.buylist_backing_points||0),strip=document.createElement('div');strip.className='cx-v5-score-strip';strip.append(points('Thesis',row.thesis_points,70),points('Exec',execution,20),points('Floor',row.exit_floor_points,5),points('Conf',row.confirmation_points,5));oldComponents.replaceWith(strip);
-  const market=sectionByTitle(h,'Across the market'),decision=h.querySelector('.cx-scout-decision');if(market&&decision){decision.classList.add('cx-card-best-opportunity');market.insertAdjacentElement('afterend',decision)}
+  const market=sectionByTitle(h,'Across the market'),decision=h.querySelector('.cx-scout-decision');if(market&&decision){decision.classList.add('cx-card-best-opportunity');decision.innerHTML=`<small>Best opportunity</small><strong>${row.set_name||'Unknown set'}${row.collector_number?` · #${row.collector_number}`:''} · ${row.printing||'printing unknown'}</strong><span>Scout ${score(row)} · ${Number(row.avg_daily_qty_sold||0).toFixed(1)}/day</span>`;market.insertAdjacentElement('afterend',decision)}
 }
 
 function tierSpreads(h,row){
@@ -41,6 +41,6 @@ function tierSpreads(h,row){
   pricing?.querySelectorAll('.cx-v5-stat').forEach(stat=>{const label=norm(stat.querySelector(':scope > span')?.textContent);if(label==='mana pool'||label==='cardmarket / mkm'||label==='cardmarket')stat.classList.add('cx-v5-passive-reference');if(label==='tcg low'||label==='low'||label==='tcgplayer low')addMarker(stat,uiEvidenceMarker('inferred','Lowest observed ask; quantity available near this price is not established.'));if(label.includes('direct')&&directEvidence)addMarker(stat,uiEvidenceMarker(directEvidence.kind,directEvidence.help));if(label.includes('velocity')||label.includes('sales/day'))addMarker(stat,uiEvidenceMarker('verified','Measured TCGplayer marketplace sales; Direct vs non-Direct is not identified.'))});
 }
 
-export function decorateScoutDetailCompact(event){const h=detail(),sku=event?.detail?.sku||store.get().scout?.selectedSku,row=selectedRow(sku);if(!h||!row||h.querySelector('.cx-v5-compact-head'))return;compactHeader(h,row);tierSpreads(h,row)}
+export function decorateScoutDetailCompact(event){const h=detail(),sku=event?.detail?.sku||store.get().scout?.selectedSku,row=event?.detail?.row||selectedRow(sku);if(!h||!row||h.querySelector('.cx-v5-compact-head'))return;compactHeader(h,row);tierSpreads(h,row)}
 function schedule(event){requestAnimationFrame(()=>requestAnimationFrame(()=>decorateScoutDetailCompact(event)))}
 registerComponent('scout-detail-compact-header',{mount(){document.addEventListener('collectish:scout-detail-rendered',schedule)},unmount(){document.removeEventListener('collectish:scout-detail-rendered',schedule)},onPage(page){if(page==='scout')schedule()}});

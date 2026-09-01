@@ -1,4 +1,5 @@
 import store from '../../state/store.js';
+import { rest } from '../../core/rest.js';
 import { readOracleFamily, seedOracleFamily } from './oracle-family-data.js';
 
 let installed=false;
@@ -130,7 +131,7 @@ async function renderInlinePrintings(host,row,card,detail){
   const slot=host.querySelector('[data-scout-inline-printings]');if(!slot)return;
   const canonical=card?.name||baseName(row?.product_name||'');if(!canonical)return;
   const seq=++inlineSeq;slot.innerHTML=`<section class="cx-scout-inline-printings"><div class="cx-inline-printings-head"><div><small>Printing family</small><strong>All printings</strong></div><span>Loading…</span></div></section>`;
-  let rows=[];try{rows=card?.oracle_id?await readOracleFamily(card.oracle_id,{limit:FAMILY_LIMIT}):rankedFamilyRows(canonical)}catch{rows=rankedFamilyRows(canonical)}
+  let rows=[];try{rows=card?.oracle_id?await readOracleFamily(card.oracle_id,{limit:FAMILY_LIMIT}):rankedFamilyRows(canonical);if(rows.length<=1){const searched=await rest('rpc/scout_catalog_search',{method:'POST',body:{p_query:canonical,p_limit:200}}).catch(()=>[]),wanted=baseName(canonical).toLowerCase(),supplement=(searched||[]).filter(r=>(card?.oracle_id&&String(r.oracle_id||'')===String(card.oracle_id))||baseName(r.product_name).toLowerCase()===wanted),bySku=new Map([...rows,...supplement].map(r=>[String(r.sku_id||`${r.product_id}:${r.printing}:${r.condition}`),r]));rows=[...bySku.values()]}}catch{rows=rankedFamilyRows(canonical)}
   if(seq!==inlineSeq||!host.isConnected||String(store.get().scout?.selectedSku||'')!==String(detail.sku))return;
   const ordered=[...rows].sort((a,b)=>{const ac=String(a.sku_id)===String(detail.sku),bc=String(b.sku_id)===String(detail.sku);if(ac!==bc)return ac?-1:1;return score(b)-score(a)}),initial=ordered.slice(0,8),remaining=Math.max(0,ordered.length-initial.length);
   slot.innerHTML=`<section class="cx-scout-inline-printings"><div class="cx-inline-printings-head"><div><small>Printing family</small><strong>All printings</strong></div><span>${ordered.length} found</span></div><div class="cx-inline-printings-columns"><span>Printing</span><span>Scout</span><span>Buy</span><span>Direct</span></div><div class="cx-inline-printings-list">${initial.map(r=>inlinePrintingRow(r,String(r.sku_id)===String(detail.sku))).join('')}</div>${remaining?`<button type="button" class="cx-inline-printings-more" data-inline-printings-more>Show ${remaining} more</button>`:''}<button type="button" class="cx-inline-printings-compare" data-inline-printings-compare>Open comparison workspace</button></section>`;
