@@ -4,9 +4,36 @@ import store from '../../state/store.js';
 let started=false;
 let loading=null;
 let signalFastOpenLoading=null;
+let deepLinkSeq=0;
+
+function deepLinkState(){
+  const p=new URL(location.href).searchParams;
+  return {
+    sku:p.get('sku')||'',
+    product_id:p.get('product')||'',
+    card_name:p.get('card')||'',
+    set_code:p.get('set')||'',
+    finish:p.get('finish')||''
+  };
+}
+async function openColdDeepLink(){
+  const seq=++deepLinkSeq,d=deepLinkState();
+  if(!d.sku&&!d.product_id&&!d.card_name)return false;
+  window.CollectishShell?.switchPage?.('scout');
+  if(d.sku){
+    const module=await import('./detail-navigation.js');
+    if(seq!==deepLinkSeq)return false;
+    return Boolean(module.openScoutDetail({sku_id:d.sku,source:'discord-deep-link'}));
+  }
+  if(!signalFastOpenLoading)signalFastOpenLoading=import('./signal-fast-open.js');
+  const module=await signalFastOpenLoading;
+  if(seq!==deepLinkSeq)return false;
+  await module.openSignalScoutFast({source:'signals-discord-deep-link',product_id:d.product_id||null,card_name:d.card_name||null,set_code:d.set_code||null,finish:d.finish||null});
+  return true;
+}
 
 export async function startScout(){
-  if(started)return;
+  if(started){queueMicrotask(()=>void openColdDeepLink().catch(()=>{}));return;}
   if(loading)return loading;
   const host=document.getElementById('cxScout');
   if(!host)return;
@@ -15,6 +42,7 @@ export async function startScout(){
       const module=await import('./index.js');
       await module.installScoutRenderer();
       started=true;
+      queueMicrotask(()=>void openColdDeepLink().catch(error=>console.warn('Scout deep link failed',error)));
     }catch(error){
       started=false;
       host.innerHTML='<div class="cx-empty">Scout failed to load. Reopen Scout to retry.</div>';
@@ -46,4 +74,4 @@ registerComponent('scout-bootstrap',{
   onPage:page=>{if(page==='scout')startScout().catch(()=>{})}
 });
 
-window.CollectishScoutBootstrap={start:startScout};
+window.CollectishScoutBootstrap={start:startScout,openDeepLink:openColdDeepLink};
