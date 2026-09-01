@@ -58,13 +58,16 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
   },{oracleId:ORACLE_ID});
 
   const restReplacement=[["import { rest } from '../../core/rest.js';","const rest=window.__oracleTestRest;"]];
-  await injectModule(page,'src/modules/scout/universal-search.js',restReplacement);
+  await injectModule(page,'src/modules/scout/universal-search.js',[
+    ...restReplacement,
+    ["import { readOracleFamily } from './oracle-family-data.js';","const readOracleFamily=(oracle,{limit=2000}={})=>window.__oracleTestRest('rpc/scout_catalog_by_oracle',{method:'POST',body:{p_oracle_id:oracle,p_limit:limit}});"]
+  ]);
   await injectModule(page,'src/modules/scout/oracle-bulk-refresh.js',restReplacement);
   await injectModule(page,'src/modules/scout/oracle-detail-context.js');
   await injectModule(page,'src/modules/scout/oracle-family-confidence.js');
   await injectModule(page,'src/modules/scout/oracle-printings.js',[
     ["import store from '../../state/store.js';","const store=window.__oracleTestStore;"],
-    ["import { rest } from '../../core/rest.js';","const rest=window.__oracleTestRest;"],
+    ["import { readOracleFamily, seedOracleFamily } from './oracle-family-data.js';","const readOracleFamily=(oracle,{limit=2000}={})=>window.__oracleTestRest('rpc/scout_catalog_by_oracle',{method:'POST',body:{p_oracle_id:oracle,p_limit:limit}});const seedOracleFamily=(_oracle,rows)=>rows;"],
     ["fetch(`https://api.scryfall.com/","window.__oracleTestFetch(`https://api.scryfall.com/"]
   ]);
 
