@@ -1,6 +1,6 @@
 const DISCORD_API='https://discord.com/api/v10';
-const EPHEMERAL=1<<6;
-const MAX_CONTENT=1900;
+const MAX_EMBED_DESCRIPTION=4096;
+const MAX_EMBED_TOTAL=5900;
 const base=env=>String(env.SUPABASE_URL||'').replace(/\/$/,'');
 const web=env=>String(env.COLLECTISH_WEB_URL||'https://joe-nasti.github.io/marketplacescout/').replace(/\/$/,'/');
 
@@ -30,39 +30,40 @@ async function serviceRpc(env,name,body){
   if(!r.ok)throw new Error(`${name} HTTP ${r.status}: ${(await r.text()).slice(0,140)}`);
   return r.json();
 }
-function splitSection(title,lines){
-  if(!lines.length)return[];
-  const out=[];let current=title;
+function fitDescription(lines,max=MAX_EMBED_DESCRIPTION){
+  const out=[];
   for(const line of lines){
-    if(`${current}\n${line}`.length<=MAX_CONTENT){current+=`\n${line}`;continue}
-    if(current!==title)out.push(current);
-    current=`${title} (continued)\n${line}`;
-    if(current.length>MAX_CONTENT){out.push(current.slice(0,MAX_CONTENT));current=''}
+    const next=[...out,line].join('\n');
+    if(next.length>max)break;
+    out.push(line);
   }
-  if(current&&current!==title)out.push(current);
-  return out;
+  return out.join('\n');
 }
-function messagesForSnapshot(env,d,count){
+function embedsForSnapshot(env,d,count){
   const raw=Array.isArray(d?.raw)?d.raw.slice(0,count):[];
   const movers=Array.isArray(d?.early_movers)?d.early_movers:[];
   const noise=Array.isArray(d?.noise)?d.noise:[];
-  const title=`MTGStocks Interests — ${d?.observed_date||'latest'} · ${metricLabel(d?.price_type)} · ${finishLabel(d?.finish)} · ${d?.window||'24h'}`;
+  const header=`${d?.observed_date||'latest'} · ${metricLabel(d?.price_type)} · ${finishLabel(d?.finish)} · ${d?.window||'24h'}`;
   const rawLines=raw.map((x,i)=>`${i+1}. ${cardText(env,x)} · ${setLabel(x)} · ${finishLabel(x?.finish)} · ${pct(x?.pct_change)}`);
   const moverLines=movers.slice(0,5).map((x,i)=>`${i+1}. ${cardText(env,x)} · ${setLabel(x)} · ${finishLabel(x?.finish)} · ${pct(x?.pct_change)} — ${reason(x)}`);
   const noiseLines=noise.slice(0,6).map(x=>`• ${cardText(env,x,46)} · ${setLabel(x)} · ${pct(x?.pct_change)} — ${reason(x)}`);
-  return[
-    ...splitSection(title,rawLines),
-    ...splitSection('Collectish early movers',moverLines),
-    ...splitSection('Noise / thin-market flags',noiseLines),
-  ];
+  const embeds=[];
+  const rawDescription=fitDescription(rawLines);
+  if(rawDescription)embeds.push({title:'MTGStocks Interests',description:rawDescription,footer:{text:header}});
+  const moverDescription=fitDescription(moverLines);
+  if(moverDescription)embeds.push({title:'Collectish early movers',description:moverDescription});
+  const noiseDescription=fitDescription(noiseLines);
+  if(noiseDescription)embeds.push({title:'Noise / thin-market flags',description:noiseDescription});
+  let used=0;
+  return embeds.filter(e=>{
+    const size=String(e.title||'').length+String(e.description||'').length+String(e.footer?.text||'').length;
+    if(used+size>MAX_EMBED_TOTAL)return false;
+    used+=size;return true;
+  });
 }
-async function editOriginal(job,content){
-  const r=await fetch(`${DISCORD_API}/webhooks/${job.application_id}/${job.interaction_token}/messages/@original`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,components:[],allowed_mentions:{parse:[]}})});
-  if(!r.ok)throw new Error(`Discord original edit HTTP ${r.status}`);
-}
-async function followup(job,content){
-  const r=await fetch(`${DISCORD_API}/webhooks/${job.application_id}/${job.interaction_token}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,flags:EPHEMERAL,allowed_mentions:{parse:[]}})});
-  if(!r.ok)throw new Error(`Discord followup HTTP ${r.status}`);
+async function editOriginal(job,embeds){
+  const r=await fetch(`${DISCORD_API}/webhooks/${job.application_id}/${job.interaction_token}/messages/@original`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:'',embeds,components:[],allowed_mentions:{parse:[]}})});
+  if(!r.ok)throw new Error(`Discord original edit HTTP ${r.status}: ${(await r.text()).slice(0,180)}`);
 }
 
 export async function rewriteStructuredDiscordOutput(env,job){
@@ -70,8 +71,7 @@ export async function rewriteStructuredDiscordOutput(env,job){
   try{
     const p=sourcePrefs(job.question),count=requestedCount(job.question);
     const d=await serviceRpc(env,'ask_mtgstocks_interests_vetted_v1',{p_source_date:null,p_finish:p.finish,p_price_type:p.price_type,p_window:p.window,p_limit:Math.max(40,count)});
-    const messages=messagesForSnapshot(env,d,count);if(!messages.length)return;
-    await editOriginal(job,messages[0]);
-    for(const content of messages.slice(1))await followup(job,content);
-  }catch(error){console.warn('structured discord multi-message rewrite skipped',String(error?.message||error).slice(0,180))}
+    const embeds=embedsForSnapshot(env,d,count);if(!embeds.length)return;
+    await editOriginal(job,embeds);
+  }catch(error){console.warn('structured discord embed rewrite skipped',String(error?.message||error).slice(0,180))}
 }
