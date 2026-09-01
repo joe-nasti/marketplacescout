@@ -4,24 +4,24 @@ import path from 'node:path';
 
 const read=p=>readFile(path.join(process.cwd(),p),'utf8');
 
-test('canonical mobile navigation layers agree on four product destinations',async()=>{
+test('canonical mobile navigation layers agree on five product destinations',async()=>{
   const product=await read('src/styles/product-navigation.css');
   const mobile=await read('src/styles/mobile-quality.css');
   const index=await read('src/styles/index.css');
-  expect(product).toContain('grid-template-columns:repeat(4,minmax(0,1fr))');
-  expect(mobile).toContain('grid-template-columns:repeat(4,minmax(0,1fr))');
+  expect(product).toContain('grid-template-columns:repeat(5,minmax(0,1fr))');
+  expect(mobile).toContain('grid-template-columns:repeat(5,minmax(0,1fr))');
   expect(mobile).not.toContain('repeat(7,minmax(0,1fr))');
   expect(index.indexOf("@import './product-navigation.css'"))
     .toBeLessThan(index.indexOf("@import './mobile-quality.css'"));
 });
 
-test('mobile bottom navigation resolves to four equal touch-safe targets',async({page},testInfo)=>{
+test('mobile bottom navigation resolves to five equal touch-safe targets',async({page},testInfo)=>{
   test.skip(testInfo.project.name==='desktop-chromium','mobile layout contract');
   await page.goto('/');
   const metrics=await page.evaluate(()=>{
     const nav=document.createElement('nav');
     nav.className='cx-mobile-nav';
-    nav.innerHTML='<button>Scout</button><button>Signals</button><button>Selling</button><button>More</button>';
+    nav.innerHTML='<button>Scout</button><button>Signals</button><button>Selling</button><button>Ask</button><button>More</button>';
     document.body.appendChild(nav);
     const style=getComputedStyle(nav),buttons=[...nav.querySelectorAll('button')];
     const result={
@@ -34,7 +34,7 @@ test('mobile bottom navigation resolves to four equal touch-safe targets',async(
     return result;
   });
   expect(metrics.display).toBe('grid');
-  expect(metrics.columns).toBe(4);
+  expect(metrics.columns).toBe(5);
   expect(Math.min(...metrics.heights)).toBeGreaterThanOrEqual(48);
   expect(metrics.overflow).toBeLessThanOrEqual(1);
 });
@@ -79,7 +79,7 @@ test('Scout mobile rows prioritize decision metrics instead of repeating score',
   expect(result.rects[4].width).toBeGreaterThan(result.rects[1].width*1.35);
 });
 
-test('Scout mobile detail resolves as a compact progressive inspector',async({page},testInfo)=>{
+test('Scout mobile detail resolves as a full-screen child surface above persistent navigation',async({page},testInfo)=>{
   test.skip(testInfo.project.name==='desktop-chromium','mobile inspector contract');
   await page.goto('/');
   const metrics=await page.evaluate(()=>{
@@ -89,6 +89,9 @@ test('Scout mobile detail resolves as a compact progressive inspector',async({pa
     document.body.appendChild(scout);
     const aside=scout.querySelector('aside'),art=scout.querySelector('.cx-scout-hero'),scores=scout.querySelector('.cx-v5-score-strip'),best=scout.querySelector('.cx-v5-tier-best'),cash=scout.querySelector('.cx-v5-tier-cash'),close=scout.querySelector('.cx-mobile-detail-close');
     const result={
+      position:getComputedStyle(aside).position,
+      top:getComputedStyle(aside).top,
+      bottom:getComputedStyle(aside).bottom,
       maxHeight:getComputedStyle(aside).maxHeight,
       artWidth:art.getBoundingClientRect().width,
       scoreDisplay:getComputedStyle(scores).display,
@@ -100,7 +103,10 @@ test('Scout mobile detail resolves as a compact progressive inspector',async({pa
     scout.remove();
     return result;
   });
-  expect(parseFloat(metrics.maxHeight)).toBeLessThanOrEqual(720);
+  expect(metrics.position).toBe('fixed');
+  expect(parseFloat(metrics.top)).toBe(0);
+  expect(parseFloat(metrics.bottom)).toBeGreaterThanOrEqual(56);
+  expect(metrics.maxHeight).toBe('none');
   expect(metrics.artWidth).toBeLessThanOrEqual(64);
   expect(metrics.scoreDisplay).toBe('grid');
   expect(metrics.scoreColumns).toBe(4);

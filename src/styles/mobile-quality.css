@@ -9,7 +9,7 @@
   #collectishUxShell{min-height:100vh;min-height:100dvh;padding-bottom:calc(78px + env(safe-area-inset-bottom))}
   .cx-main{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
   .cx-mobile-nav{
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:repeat(5,minmax(0,1fr));
     padding-left:max(8px,env(safe-area-inset-left));
     padding-right:max(8px,env(safe-area-inset-right));
     gap:4px;

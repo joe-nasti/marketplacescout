@@ -37,6 +37,7 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
       <div class="cx-scout-toolbar"></div>
       <section id="cxParityDetail" class="cx-mobile-detail-open">
         <div class="cx-v5-title"><div><h2 class="cx-section-title">Solphim, Mayhem Dominus</h2></div></div>
+        <div data-scout-inline-printings></div>
       </section>
     </main>
   `);
@@ -51,7 +52,7 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
         window.__oracleTestState.scout.selectedSku=String(row?.sku_id||'');
         const detail=document.getElementById('cxParityDetail');
         detail.dataset.restoredSku=String(row?.sku_id||'');
-        detail.innerHTML=`<div class="cx-v5-title"><div><h2 class="cx-section-title">${row?.product_name||row?.card_name||'restored'}</h2></div></div>`;
+        detail.innerHTML=`<div class="cx-v5-title"><div><h2 class="cx-section-title">${row?.product_name||row?.card_name||'restored'}</h2></div></div><div data-scout-inline-printings></div>`;
         document.dispatchEvent(new CustomEvent('collectish:scout-detail-rendered',{detail:{sku:row?.sku_id}}));
       }
     };
@@ -75,7 +76,9 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
   ]);
 
   await page.evaluate(()=>document.dispatchEvent(new CustomEvent('collectish:scout-detail-rendered',{detail:{sku:'sku-1'}})));
-  const compare=page.getByRole('button',{name:/Compare all printings/});
+  await expect(page.getByText('All printings',{exact:true})).toBeVisible();
+  await expect(page.locator('.cx-inline-printing-row')).toHaveCount(3);
+  const compare=page.getByRole('button',{name:/Open comparison workspace/});
   await expect(compare).toBeVisible();
   await compare.click();
 

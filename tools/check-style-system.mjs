@@ -32,6 +32,7 @@ const expected=[
   'signals-light.css',
   'signals-mobile-polish.css',
   'signals-rendered.css',
+  'signals-story.css',
   'signals.css',
   'tokens.css',
   'utility-controls.css',
