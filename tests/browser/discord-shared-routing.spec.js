@@ -41,6 +41,18 @@ test('named MTGStocks requests execute source lookup and refresh without clarifi
   expect(router).toMatch(/routeSource\(q\).*priceHistoryIntent/s);
 });
 
+test('canonical MTGStocks collector keeps complete per-window data and edge path does not silently use Telegram',()=>{
+  const collector=read('cloud-worker/mtgstocks-interests.mjs');
+  const edge=read('supabase/functions/market-intel-mtgstocks-interests-sync/index.ts');
+  const workflow=read('.github/workflows/mtgstocks-interests.yml');
+  expect(collector).toContain('MAX_PER_WINDOW');
+  expect(collector).toContain('const counts=new Map()');
+  expect(collector).toContain("used>=MAX_PER_WINDOW");
+  expect(edge).toContain('canonical Interests are collected by the GitHub Chrome collector');
+  expect(edge).not.toContain('telegram_announcement');
+  expect(workflow).toContain('cron: "17 * * * *"');
+});
+
 test('web Ask converges on the stable API and renders shared surfaces',()=>{
   const proxy=read('src/modules/ask/endpoint-proxy.js');
   const renderer=read('src/modules/ask/structured-surfaces.js');
