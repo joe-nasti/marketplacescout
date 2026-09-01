@@ -30,7 +30,7 @@ test('Scout card opening is centralized across ranked and quick-turn surfaces',a
   expect(index.indexOf("import('./detail-navigation.js')")).toBeGreaterThan(index.indexOf("import('./renderer.js')"));
   expect(navigation).toContain("#cxScout .cx-scout-card[data-sku], #cxScout [data-quick-turn-sku]");
   expect(navigation).toContain("document.addEventListener('collectish:open-scout-card',openEvent)");
-  expect(navigation).toContain("store.update('scout',{selectedSku:summary.sku_id})");
-  expect(navigation).toContain('void renderer.renderDetail(summary,true)');
+  expect(navigation).toContain("store.update('scout',{selectedSku:row.sku_id})");
+  expect(navigation).toContain('void renderer.renderDetail(row,true)');
   expect(navigation).toContain('e.stopImmediatePropagation()');
 });

@@ -4,7 +4,8 @@ import { readOracleFamily, seedOracleFamily } from './oracle-family-data.js';
 let installed=false;
 const sfCache=new Map();
 const FAMILY_LIMIT=2000;
-let compareContext=null,familyData=[],familyOracle='',familySeq=0;
+let compareContext=null,familyData=[],familyOracle='',familySeq=0,inlineSeq=0;
+const detailScrollBySku=new Map();
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const baseName=n=>String(n||'').replace(/\s*\([^)]*(foil|showcase|borderless|extended art|serialized|retro frame|etched|alternate art|halo foil|rainbow foil|surge foil|galaxy foil)[^)]*\)\s*/ig,' ').replace(/\s+/g,' ').trim();
@@ -123,8 +124,25 @@ function openAllPrintings(name,oracleId,sku,row){
   void renderCompareSummary();input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('focus',{bubbles:true}));document.querySelector('.cx-mobile-detail-close')?.click();document.body.classList.remove('cx-scout-detail-lock');document.getElementById('cxParityDetail')?.classList.remove('cx-mobile-detail-open');input.focus({preventScroll:true});input.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(markCurrentPrinting,300);
 }
 
+function inlinePrintingRow(r,current){const label=printingLabel(r)||'Unknown printing',set=r.set_name||r.set_code||'Unknown set',buy=Number(r.cheapest_buy||r.tcg_low||0);return `<button type="button" class="cx-inline-printing-row ${current?'current':''}" data-inline-printing-sku="${esc(r.sku_id||'')}"><span><strong>${esc(set)}</strong><small>${esc(label)}${current?' · Current':''}</small></span><span><small>Scout</small><b>${r.scout_score!=null||r.last_score!=null||r.promoted_score!=null||r.v5_shadow_score!=null?`${esc(grade(r))} ${Math.round(score(r))}`:'—'}</b></span><span><small>Buy</small><b>${money(buy||null)}</b></span><span><small>Direct</small><b>${money(r.direct_low)}</b></span></button>`}
+
+async function renderInlinePrintings(host,row,card,detail){
+  const slot=host.querySelector('[data-scout-inline-printings]');if(!slot)return;
+  const canonical=card?.name||baseName(row?.product_name||'');if(!canonical)return;
+  const seq=++inlineSeq;slot.innerHTML=`<section class="cx-scout-inline-printings"><div class="cx-inline-printings-head"><div><small>Printing family</small><strong>All printings</strong></div><span>Loading…</span></div></section>`;
+  let rows=[];try{rows=card?.oracle_id?await readOracleFamily(card.oracle_id,{limit:FAMILY_LIMIT}):rankedFamilyRows(canonical)}catch{rows=rankedFamilyRows(canonical)}
+  if(seq!==inlineSeq||!host.isConnected||String(store.get().scout?.selectedSku||'')!==String(detail.sku))return;
+  const ordered=[...rows].sort((a,b)=>{const ac=String(a.sku_id)===String(detail.sku),bc=String(b.sku_id)===String(detail.sku);if(ac!==bc)return ac?-1:1;return score(b)-score(a)}),initial=ordered.slice(0,8),remaining=Math.max(0,ordered.length-initial.length);
+  slot.innerHTML=`<section class="cx-scout-inline-printings"><div class="cx-inline-printings-head"><div><small>Printing family</small><strong>All printings</strong></div><span>${ordered.length} found</span></div><div class="cx-inline-printings-columns"><span>Printing</span><span>Scout</span><span>Buy</span><span>Direct</span></div><div class="cx-inline-printings-list">${initial.map(r=>inlinePrintingRow(r,String(r.sku_id)===String(detail.sku))).join('')}</div>${remaining?`<button type="button" class="cx-inline-printings-more" data-inline-printings-more>Show ${remaining} more</button>`:''}<button type="button" class="cx-inline-printings-compare" data-inline-printings-compare>Open comparison workspace</button></section>`;
+  slot.querySelector('[data-inline-printings-more]')?.addEventListener('click',e=>{e.currentTarget.remove();slot.querySelector('.cx-inline-printings-list')?.insertAdjacentHTML('beforeend',ordered.slice(8).map(r=>inlinePrintingRow(r,String(r.sku_id)===String(detail.sku))).join(''))});
+  slot.querySelector('[data-inline-printings-compare]')?.addEventListener('click',()=>openAllPrintings(canonical,card?.oracle_id||'',detail.sku,row));
+  const saved=detailScrollBySku.get(String(detail.sku));if(saved!=null)requestAnimationFrame(()=>{if(host.isConnected)host.scrollTop=saved});
+}
+
+function openInlinePrinting(event){const hit=event.target.closest?.('[data-inline-printing-sku]');if(!hit?.dataset.inlinePrintingSku)return;const current=store.get().scout?.selectedSku;detailScrollBySku.set(String(current||''),document.getElementById('cxParityDetail')?.scrollTop||0);document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{sku_id:hit.dataset.inlinePrintingSku}}))}
+
 async function addLink(detail){
-  const host=document.getElementById('cxParityDetail');if(!host||!detail?.sku)return;const title=host.querySelector('.cx-v5-title>div');if(!title)return;const row=selectedRow(detail.sku),card=await canonicalCard(row);if(!host.isConnected||String(store.get().scout?.selectedSku||'')!==String(detail.sku))return;const canonical=card?.name||baseName(row?.product_name||title.querySelector('.cx-section-title')?.textContent||'');if(!canonical)return;title.querySelector('.cx-scout-all-printings')?.remove();const button=document.createElement('button');button.type='button';button.className='cx-scout-all-printings';button.dataset.oracleId=card?.oracle_id||'';button.dataset.oracleName=canonical;button.innerHTML=`<span>Compare all printings</span><small>${esc(canonical)}</small><b aria-hidden="true">→</b>`;button.addEventListener('click',()=>openAllPrintings(canonical,card?.oracle_id||'',detail.sku,row));title.appendChild(button);
+  const host=document.getElementById('cxParityDetail');if(!host||!detail?.sku)return;const row=selectedRow(detail.sku),card=await canonicalCard(row);if(!host.isConnected||String(store.get().scout?.selectedSku||'')!==String(detail.sku))return;void renderInlinePrintings(host,row,card,detail);
 }
 
 function restoreContextFromUrl(){
@@ -149,7 +167,7 @@ function hydrateNow(){
 function onReturnClick(e){if(e.target.closest?.('[data-oracle-return]')){e.preventDefault();returnToPrinting()}}
 
 export function installOraclePrintingsLink(){
-  if(installed)return;installed=true;ensureStyle();document.addEventListener('collectish:scout-detail-rendered',e=>void addLink(e.detail));document.addEventListener('collectish:scout-structure-ready',restoreContextFromUrl);document.addEventListener('collectish:scout-list-rendered',refreshCompareDecorations);document.addEventListener('collectish:scout-universal-results',acceptFamilyResults);document.addEventListener('click',onReturnClick);setTimeout(hydrateNow,0);
+  if(installed)return;installed=true;ensureStyle();document.addEventListener('collectish:scout-detail-rendered',e=>void addLink(e.detail));document.addEventListener('collectish:scout-structure-ready',restoreContextFromUrl);document.addEventListener('collectish:scout-list-rendered',refreshCompareDecorations);document.addEventListener('collectish:scout-universal-results',acceptFamilyResults);document.addEventListener('click',onReturnClick);document.addEventListener('click',openInlinePrinting);setTimeout(hydrateNow,0);
 }
 
 installOraclePrintingsLink();

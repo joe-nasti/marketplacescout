@@ -24,9 +24,10 @@
   .cx-route-tabs{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;scroll-snap-type:x proximity}
   .cx-route-tabs::-webkit-scrollbar{display:none}
   .cx-route-tabs button{flex:0 0 auto;min-height:44px;scroll-snap-align:start;touch-action:manipulation}
-  .cx-mobile-nav{grid-template-columns:repeat(4,minmax(0,1fr));padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right));gap:4px}
+  .cx-mobile-nav{grid-template-columns:repeat(5,minmax(0,1fr));padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right));gap:4px}
   .cx-mobile-nav button{min-height:48px;font-size:11px;padding:9px 3px;border-radius:10px;touch-action:manipulation}
   .cx-mobile-nav button span{display:block;overflow:hidden;text-overflow:ellipsis}
   .cx-mobile-nav .cx-mobile-more{color:var(--color-text-secondary)}
   .cx-mobile-nav .cx-mobile-more.active{color:var(--color-accent)}
+  .cx-mobile-nav [data-cx-ask-nav].active{color:var(--color-accent)}
 }
