@@ -153,6 +153,10 @@ jobs:
         env: { GH_TOKEN: '${{ github.token }}', SHA: '${{ github.sha }}' }
         run: gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" -f state=success -f context='collectish/vite-artifact' -f description='Hashed production artifact validated'
 
+      - name: Keep Pages on the Actions artifact source
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: gh api --method PUT "repos/${GITHUB_REPOSITORY}/pages" -f build_type=workflow
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: dist }
