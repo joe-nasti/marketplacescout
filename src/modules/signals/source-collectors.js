@@ -11,6 +11,7 @@ const PRESETS=[
   {id:'tcgplayer-content',name:'TCGplayer MTG Content',url:'https://www.tcgplayer.com/sitemap/index.xml',note:'Official MTG articles · bestsellers and price spikes weighted separately',profile:'marketplace_editorial',discovery:'tcgplayer_content_sitemap'},
   {id:'draftsim',name:'Draftsim',url:'https://draftsim.com/feed',note:'Independent MTG editorial · price spikes and card theses',profile:'independent_editorial',discovery:'feed'},
   {id:'mtgdecks',name:'MTGDecks',url:'https://mtgdecks.net/articles/feed.rss',note:'Competitive/meta editorial and deck technology',profile:'competitive_editorial',discovery:'feed'},
+  {id:'metagame-info',name:'Metagame.info',url:'https://metagame.info/sitemaps/en-us/articles.xml.gz',note:'Expert MTG editorial · all categories screened by article content',profile:'expert_editorial',discovery:'curated_page'},
   {id:'scg',name:'Star City Games',url:'https://articles.starcitygames.com/feed/',note:'Retailer editorial, news, product and competitive context',profile:'retailer_editorial',discovery:'feed'},
   {id:'cardmarket',name:'Cardmarket Insight',url:'https://www.cardmarket.com/en/Insight/Articles',note:'Marketplace editorial · bounded public-page discovery',profile:'marketplace_editorial',discovery:'curated_page'},
   {id:'coolstuffinc',name:'CoolStuffInc Articles',url:'https://www.coolstuffinc.com/a/',note:'Retailer editorial · bounded public-page discovery',profile:'retailer_editorial',discovery:'curated_page'},
