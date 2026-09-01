@@ -25,7 +25,7 @@ async function waitForPersistedScoutCache(page){
       const db=request.result;
       if(!db.objectStoreNames.contains('resources')){db.close();resolve(false);return}
       const tx=db.transaction('resources','readonly');
-      const get=tx.objectStore('resources').get('user:cache-perf-user:scout.rows');
+      const get=tx.objectStore('resources').get('user:cache-perf-user:scout.rows.actionability-v1');
       get.onerror=()=>{db.close();resolve(false)};
       get.onsuccess=()=>{const ready=Array.isArray(get.result?.data)&&get.result.data.length>0;db.close();resolve(ready)};
     };
