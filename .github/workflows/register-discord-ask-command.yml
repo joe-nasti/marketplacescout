@@ -41,12 +41,16 @@ jobs:
       - name: Register guild-scoped slash command
         run: node cloud-worker/register-discord-commands.mjs
 
-      - name: Verify guild-scoped slash command
+      - name: Verify guild-scoped slash command and autocomplete
         shell: bash
         run: |
           set -euo pipefail
           response="$(curl --fail --silent --show-error \
             -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" \
             "https://discord.com/api/v10/applications/${DISCORD_APPLICATION_ID}/guilds/${DISCORD_GUILD_ID}/commands")"
-          echo "${response}" | jq -e 'map(select(.name == "ask")) | length == 1' >/dev/null
-          echo "Verified /ask in guild ${DISCORD_GUILD_ID}."
+          echo "${response}" | jq -e '
+            map(select(.name == "ask")) as $ask |
+            ($ask | length == 1) and
+            ($ask[0].options | map(select(.name == "question" and .type == 3 and .autocomplete == true)) | length == 1)
+          ' >/dev/null
+          echo "Verified /ask question autocomplete in guild ${DISCORD_GUILD_ID}."
