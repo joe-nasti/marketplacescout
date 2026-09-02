@@ -1,6 +1,7 @@
 /* Canonical mobile treatment for Signals.
    Mobile is a prioritized intelligence feed, not a compressed desktop dashboard.
    Decision order: what changed -> why it matters -> price/edge -> confidence/context. */
+#cxSignals [hidden]{display:none!important}
 #cxSignals .cx-sv-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
 #cxSignals .cx-sv-num strong{display:flex;align-items:center;gap:2px}
 #cxSignals .cx-sv-confirming{background:color-mix(in srgb,var(--color-accent) 18%,transparent);color:var(--color-accent)}
