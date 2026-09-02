@@ -70,7 +70,7 @@ function discordUser(interaction) {
   return interaction?.member?.user || interaction?.user || null;
 }
 
-async function handleRawInteraction(request, env) {
+async function handleRawInteraction(request, env, ctx) {
   const rawBody = await request.arrayBuffer();
   if (!await verifyDiscordRawRequest(request, rawBody, env.DISCORD_PUBLIC_KEY)) {
     return new Response('invalid request signature', { status: 401 });
@@ -106,7 +106,7 @@ async function handleRawInteraction(request, env) {
     return json({ type: 4, data: { flags: EPHEMERAL, content: 'Ask Collectish Discord queue is not configured.' } });
   }
 
-  await env.DISCORD_ASK_QUEUE.send({
+  const job = {
     interaction_id: String(interaction.id),
     interaction_token: String(interaction.token),
     application_id: String(interaction.application_id || env.DISCORD_APPLICATION_ID),
@@ -117,9 +117,19 @@ async function handleRawInteraction(request, env) {
     channel_id: scope.channel_id,
     thread_id: scope.thread_id,
     question,
-  });
+  };
 
-  // Discord locks visibility at defer time. Successful /ask responses are channel messages.
+  const enqueue = env.DISCORD_ASK_QUEUE.send(job).catch((error) => {
+    console.error('discord ask enqueue failed after defer', {
+      interaction_id: job.interaction_id,
+      error: String(error?.message || error),
+    });
+  });
+  if (ctx?.waitUntil) ctx.waitUntil(enqueue);
+
+  // Discord only gives interaction handlers a few seconds to acknowledge. Do not
+  // wait on Queue latency before returning the defer; the Queue send continues via waitUntil.
+  // Visibility is locked at defer time, so successful /ask responses are channel messages.
   return json({ type: 5, data: {} });
 }
 
@@ -360,7 +370,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/discord/diagnostics') return discordDiagnostic(env);
-    if (request.method === 'POST' && url.pathname === '/discord/interactions') return handleRawInteraction(request, env);
+    if (request.method === 'POST' && url.pathname === '/discord/interactions') return handleRawInteraction(request, env, ctx);
     return worker.fetch(request, env, ctx);
   },
   queue(batch, env, ctx) {
