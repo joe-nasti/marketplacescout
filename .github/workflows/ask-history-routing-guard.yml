@@ -29,6 +29,7 @@ on:
       - 'tools/check-ask-market-research-fallback.mjs'
       - 'tools/check-ask-shared-market-evidence.mjs'
       - 'tools/check-ask-video-creator-taxonomy.mjs'
+      - 'tools/check-ask-two-pass-creator-retrieval.mjs'
       - '.github/workflows/ask-history-routing-guard.yml'
   push:
     branches: [main]
@@ -60,6 +61,7 @@ on:
       - 'tools/check-ask-market-research-fallback.mjs'
       - 'tools/check-ask-shared-market-evidence.mjs'
       - 'tools/check-ask-video-creator-taxonomy.mjs'
+      - 'tools/check-ask-two-pass-creator-retrieval.mjs'
       - '.github/workflows/ask-history-routing-guard.yml'
 jobs:
   guard:
@@ -80,3 +82,4 @@ jobs:
       - run: node tools/check-ask-market-research-fallback.mjs
       - run: node tools/check-ask-shared-market-evidence.mjs
       - run: node tools/check-ask-video-creator-taxonomy.mjs
+      - run: node tools/check-ask-two-pass-creator-retrieval.mjs
