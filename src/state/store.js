@@ -6,7 +6,7 @@ let state={
   navigation:{page:'scout'},
   resources:{},
   scout:{health:null,filters:{query:'',grade:'',set:''},selectedSku:null},
-  sealed:{filters:{query:'',status:'',setType:'',language:'all',buylistBacked:false},selectedId:null},
+  sealed:{view:'sets',selectedSetCode:null,filters:{query:'',status:'',setType:'',language:'all',buylistBacked:false},selectedId:null},
   seller:{},
   admin:{},
   ask:{}

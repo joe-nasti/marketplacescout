@@ -11,6 +11,8 @@ function applyState(urlState){
   const query=u.query||(u.setCode?String(u.setCode):'');
   applying=true;
   store.update('sealed',{
+    view:['sets','set','opportunities'].includes(u.view)?u.view:(u.setCode?'set':'sets'),
+    selectedSetCode:u.setCode||null,
     filters:{
       ...(current.filters||{}),
       query,
@@ -27,6 +29,7 @@ function applyState(urlState){
 function snapshot(sealed){
   const f=sealed?.filters||{};
   return {
+    view:sealed?.view||'sets',setCode:sealed?.selectedSetCode||'',
     query:f.query||'',status:f.status||'',setType:f.setType||'',language:f.language||'all',
     buylistBacked:Boolean(f.buylistBacked),selectedId:sealed?.selectedId||null
   };
@@ -35,7 +38,7 @@ function snapshot(sealed){
 function persistFromState(sealed){
   if(applying)return;
   const next=snapshot(sealed),prev=lastSnapshot;
-  const queryOnly=prev&&next.query!==prev.query&&next.status===prev.status&&next.setType===prev.setType&&next.language===prev.language&&next.buylistBacked===prev.buylistBacked&&next.selectedId===prev.selectedId;
+  const queryOnly=prev&&next.query!==prev.query&&next.view===prev.view&&next.setCode===prev.setCode&&next.status===prev.status&&next.setType===prev.setType&&next.language===prev.language&&next.buylistBacked===prev.buylistBacked&&next.selectedId===prev.selectedId;
   writeUrlState({tab:'sealed',sealed:next},{replace:Boolean(queryOnly)});
   lastSnapshot=next;
 }
@@ -65,6 +68,7 @@ export function installSealedUrlState(){
     lastSnapshot=snapshot(store.get().sealed||{});
     syncVisibleControls();
     window.CollectishSealed?.render?.();
+    if(!store.get().sealed?.selectedId)window.CollectishSealedDetail?.close?.({history:false});
   });
 }
 

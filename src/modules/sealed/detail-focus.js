@@ -55,3 +55,4 @@ registerComponent('sealed-detail-focus',{
 });
 
 window.CollectishSealedAskPrefetch={snapshot:sealedSnapshot,prefetch,abort:abortAskPrefetch};
+window.CollectishSealedDetail={close};

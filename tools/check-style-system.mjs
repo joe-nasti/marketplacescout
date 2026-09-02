@@ -25,6 +25,7 @@ const expected=[
   'scout.css',
   'sealed-compact-controls.css',
   'sealed-mobile-economics.css',
+  'sealed-set-browser.css',
   'sealed.css',
   'seller-progress.css',
   'seller.css',
