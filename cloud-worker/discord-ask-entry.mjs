@@ -119,7 +119,8 @@ async function handleRawInteraction(request, env) {
     question,
   });
 
-  return json({ type: 5, data: { flags: EPHEMERAL } });
+  // Discord locks visibility at defer time. Successful /ask responses are channel messages.
+  return json({ type: 5, data: {} });
 }
 
 function serviceHeaders(env, extra = {}) {
