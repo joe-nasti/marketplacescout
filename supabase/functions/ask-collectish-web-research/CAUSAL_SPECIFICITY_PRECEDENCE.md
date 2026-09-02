@@ -1,0 +1,1 @@
+Card-specific events near a measured acceleration outrank broad release-window context. Broad set release, prerelease, Commander Party, launch, or general deckbuilding context is background unless the source specifically singles out the card and links the event to card-market behavior. Broad release context cannot independently confirm causation.
