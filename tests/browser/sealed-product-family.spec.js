@@ -25,6 +25,19 @@ test('Hobbit family UI never grades incomplete component floors', async()=>{
   expect(family).toContain('unresolved_other_components');
 });
 
+test('mixed sealed products compare direct buy, crack probability and market exit', async()=>{
+  const index=await read('src/modules/sealed/index.js');
+  const compare=await read('src/modules/sealed/source-compare.js');
+  expect(index).toContain("import('./source-compare.js')");
+  expect(compare).toContain('sealed_single_source_compare_current?');
+  expect(compare).toContain('Buy directly');
+  expect(compare).toContain('Crack sealed');
+  expect(compare).toContain('Market exit');
+  expect(compare).toContain('Open in Singles');
+  expect(compare).toContain('Fixed-card Out Optimization');
+  expect(compare).toContain('Mixed sealed product:');
+});
+
 test('Play Booster backtest preserves rounded-probability caveat', async()=>{
   const migrations=await read('supabase/migrations/20260902145500_hobbit_play_booster_backtest_runner.sql');
   expect(migrations).toContain('run_hobbit_play_backtest');
