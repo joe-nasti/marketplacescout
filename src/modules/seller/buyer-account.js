@@ -46,5 +46,3 @@ function render(){const p=ensurePanel();if(!p)return;const b=bridge(),native=!!b
 async function ensure(){if(!host())return;await loadState();render();const hours=Number(autoHours||0),last=Number(localStorage.getItem('collectishBuyerLastAutoSync')||0);if(hours>0&&bridge()&&(!bridge().isBuyerProfileIsolated||bridge().isBuyerProfileIsolated())&&Date.now()-last>hours*60*60*1000)setTimeout(()=>syncBuyerAccount({automatic:true,range:'Last 90 Days'}),600)}
 document.addEventListener('collectish:seller-rendered',()=>setTimeout(ensure,0));
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='seller')setTimeout(ensure,80)});
-document.addEventListener('collectish:ready',()=>setTimeout(ensure,800));
-setTimeout(ensure,250);
