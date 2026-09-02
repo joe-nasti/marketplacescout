@@ -29,16 +29,30 @@ test('expert editorial is analyzed by content rather than tag or author alone',a
   expect(src).toContain('negative/pass judgments');
 });
 
-test('Metagame.info uses exact cached Exa content with delayed index retries',async({},testInfo)=>{
+test('Metagame.info uses Zyte before exact cached Exa content with bounded retries',async({},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const src=await read('supabase/functions/market-intel-curated-content-sync/index.ts');
+  expect(src).toContain("Deno.env.get('ZYTE_API_KEY')");
+  expect(src).toContain("https://api.zyte.com/v1/extract");
+  expect(src).toContain("body:JSON.stringify({url:target,browserHtml:true})");
+  expect(src).toContain("captureMode='zyte_browser_html'");
+  expect(src).toContain("if(zyteFailures>=2)zyteCircuitOpen=true");
+  expect(src).toContain("capture_mode:'direct_then_zyte_then_exa'");
   expect(src).toContain("Deno.env.get('EXA_API_KEY')");
   expect(src).toContain("https://api.exa.ai/search");
   expect(src).toContain("maxAgeHours:-1");
   expect(src).toContain("canonicalUrl(String(x?.url||''))===target");
-  expect(src).toContain("status=reason==='exa_not_indexed'?'awaiting_index':'failed'");
+  expect(src).toContain("status=exaReason==='exa_not_indexed'?'awaiting_index':'failed'");
   expect(src).toContain("next_retry_at:exaRetryAt(attemptCount)");
   expect(src).toContain("captureMode='exa_indexed_search'");
   expect(src).not.toContain('/browser-rendering/markdown');
   expect(src).not.toContain("captureMode='cloudflare_browser_run'");
+});
+
+test('Metagame challenge detection ignores dormant Cloudflare scripts on real articles',async({},testInfo)=>{
+  test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
+  const src=await read('supabase/functions/market-intel-curated-content-sync/index.ts');
+  expect(src).toContain("title.startsWith('just a moment')");
+  expect(src).toContain("const rendered=text(html)");
+  expect(src).not.toContain("|\\/cdn-cgi\\/challenge-platform\\/|");
 });
