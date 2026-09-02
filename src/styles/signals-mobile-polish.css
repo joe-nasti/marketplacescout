@@ -153,17 +153,19 @@
   #cxSignals .cx-sv-metric:first-child strong{color:var(--color-success)}
   #cxSignals .cx-sv-metric:nth-child(2) strong{color:var(--color-accent)}
   #cxSignals .cx-sv-metric small{font-size:8px}
-  #cxSignals .cx-sv-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:7px;margin:0 0 10px}
+  #cxSignals .cx-sv-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 74px 82px;gap:6px;margin:0 0 10px}
   #cxSignals .cx-sv-toolbar input{grid-column:auto;min-width:0;min-height:42px;border-radius:10px;font-size:16px}
-  #cxSignals .cx-sv-toolbar button{min-height:42px;padding:0 11px;border:1px solid var(--cx-border);border-radius:10px;background:var(--cx-card);color:var(--cx-text);font-size:11px;font-weight:800}
+  #cxSignals .cx-sv-toolbar button{min-height:42px;padding:0 7px;border:1px solid var(--cx-border);border-radius:10px;background:var(--cx-card);color:var(--cx-text);font-size:10px;font-weight:800;white-space:nowrap}
   #cxSignals .cx-sv-context{display:flex;justify-content:space-between;gap:10px;padding:0 2px 9px;color:var(--cx-muted);font-size:9px}
   #cxSignals .cx-sv-context strong{color:var(--cx-text);font-size:10px}
   #cxSignals .cx-sv-head{display:none}
   #cxSignals .cx-sv-list{margin:0 -16px;display:block;border-top:1px solid var(--cx-border)}
   #cxSignals .cx-sv-row{position:relative;display:grid;grid-template-columns:68px minmax(0,1fr) 54px 48px;grid-template-areas:'art stage stage chevron' 'art card card chevron' 'art source confidence scout' 'art source market market';gap:4px 9px;min-height:146px;padding:12px 13px 12px 8px;border:0;border-bottom:1px solid var(--cx-border);border-radius:0;background:transparent;box-shadow:none;text-align:left}
   #cxSignals .cx-sv-row:first-child{border-top:0}
-  #cxSignals .cx-sv-art{grid-area:art;width:68px;height:95px;align-self:center;border:1px solid var(--cx-border);border-radius:5px;object-fit:cover;background:var(--cx-card)}
-  #cxSignals .cx-sv-art-fallback{display:grid;place-items:center;color:var(--cx-muted);font-weight:900}
+  #cxSignals .cx-sv-art-wrap{grid-area:art;position:relative;width:68px;height:95px;align-self:center;overflow:hidden;border:1px solid var(--cx-border);border-radius:5px;background:var(--cx-card)}
+  #cxSignals .cx-sv-art{display:block;width:100%;height:100%;border:0;border-radius:0;object-fit:cover;background:var(--cx-card)}
+  #cxSignals .cx-sv-art-fallback{position:absolute;inset:0;z-index:-1;display:grid;place-items:center;color:var(--cx-muted);font-weight:900}
+  #cxSignals .cx-sv-art-wrap.failed .cx-sv-art-fallback{z-index:0}
   #cxSignals .cx-sv-stage-line{grid-area:stage;display:flex;align-items:center;gap:7px}
   #cxSignals .cx-sv-stage-line>small{font-size:9px;color:var(--cx-muted)}
   #cxSignals .cx-sv-chip{padding:3px 6px;font-size:8px;letter-spacing:.045em;text-transform:uppercase}
@@ -197,10 +199,9 @@
 }
 
 @media(max-width:420px){
-  #cxSignals .cx-sv-toolbar{grid-template-columns:minmax(0,1fr) auto}
-  #cxSignals .cx-sv-toolbar button:last-child{grid-column:1/-1}
+  #cxSignals .cx-sv-toolbar{grid-template-columns:minmax(0,1fr) 70px 78px}
   #cxSignals .cx-sv-row{grid-template-columns:62px minmax(0,1fr) 49px 45px;min-height:140px}
-  #cxSignals .cx-sv-art{width:62px;height:87px}
+  #cxSignals .cx-sv-art-wrap{width:62px;height:87px}
 }
 
 /* Signals subviews share one Android-native hierarchy beneath the persistent app nav. */
