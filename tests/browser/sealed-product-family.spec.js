@@ -38,17 +38,23 @@ test('mixed sealed products expose derived Singles and distinguish fixed-card ro
   expect(compare).toContain('Fixed-card Out Optimization');
   expect(compare).toContain('Mixed sealed product:');
   expect(compare).toContain('card_set_code');
+  expect(compare).toContain('Your acquisition price');
+  expect(compare).toContain('applyScenario');
+  expect(compare).toContain('data-scenario-alloc');
 });
 
-test('Scout Singles compares buy direct, sealed sourcing and exit from fast cache', async()=>{
+test('Scout Singles compares buy direct, sealed sourcing and live outlet exit from fast cache', async()=>{
   const index=await read('src/modules/scout/index.js');
   const compare=await read('src/modules/scout/sealed-source-compare.js');
   expect(index).toContain("import('./sealed-source-compare.js')");
   expect(compare).toContain('Buy direct · Crack sealed · Best exit');
   expect(compare).toContain('sealed_single_source_compare_current?');
   expect(compare).toContain('ev_allocated_acquisition_per_copy');
-  expect(compare).toContain('crack_advantage_vs_direct_pct');
   expect(compare).toContain('card_set_code=eq.');
+  expect(compare).toContain("['TCG Direct',Number(row?.direct_net_est)]");
+  expect(compare).toContain("['Card Kingdom',Number(row?.ck_buylist)]");
+  expect(compare).toContain("['ManaPool',Number(row?.manapool_retail||0)*0.921]");
+  expect(compare).toContain('Best live exit');
   expect(compare).not.toContain("rest('rpc/sealed_single_source_compare'");
 });
 
