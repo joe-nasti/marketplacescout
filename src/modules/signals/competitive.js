@@ -44,7 +44,7 @@ function sectionHtml(title,sub,items,rowFn){return `<div class="cx-section-title
 function render(){
   const h=host();if(!h||!signalsReady())return;
   let panel=document.getElementById('cxCompetitiveIntel');
-  if(!panel){panel=document.createElement('section');panel.id='cxCompetitiveIntel';panel.className='cx-card';const layout=h.querySelector('.cx-signals-layout');if(layout)layout.insertAdjacentElement('beforebegin',panel);else h.appendChild(panel)}
+  if(!panel){panel=document.createElement('section');panel.id='cxCompetitiveIntel';panel.className='cx-card';panel.hidden=h.dataset.signalsView!=='competitive';const layout=h.querySelector('.cx-signals-layout');if(layout)layout.insertAdjacentElement('beforebegin',panel);else h.appendChild(panel)}
   const established=establishedList();const {breakout,fresh,constrained}=emergingGroups();
   const latest=events.slice(0,5).map(e=>`${e.event_name} · ${coverageLabel(e)}`).join(' · ');
   const hasTrend=emergingRows.some(r=>Number(r.prior_event_count_30d||0)>0);
