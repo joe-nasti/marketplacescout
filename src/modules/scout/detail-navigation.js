@@ -8,6 +8,11 @@ const skuOf=value=>String(value??'');
 const discoveryRecent=new Map();
 const discoveryInflight=new Map();
 const DISCOVERY_TTL=6*60*60*1000;
+function scheduleDiscovery(detail){
+  const run=()=>void discoverProduct(detail);
+  if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:5000});
+  else setTimeout(run,1500);
+}
 
 function resolveSummary(detail={}){
   const sku=skuOf(detail.sku_id??detail.sku);
@@ -28,7 +33,7 @@ async function hydrateAndRender(row){
   await renderer.prefetchCard?.(detail);
   await renderer.renderDetail(detail,true);
   void prefetchAskCardContext(detail);
-  void discoverProduct(detail);
+  scheduleDiscovery(detail);
 }
 export function openScoutDetail(detail={}){
   const renderer=window.CollectishScoutRenderer;if(!renderer?.renderDetail)return false;
