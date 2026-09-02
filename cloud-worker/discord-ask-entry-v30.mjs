@@ -1,6 +1,7 @@
 import transport from './discord-ask-entry.mjs';
 import { secretLairMediaEmbed } from './discord-secret-lair-media.mjs';
 import { rewriteStructuredDiscordOutput } from './discord-structured-output.mjs';
+import { maybeHandleFastQuery } from './discord-fast-query-cache.mjs';
 
 const DISCORD_API='https://discord.com/api/v10';
 const base=env=>String(env.SUPABASE_URL||'').replace(/\/$/,'');
@@ -17,11 +18,14 @@ async function attachSecretLairMedia(env,job){
   }catch(error){console.warn('secret lair discord thumbnail skipped',String(error?.message||error).slice(0,180))}
 }
 
-// v30 intentionally owns no market, seller, price-history, cohort, or card-family
-// routing. Those intents are resolved by the stable Ask API and its shared router.
-// Structured-output formatting is transport-only and lives in a separate helper.
+// v30 keeps routing in the shared Ask API, but known public market queries may be
+// answered from the precomputed Delvin cache before Queue latency. Cache misses and
+// noncanonical questions continue through the normal transport/Ask path.
 export default {
-  fetch(request,env,ctx){return transport.fetch(request,env,ctx)},
+  async fetch(request,env,ctx){
+    const fast=await maybeHandleFastQuery(request,env,ctx);
+    return fast||transport.fetch(request,env,ctx);
+  },
   async queue(batch,env,ctx){
     const jobs=batch.messages.map(m=>m.body||{});
     await transport.queue(batch,env,ctx);
