@@ -59,8 +59,8 @@ test('mixed sealed products expose derived Singles and landed-cost decisions', a
   expect(compare).toContain('Best exit');
   expect(compare).toContain('Crack advantage');
   expect(compare).toContain('Open in Scout');
-  expect(compare).toContain('Fixed-card Out Optimization');
-  expect(compare).toContain('Mixed sealed product:');
+  expect(compare).toContain('Composite product:');
+  expect(compare).toContain('Optimized Live Out includes modeled net EV from sealed children');
   expect(compare).toContain('card_set_code');
   expect(compare).toContain('Your landed acquisition cost');
   expect(compare).toContain('applyScenario');
@@ -77,11 +77,19 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).toContain('u.scout');
   expect(renderer).not.toContain('`,u.scry)');
   expect(mobile).toContain('cx-sealed-mobile-card-link');
-  expect(renderer).toContain('sealed_product_child_components?select=child_product_name,quantity,component_type');
+  expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
+  expect(renderer).toContain('sealed_uuid=in.(');
   expect(renderer).toContain('Included sealed products');
-  expect(renderer).toContain('Booster EV');
+  expect(renderer).toContain('Included products · gross');
+  expect(renderer).toContain('Included products · net');
   expect(renderer).toContain('Fixed-card EV');
   expect(renderer).toContain("composite?'Total modeled EV':'TCG Market EV'");
+  const optimizer=await read('src/modules/sealed/out-optimizer.js');
+  expect(optimizer).toContain("(num(row.optimized_live_out_ev)||0)+childNet");
+  expect(optimizer).toContain("(num(row.optimized_with_syp_potential_ev)||0)+childNet");
+  expect(optimizer).toContain('Included Products Net');
+  expect(optimizer).toContain('Modeled booster out');
+  expect(optimizer).toContain('fixed cards only');
 });
 
 test('Scout Singles compares buy direct, sealed sourcing and live outlet exit from fast cache', async()=>{
