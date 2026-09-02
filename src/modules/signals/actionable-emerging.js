@@ -64,10 +64,10 @@ async function load({force=false}={}){
   renderSignals();return loading;
 }
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout')setTimeout(()=>{decorateScoutList();decorateScoutDetail(store.get().scout?.selectedSku);void load()},1200)});
-document.addEventListener('collectish:signals-primary-ready',()=>setTimeout(()=>void load().catch(()=>{}),250));
+document.addEventListener('collectish:signals-refresh-secondary',()=>void load({force:true}).catch(()=>{}));
 document.addEventListener('collectish:scout-list-rendered',()=>{if(rows.length)decorateScoutList();else void load()});
 document.addEventListener('collectish:scout-detail-rendered',e=>{if(rows.length)decorateScoutDetail(e.detail?.sku);else void load()});
 document.addEventListener('collectish:intel-changed',e=>{if(e.detail?.source==='primary-load')return;loadedAt=0;if(signalsReady())void load({force:true})});
-document.addEventListener('collectish:competitive-changed',()=>{loadedAt=0;if(signalsReady())void load({force:true})});
-document.addEventListener('collectish:commander-intel-changed',()=>{loadedAt=0;if(signalsReady())void load({force:true})});
+document.addEventListener('collectish:competitive-changed',()=>{loadedAt=0});
+document.addEventListener('collectish:commander-intel-changed',()=>{loadedAt=0});
 export {load as loadActionableEmerging};
