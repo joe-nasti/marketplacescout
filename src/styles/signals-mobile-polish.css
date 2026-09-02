@@ -155,7 +155,7 @@
   #cxSignals .cx-sv-metric small{font-size:8px}
   #cxSignals .cx-sv-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 74px 82px;gap:6px;margin:0 0 10px}
   #cxSignals .cx-sv-toolbar input{grid-column:auto;min-width:0;min-height:42px;border-radius:10px;font-size:16px}
-  #cxSignals .cx-sv-toolbar button{min-height:42px;padding:0 7px;border:1px solid var(--cx-border);border-radius:10px;background:var(--cx-card);color:var(--cx-text);font-size:10px;font-weight:800;white-space:nowrap}
+  #cxSignals .cx-sv-toolbar button{grid-column:auto;min-height:42px;padding:0 7px;border:1px solid var(--cx-border);border-radius:10px;background:var(--cx-card);color:var(--cx-text);font-size:10px;font-weight:800;white-space:nowrap}
   #cxSignals .cx-sv-context{display:flex;justify-content:space-between;gap:10px;padding:0 2px 9px;color:var(--cx-muted);font-size:9px}
   #cxSignals .cx-sv-context strong{color:var(--cx-text);font-size:10px}
   #cxSignals .cx-sv-head{display:none}

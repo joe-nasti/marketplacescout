@@ -24,3 +24,10 @@ test('Signals subview panels are mutually exclusive full-width mobile surfaces',
   expect(css).toContain('#cxSignals[data-signals-view="secret-lair"] #cxSecretLairSignals');
   expect(css).toContain('#cxSignals[data-signals-view="discovery"] #cxSignalsDiscovery');
 });
+
+test('Signals controls stay on one row at Pixel narrow widths',async()=>{
+  const css=await readFile('src/styles/signals-mobile-polish.css','utf8');
+  expect(css).toContain('grid-template-columns:minmax(0,1fr) 70px 78px');
+  expect(css).toContain('#cxSignals .cx-sv-toolbar button{grid-column:auto;');
+  expect(css).not.toContain('#cxSignals .cx-sv-toolbar button:last-child{grid-column:1/-1}');
+});
