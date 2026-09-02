@@ -18,6 +18,7 @@ const commands=[{
     name:'question',
     description:'What do you want to ask Collectish?',
     required:true,
+    autocomplete:true,
     min_length:1,
     max_length:4000
   }]
@@ -31,4 +32,4 @@ const response=await fetch(`https://discord.com/api/v10/${scope}`,{
 });
 const text=await response.text();
 if(!response.ok)throw new Error(`Discord command registration failed (${response.status}): ${text.slice(0,500)}`);
-console.log(`Registered ${commands.length} command(s) ${guildId?`for guild ${guildId}`:'globally'}.`);
+console.log(`Registered ${commands.length} command(s) ${guildId?`for guild ${guildId}`:'globally'} with /ask question autocomplete enabled.`);
