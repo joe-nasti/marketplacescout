@@ -203,7 +203,7 @@ export function startCollectish(){
   scheduleFeatureModules();
   startShell({beforeReady:async()=>{
     const cacheStarted=performance.now();
-    store.update('runtime',{phase:'hydrating-cache'});
+    store.update('runtime',{phase:'hydrating-cache-background'});
     await primeResources(STARTUP_PRIME).catch(()=>0);
     recordTiming('startup_cache_hydration_ms',performance.now()-cacheStarted);
 
