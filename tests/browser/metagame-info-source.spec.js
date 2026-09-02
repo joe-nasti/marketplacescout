@@ -70,6 +70,16 @@ test('Metagame rendered captures are persisted before analysis and reused on ret
   const src=await read('supabase/functions/market-intel-curated-content-sync/index.ts');
   expect(src).toContain('select=capture_id,payload_json,payload_text,metadata_json');
   expect(src).toContain("['zyte_browser_html','exa_indexed_search'].includes(cachedMode)");
+  expect(src).toContain('articleText=String(item.rendered_text||markdown||text(html)).trim()');
+  expect(src).toContain('if(!item.title||articleText.length<200)continue');
   expect(src).toContain('payload_text:capturedText||null');
   expect(src).toContain('payload_text:capturedText,content_type');
+});
+
+test('card entity linking prefers indexed exact-printing metadata',async({},testInfo)=>{
+  test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
+  const src=await read('supabase/migrations/20260902225216_optimize_market_intel_entity_link.sql');
+  expect(src).toContain('where m.scryfall_id = new.scryfall_id');
+  expect(src).toContain('m.tcgplayer_product_id is not null');
+  expect(src.indexOf('from public.mtgjson_cards m')).toBeLessThan(src.indexOf('from public.marketplace_scan_rows r'));
 });
