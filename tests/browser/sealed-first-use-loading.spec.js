@@ -4,15 +4,16 @@ import path from 'node:path';
 
 const read=p=>readFile(path.join(process.cwd(),p),'utf8');
 
-test('Sealed opportunity rows own first useful paint while set-type metadata is useful-soon',async()=>{
+test('Sealed set browser owns first useful paint with catalog, scores and set metadata',async()=>{
   const renderer=await read('src/modules/sealed/renderer.js');
   const contracts=await read('src/state/route-data-contracts.js');
   const loadIndex=renderer.slice(renderer.indexOf('async function loadIndex'),renderer.indexOf('function filteredRows'));
   expect(loadIndex).toContain("loadResource('sealed.rows'");
-  expect(loadIndex).not.toContain('Promise.all');
-  expect(loadIndex).toContain('void loadSetTypes(force)');
+  expect(loadIndex).toContain("loadResource('sealed.catalogProducts'");
+  expect(loadIndex).toContain('await loadSetTypes(force)');
   expect(contracts).toContain("{key:'sealed.rows',role:'firstUse'");
-  expect(contracts).toContain("{key:'sealed.setTypes',role:'usefulSoon'");
+  expect(contracts).toContain("{key:'sealed.catalogProducts',role:'firstUse'");
+  expect(contracts).toContain("{key:'sealed.setTypes',role:'firstUse'");
 });
 
 test('late Sealed set metadata updates owned surfaces without rebuilding the route shell',async()=>{

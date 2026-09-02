@@ -7,7 +7,8 @@ const freshRouteRead={staleWhileRevalidate:false,fallbackToStaleOnError:true};
 export const ROUTE_DATA_CONTRACTS={
   sealed:[
     {key:'sealed.rows',role:'firstUse',maxStale:7*DAY},
-    {key:'sealed.setTypes',role:'usefulSoon',maxStale:30*DAY}
+    {key:'sealed.catalogProducts',role:'firstUse',maxStale:30*DAY},
+    {key:'sealed.setTypes',role:'firstUse',maxStale:30*DAY}
   ],
   signals:[
     {

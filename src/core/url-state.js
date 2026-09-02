@@ -6,6 +6,7 @@ export function readUrlState(){
   return {
     tab:PAGE_SET.has(p.get('tab'))?p.get('tab'):'scout',
     sealed:{
+      view:p.get('sealedView')||'sets',
       query:p.get('q')||'',
       status:p.get('status')||'',
       setType:p.get('settype')||'',
@@ -41,6 +42,7 @@ export function writeUrlState(patch,{replace=false}={}){
   if(Object.prototype.hasOwnProperty.call(patch,'tab'))setOrDelete(p,'tab',patch.tab==='scout'?'':patch.tab);
   if(patch.sealed){
     const s=patch.sealed;
+    if(Object.prototype.hasOwnProperty.call(s,'view'))setOrDelete(p,'sealedView',s.view==='sets'?'':s.view);
     if(Object.prototype.hasOwnProperty.call(s,'query'))setOrDelete(p,'q',s.query);
     if(Object.prototype.hasOwnProperty.call(s,'status'))setOrDelete(p,'status',s.status);
     if(Object.prototype.hasOwnProperty.call(s,'setType'))setOrDelete(p,'settype',s.setType);

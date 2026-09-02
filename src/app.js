@@ -153,6 +153,7 @@ const STARTUP_PRIME=[
 ];
 const IDLE_PRIME=[
   {key:'sealed.rows',scope:'user',maxStale:7*24*60*60*1000},
+  {key:'sealed.catalogProducts',scope:'user',maxStale:30*24*60*60*1000},
   {key:'sealed.setTypes',scope:'user',maxStale:30*24*60*60*1000}
 ];
 const HEALTH_KEY='collectishRuntimeHealth';

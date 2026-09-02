@@ -15,8 +15,10 @@ const marketSpread=r=>r?.market_spread==null?null:Number(r.market_spread);
 const buylistBacked=r=>{const buy=Number(r?.cardkingdom_buylist_ev),acq=acquisition(r);return Number.isFinite(buy)&&buy>0&&Number.isFinite(acq)&&acq>0&&buy>acq};
 const xval=(r,k)=>Number(r?.quantity||0)*Number(r?.[k]||0);
 const setMap=()=>new Map(Object.entries(store.get().sealed?.setTypes||{}));
+const setNames=()=>new Map(Object.entries(store.get().sealed?.setNames||{}));
 let detailSeq=0;
 let setTypesLoading=null;
+const scrollByView=new Map();
 
 function languageMeta(r){const s=r?.score_components||{};return{lang:s.sealed_language||'English',mode:s.language_pricing_mode||'',exact:Number(s.exact_language_coverage_pct||0),fallback:Number(s.english_fallback_coverage_pct||0),penalty:Number(s.language_confidence_penalty||0),raw:s.language_raw_score==null?null:Number(s.language_raw_score)}}
 function languageClass(r){const m=languageMeta(r);if(m.mode==='english_equivalent_fallback'||m.fallback>0)return'fallback';if(m.lang.toLowerCase()!=='english'&&m.exact>0)return'nonenglish_exact';return'english_exact'}
@@ -26,7 +28,7 @@ function badges(r){const out=[];if(r.lifecycle_status==='scout_sealed')out.push(
 function metric(label,value,sub='',cls=''){return `<div class="cx-sealed-metric ${cls}"><span>${esc(label)}</span><b>${value}</b>${sub?`<small>${esc(sub)}</small>`:''}</div>`}
 function stat(label,value,sub='',url=''){const body=`<span>${esc(label)}</span><strong>${value}</strong>${sub?`<small>${esc(sub)}</small>`:''}`;return `<div class="cx-sealed-stat">${url?`<a class="cx-source-anchor" href="${esc(url)}" target="_blank" rel="noopener">${body}</a>`:body}</div>`}
 function sortRows(a,b){const as=score(a),bs=score(b);if(as!=null&&bs!=null)return bs-as;if(as!=null)return-1;if(bs!=null)return 1;return Number(b.tcg_market_ev||0)-Number(a.tcg_market_ev||0)}
-function selectedRow(){const s=store.get().sealed||{};return (s.rows||[]).find(r=>String(r.sealed_uuid)===String(s.selectedId))||null}
+function selectedRow(){const s=store.get().sealed||{};return allProducts().find(r=>String(r.sealed_uuid)===String(s.selectedId))||null}
 
 function setTypeOptions(){
   const s=store.get().sealed||{},rows=s.rows||[];
@@ -40,18 +42,48 @@ function refreshSetTypeSurface(){
 }
 async function loadSetTypes(force=false){
   if(setTypesLoading&&!force)return setTypesLoading;
-  setTypesLoading=loadResource('sealed.setTypes',()=>rest('magic_set_catalog?select=code,set_type&digital=eq.false'),{force,ttl:15*60*1000})
-    .then(catalog=>{const types=Object.fromEntries((catalog||[]).map(x=>[String(x.code||'').toUpperCase(),x.set_type]));store.update('sealed',{setTypes:types,setTypesLoadedAt:Date.now(),setTypesError:null});refreshSetTypeSurface();document.dispatchEvent(new CustomEvent('collectish:sealed-set-types-ready',{detail:{count:Object.keys(types).length}}));return types})
+  setTypesLoading=loadResource('sealed.setTypes',()=>rest('magic_set_catalog?select=code,name,set_type,released_at&digital=eq.false'),{force,ttl:15*60*1000})
+    .then(catalog=>{const types=Object.fromEntries((catalog||[]).map(x=>[String(x.code||'').toUpperCase(),x.set_type])),names=Object.fromEntries((catalog||[]).map(x=>[String(x.code||'').toUpperCase(),x.name]));store.update('sealed',{setTypes:types,setNames:names,setCatalog:catalog||[],setTypesLoadedAt:Date.now(),setTypesError:null});refreshSetTypeSurface();document.dispatchEvent(new CustomEvent('collectish:sealed-set-types-ready',{detail:{count:Object.keys(types).length}}));return types})
     .catch(error=>{store.update('sealed',{setTypesError:String(error?.message||error)});return store.get().sealed?.setTypes||{}})
     .finally(()=>{setTypesLoading=null});
   return setTypesLoading;
 }
 async function loadIndex(force=false){
-  const rows=await loadResource('sealed.rows',()=>rest('sealed_ev_current?select=*&order=scout_sealed_score.desc.nullslast,release_date.desc,product_name.asc&limit=5000'),{force,ttl:60000});
+  const [rows,products]=await Promise.all([
+    loadResource('sealed.rows',()=>rest('sealed_ev_current?select=*&order=scout_sealed_score.desc.nullslast,release_date.desc,product_name.asc&limit=5000'),{force,ttl:60000}),
+    loadResource('sealed.catalogProducts',()=>rest('mtgjson_sealed_products?select=uuid,name,set_code,category,subtype,release_date,tcgplayer_product_id&order=release_date.desc.nullslast,name.asc&limit=5000'),{force,ttl:15*60*1000})
+  ]);
   const current=store.get().sealed||{},sorted=(rows||[]).slice().sort(sortRows);
-  store.update('sealed',{rows:sorted,selectedId:current.selectedId||sorted[0]?.sealed_uuid||null,loadedAt:Date.now()});
-  void loadSetTypes(force);
+  store.update('sealed',{rows:sorted,catalogProducts:products||[],selectedId:current.selectedId||null,loadedAt:Date.now()});
+  await loadSetTypes(force);
   return sorted;
+}
+
+function allProducts(){
+  const s=store.get().sealed||{},ev=new Map((s.rows||[]).map(r=>[String(r.sealed_uuid),r]));
+  return (s.catalogProducts||[]).map(p=>({...p,...(ev.get(String(p.uuid))||{}),sealed_uuid:p.uuid,product_name:p.name,set_code:p.set_code,category:p.category,subtype:p.subtype,release_date:p.release_date,tcgplayer_product_id:p.tcgplayer_product_id}));
+}
+function familyFor(code,type,name){
+  const hay=`${code||''} ${name||''}`.toLowerCase(),t=String(type||'').toLowerCase();
+  if(hay.includes('secret lair')||String(code||'').toUpperCase()==='SLD')return'Secret Lair';
+  if(t==='commander')return'Commander Decks';
+  if(['expansion','core'].includes(t))return'Expansions';
+  if(t==='masters'||/remaster|masters/.test(hay))return'Masters & Remastered';
+  if(t==='starter')return'Starter Sets';
+  if(['draft_innovation','funny','planechase','archenemy'].includes(t))return'Supplemental';
+  return'Specialty & Other';
+}
+function setGroups(){
+  const s=store.get().sealed||{},types=setMap(),names=setNames(),q=String(s.filters?.query||'').trim().toLowerCase(),bySet=new Map();
+  for(const p of allProducts()){
+    const code=String(p.set_code||'UNKNOWN').toUpperCase(),name=names.get(code)||code,hay=`${name} ${code} ${p.product_name||''} ${p.category||''} ${p.subtype||''}`.toLowerCase();
+    if(q&&!hay.includes(q))continue;
+    if(!bySet.has(code))bySet.set(code,[]);bySet.get(code).push(p);
+  }
+  const families=new Map();
+  for(const [code,products] of bySet){const name=names.get(code)||code,type=types.get(code)||'',family=familyFor(code,type,name),best=products.map(score).filter(Number.isFinite).sort((a,b)=>b-a)[0]??null,opportunities=products.filter(r=>score(r)!=null&&score(r)>=70).length,release=products.map(x=>x.release_date).filter(Boolean).sort().at(-1)||'';if(!families.has(family))families.set(family,[]);families.get(family).push({code,name,type,products,best,opportunities,release})}
+  const order=['Commander Decks','Expansions','Masters & Remastered','Supplemental','Starter Sets','Secret Lair','Specialty & Other'];
+  return order.map(name=>[name,(families.get(name)||[]).sort((a,b)=>String(b.release).localeCompare(String(a.release))||a.name.localeCompare(b.name))]).filter(([,sets])=>sets.length);
 }
 
 function filteredRows(){
@@ -75,8 +107,8 @@ function filteredRows(){
 function renderShell(){
   const h=document.getElementById('cxSealed');if(!h)return;
   const s=store.get().sealed||{},rows=s.rows||[],f=s.filters||{},types=setTypeOptions();
-  const assessed=rows.length,graded=rows.filter(r=>score(r)!=null).length,sets=new Set(rows.map(r=>r.set_code).filter(Boolean)).size,last=rows.reduce((m,r)=>!m||new Date(r.refreshed_at)>new Date(m)?r.refreshed_at:m,null);
-  h.innerHTML=`<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Generalized sealed opportunities across enabled sets.</p><small class="cx-sub">${assessed} assessed · ${graded} graded · ${sets} enabled sets · refreshed ${esc(age(last))}</small></div><button class="cx-refresh" id="cxSealedRefresh">Refresh</button></div><div class="cx-sealed-toolbar cx-sealed-toolbar-compact"><input id="cxSealedSearch" value="${esc(f.query||'')}" placeholder="Search sealed products…"><select id="cxSealedFilter" class="cx-sealed-filter-internal"><option value="">All assessed products</option><option value="graded">Graded only</option><option value="scout">Scout Sealed only</option><option value="evready">EV ready</option><option value="blocked">Blocked / pending</option></select><div class="cx-sealed-chip-bar"><select id="cxSealedSetType" class="cx-sealed-filter-chip"><option value="">All Types</option>${types.map(x=>`<option value="${esc(x)}">${esc(human(x))}</option>`).join('')}</select><select id="cxSealedLanguagePricing" class="cx-sealed-filter-chip"><option value="all">Language</option><option value="exclude_fallback">Exclude fallback pricing</option><option value="english_exact">English / exact-default only</option><option value="nonenglish_exact">Non-English exact-language only</option><option value="fallback">English fallback only</option></select><button type="button" id="cxSealedBuylistBacked" class="cx-sealed-filter-toggle ${f.buylistBacked?'active':''}" aria-pressed="${f.buylistBacked?'true':'false'}"><span aria-hidden="true">⚡</span><span>Buylist Backed</span></button></div><small id="cxSealedLanguageFilterCount" class="cx-sealed-filter-internal"></small></div><div class="cx-sealed-layout"><section><div id="cxSealedRows" class="cx-sealed-list"></div></section><aside id="cxSealedDetail" class="cx-card cx-sealed-detail"></aside></div>`;
+  const assessed=rows.length,graded=rows.filter(r=>score(r)!=null).length,sets=new Set(allProducts().map(r=>r.set_code).filter(Boolean)).size,last=rows.reduce((m,r)=>!m||new Date(r.refreshed_at)>new Date(m)?r.refreshed_at:m,null);
+  h.innerHTML=`<div class="cx-page-head"><div><h2>Scout Sealed</h2><p>Browse every sealed family, then follow the value inside.</p><small class="cx-sub">${sets} sets · ${allProducts().length} products · ${graded} graded · refreshed ${esc(age(last))}</small></div><button class="cx-refresh" id="cxSealedRefresh">Refresh</button></div><nav class="cx-sealed-view-tabs" aria-label="Sealed views"><button type="button" data-sealed-view="sets">Sets</button><button type="button" data-sealed-view="opportunities">Opportunities</button></nav><div class="cx-sealed-toolbar cx-sealed-toolbar-compact"><input id="cxSealedSearch" value="${esc(f.query||'')}" placeholder="Search sets or sealed products…"><select id="cxSealedFilter" class="cx-sealed-filter-internal"><option value="">All assessed products</option><option value="graded">Graded only</option><option value="scout">Scout Sealed only</option><option value="evready">EV ready</option><option value="blocked">Blocked / pending</option></select><div class="cx-sealed-chip-bar"><select id="cxSealedSetType" class="cx-sealed-filter-chip"><option value="">All Types</option>${types.map(x=>`<option value="${esc(x)}">${esc(human(x))}</option>`).join('')}</select><select id="cxSealedLanguagePricing" class="cx-sealed-filter-chip"><option value="all">Language</option><option value="exclude_fallback">Exclude fallback pricing</option><option value="english_exact">English / exact-default only</option><option value="nonenglish_exact">Non-English exact-language only</option><option value="fallback">English fallback only</option></select><button type="button" id="cxSealedBuylistBacked" class="cx-sealed-filter-toggle ${f.buylistBacked?'active':''}" aria-pressed="${f.buylistBacked?'true':'false'}"><span aria-hidden="true">⚡</span><span>Buylist Backed</span></button></div><small id="cxSealedLanguageFilterCount" class="cx-sealed-filter-internal"></small></div><div class="cx-sealed-layout"><section><div id="cxSealedRows" class="cx-sealed-list"></div></section><aside id="cxSealedDetail" class="cx-card cx-sealed-detail"></aside></div>`;
   h.querySelector('#cxSealedFilter').value=f.status||'';h.querySelector('#cxSealedSetType').value=f.setType||'';h.querySelector('#cxSealedLanguagePricing').value=f.language||'all';
   h.querySelector('#cxSealedSearch').addEventListener('input',e=>updateFilters({query:e.target.value}));
   h.querySelector('#cxSealedFilter').addEventListener('change',e=>updateFilters({status:e.target.value}));
@@ -84,7 +116,8 @@ function renderShell(){
   h.querySelector('#cxSealedLanguagePricing').addEventListener('change',e=>updateFilters({language:e.target.value}));
   h.querySelector('#cxSealedBuylistBacked').addEventListener('click',()=>updateFilters({buylistBacked:!Boolean(store.get().sealed?.filters?.buylistBacked)}));
   h.querySelector('#cxSealedRefresh').addEventListener('click',()=>load(true));
-  h.querySelector('#cxSealedRows').addEventListener('click',e=>{const b=e.target.closest('[data-deck]');if(b)selectProduct(b.dataset.deck)});
+  h.querySelector('.cx-sealed-view-tabs').addEventListener('click',e=>{const b=e.target.closest('[data-sealed-view]');if(b)setView(b.dataset.sealedView)});
+  h.querySelector('#cxSealedRows').addEventListener('click',e=>{const back=e.target.closest('[data-sealed-back]'),set=e.target.closest('[data-sealed-set]'),b=e.target.closest('[data-deck]');if(back)setView('sets');else if(set)openSet(set.dataset.sealedSet);else if(b)selectProduct(b.dataset.deck)});
   renderRows();
 }
 
@@ -93,16 +126,41 @@ function updateFilters(patch){
   const buylist=document.getElementById('cxSealedBuylistBacked');if(buylist){buylist.setAttribute('aria-pressed',filters.buylistBacked?'true':'false');buylist.classList.toggle('active',Boolean(filters.buylistBacked))}
   renderRows();
 }
+function restoreScroll(key){const y=scrollByView.get(key);if(y==null)return;requestAnimationFrame(()=>requestAnimationFrame(()=>scrollTo({top:y,behavior:'auto'})))}
+function viewKey(s=store.get().sealed||{}){return s.view==='set'?`set:${s.selectedSetCode||''}`:s.view||'sets'}
+function setView(view){const s=store.get().sealed||{};scrollByView.set(viewKey(s),scrollY);store.update('sealed',{view,selectedSetCode:view==='set'?s.selectedSetCode:null,selectedId:null});renderRows();restoreScroll(viewKey())}
+function openSet(code){const s=store.get().sealed||{};scrollByView.set(viewKey(s),scrollY);store.update('sealed',{view:'set',selectedSetCode:String(code||'').toUpperCase(),selectedId:null});renderRows();scrollTo({top:0,behavior:'auto'})}
 function selectProduct(id){store.update('sealed',{selectedId:id});renderRows();renderDetail(selectedRow()).catch(()=>{})}
+
+function renderSetDirectory(h){
+  const groups=setGroups();
+  if(!groups.length){h.innerHTML='<div class="cx-empty">No sealed sets match this search.</div>';return}
+  h.className='cx-sealed-set-directory';
+  h.innerHTML=groups.map(([family,sets])=>`<section class="cx-sealed-family-group"><header><h3>${esc(family)}</h3><span>${sets.length} set${sets.length===1?'':'s'}</span></header><div class="cx-sealed-set-list">${sets.map(set=>`<button type="button" class="cx-sealed-set-row" data-sealed-set="${esc(set.code)}"><span class="cx-sealed-set-symbol">${esc(set.code.slice(0,3))}</span><span class="cx-sealed-set-copy"><strong>${esc(set.name)}</strong><small>${esc(set.code)} · ${set.products.length} product${set.products.length===1?'':'s'}${set.release?` · ${esc(String(set.release).slice(0,4))}`:''}</small></span><span class="cx-sealed-set-signal">${set.best==null?'<small>Not graded</small>':`<b>${Math.round(set.best)}</b><small>${set.opportunities?`${set.opportunities} opportunit${set.opportunities===1?'y':'ies'}`:'tracked'}</small>`}</span><span class="cx-sealed-chevron">›</span></button>`).join('')}</div></section>`).join('');
+}
+function renderSetProducts(h,code){
+  const s=store.get().sealed||{},name=setNames().get(code)||code,products=allProducts().filter(r=>String(r.set_code||'').toUpperCase()===code).sort(sortRows);
+  h.className='cx-sealed-list cx-sealed-set-products';
+  h.innerHTML=`<div class="cx-sealed-set-head"><button type="button" data-sealed-back>‹ All sets</button><div><span>SEALED SET</span><h3>${esc(name)}</h3><small>${esc(code)} · ${products.length} products · sorted by opportunity</small></div></div><div class="cx-sealed-product-groups">${renderProductRows(products,s.selectedId)}</div>`;
+}
+function renderProductRows(visible,selected){
+  const types=setMap();
+  return visible.map(r=>{const a=acquisition(r),sc=score(r),type=types.get(String(r.set_code||'').toUpperCase());return `<button type="button" class="cx-sealed-row ${String(r.sealed_uuid)===String(selected)?'selected':''}" data-deck="${esc(r.sealed_uuid)}"><div class="cx-sealed-name"><strong>${esc(r.product_name)}</strong><small>${esc(human(r.subtype||r.category||type||''))} · ${esc(r.release_date||'')}</small><div class="cx-sealed-badges">${sc==null?'<span class="cx-sealed-badge risk">NOT GRADED</span>':`<span class="cx-sealed-badge direct">${esc(grade(r))} · ${sc.toFixed(1)}</span>`}${badges(r)}</div></div>${metric('Sealed buy',money(a),human(r.lifecycle_status||'catalog only'))}${metric('Market EV',money(r.tcg_market_ev),r.market_coverage_pct==null?'not modeled':`${pct(r.market_coverage_pct)} coverage`)}${metric('CK buylist',money(r.cardkingdom_buylist_ev),'cash floor','cx-sealed-hide-mobile')}${metric('Market spread',marketSpread(r)==null?'—':money(marketSpread(r)),r.market_roi_pct==null?'':`${Number(r.market_roi_pct)>=0?'+':''}${Number(r.market_roi_pct).toFixed(1)}%`,marketSpread(r)==null?'cx-sealed-pending':marketSpread(r)>=0?'cx-sealed-positive':'cx-sealed-negative')}</button>`}).join('');
+}
 
 function renderRows(){
   const h=document.getElementById('cxSealedRows');if(!h)return;
-  const visible=filteredRows(),s=store.get().sealed||{},types=setMap();
-  if(!visible.some(r=>String(r.sealed_uuid)===String(s.selectedId)))store.update('sealed',{selectedId:visible[0]?.sealed_uuid||null});
+  const s=store.get().sealed||{},view=s.view||'sets';
+  document.querySelectorAll('[data-sealed-view]').forEach(b=>b.classList.toggle('active',b.dataset.sealedView===(view==='set'?'sets':view)));
+  document.querySelector('.cx-sealed-chip-bar')?.toggleAttribute('hidden',view!=='opportunities');
+  if(view==='sets'){renderSetDirectory(h);renderDetail(null);return}
+  if(view==='set'){renderSetProducts(h,String(s.selectedSetCode||'').toUpperCase());renderDetail(selectedRow()).catch(()=>{});return}
+  const visible=filteredRows();h.className='cx-sealed-list';
+  if(!visible.some(r=>String(r.sealed_uuid)===String(s.selectedId)))store.update('sealed',{selectedId:null});
   const selected=String(store.get().sealed?.selectedId||'');
   const count=document.getElementById('cxSealedLanguageFilterCount');if(count){const hidden=(s.rows||[]).length-visible.length;count.textContent=(s.filters?.language||'all')==='all'?'':`${visible.length} shown · ${hidden} hidden`}
   if(!visible.length){h.innerHTML='<div class="cx-empty">No sealed products match these filters.</div>';renderDetail(null);return}
-  h.innerHTML=visible.map(r=>{const a=acquisition(r),sc=score(r),type=types.get(String(r.set_code||'').toUpperCase());return `<button type="button" class="cx-sealed-row ${String(r.sealed_uuid)===selected?'selected':''}" data-deck="${esc(r.sealed_uuid)}"><div class="cx-sealed-name"><strong>${esc(r.product_name)}</strong><small>${esc(r.set_code||'')} · ${esc(type?human(type):human(r.subtype||r.category||''))} · ${esc(r.release_date||'')}</small><div class="cx-sealed-badges">${sc==null?'':`<span class="cx-sealed-badge direct">${esc(grade(r))} · ${sc.toFixed(1)}</span>`}${badges(r)}</div></div>${metric('Sealed buy',money(a),human(r.lifecycle_status))}${metric('Market EV',money(r.tcg_market_ev),`${pct(r.market_coverage_pct)} coverage`)}${metric('CK buylist',money(r.cardkingdom_buylist_ev),'cash floor','cx-sealed-hide-mobile')}${metric('Market spread',marketSpread(r)==null?'—':money(marketSpread(r)),r.market_roi_pct==null?'':`${Number(r.market_roi_pct)>=0?'+':''}${Number(r.market_roi_pct).toFixed(1)}%`,marketSpread(r)==null?'cx-sealed-pending':marketSpread(r)>=0?'cx-sealed-positive':'cx-sealed-negative')}</button>`}).join('');
+  h.innerHTML=renderProductRows(visible,selected);
   renderDetail(selectedRow()).catch(()=>{});
   document.dispatchEvent(new CustomEvent('collectish:sealed-rendered',{detail:{visible:visible.length,selectedId:selected}}));
 }
