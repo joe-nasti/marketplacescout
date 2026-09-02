@@ -3,19 +3,13 @@ import {readFile} from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('Signals defers noncritical scan requests behind the primary feed',async()=>{
+test('Signals keeps only sales response behind the primary feed',async()=>{
   const core=await read('src/modules/signals/index.js');
   expect(core).toContain("collectish:signals-primary-ready");
   expect(core).toContain('setTimeout(()=>void loadSalesResponse(),500)');
-  const delays=new Map([
-    ['source-performance.js','1600'],
-    ['video-events-ui.js','2200'],['synergy-relationships.js','2800'],
-    ['future-card-theses.js','3400'],['market-evaluation.js','4000']
-  ]);
-  for(const [file,delay] of delays){
+  for(const file of ['source-performance.js','video-events-ui.js','synergy-relationships.js','future-card-theses.js','market-evaluation.js']){
     const source=await read(`src/modules/signals/${file}`);
-    expect(source).toContain("collectish:signals-primary-ready");
-    expect(source).toContain(`,${delay})`);
+    expect(source).not.toContain("document.addEventListener('collectish:signals-primary-ready'");
   }
   for(const file of ['actionable-emerging.js','cross-source.js']){
     const source=await read(`src/modules/signals/${file}`);
