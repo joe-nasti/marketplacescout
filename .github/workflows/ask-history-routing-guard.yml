@@ -31,6 +31,7 @@ on:
       - 'tools/check-ask-video-creator-taxonomy.mjs'
       - 'tools/check-ask-two-pass-creator-retrieval.mjs'
       - 'tools/check-ask-web-citation-source-extraction.mjs'
+      - 'tools/check-ask-causal-grounding-fallback.mjs'
       - '.github/workflows/ask-history-routing-guard.yml'
   push:
     branches: [main]
@@ -64,6 +65,7 @@ on:
       - 'tools/check-ask-video-creator-taxonomy.mjs'
       - 'tools/check-ask-two-pass-creator-retrieval.mjs'
       - 'tools/check-ask-web-citation-source-extraction.mjs'
+      - 'tools/check-ask-causal-grounding-fallback.mjs'
       - '.github/workflows/ask-history-routing-guard.yml'
 jobs:
   guard:
@@ -86,3 +88,4 @@ jobs:
       - run: node tools/check-ask-video-creator-taxonomy.mjs
       - run: node tools/check-ask-two-pass-creator-retrieval.mjs
       - run: node tools/check-ask-web-citation-source-extraction.mjs
+      - run: node tools/check-ask-causal-grounding-fallback.mjs
