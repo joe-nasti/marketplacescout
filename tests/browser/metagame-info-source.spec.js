@@ -29,13 +29,16 @@ test('expert editorial is analyzed by content rather than tag or author alone',a
   expect(src).toContain('negative/pass judgments');
 });
 
-test('Metagame.info uses a bounded Browser Run fallback without accepting challenge text',async({},testInfo)=>{
+test('Metagame.info uses exact cached Exa content with delayed index retries',async({},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
   const src=await read('supabase/functions/market-intel-curated-content-sync/index.ts');
-  expect(src).toContain("Deno.env.get('CLOUDFLARE_ACCOUNT_ID')");
-  expect(src).toContain("Deno.env.get('CLOUDFLARE_BROWSER_RUN_TOKEN')");
-  expect(src).toContain('/browser-rendering/markdown');
-  expect(src).toContain('blocked_by_challenge');
-  expect(src).toContain("rejectResourceTypes:['image','media','font']");
-  expect(src).toContain("captureMode='cloudflare_browser_run'");
+  expect(src).toContain("Deno.env.get('EXA_API_KEY')");
+  expect(src).toContain("https://api.exa.ai/search");
+  expect(src).toContain("maxAgeHours:-1");
+  expect(src).toContain("canonicalUrl(String(x?.url||''))===target");
+  expect(src).toContain("status=reason==='exa_not_indexed'?'awaiting_index':'failed'");
+  expect(src).toContain("next_retry_at:exaRetryAt(attemptCount)");
+  expect(src).toContain("captureMode='exa_indexed_search'");
+  expect(src).not.toContain('/browser-rendering/markdown');
+  expect(src).not.toContain("captureMode='cloudflare_browser_run'");
 });
