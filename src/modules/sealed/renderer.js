@@ -8,8 +8,8 @@ const pct=n=>n==null||!Number.isFinite(Number(n))?'—':`${Number(n).toFixed(1)}
 const human=s=>String(s||'').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
 const age=d=>{if(!d)return'—';const ms=Math.max(0,Date.now()-new Date(d).getTime()),m=Math.round(ms/6e4);if(m<60)return m<=1?'just now':`${m}m ago`;const h=Math.round(m/60);return h<24?`${h}h ago`:`${Math.round(h/24)}d ago`};
 const slug=s=>String(s||'').normalize('NFKD').replace(/[’']/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'').toLowerCase();
-const score=r=>{const p=familyEconomics(r)?.practical_scout_score;return p==null?(r?.scout_sealed_score==null?null:Number(r.scout_sealed_score)):Number(p)};
-const grade=r=>familyEconomics(r)?.practical_scout_grade||r?.scout_sealed_grade||'—';
+const score=r=>{const p=familyEconomics(r)?.practical_scout_score;return p==null?null:Number(p)};
+const grade=r=>familyEconomics(r)?.practical_scout_grade||'—';
 const acquisition=r=>r?.sealed_acquisition_price==null?null:Number(r.sealed_acquisition_price);
 const marketSpread=r=>r?.market_spread==null?null:Number(r.market_spread);
 const buylistBacked=r=>{const buy=Number(r?.cardkingdom_buylist_ev),acq=acquisition(r);return Number.isFinite(buy)&&buy>0&&Number.isFinite(acq)&&acq>0&&buy>acq};
@@ -55,11 +55,15 @@ async function loadSetTypes(force=false){
   return setTypesLoading;
 }
 async function loadIndex(force=false){
-  const [rows,products]=await Promise.all([
+  const [rows,products,practical]=await Promise.all([
     loadResource('sealed.rows',()=>rest('sealed_ev_current?select=*&order=scout_sealed_score.desc.nullslast,release_date.desc,product_name.asc&limit=5000'),{force,ttl:60000}),
-    loadResource('sealed.catalogProducts',()=>rest('mtgjson_sealed_products?select=uuid,name,set_code,category,subtype,release_date,tcgplayer_product_id&order=release_date.desc.nullslast,name.asc&limit=5000'),{force,ttl:15*60*1000})
+    loadResource('sealed.catalogProducts',()=>rest('mtgjson_sealed_products?select=uuid,name,set_code,category,subtype,release_date,tcgplayer_product_id&order=release_date.desc.nullslast,name.asc&limit=5000'),{force,ttl:15*60*1000}),
+    loadResource('sealed.practicalIndex',()=>rest('sealed_product_executable_ev_cache?select=sealed_uuid,tcg_low_ev,practical_liquidation_ev,practical_scout_score,practical_scout_grade,practical_action,practical_model_version,valuation_as_of,refreshed_at&order=practical_scout_score.desc.nullslast&limit=5000'),{force,ttl:60000})
   ]);
-  const current=store.get().sealed||{},sorted=(rows||[]).slice().sort(sortRows);
+  const current=store.get().sealed||{},familyEconomics={...(current.familyEconomics||{})};
+  (practical||[]).forEach(value=>{const id=String(value.sealed_uuid||'');if(id)familyEconomics[id]={...(familyEconomics[id]||{}),...value}});
+  store.update('sealed',{familyEconomics});
+  const sorted=(rows||[]).slice().sort(sortRows);
   store.update('sealed',{rows:sorted,catalogProducts:products||[],selectedId:current.selectedId||null,loadedAt:Date.now()});
   await loadSetTypes(force);
   return sorted;
@@ -142,7 +146,7 @@ function renderSetDirectory(h){
   const groups=setGroups();
   if(!groups.length){h.innerHTML='<div class="cx-empty">No sealed sets match this search.</div>';return}
   h.className='cx-sealed-set-directory';
-  h.innerHTML=groups.map(([family,sets])=>`<section class="cx-sealed-family-group"><header><h3>${esc(family)}</h3><span>${sets.length} set${sets.length===1?'':'s'}</span></header><div class="cx-sealed-set-list">${sets.map(set=>`<button type="button" class="cx-sealed-set-row" data-sealed-set="${esc(set.code)}"><span class="cx-sealed-set-symbol">${esc(set.code.slice(0,3))}</span><span class="cx-sealed-set-copy"><strong>${esc(set.name)}</strong><small>${esc(set.code)} · ${set.products.length} product${set.products.length===1?'':'s'}${set.release?` · ${esc(String(set.release).slice(0,4))}`:''}</small></span><span class="cx-sealed-set-signal">${set.best==null?'<small>Not graded</small>':`<b>${Math.round(set.best)}</b><small>${set.opportunities?`${set.opportunities} opportunit${set.opportunities===1?'y':'ies'}`:'best score'}</small>`}</span><span class="cx-sealed-chevron">›</span></button>`).join('')}</div></section>`).join('');
+  h.innerHTML=groups.map(([family,sets])=>`<section class="cx-sealed-family-group"><header><h3>${esc(family)}</h3><span>${sets.length} set${sets.length===1?'':'s'}</span></header><div class="cx-sealed-set-list">${sets.map(set=>`<button type="button" class="cx-sealed-set-row" data-sealed-set="${esc(set.code)}"><span class="cx-sealed-set-symbol">${esc(set.code.slice(0,3))}</span><span class="cx-sealed-set-copy"><strong>${esc(set.name)}</strong><small>${esc(set.code)} · ${set.products.length} product${set.products.length===1?'':'s'}${set.release?` · ${esc(String(set.release).slice(0,4))}`:''}</small></span><span class="cx-sealed-set-signal">${set.best==null?'<small>Model pending</small>':`<b>${Math.round(set.best)}</b><small>${set.opportunities?`${set.opportunities} opportunit${set.opportunities===1?'y':'ies'}`:'best score'}</small>`}</span><span class="cx-sealed-chevron">›</span></button>`).join('')}</div></section>`).join('');
 }
 function renderSetProducts(h,code){
   const s=store.get().sealed||{},name=setNames().get(code)||code,products=allProducts().filter(r=>String(r.set_code||'').toUpperCase()===code).sort(sortRows);
@@ -152,7 +156,7 @@ function renderSetProducts(h,code){
 }
 function renderProductRows(visible,selected){
   const types=setMap();
-  return visible.map(r=>{const a=acquisition(r),sc=score(r),type=types.get(String(r.set_code||'').toUpperCase()),family=familyEconomics(r),ev=modeledEv(r),spread=modeledSpread(r),roi=spread!=null&&a>0?100*spread/a:null,evSub=family?.practical_action?human(family.practical_action):'liquidity + labor adjusted';return `<button type="button" class="cx-sealed-row ${String(r.sealed_uuid)===String(selected)?'selected':''}" data-deck="${esc(r.sealed_uuid)}"><div class="cx-sealed-name"><strong>${esc(r.product_name)}</strong><small>${esc(human(r.subtype||r.category||type||''))} · ${esc(r.release_date||'')}</small><div class="cx-sealed-badges">${sc==null?'<span class="cx-sealed-badge risk">NOT GRADED</span>':`<span class="cx-sealed-badge direct">${esc(grade(r))} · ${sc.toFixed(1)}</span>`}${badges(r)}</div></div>${metric('Sealed buy',money(a),human(r.lifecycle_status||'catalog only'))}${metric('Practical EV',money(ev),evSub)}${metric('TCG Low EV',money(family?.tcg_low_ev),'gross pull value','cx-sealed-hide-mobile')}${metric('Practical spread',spread==null?'—':money(spread),roi==null?'':`${roi>=0?'+':''}${roi.toFixed(1)}%`,spread==null?'cx-sealed-pending':spread>=0?'cx-sealed-positive':'cx-sealed-negative')}</button>`}).join('');
+  return visible.map(r=>{const a=acquisition(r),sc=score(r),type=types.get(String(r.set_code||'').toUpperCase()),family=familyEconomics(r),ev=modeledEv(r),spread=modeledSpread(r),roi=spread!=null&&a>0?100*spread/a:null,evSub=family?.practical_action?human(family.practical_action):'liquidity + labor adjusted';return `<button type="button" class="cx-sealed-row ${String(r.sealed_uuid)===String(selected)?'selected':''}" data-deck="${esc(r.sealed_uuid)}"><div class="cx-sealed-name"><strong>${esc(r.product_name)}</strong><small>${esc(human(r.subtype||r.category||type||''))} · ${esc(r.release_date||'')}</small><div class="cx-sealed-badges">${sc==null?'<span class="cx-sealed-badge risk">MODEL PENDING</span>':`<span class="cx-sealed-badge direct">${esc(grade(r))} · ${sc.toFixed(1)}</span>`}${badges(r)}</div></div>${metric('Sealed buy',money(a),human(r.lifecycle_status||'catalog only'))}${metric('Practical EV',money(ev),evSub)}${metric('TCG Low EV',money(family?.tcg_low_ev),'gross pull value','cx-sealed-hide-mobile')}${metric('Practical spread',spread==null?'—':money(spread),roi==null?'':`${roi>=0?'+':''}${roi.toFixed(1)}%`,spread==null?'cx-sealed-pending':spread>=0?'cx-sealed-positive':'cx-sealed-negative')}</button>`}).join('');
 }
 
 async function executableEconomics(ids){
