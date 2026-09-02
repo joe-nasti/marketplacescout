@@ -26,7 +26,7 @@ function renderSignals(){
   if(!signalsReady())return;
   let panel=document.getElementById('cxActionableEmerging');
   if(!panel){
-    panel=document.createElement('section');panel.id='cxActionableEmerging';panel.className='cx-card';
+    panel=document.createElement('section');panel.id='cxActionableEmerging';panel.className='cx-card';panel.hidden=signalHost()?.dataset.signalsView!=='scan';
     const cross=document.getElementById('cxCrossSourceIntel'),comp=document.getElementById('cxCompetitiveIntel'),layout=signalHost()?.querySelector('.cx-signals-layout');
     if(cross)cross.insertAdjacentElement('beforebegin',panel);else if(comp)comp.insertAdjacentElement('beforebegin',panel);else if(layout)layout.insertAdjacentElement('beforebegin',panel);else signalHost()?.appendChild(panel);
   }
