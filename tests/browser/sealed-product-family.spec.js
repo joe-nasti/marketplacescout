@@ -25,7 +25,7 @@ test('Hobbit family UI never grades incomplete component floors', async()=>{
   expect(family).toContain('unresolved_other_components');
 });
 
-test('mixed sealed products expose derived Singles and distinguish fixed-card routing', async()=>{
+test('mixed sealed products expose derived Singles and landed-cost decisions', async()=>{
   const index=await read('src/modules/sealed/index.js');
   const compare=await read('src/modules/sealed/source-compare.js');
   expect(index).toContain("import('./source-compare.js')");
@@ -38,9 +38,10 @@ test('mixed sealed products expose derived Singles and distinguish fixed-card ro
   expect(compare).toContain('Fixed-card Out Optimization');
   expect(compare).toContain('Mixed sealed product:');
   expect(compare).toContain('card_set_code');
-  expect(compare).toContain('Your acquisition price');
+  expect(compare).toContain('Your landed acquisition cost');
   expect(compare).toContain('applyScenario');
-  expect(compare).toContain('data-scenario-alloc');
+  expect(compare).toContain('recommendation');
+  for (const label of ['BUY & CRACK','FLIP SEALED','MARGINAL CRACK','KEEP SEALED','GROSS EV ONLY','PASS']) expect(compare).toContain(label);
 });
 
 test('Scout Singles compares buy direct, sealed sourcing and live outlet exit from fast cache', async()=>{
