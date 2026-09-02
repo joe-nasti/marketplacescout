@@ -24,6 +24,32 @@ function cardUrl(env,x){
 }
 function cardText(env,x,n=58){return `[${short(x?.card_name,n)}](${cardUrl(env,x)})`}
 function reason(x){const r=Array.isArray(x?.reasons)?x.reasons:[];return short(r[0]||'worth checking against liquidity and other markets',84)}
+function familyKey(x){
+  const stable=String(x?.oracle_id||x?.oracle_card_id||x?.card_family_id||'').trim().toLowerCase();
+  if(stable)return stable;
+  return String(x?.card_name||'')
+    .toLowerCase()
+    .replace(/\s*\/\/\s*.*/,'')
+    .replace(/\s*\([^)]*\)\s*$/,'')
+    .replace(/[^a-z0-9]+/g,' ')
+    .trim();
+}
+function independentTreatmentEvidence(x){
+  if(x?.independent_treatment_evidence===true||x?.treatment_independent===true)return true;
+  const reasons=Array.isArray(x?.reasons)?x.reasons.join(' ').toLowerCase():'';
+  return /independent (?:treatment|printing) evidence|treatment-specific corroboration/.test(reasons);
+}
+function dedupeMoverFamilies(rows){
+  const seen=new Set(),out=[];
+  for(const row of rows){
+    const key=familyKey(row);
+    if(!key||!seen.has(key)||independentTreatmentEvidence(row)){
+      out.push(row);
+      if(key)seen.add(key);
+    }
+  }
+  return out;
+}
 async function serviceRpc(env,name,body){
   if(!env.SUPABASE_SERVICE_ROLE_KEY)return null;
   const r=await fetch(`${base(env)}/rest/v1/rpc/${name}`,{method:'POST',headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -41,7 +67,7 @@ function fitDescription(lines,max=MAX_EMBED_DESCRIPTION){
 }
 function embedsForSnapshot(env,d,count){
   const raw=Array.isArray(d?.raw)?d.raw.slice(0,count):[];
-  const movers=Array.isArray(d?.early_movers)?d.early_movers:[];
+  const movers=dedupeMoverFamilies(Array.isArray(d?.early_movers)?d.early_movers:[]);
   const noise=Array.isArray(d?.noise)?d.noise:[];
   const header=`${d?.observed_date||'latest'} · ${metricLabel(d?.price_type)} · ${finishLabel(d?.finish)} · ${d?.window||'24h'}`;
   const rawLines=raw.map((x,i)=>`${i+1}. ${cardText(env,x)} · ${setLabel(x)} · ${finishLabel(x?.finish)} · ${pct(x?.pct_change)}`);
