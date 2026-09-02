@@ -1,3 +1,4 @@
+import store from '../../state/store.js';
 import { parseScoutSearchQuery, removeScoutSearchToken } from './search-query.js';
 
 let timer=null;
@@ -12,6 +13,7 @@ const OPERATOR_OPTIONS=[
   {key:'cn',label:'Collector #',hint:'cn:350'},
   {key:'f',label:'Finish',hint:'f:foil'}
 ];
+const RANKED_FILTER_IDS=new Set(['cxParityGrade','cxParitySet','cxScoutMin','cxScoutMax','cxScoutSpread','cxScoutFoil','cxLiquidityFilter']);
 
 function input(){return document.getElementById('cxParitySearch')}
 function host(){
@@ -123,15 +125,56 @@ function applyToRenderedResults(query){
   document.dispatchEvent(new CustomEvent('collectish:scout-power-search-rendered',{detail:{raw:query.raw,name:query.resolvedName||query.nameText,visible,total:articles.length,filters:query.filters}}));
 }
 
+function rankedListQuery(query){
+  const {setCodes=[],collectorNumbers=[],finishes=[]}=query?.filters||{};
+  if(query?.nameText||collectorNumbers.length||setCodes.length>1||finishes.length>1)return false;
+  if(finishes.some(f=>f==='etched'))return false;
+  return Boolean(setCodes.length||finishes.length);
+}
+function rankedSetName(code){
+  const rows=store.get().scout?.rows||[];
+  const found=rows.find(r=>String(r?.set_code||'').trim().toUpperCase()===String(code||'').trim().toUpperCase());
+  return found?.set_name||'';
+}
+function restoreUrlPowerQuery(raw,{setValue='',foilValue=''}={}){
+  const p=new URL(location.href).searchParams;
+  p.set('tab','scout');
+  if(String(raw||'').trim())p.set('q',raw);else p.delete('q');
+  if(setValue)p.set('set',setValue);else p.delete('set');
+  if(foilValue)p.set('foil',foilValue);else p.delete('foil');
+  history.replaceState({collectish:true},'',`${location.pathname}?${p.toString()}${location.hash}`);
+}
+function runRankedList(raw,query=parseScoutSearchQuery(raw)){
+  if(!rankedListQuery(query))return false;
+  const renderer=window.CollectishScoutRenderer,field=input();
+  if(!renderer?.applyFilters||!field)return false;
+  window.CollectishScoutGlobalSearch?.clear?.();
+  const setEl=document.getElementById('cxParitySet'),foilEl=document.getElementById('cxScoutFoil');
+  const setValue=setEl?.value||'',foilValue=foilEl?.value||'',setCode=query.filters.setCodes[0]||'',finish=query.filters.finishes[0]||'';
+  const setName=setCode?rankedSetName(setCode):'',noSetMatch=Boolean(setCode&&!setName);
+  field.value=noSetMatch?'__collectish_power_query_no_match__':'';
+  if(setEl&&setCode&&!noSetMatch)setEl.value=setName;
+  if(foilEl&&finish)foilEl.value=finish==='foil'?'true':'false';
+  renderer.applyFilters();
+  field.value=raw;
+  if(setEl)setEl.value=setValue;
+  if(foilEl)foilEl.value=foilValue;
+  restoreUrlPowerQuery(raw,{setValue,foilValue});
+  activeQuery=query;renderTokens(query);renderOperatorSuggestions(raw,query);
+  document.dispatchEvent(new CustomEvent('collectish:scout-power-list-rendered',{detail:{raw,filters:query.filters}}));
+  return true;
+}
+
 async function run(raw,{force=false}={}){
   const query=parseScoutSearchQuery(raw);activeQuery=query;renderTokens(query);renderOperatorSuggestions(raw,query);
   if(!hasOperators(query))return false;
+  if(rankedListQuery(query))return runRankedList(raw,query);
   const api=window.CollectishScoutGlobalSearch;if(!api?.loadCard)return false;
   let name=nameTextForRaw(raw,query);
   if(name)name=await exactName(name);else name=await nameFromSetCollector(query);
   if(!name){
     const p=document.getElementById('cxGlobalScoutSearch');
-    if(force&&p){p.hidden=false;p.innerHTML='<div class="cx-empty">Add a card name, or use set + collector number (for example <b>s:SLD cn:2812</b>).</div>'}
+    if(force&&p){p.hidden=false;p.innerHTML='<div class="cx-empty">Add a card name, or use a set filter such as <b>s:HOB</b>, or set + collector number (for example <b>s:SLD cn:2812</b>).</div>'}
     return false;
   }
   query.resolvedName=name;activeQuery=query;
@@ -150,15 +193,29 @@ function onInputCapture(e){
   e.stopImmediatePropagation();activeQuery=query;renderTokens(query);renderOperatorSuggestions(raw,query);clearTimeout(timer);
   if(!hasOperators(query))return;
   const trimmed=raw.trim();if(trimmed.length<2)return;
+  if(rankedListQuery(query)){timer=setTimeout(()=>{if(input()?.value===raw)runRankedList(raw,query)},80);return}
   timer=setTimeout(()=>{if(input()?.value===raw)run(raw)},260);
 }
 function onKeyCapture(e){
   if(e.target?.id!=='cxParitySearch')return;
   const raw=e.target.value,query=parseScoutSearchQuery(raw);if(!ownsInput(raw,query))return;
   if(e.key==='Escape'){clearSuggestions();return}
-  if(e.key!=='Enter')return;e.preventDefault();e.stopImmediatePropagation();clearTimeout(timer);if(hasOperators(query))run(raw,{force:true});
+  if(e.key!=='Enter')return;e.preventDefault();e.stopImmediatePropagation();clearTimeout(timer);
+  if(rankedListQuery(query))runRankedList(raw,query);else if(hasOperators(query))run(raw,{force:true});
 }
-function onRendered(){if(activeQuery&&hasOperators(activeQuery))applyToRenderedResults(activeQuery)}
+function onRankedFilterCapture(e){
+  if(!RANKED_FILTER_IDS.has(e.target?.id))return;
+  const field=input();if(!field)return;
+  const raw=field.value,query=parseScoutSearchQuery(raw);if(!rankedListQuery(query))return;
+  e.stopImmediatePropagation();clearTimeout(timer);timer=setTimeout(()=>runRankedList(raw,query),0);
+}
+function onRendered(){if(activeQuery&&hasOperators(activeQuery)&&!rankedListQuery(activeQuery))applyToRenderedResults(activeQuery)}
+function syncCurrentField(){
+  const field=input();if(!field)return;
+  const raw=field.value,query=parseScoutSearchQuery(raw);if(!hasOperators(query))return;
+  activeQuery=query;renderTokens(query);renderOperatorSuggestions(raw,query);
+  clearTimeout(timer);timer=setTimeout(()=>{if(input()?.value!==raw)return;if(rankedListQuery(query))runRankedList(raw,query);else run(raw)},0);
+}
 
 const style=document.createElement('style');
 style.textContent=`.cx-power-search-tokens{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0 0}.cx-power-token{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--cx-line);background:var(--cx-bg);color:var(--cx-text);border-radius:999px;padding:5px 8px;font-size:11px;font-weight:750}.cx-power-token span{font-size:14px;line-height:1}.cx-power-token-warn{border-color:#e0a11a;color:#8b5a00;background:#fff3d9}.cx-power-search-empty{margin-bottom:10px}.cx-global-print[hidden]{display:none!important}.cx-power-search-suggest{display:grid;position:absolute;z-index:45;left:0;right:0;margin-top:4px;background:var(--cx-card);border:1px solid var(--cx-line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.16);overflow:hidden}.cx-power-search-suggest button{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:0;border-bottom:1px solid var(--cx-line);background:transparent;color:var(--cx-text);text-align:left}.cx-power-search-suggest button:last-child{border-bottom:0}.cx-power-search-suggest small{color:var(--cx-muted)}.cx-scout-toolbar{position:relative}`;
@@ -168,10 +225,14 @@ export function installScoutPowerSearch(){
   if(installed)return;installed=true;
   document.addEventListener('input',onInputCapture,true);
   document.addEventListener('keydown',onKeyCapture,true);
+  document.addEventListener('input',onRankedFilterCapture,true);
+  document.addEventListener('change',onRankedFilterCapture,true);
   document.addEventListener('collectish:scout-global-rendered',onRendered);
+  document.addEventListener('collectish:scout-v5-ready',syncCurrentField);
   document.addEventListener('click',e=>{if(!e.target.closest?.('#cxScoutPowerSuggest,#cxParitySearch'))clearSuggestions()},true);
   const field=input();if(field)field.placeholder='Search cards · s:SLD cn:2812 f:foil';
+  syncCurrentField();
 }
 installScoutPowerSearch();
 
-window.CollectishScoutPowerSearch={parse:parseScoutSearchQuery,run,apply:()=>activeQuery&&applyToRenderedResults(activeQuery)};
+window.CollectishScoutPowerSearch={parse:parseScoutSearchQuery,run,apply:()=>activeQuery&&(rankedListQuery(activeQuery)?runRankedList(activeQuery.raw,activeQuery):applyToRenderedResults(activeQuery))};
