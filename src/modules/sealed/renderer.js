@@ -183,16 +183,15 @@ async function loadDetailData(r){
   // Version the persisted detail contract whenever its payload grows. Never
   // cache a partial economics payload: permission/query errors must surface
   // instead of being converted into authoritative-looking zeroes.
-  return loadResource(`sealed.detail:v3:${r.sealed_uuid}`,async()=>{
-    const [cards,price,contents,family,children]=await Promise.all([
+  return loadResource(`sealed.detail:v4:${r.sealed_uuid}`,async()=>{
+    const [cards,price,contents,children]=await Promise.all([
       rest('rpc/get_sealed_component_economics',{method:'POST',body:{p_sealed_uuid:r.sealed_uuid}}).catch(()=>[]),
       rest(`sealed_product_price_current?select=product_id,market_price,low_price,low_with_shipping,total_listings,captured_at&source=eq.tcgplayer_public&sealed_uuid=eq.${encodeURIComponent(r.sealed_uuid)}&limit=1`).catch(()=>[]),
       rest(`mtgjson_sealed_products?select=source_updated_at&uuid=eq.${encodeURIComponent(r.sealed_uuid)}&limit=1`).catch(()=>[]),
-      rest(`sealed_product_family_economics?select=crack_gross_mean_ev,crack_net_mean_ev,crack_value_complete,fixed_tcg_market_ev,modeled_child_units&sealed_uuid=eq.${encodeURIComponent(r.sealed_uuid)}&limit=1`),
       rest(`sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type&parent_sealed_uuid=eq.${encodeURIComponent(r.sealed_uuid)}&order=child_product_name.asc`)
     ]);
-    const childIds=(children||[]).map(c=>c.child_sealed_uuid).filter(Boolean),childValues=childIds.length?await rest(`sealed_product_family_economics?select=sealed_uuid,crack_gross_mean_ev,crack_net_mean_ev,crack_value_complete,model_key,model_version&sealed_uuid=in.(${childIds.map(encodeURIComponent).join(',')})`):[],byId=new Map((childValues||[]).map(x=>[String(x.sealed_uuid),x]));
-    return{cards:cards||[],price:(price||[])[0]||null,contents:(contents||[])[0]||null,family:(family||[])[0]||null,children:(children||[]).map(c=>({...c,...byId.get(String(c.child_sealed_uuid))}))};
+    const childIds=(children||[]).map(c=>c.child_sealed_uuid).filter(Boolean),ids=[r.sealed_uuid,...childIds],familyValues=await rest('rpc/get_sealed_family_economics_fast',{method:'POST',body:{p_sealed_uuids:ids}}),byId=new Map((familyValues||[]).map(x=>[String(x.sealed_uuid),x]));
+    return{cards:cards||[],price:(price||[])[0]||null,contents:(contents||[])[0]||null,family:byId.get(String(r.sealed_uuid))||null,children:(children||[]).map(c=>({...c,...byId.get(String(c.child_sealed_uuid))}))};
   },{ttl:5*60*1000});
 }
 
