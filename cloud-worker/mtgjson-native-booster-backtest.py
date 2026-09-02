@@ -195,7 +195,9 @@ def write_backtest(user_id,product,booster_code,booster_count,pack_vals,expected
         for part in chunks(rows,150):sb(table,'POST',part,'return=minimal')
     officially_verified=bool(verification and verification.get('verification_status')=='verified')
     status='full' if officially_verified and coverage>=.98 and not missing_cards else 'partial'
-    adapter='sealed_container_rollup_v1' if product.get('category')=='booster_case' else (f'{booster_code}_booster_mtgjson_v1' if booster_code in ('draft','set') else 'collector_booster_mtgjson_v1')
+    if product.get('category')=='booster_case':adapter='sealed_container_rollup_v1'
+    elif booster_code=='collector-sample':adapter='collector_sample_mtgjson_v1'
+    else:adapter=f'{booster_code}_booster_mtgjson_v1' if booster_code in ('draft','set') else 'collector_booster_mtgjson_v1'
     binding={'set_code':product['set_code'],'sealed_uuid':product['uuid'],'product_category':product['category'],'product_subtype':product['subtype'],'adapter_key':adapter,'model_version':'mtgjson-native-booster-v1','profile_status':status,'source_type':'wizards_official+mtgjson_native_booster' if officially_verified else 'mtgjson_native_booster','source_ref':verification.get('official_source_url') if officially_verified else f'{product["set_code"]}:{booster_code}','assumptions':{'pricing_coverage_weighted':coverage,'backtest_id':bid,'official_verification_status':verification.get('verification_status') if verification else 'missing','native_config_fingerprint':verification.get('config_fingerprint') if verification else None},'priority':5,'enabled':True,'updated_at':now()}
     sb('sealed_collation_profile_bindings','POST',[binding],'return=minimal')
     return {'backtest_id':bid,'product':product['name'],'booster_count':booster_count,'sealed_reference_price':ref,'gross_mean':round(st['mean'],2),'median':round(st['median'],2),'net_mean':round(st['net'],2),'pricing_coverage':round(coverage,5),'profile_status':status}
