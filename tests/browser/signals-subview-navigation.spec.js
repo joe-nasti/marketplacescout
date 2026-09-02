@@ -19,10 +19,14 @@ test('Signals subviews participate in browser history and restore their own scro
 
 test('Signals subview panels are mutually exclusive full-width mobile surfaces',async()=>{
   const css=await readFile('src/styles/signals-mobile-polish.css','utf8');
+  const source=await readFile('src/modules/signals/index.js','utf8');
+  expect(css).toContain('#cxSignals [hidden]{display:none!important}');
   expect(css).toContain('#cxSignals[data-signals-view="competitive"] #cxCompetitiveIntel');
   expect(css).toContain('#cxSignals[data-signals-view="commander"] #cxCommanderIntel');
   expect(css).toContain('#cxSignals[data-signals-view="secret-lair"] #cxSecretLairSignals');
   expect(css).toContain('#cxSignals[data-signals-view="discovery"] #cxSignalsDiscovery');
+  expect(source).toContain("if(zeta)zeta.hidden=mode!=='secret-lair'");
+  expect(source).toContain("if(sourcePerformance)sourcePerformance.hidden=mode!=='scan'");
 });
 
 test('Signals controls stay on one row at Pixel narrow widths',async()=>{

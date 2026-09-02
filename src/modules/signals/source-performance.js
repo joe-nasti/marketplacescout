@@ -21,6 +21,7 @@ function render(){
     const layout=h.querySelector('.cx-signals-layout');
     if(layout)layout.insertAdjacentElement('beforebegin',panel);else h.appendChild(panel);
   }
+  panel.hidden=h.dataset.signalsView!=='scan';
   const useful=rows.filter(r=>Number(r.total_claims||0)>0).slice(0,8);
   panel.innerHTML=`<div class="cx-section-title">Source timing profiles</div><p class="cx-sub">MarketplaceScout measures whether each author/source tends to arrive before, during, or after market movement. This is timing history—not a trust score or recommendation.</p><div class="cx-detail-list">${useful.length?useful.map(rowHtml).join(''):'<div class="cx-empty">Timing profiles will appear as more linked card signals accumulate.</div>'}</div>`;
 }
