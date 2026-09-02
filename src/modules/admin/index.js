@@ -26,6 +26,9 @@ export function install(){
     await import('./console.js');
     document.querySelectorAll('#cxAdmin [data-cx-lazy-placeholder]').forEach(el=>el.remove());
     window.CollectishAdminConsole?.render?.();
+    // Start health reads as soon as the structural console exists. Additive
+    // admin modules should not hold the useful overview behind their JS graph.
+    void window.CollectishAdminConsole?.refresh?.();
 
     await Promise.all([
       import('./single-owner-style.js'),
