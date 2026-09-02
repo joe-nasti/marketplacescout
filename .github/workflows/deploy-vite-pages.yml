@@ -10,6 +10,7 @@ on:
       - 'package.json'
       - 'vite.config.js'
       - 'src/**'
+      - 'tests/browser/**'
       - 'tools/finalize-vite-build.mjs'
       - 'tools/check-source-hygiene.mjs'
       - 'tools/check-style-system.mjs'
