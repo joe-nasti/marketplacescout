@@ -3,6 +3,7 @@ import { rest } from '../../core/rest.js';
 let lastRefresh=0;
 let inFlight=null;
 let evaluations=[];
+let recomputeQueued=false;
 
 const pct=v=>Number.isFinite(Number(v))?`${Number(v)>=0?'+':''}${Number(v).toFixed(1)}%`:'';
 const cls=stage=>stage==='early'?'leading':stage==='confirming'?'confirming':stage==='late'?'lagging':'unclassified';
@@ -48,12 +49,12 @@ function decorate(){
   });
 }
 
-async function refresh({force=false}={}){
+async function refresh({force=false,recompute=false}={}){
   if(inFlight)return inFlight;
   if(!force&&Date.now()-lastRefresh<60000){decorate();return evaluations}
   inFlight=(async()=>{
     try{
-      await rest('rpc/refresh_market_intel_evaluations',{method:'POST',body:{}});
+      if(recompute)await rest('rpc/refresh_market_intel_evaluations',{method:'POST',body:{}});
       const data=await rest('market_intel_evaluations?select=*&order=evaluated_at.desc&limit=500');
       evaluations=Array.isArray(data)?data:[];
       lastRefresh=Date.now();
@@ -68,8 +69,16 @@ async function refresh({force=false}={}){
   return inFlight;
 }
 
-document.addEventListener('collectish:intel-changed',()=>void refresh({force:true}));
+function queueRecompute(){
+  if(recomputeQueued)return;
+  recomputeQueued=true;
+  const run=()=>{recomputeQueued=false;void refresh({force:true,recompute:true})};
+  if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:5000});
+  else setTimeout(run,1500);
+}
+
+document.addEventListener('collectish:intel-changed',queueRecompute);
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>void refresh())});
-document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>void refresh({force:true}))});
+document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>void refresh())});
 
 export { refresh as refreshIntelMarketEvaluations };
