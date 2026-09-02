@@ -25,5 +25,3 @@ async function ensure(){if(!host())return;await loadOrders()}
 document.addEventListener('collectish:buyer-orders-changed',()=>setTimeout(loadOrders,0));
 document.addEventListener('collectish:seller-rendered',()=>setTimeout(ensure,120));
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='seller')setTimeout(ensure,160)});
-document.addEventListener('collectish:ready',()=>setTimeout(ensure,900));
-setTimeout(ensure,400);

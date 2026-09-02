@@ -68,10 +68,8 @@ async function load({force=false}={}){
   render();return loading;
 }
 function ensure(){if(!ready())return;render();void loadSafeBudget();void load()}
-document.addEventListener('collectish:scout-list-rendered',()=>setTimeout(ensure,0));
-document.addEventListener('collectish:position-sizing-changed',()=>{lastLoadedAt=0;setTimeout(()=>load({force:true}),40)});
+document.addEventListener('collectish:position-sizing-changed',()=>{lastLoadedAt=0;const panel=document.getElementById('cxPortfolioAllocation');if(panel&&!panel.hidden)setTimeout(()=>load({force:true}),40)});
 document.addEventListener('collectish:seller-cashflow-changed',e=>{safeBudgetInfo={...(safeBudgetInfo||{}),safe_additional_buy_budget:e.detail?.safeBudget,input_status:e.detail?.inputStatus};render()});
 document.addEventListener('collectish:buyer-orders-changed',()=>{safeBudgetInfo=null;void loadSafeBudget({force:true})});
-document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout')setTimeout(ensure,100)});
-document.addEventListener('collectish:ready',()=>setTimeout(ensure,120));
+document.addEventListener('click',e=>{if(e.target.closest?.('[data-scout-view="allocate"]'))setTimeout(ensure,0)},true);
 export {load as loadPortfolioAllocation};

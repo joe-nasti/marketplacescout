@@ -79,6 +79,4 @@ function reapply(){if(!applying)queueMicrotask(()=>installOptions());}
 document.addEventListener('collectish:buyer-account-rendered',reapply);
 document.addEventListener('collectish:seller-rendered',schedule);
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='seller')schedule()});
-document.addEventListener('collectish:ready',()=>setTimeout(()=>void refreshRanges(),500));
 document.addEventListener('collectish:buyer-orders-changed',schedule);
-setTimeout(()=>{installOptions();void refreshRanges();},300);

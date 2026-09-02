@@ -79,11 +79,10 @@ async function load(){
   return loading;
 }
 
-document.addEventListener('collectish:intel-evaluated',()=>void load());
-document.addEventListener('collectish:intel-changed',()=>{rollups=[];void load()});
-document.addEventListener('collectish:scout-list-rendered',()=>{if(rollups.length)decorateList();else void load()});
-document.addEventListener('collectish:scout-detail-rendered',e=>{if(rollups.length)decorateDetail(e.detail?.sku);else void load()});
-document.addEventListener('collectish:ready',()=>void load());
+document.addEventListener('click',event=>{if(event.target.closest?.('#cxParityCards .cx-scout-card'))void load()},true);
+document.addEventListener('collectish:intel-changed',()=>{rollups=[]});
+document.addEventListener('collectish:scout-list-rendered',()=>{if(rollups.length)decorateList()});
+document.addEventListener('collectish:scout-detail-rendered',e=>{if(rollups.length)decorateDetail(e.detail?.sku)});
 
 window.CollectishIntelRollups={getCompactForRow,load};
 export { load as loadIntelSourceRollups, getCompactForRow };

@@ -48,9 +48,7 @@ async function load({force=false}={}){
   return loading;
 }
 document.addEventListener('collectish:scout-list-rendered',()=>{if(rows.length)decorateSoon();else void load()});
-document.addEventListener('collectish:scout-detail-rendered',e=>{if(rows.length){decorateScoutDetail(e.detail?.sku);setTimeout(()=>decorateScoutDetail(e.detail?.sku),120)}else void load()});
+document.addEventListener('collectish:scout-detail-rendered',e=>{if(rows.length){decorateScoutDetail(e.detail?.sku);setTimeout(()=>decorateScoutDetail(e.detail?.sku),120)}});
 document.addEventListener('collectish:actionable-emerging-changed',()=>{loadedAt=0;void load({force:true})});
-document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout'||e.detail?.page==='signals')setTimeout(()=>{decorateSoon();void load()},100)});
-document.addEventListener('collectish:ready',()=>void load());
-void load();
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout'||e.detail?.page==='signals')setTimeout(decorateSoon,100)});
 export {load as loadPositionSizing};

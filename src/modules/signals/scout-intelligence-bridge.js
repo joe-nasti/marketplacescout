@@ -154,9 +154,10 @@ async function load(){
 }
 
 document.addEventListener('click',delegatedOpen,true);
+document.addEventListener('click',event=>{if(event.target.closest?.('#cxParityCards .cx-scout-card'))void load()},true);
 document.addEventListener('keydown',delegatedKey,true);
-document.addEventListener('collectish:scout-list-rendered',()=>{if(competitive.length||commander.length||cedh.length||cedhCards.length||corroborated.length||intelItems().length)decorateScoutList();else void load()});
-document.addEventListener('collectish:scout-detail-rendered',e=>{if(competitive.length||commander.length||cedh.length||cedhCards.length||corroborated.length||intelItems().length)decorateScoutDetail(e.detail?.sku);else void load()});
+document.addEventListener('collectish:scout-list-rendered',()=>{if(competitive.length||commander.length||cedh.length||cedhCards.length||corroborated.length||intelItems().length)decorateScoutList()});
+document.addEventListener('collectish:scout-detail-rendered',e=>{if(competitive.length||commander.length||cedh.length||cedhCards.length||corroborated.length||intelItems().length)decorateScoutDetail(e.detail?.sku)});
 document.addEventListener('collectish:intel-changed',()=>{decorateScoutList();decorateScoutDetail(store.get().scout?.selectedSku||null);setTimeout(decorateSignalsLinks,0)});
 document.addEventListener('collectish:competitive-changed',()=>{loading=null;void load()});
 document.addEventListener('collectish:commander-intel-changed',()=>{loading=null;void load()});
@@ -164,7 +165,4 @@ document.addEventListener('collectish:cross-source-changed',e=>{if(Array.isArray
 document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')setTimeout(decorateSignalsLinks,60)});
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')setTimeout(decorateSignalsLinks,80)});
 document.addEventListener('collectish:open-scout-card',e=>openScout(e.detail||{}));
-document.addEventListener('collectish:ready',()=>void load());
-
-void load();
 export { openScout as openScoutIntelligenceCard, load as loadScoutIntelligenceContext };

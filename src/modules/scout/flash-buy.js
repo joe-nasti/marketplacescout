@@ -26,5 +26,4 @@ async function load(force=false){if(loading)return loading;if(!force&&loadedAt&&
 document.addEventListener('collectish:scout-structure-ready',()=>void load());
 document.addEventListener('collectish:scout-rendered',render);
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout')setTimeout(()=>void load(),100)});
-document.addEventListener('collectish:ready',()=>void load());
 export {load as loadFlashBuys};

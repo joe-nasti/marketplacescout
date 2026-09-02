@@ -21,5 +21,4 @@ async function load(force=false){if(loading)return loading;if(loaded&&!force){de
 document.addEventListener('collectish:scout-structure-ready',()=>void load());
 document.addEventListener('collectish:scout-rendered',decorate);
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout')setTimeout(decorate,80)});
-document.addEventListener('collectish:ready',()=>void load());
 export {load as loadPriceActionabilityAudit};
