@@ -96,3 +96,12 @@ registerComponent('lazy-pages',{
 });
 
 window.CollectishLazyDataPages={load:loadPage,prefetch:prefetchPage};
+
+let signalsWarmupScheduled=false;
+function scheduleSignalsWarmup(){
+  if(signalsWarmupScheduled||loaded.has('signals')||loading.has('signals'))return;
+  signalsWarmupScheduled=true;
+  const run=()=>void prefetchPage('signals');
+  if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:3000});else setTimeout(run,1000);
+}
+document.addEventListener('collectish:scout-v5-ready',scheduleSignalsWarmup,{once:true});
