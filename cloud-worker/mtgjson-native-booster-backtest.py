@@ -49,7 +49,7 @@ def get_verifications(set_code):
     return {str(r['booster_code']).lower():r for r in rows}
 
 def get_products(set_code):
-    return sb(f'mtgjson_sealed_products?select=uuid,set_code,name,category,subtype,tcgplayer_product_id,contents&set_code=eq.{urllib.parse.quote(set_code)}&category=in.(booster_pack,booster_box)') or []
+    return sb(f'mtgjson_sealed_products?select=uuid,set_code,name,category,subtype,tcgplayer_product_id,contents&set_code=eq.{urllib.parse.quote(set_code)}&category=in.(booster_pack,booster_box,booster_case)') or []
 
 def get_cards(uuids):
     out={}
@@ -139,12 +139,28 @@ def simulate_pack(rng,sheets,layouts,layout_cum,layout_total):
             if item:total+=item['value']
     return total
 
-def pack_count(product,pack_uuid):
-    if product.get('category')=='booster_pack':return 1
+def pack_count(product,pack_uuid,products_by_uuid,visiting=None):
+    if str(product.get('uuid'))==str(pack_uuid):return 1
+    visiting=set(visiting or ())
+    product_uuid=str(product.get('uuid') or '')
+    if product_uuid in visiting:return 0
+    visiting.add(product_uuid)
     sealed=((product.get('contents') or {}).get('sealed') or []) if isinstance(product.get('contents'),dict) else []
+    total=0
     for child in sealed:
-        if str(child.get('uuid'))==str(pack_uuid):return int(child.get('count') or 0)
-    return 0
+        child_uuid=str(child.get('uuid') or '')
+        quantity=int(child.get('count') or 0)
+        if quantity<=0:continue
+        if child_uuid==str(pack_uuid):total+=quantity
+        elif child_uuid in products_by_uuid:
+            total+=quantity*pack_count(products_by_uuid[child_uuid],pack_uuid,products_by_uuid,visiting)
+    return total
+
+def product_kind(product,booster_count):
+    category=product.get('category')
+    if category=='booster_pack':return 'pack'
+    if category=='booster_case':return 'case'
+    return 'box' if booster_count>1 else 'pack'
 
 def write_backtest(user_id,product,booster_code,booster_count,pack_vals,expected_draws,sheets,expected_contrib,coverage,missing_cards,verification):
     ref,ref_at=sealed_price(product['uuid']); rng=random.Random(f"{product['uuid']}|mtgjson-native-v1|{SAMPLES}")
@@ -155,14 +171,14 @@ def write_backtest(user_id,product,booster_code,booster_count,pack_vals,expected
     top10=sum(sorted((x*booster_count for x in expected_contrib.values()),reverse=True)[:10]); top10_share=top10/total_ev if total_ev>0 else None
     payload={
       'user_id':user_id,'sealed_uuid':product['uuid'],'set_code':product['set_code'],'product_name':product['name'],
-      'model_key':f'mtgjson_native_{booster_code}_{"box" if booster_count>1 else "pack"}','model_version':'mtgjson-native-booster-v1',
+      'model_key':f'mtgjson_native_{booster_code}_{product_kind(product,booster_count)}','model_version':'mtgjson-native-booster-v1',
       'valuation_as_of':now(),'sealed_reference_price':ref,'reference_price_source':'sealed_product_price_current',
       'sample_count':SAMPLES,'booster_count':booster_count,'booster_mean_ev':round(statistics.fmean(pack_vals),4),'topper_mean_ev':None,
       'gross_mean_ev':round(st['mean'],4),'gross_median_ev':round(st['median'],4),'p10_ev':round(st['p10'],4),'p90_ev':round(st['p90'],4),
       'net_mean_ev_after_fees':round(st['net'],4),'break_even_probability':st['gross_be'],'two_x_probability':st['two_x'],'five_x_probability':st['five_x'],'top10_ev_share':top10_share,
       'excluded_jackpot':{},
-      'assumptions':{'booster_code':booster_code,'native_config_source':'mtgjson_set_booster_configs','native_weighted_sheets':True,'fee_rate':FEE_RATE,'pricing_coverage_weighted':coverage,'missing_native_card_ids':len(set(missing_cards)),'sealed_price_captured_at':ref_at,'official_verification_status':verification.get('verification_status') if verification else None,'official_source_url':verification.get('official_source_url') if verification else None,'official_verified_at':verification.get('verified_at') if verification else None},
-      'results':{'net_break_even_probability':st['net_be'],'fee_rate':FEE_RATE,'distribution_basis':'Monte Carlo from MTGJSON native weighted booster layouts and weighted sheets','analytical_expected_gross_ev':round(total_ev,4)}
+      'assumptions':{'booster_code':booster_code,'native_config_source':'mtgjson_set_booster_configs','native_weighted_sheets':True,'fee_rate':FEE_RATE,'pricing_coverage_weighted':coverage,'missing_native_card_ids':len(set(missing_cards)),'sealed_price_captured_at':ref_at,'official_verification_status':verification.get('verification_status') if verification else None,'official_source_url':verification.get('official_source_url') if verification else None,'official_verified_at':verification.get('verified_at') if verification else None,'resolved_native_pack_count':booster_count,'container_distribution_rollup':product.get('category')=='booster_case'},
+      'results':{'net_break_even_probability':st['net_be'],'fee_rate':FEE_RATE,'distribution_basis':'Monte Carlo from recursively resolved MTGJSON sealed children and native weighted booster layouts/sheets','analytical_expected_gross_ev':round(total_ev,4)}
     }
     created=sb('sealed_ev_backtests?select=backtest_id','POST',[payload],'return=representation') or []
     if not created:raise RuntimeError('Backtest insert returned no id')
@@ -179,13 +195,14 @@ def write_backtest(user_id,product,booster_code,booster_count,pack_vals,expected
         for part in chunks(rows,150):sb(table,'POST',part,'return=minimal')
     officially_verified=bool(verification and verification.get('verification_status')=='verified')
     status='full' if officially_verified and coverage>=.98 and not missing_cards else 'partial'
-    adapter=f'{booster_code}_booster_mtgjson_v1' if booster_code in ('draft','set') else 'collector_booster_mtgjson_v1'
+    adapter='sealed_container_rollup_v1' if product.get('category')=='booster_case' else (f'{booster_code}_booster_mtgjson_v1' if booster_code in ('draft','set') else 'collector_booster_mtgjson_v1')
     binding={'set_code':product['set_code'],'sealed_uuid':product['uuid'],'product_category':product['category'],'product_subtype':product['subtype'],'adapter_key':adapter,'model_version':'mtgjson-native-booster-v1','profile_status':status,'source_type':'wizards_official+mtgjson_native_booster' if officially_verified else 'mtgjson_native_booster','source_ref':verification.get('official_source_url') if officially_verified else f'{product["set_code"]}:{booster_code}','assumptions':{'pricing_coverage_weighted':coverage,'backtest_id':bid,'official_verification_status':verification.get('verification_status') if verification else 'missing','native_config_fingerprint':verification.get('config_fingerprint') if verification else None},'priority':5,'enabled':True,'updated_at':now()}
     sb('sealed_collation_profile_bindings','POST',[binding],'return=minimal')
     return {'backtest_id':bid,'product':product['name'],'booster_count':booster_count,'sealed_reference_price':ref,'gross_mean':round(st['mean'],2),'median':round(st['median'],2),'net_mean':round(st['net'],2),'pricing_coverage':round(coverage,5),'profile_status':status}
 
 def run_set(set_code):
     user_id=get_user(set_code); configs=get_configs(set_code); products=get_products(set_code); verifications=get_verifications(set_code); outputs=[]
+    products_by_uuid={str(p['uuid']):p for p in products}
     for booster_code in BOOSTER_CODES:
         config_row=configs.get(booster_code)
         if not config_row:continue
@@ -193,7 +210,7 @@ def run_set(set_code):
         verification=verifications.get(booster_code)
         if verification and verification.get('config_fingerprint')!=config_row.get('config_fingerprint'):
             verification=dict(verification,verification_status='rejected')
-        target=[p for p in products if str(p.get('subtype') or '').lower()==booster_code and p.get('category') in ('booster_pack','booster_box')]
+        target=[p for p in products if str(p.get('subtype') or '').lower()==booster_code and p.get('category') in ('booster_pack','booster_box','booster_case')]
         packs=[p for p in target if p['category']=='booster_pack']
         if not packs:continue
         pack=packs[0]
@@ -204,7 +221,7 @@ def run_set(set_code):
         rng=random.Random(f'{set_code}|{booster_code}|mtgjson-native-v1')
         pack_vals=[simulate_pack(rng,sheets,layouts,layout_cum,layout_total) for _ in range(SAMPLES)]
         for p in target:
-            bc=pack_count(p,pack['uuid'])
+            bc=pack_count(p,pack['uuid'],products_by_uuid)
             if bc<=0:continue
             outputs.append(write_backtest(user_id,p,booster_code,bc,pack_vals,expected_draws,sheets,expected_contrib,coverage,missing,verification))
     try:sb('rpc/refresh_sealed_single_source_compare_current','POST',{'p_user_id':user_id},'return=minimal')
