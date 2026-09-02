@@ -63,11 +63,11 @@ async function load({force=false}={}){
   loading=rest('rpc/actionable_emerging_opportunities',{method:'POST',body:{p_limit:80}}).then(data=>{rows=Array.isArray(data)?data:[];loadedAt=Date.now();store.update('actionableEmerging',{rows,loadedAt,error:null});document.dispatchEvent(new CustomEvent('collectish:actionable-emerging-changed',{detail:{count:rows.length}}));return rows}).catch(e=>{rows=[];error=String(e?.message||e||'Request failed');store.update('actionableEmerging',{rows:[],error,loadedAt:Date.now()});return rows}).finally(()=>{loading=null;renderSignals();decorateScoutList();decorateScoutDetail(store.get().scout?.selectedSku)});
   renderSignals();return loading;
 }
-document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals'&&signalsReady())setTimeout(()=>void load().catch(()=>{}),500);if(e.detail?.page==='scout')setTimeout(()=>{decorateScoutList();decorateScoutDetail(store.get().scout?.selectedSku);void load()},1200)});
-document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')setTimeout(()=>void load().catch(()=>{}),500)});
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='scout')setTimeout(()=>{decorateScoutList();decorateScoutDetail(store.get().scout?.selectedSku);void load()},1200)});
+document.addEventListener('collectish:signals-primary-ready',()=>setTimeout(()=>void load().catch(()=>{}),250));
 document.addEventListener('collectish:scout-list-rendered',()=>{if(rows.length)decorateScoutList();else void load()});
 document.addEventListener('collectish:scout-detail-rendered',e=>{if(rows.length)decorateScoutDetail(e.detail?.sku);else void load()});
-document.addEventListener('collectish:intel-changed',()=>{loadedAt=0;if(signalsReady())void load({force:true})});
+document.addEventListener('collectish:intel-changed',e=>{if(e.detail?.source==='primary-load')return;loadedAt=0;if(signalsReady())void load({force:true})});
 document.addEventListener('collectish:competitive-changed',()=>{loadedAt=0;if(signalsReady())void load({force:true})});
 document.addEventListener('collectish:commander-intel-changed',()=>{loadedAt=0;if(signalsReady())void load({force:true})});
 export {load as loadActionableEmerging};
