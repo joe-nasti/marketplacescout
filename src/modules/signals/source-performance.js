@@ -37,7 +37,7 @@ async function load(){
 
 document.addEventListener('collectish:intel-evaluated',()=>void load());
 document.addEventListener('collectish:intel-changed',()=>void load());
-document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>void load())});
-document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>void load())});
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')setTimeout(()=>void load(),1800)});
+document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')setTimeout(()=>void load(),1800)});
 
 export { load as loadIntelSourcePerformance };

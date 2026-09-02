@@ -38,10 +38,7 @@ async function load(force=false){
   return loading;
 }
 
-document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')setTimeout(()=>void load(),90)});
+document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')setTimeout(()=>void load(),1700)});
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')setTimeout(render,90)});
 document.addEventListener('collectish:intel-changed',()=>void load(true));
-document.addEventListener('collectish:ready',()=>void load());
-
-void load();
 export { load as loadSynergyRelationships };
