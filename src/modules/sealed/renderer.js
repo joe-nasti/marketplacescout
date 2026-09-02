@@ -19,6 +19,12 @@ const setNames=()=>new Map(Object.entries(store.get().sealed?.setNames||{}));
 let detailSeq=0;
 let setTypesLoading=null;
 const scrollByView=new Map();
+const listEconomicsLoaded=new Set();
+const listEconomicsPending=new Set();
+
+const familyEconomics=r=>store.get().sealed?.familyEconomics?.[String(r?.sealed_uuid)]||null;
+const modeledEv=r=>{const value=Number(familyEconomics(r)?.crack_gross_mean_ev);return Number.isFinite(value)&&value>0?value:(r?.tcg_market_ev==null?null:Number(r.tcg_market_ev))};
+const modeledSpread=r=>{const ev=modeledEv(r),a=acquisition(r);return Number.isFinite(ev)&&Number.isFinite(a)?ev-a:null};
 
 function languageMeta(r){const s=r?.score_components||{};return{lang:s.sealed_language||'English',mode:s.language_pricing_mode||'',exact:Number(s.exact_language_coverage_pct||0),fallback:Number(s.english_fallback_coverage_pct||0),penalty:Number(s.language_confidence_penalty||0),raw:s.language_raw_score==null?null:Number(s.language_raw_score)}}
 function languageClass(r){const m=languageMeta(r);if(m.mode==='english_equivalent_fallback'||m.fallback>0)return'fallback';if(m.lang.toLowerCase()!=='english'&&m.exact>0)return'nonenglish_exact';return'english_exact'}
@@ -142,10 +148,29 @@ function renderSetProducts(h,code){
   const s=store.get().sealed||{},name=setNames().get(code)||code,products=allProducts().filter(r=>String(r.set_code||'').toUpperCase()===code).sort(sortRows);
   h.className='cx-sealed-list cx-sealed-set-products';
   h.innerHTML=`<div class="cx-sealed-set-head"><button type="button" data-sealed-back>‹ All sets</button><div><span>SEALED SET</span><h3>${esc(name)}</h3><small>${esc(code)} · ${products.length} products · sorted by opportunity</small></div></div><div class="cx-sealed-product-groups">${renderProductRows(products,s.selectedId)}</div>`;
+  void loadListEconomics(products);
 }
 function renderProductRows(visible,selected){
   const types=setMap();
-  return visible.map(r=>{const a=acquisition(r),sc=score(r),type=types.get(String(r.set_code||'').toUpperCase());return `<button type="button" class="cx-sealed-row ${String(r.sealed_uuid)===String(selected)?'selected':''}" data-deck="${esc(r.sealed_uuid)}"><div class="cx-sealed-name"><strong>${esc(r.product_name)}</strong><small>${esc(human(r.subtype||r.category||type||''))} · ${esc(r.release_date||'')}</small><div class="cx-sealed-badges">${sc==null?'<span class="cx-sealed-badge risk">NOT GRADED</span>':`<span class="cx-sealed-badge direct">${esc(grade(r))} · ${sc.toFixed(1)}</span>`}${badges(r)}</div></div>${metric('Sealed buy',money(a),human(r.lifecycle_status||'catalog only'))}${metric('Market EV',money(r.tcg_market_ev),r.market_coverage_pct==null?'not modeled':`${pct(r.market_coverage_pct)} coverage`)}${metric('CK buylist',money(r.cardkingdom_buylist_ev),'cash floor','cx-sealed-hide-mobile')}${metric('Market spread',marketSpread(r)==null?'—':money(marketSpread(r)),r.market_roi_pct==null?'':`${Number(r.market_roi_pct)>=0?'+':''}${Number(r.market_roi_pct).toFixed(1)}%`,marketSpread(r)==null?'cx-sealed-pending':marketSpread(r)>=0?'cx-sealed-positive':'cx-sealed-negative')}</button>`}).join('');
+  return visible.map(r=>{const a=acquisition(r),sc=score(r),type=types.get(String(r.set_code||'').toUpperCase()),family=familyEconomics(r),ev=modeledEv(r),spread=modeledSpread(r),roi=spread!=null&&a>0?100*spread/a:null,evSub=Number(family?.modeled_child_units||0)>0?`${Number(family.modeled_child_units).toLocaleString()} sealed packs + fixed cards`:r.market_coverage_pct==null?'not modeled':`${pct(r.market_coverage_pct)} coverage`;return `<button type="button" class="cx-sealed-row ${String(r.sealed_uuid)===String(selected)?'selected':''}" data-deck="${esc(r.sealed_uuid)}"><div class="cx-sealed-name"><strong>${esc(r.product_name)}</strong><small>${esc(human(r.subtype||r.category||type||''))} · ${esc(r.release_date||'')}</small><div class="cx-sealed-badges">${sc==null?'<span class="cx-sealed-badge risk">NOT GRADED</span>':`<span class="cx-sealed-badge direct">${esc(grade(r))} · ${sc.toFixed(1)}</span>`}${badges(r)}</div></div>${metric('Sealed buy',money(a),human(r.lifecycle_status||'catalog only'))}${metric('Modeled EV',money(ev),evSub)}${metric('CK buylist',money(r.cardkingdom_buylist_ev),'cash floor','cx-sealed-hide-mobile')}${metric('Modeled spread',spread==null?'—':money(spread),roi==null?'':`${roi>=0?'+':''}${roi.toFixed(1)}%`,spread==null?'cx-sealed-pending':spread>=0?'cx-sealed-positive':'cx-sealed-negative')}</button>`}).join('');
+}
+
+async function loadListEconomics(products){
+  const ids=[...new Set((products||[]).map(r=>String(r.sealed_uuid||'')).filter(Boolean))].filter(id=>!listEconomicsLoaded.has(id)&&!listEconomicsPending.has(id));
+  if(!ids.length)return;
+  ids.forEach(id=>listEconomicsPending.add(id));
+  try{
+    const values=[];
+    for(let i=0;i<ids.length;i+=75)values.push(...await rest('rpc/get_sealed_family_economics_fast',{method:'POST',body:{p_sealed_uuids:ids.slice(i,i+75)}}));
+    const current=store.get().sealed||{},next={...(current.familyEconomics||{})};
+    values.forEach(value=>{next[String(value.sealed_uuid)]=value});
+    ids.forEach(id=>listEconomicsLoaded.add(id));
+    store.update('sealed',{familyEconomics:next});
+    const h=document.getElementById('cxSealedRows'),s=store.get().sealed||{};
+    if(h&&s.view==='set')renderSetProducts(h,String(s.selectedSetCode||'').toUpperCase());
+    else if(h&&s.view==='opportunities')h.innerHTML=renderProductRows(filteredRows(),String(s.selectedId||''));
+  }catch(error){console.warn('[sealed list economics]',error)}
+  finally{ids.forEach(id=>listEconomicsPending.delete(id))}
 }
 
 function renderRows(){
@@ -161,6 +186,7 @@ function renderRows(){
   const count=document.getElementById('cxSealedLanguageFilterCount');if(count){const hidden=(s.rows||[]).length-visible.length;count.textContent=(s.filters?.language||'all')==='all'?'':`${visible.length} shown · ${hidden} hidden`}
   if(!visible.length){h.innerHTML='<div class="cx-empty">No sealed products match these filters.</div>';renderDetail(null);return}
   h.innerHTML=renderProductRows(visible,selected);
+  void loadListEconomics(visible);
   renderDetail(selectedRow()).catch(()=>{});
   document.dispatchEvent(new CustomEvent('collectish:sealed-rendered',{detail:{visible:visible.length,selectedId:selected}}));
 }

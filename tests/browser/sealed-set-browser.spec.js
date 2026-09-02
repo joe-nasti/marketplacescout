@@ -45,7 +45,12 @@ test('composite sealed detail rolls child products through economics and optimiz
   await page.setViewportSize({width:412,height:915});await page.goto('/');
   await page.getByRole('button',{name:'Sealed',exact:true}).click();
   await page.getByRole('button',{name:/The Hobbit HOB/}).click();
-  await page.getByRole('button',{name:/The Hobbit Gift Bundle/}).click();
+  const giftRow=page.getByRole('button',{name:/The Hobbit Gift Bundle/});
+  await expect(giftRow).toContainText('Modeled EV');
+  await expect(giftRow).toContainText('$136.24');
+  await expect(giftRow).toContainText('Modeled spread');
+  await expect(giftRow).toContainText('-$38.76');
+  await giftRow.click();
   await expect(page.getByText('Total modeled EV',{exact:true}).first()).toBeVisible();
   await expect(page.locator('.cx-sealed-component-summary')).toContainText('9');
   await expect(page.locator('.cx-sealed-component-summary')).toContainText('The Hobbit Play Booster Pack');
