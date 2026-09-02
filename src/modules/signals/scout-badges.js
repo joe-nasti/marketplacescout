@@ -140,9 +140,7 @@ function decorateDetail(sku){
   const anchor=host.querySelector('.cx-v5-components')||host.firstElementChild;if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor.nextSibling);else host.appendChild(section);
 }
 
-document.addEventListener('collectish:scout-list-rendered',()=>{if(context.size)decorateList();else load()});
-document.addEventListener('collectish:scout-detail-rendered',e=>{if(context.size)decorateDetail(e.detail?.sku);else load()});
-document.addEventListener('collectish:intel-changed',()=>{links=[];items.clear();context.clear();load()});
-document.addEventListener('collectish:ready',()=>load());
-
-load();
+document.addEventListener('click',event=>{if(event.target.closest?.('#cxParityCards .cx-scout-card'))void load()},true);
+document.addEventListener('collectish:scout-list-rendered',()=>{if(context.size)decorateList()});
+document.addEventListener('collectish:scout-detail-rendered',e=>{if(context.size)decorateDetail(e.detail?.sku)});
+document.addEventListener('collectish:intel-changed',()=>{links=[];items.clear();context.clear()});
