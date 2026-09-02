@@ -16,12 +16,7 @@ function mount(){const host=document.getElementById('cxSignals');if(!host)return
 
 async function render(){const box=mount();if(!box)return;box.innerHTML='<div class="cx-zeta-sub">Loading Zeta randomized-product intelligence…</div>';try{
  const releases=await rest(`secret_lair_releases?select=release_id,release_name,sale_start_at,lifecycle_state,official_url,supply_notes&release_name=eq.${encodeURIComponent(RELEASE)}&limit=1`),r=releases?.[0];if(!r){box.remove();return}
- const [products,rarities,treatments,preds,cards,evs]=await Promise.all([
-  rest(`secret_lair_randomized_products?select=randomized_product_id,product_name,pack_msrp,currency,cards_per_pack,total_distinct_cards,print_run_known,model_notes&release_id=eq.${r.release_id}&limit=1`),
-  rest(`secret_lair_randomized_rarity_odds?select=rarity,pool_size,expected_cards_per_pack,specific_card_probability,packs_per_specific_card&randomized_product_id=in.(select)` ).catch(()=>[]),
-  Promise.resolve([]),Promise.resolve([]),Promise.resolve([]),Promise.resolve([])
- ]).catch(()=>[[],[],[],[],[],[]]);
- const p=products?.[0];if(!p){box.innerHTML='<div class="cx-zeta-sub">Zeta release is seeded; randomized product details are still loading.</div>';return}
+ const products=await rest(`secret_lair_randomized_products?select=randomized_product_id,product_name,pack_msrp,currency,cards_per_pack,total_distinct_cards,print_run_known,model_notes&release_id=eq.${r.release_id}&limit=1`),p=products?.[0];if(!p){box.innerHTML='<div class="cx-zeta-sub">Zeta release is seeded; randomized product details are still loading.</div>';return}
  const [rr,tt,pp,cc,ee]=await Promise.all([
   rest(`secret_lair_randomized_rarity_odds?select=rarity,pool_size,expected_cards_per_pack,specific_card_probability,packs_per_specific_card&randomized_product_id=eq.${p.randomized_product_id}`),
   rest(`secret_lair_randomized_treatments?select=treatment_name,canonical_name,probability,aliases&randomized_product_id=eq.${p.randomized_product_id}&order=probability.desc`),
