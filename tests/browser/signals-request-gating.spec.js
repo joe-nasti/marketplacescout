@@ -5,15 +5,26 @@ const read=path=>readFile(path,'utf8');
 
 test('Signals defers noncritical scan requests behind the primary feed',async()=>{
   const core=await read('src/modules/signals/index.js');
-  expect(core).toContain('setTimeout(()=>void loadSalesResponse(),900)');
+  expect(core).toContain("collectish:signals-primary-ready");
+  expect(core).toContain('setTimeout(()=>void loadSalesResponse(),500)');
   const delays=new Map([
-    ['actionable-emerging.js','500'],['cross-source.js','1100'],['video-events-ui.js','1500'],
-    ['synergy-relationships.js','1700'],['source-performance.js','1800'],
-    ['future-card-theses.js','1900'],['market-evaluation.js','2100']
+    ['actionable-emerging.js','250'],['cross-source.js','900'],['source-performance.js','1600'],
+    ['video-events-ui.js','2200'],['synergy-relationships.js','2800'],
+    ['future-card-theses.js','3400'],['market-evaluation.js','4000']
   ]);
   for(const [file,delay] of delays){
     const source=await read(`src/modules/signals/${file}`);
+    expect(source).toContain("collectish:signals-primary-ready");
     expect(source).toContain(`,${delay})`);
+  }
+});
+
+test('primary intel completion does not immediately retrigger secondary requests',async()=>{
+  const core=await read('src/modules/signals/index.js');
+  expect(core).toContain("source:'primary-load'");
+  for(const file of ['actionable-emerging.js','cross-source.js','source-performance.js','video-events-ui.js','synergy-relationships.js','future-card-theses.js','market-evaluation.js']){
+    const source=await read(`src/modules/signals/${file}`);
+    expect(source).toContain("primary-load");
   }
 });
 
