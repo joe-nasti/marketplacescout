@@ -13,7 +13,7 @@ export const ROUTE_DATA_CONTRACTS={
     {
       key:'signals.feed',
       role:'firstUse',
-      path:'market_intel_items?select=*,market_intel_entities(*),market_intel_card_mentions(*)&order=observed_at.desc&limit=200',
+      path:'market_intel_items?select=intel_id,source_type,source_name,source_url,title,author,summary,claim_type,signal_stage,direction,confidence,observed_at,published_at,created_at,market_intel_entities(entity_type,entity_name,scryfall_id,product_id,set_code,confidence),market_intel_card_mentions(card_name,scryfall_id)&order=observed_at.desc&limit=200',
       ttl:MINUTE,
       maxStale:DAY,
       ...freshRouteRead
