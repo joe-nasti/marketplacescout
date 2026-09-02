@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
-import { writeFile } from 'node:fs/promises';
-import { mkdtemp } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -11,28 +10,44 @@ if(!pageUrl||!chrome)throw new Error('PAGE_URL and CHROME are required');
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const userData=await mkdtemp(join(tmpdir(),'collectish-cdp-'));
-const port=9222+Math.floor(Math.random()*500);
 const child=spawn(chrome,[
-  '--headless=new','--no-sandbox','--disable-gpu',`--remote-debugging-port=${port}`,
+  '--headless=new','--no-sandbox','--disable-gpu','--remote-debugging-port=0',
   `--user-data-dir=${userData}`,'--disable-background-networking','--disable-component-update',
   '--disable-default-apps','--no-first-run','about:blank'
 ],{stdio:['ignore','ignore','pipe']});
 let stderr='';child.stderr.on('data',d=>stderr+=String(d));
 
+let port=null;
+async function resolveDebugPort(){
+  const activePort=join(userData,'DevToolsActivePort');
+  for(let i=0;i<120;i++){
+    if(child.exitCode!==null)break;
+    try{
+      const [value]=String(await readFile(activePort,'utf8')).trim().split(/\r?\n/);
+      const parsed=Number(value);
+      if(Number.isInteger(parsed)&&parsed>0)return parsed;
+    }catch{}
+    await sleep(100);
+  }
+  throw new Error(`Chrome DevTools port unavailable (exit=${child.exitCode??'running'}): ${stderr.slice(-2000)}`);
+}
+
 async function json(path,options){
+  if(!port)throw new Error('Chrome DevTools port not resolved');
   const res=await fetch(`http://127.0.0.1:${port}${path}`,options);
   if(!res.ok)throw new Error(`CDP HTTP ${res.status}`);
   return res.json();
 }
 
 try{
+  port=await resolveDebugPort();
   let targets=[];
   for(let i=0;i<80;i++){
     try{targets=await json('/json/list');if(targets.length)break}catch{}
     await sleep(100);
   }
   const target=targets.find(x=>x.type==='page')||targets[0];
-  if(!target?.webSocketDebuggerUrl)throw new Error(`Chrome CDP target unavailable: ${stderr.slice(-1000)}`);
+  if(!target?.webSocketDebuggerUrl)throw new Error(`Chrome CDP target unavailable on port ${port}: ${stderr.slice(-2000)}`);
 
   const ws=new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true})});
