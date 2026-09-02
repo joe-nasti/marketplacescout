@@ -5,8 +5,8 @@ export async function install(){
   installed=true;
 
   // The renderer owns the complete first useful Sealed surface. Supporting
-  // modules may enrich details, links, economics or URL state, but they cannot
-  // rewrite the list or insert a competing structural layer after paint.
+  // modules enrich details, links, family economics or URL state without
+  // replacing the renderer's primary product list.
   const modules=await Promise.all([
     import('./detail-focus.js'),
     import('./cardtrader.js'),
@@ -16,10 +16,12 @@ export async function install(){
     import('./url-state.js'),
     import('./mobile-economics.js'),
     import('./renderer.js'),
-    import('./out-optimizer.js')
+    import('./out-optimizer.js'),
+    import('./product-family.js')
   ]);
-  const urlState=modules[5],renderer=modules[7],outOptimizer=modules[8];
+  const urlState=modules[5],renderer=modules[7],outOptimizer=modules[8],family=modules[9];
   urlState.installSealedUrlState();
   outOptimizer.installOutOptimizer();
+  family.install();
   await renderer.install();
 }
