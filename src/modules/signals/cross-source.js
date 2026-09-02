@@ -55,8 +55,8 @@ async function load({force=false}={}){
 function openScout(el){document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{sku_id:el.dataset.sku||null,product_id:el.dataset.product||null,card_name:el.dataset.card||null}}))}
 document.addEventListener('click',e=>{const el=e.target.closest?.('#cxCrossSourceIntel [data-open-scout="1"]');if(!el||e.target.closest('a,button,input,select,textarea'))return;e.preventDefault();openScout(el)},true);
 document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const el=e.target.closest?.('#cxCrossSourceIntel [data-open-scout="1"]');if(!el)return;e.preventDefault();openScout(el)},true);
-document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals'&&ready())queueMicrotask(()=>load().catch(()=>{}))});
-document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>load().catch(()=>{}))});
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals'&&ready())setTimeout(()=>void load().catch(()=>{}),1100)});
+document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')setTimeout(()=>void load().catch(()=>{}),1100)});
 document.addEventListener('collectish:intel-changed',()=>{loadedAt=0;if(ready())void load({force:true})});
 document.addEventListener('collectish:competitive-changed',()=>{loadedAt=0;if(ready())void load({force:true})});
 document.addEventListener('collectish:commander-intel-changed',()=>{loadedAt=0;if(ready())void load({force:true})});
