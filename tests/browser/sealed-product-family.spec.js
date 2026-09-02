@@ -12,8 +12,10 @@ test('Sealed product-family surface is adapter-backed and set-aware', async()=>{
   expect(family).toContain('coverage_state');
   expect(family).toContain('recommendation_eligible');
   expect(family).toContain('cxSealedFamilySet');
-  expect(family).toContain('Gross crack EV');
-  expect(family).toContain('Net / realizable');
+  expect(family).toContain('TCG Low EV');
+  expect(family).toContain('Direct-first net');
+  expect(family).toContain('Collectish live out');
+  expect(family).toContain('TCG Market is reference-only');
   expect(family).not.toContain('&set_code=eq.HOB');
 });
 
@@ -80,21 +82,37 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
   expect(renderer).toContain('sealed.detail:v4:');
   expect(renderer).toContain("rest('rpc/get_sealed_family_economics_fast'");
-  expect(renderer).toContain("metric('Modeled EV'");
-  expect(renderer).toContain("metric('Modeled spread'");
+  expect(renderer).toContain("metric('Collectish EV'");
+  expect(renderer).toContain("metric('TCG Low EV'");
+  expect(renderer).toContain("metric('Collectish spread'");
   expect(renderer).toContain('loadListEconomics(products)');
   expect(renderer).not.toContain('sealed_product_family_economics?select=crack_gross_mean_ev');
   expect(renderer).toContain('Included sealed products');
-  expect(renderer).toContain('Included products · gross');
-  expect(renderer).toContain('Included products · net');
-  expect(renderer).toContain('Fixed-card EV');
-  expect(renderer).toContain("composite?'Total modeled EV':'TCG Market EV'");
+  expect(renderer).toContain('Included packs · TCG Low');
+  expect(renderer).toContain('Included packs · Collectish');
+  expect(renderer).toContain('Fixed-card Collectish EV');
+  expect(renderer).toContain('Collectish live-out EV');
+  expect(renderer).toContain('Market excluded');
+  expect(renderer).toContain('sealed_product_executable_ev_cache?');
   const optimizer=await read('src/modules/sealed/out-optimizer.js');
   expect(optimizer).toContain("(num(row.optimized_live_out_ev)||0)+childNet");
   expect(optimizer).toContain("(num(row.optimized_with_syp_potential_ev)||0)+childNet");
   expect(optimizer).toContain('Included Products Net');
-  expect(optimizer).toContain('Modeled booster out');
+  expect(optimizer).toContain('Randomized live out');
   expect(optimizer).toContain('fixed cards only');
+  expect(optimizer).toContain('SYP and last-known Direct are excluded from randomized EV');
+});
+
+test('sealed executable EV uses live price channels and excludes randomized SYP',async()=>{
+  const migration=await read('supabase/migrations/20260902223303_sealed_executable_ev_channels.sql');
+  expect(migration).toContain('sealed_product_executable_ev_current');
+  expect(migration).toContain('collectish_direct_net');
+  expect(migration).toContain('collectish_tcg_regular_net');
+  expect(migration).toContain('current_only_no_syp');
+  expect(migration).toContain('direct_first_net_ev');
+  expect(migration).toContain('collectish_live_out_ev');
+  expect(migration).not.toContain('syp_products');
+  expect(migration).not.toContain('market_value');
 });
 
 test('Scout Singles compares buy direct, sealed sourcing and live outlet exit from fast cache', async()=>{
