@@ -57,9 +57,7 @@ function decorateDetail(sku){
   if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor.nextSibling);else host.appendChild(section);
 }
 
-document.addEventListener('collectish:scout-list-rendered',()=>bySku.size?decorateList():load());
-document.addEventListener('collectish:scout-detail-rendered',e=>bySku.size?decorateDetail(e.detail?.sku):load());
-document.addEventListener('collectish:intel-changed',()=>{bySku.clear();load()});
-document.addEventListener('collectish:ready',()=>load());
-
-load();
+document.addEventListener('click',event=>{if(event.target.closest?.('#cxParityCards .cx-scout-card'))void load()},true);
+document.addEventListener('collectish:scout-list-rendered',()=>{if(bySku.size)decorateList()});
+document.addEventListener('collectish:scout-detail-rendered',e=>{if(bySku.size)decorateDetail(e.detail?.sku)});
+document.addEventListener('collectish:intel-changed',()=>{bySku.clear()});
