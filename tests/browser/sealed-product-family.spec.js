@@ -78,6 +78,7 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).not.toContain('`,u.scry)');
   expect(mobile).toContain('cx-sealed-mobile-card-link');
   expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
+  expect(renderer).toContain('sealed.detail:v2:');
   expect(renderer).toContain('sealed_uuid=in.(');
   expect(renderer).toContain('Included sealed products');
   expect(renderer).toContain('Included products · gross');
