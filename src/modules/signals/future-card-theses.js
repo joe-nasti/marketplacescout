@@ -34,7 +34,6 @@ async function load(force=false){
   return loading;
 }
 
-document.addEventListener('collectish:signals-primary-ready',()=>setTimeout(()=>void load(),3400));
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')setTimeout(render,80)});
 document.addEventListener('collectish:intel-changed',e=>{if(e.detail?.source!=='primary-load')void load(true)});
 export { load as loadFutureCardTheses };
