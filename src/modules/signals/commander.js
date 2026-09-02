@@ -18,6 +18,7 @@ const money=v=>v==null?'—':`$${Number(v).toFixed(2)}`;
 const pct=v=>v==null?'—':`${Number(v)>=0?'+':''}${Number(v).toFixed(1)}%`;
 const host=()=>document.getElementById('cxSignals');
 const ready=()=>host()?.dataset.cxLazyReady==='1';
+const active=()=>ready()&&host()?.dataset.signalsView==='commander';
 const safeError=e=>String(e?.message||e||'Request failed').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,240);
 
 function edhEstablished(){return edhRows.filter(r=>['edh_popular','edh_demand'].includes(r.watch_class)).slice(0,8)}
@@ -111,7 +112,8 @@ async function syncCedh(){
 function openScoutFrom(el){const detail={sku_id:el.dataset.sku||null,product_id:el.dataset.product||null,card_name:el.dataset.card||null};document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail}))}
 document.addEventListener('click',e=>{const el=e.target.closest?.('#cxCommanderIntel [data-open-scout="1"]');if(!el||e.target.closest('a,button,input,select,textarea'))return;e.preventDefault();openScoutFrom(el)},true);
 document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const el=e.target.closest?.('#cxCommanderIntel [data-open-scout="1"]');if(!el)return;e.preventDefault();openScoutFrom(el)},true);
-document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals'&&ready())queueMicrotask(()=>load().catch(()=>{}))});
-document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>load().catch(()=>{}))});
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals'&&active())queueMicrotask(()=>load().catch(()=>{}))});
+document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals'&&active())queueMicrotask(()=>load().catch(()=>{}))});
+document.addEventListener('collectish:signals-view-change',e=>{if(e.detail?.view==='commander')queueMicrotask(()=>load().catch(()=>{}))});
 if(ready())queueMicrotask(()=>load().catch(()=>{}));
 export {load as loadCommanderIntel,syncCedh};
