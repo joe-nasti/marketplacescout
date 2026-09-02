@@ -26,3 +26,33 @@ test('mobile Sealed drills from grouped sets into products and restores via brow
   await page.goBack();
   await expect(page.getByRole('heading',{name:'Commander Decks'})).toBeVisible();
 });
+
+test('composite sealed detail rolls child products through economics and optimization',async({page})=>{
+  await page.addInitScript(session=>localStorage.setItem('collectishSession',JSON.stringify(session)),{token:token(),refresh:'test',exp:Date.now()+3600_000,user:{id:'sealed-user',email:'sealed@example.com'}});
+  await page.route('**/rest/v1/**',route=>{
+    const u=route.request().url();let body=[];
+    if(u.includes('sealed_ev_current'))body=[{sealed_uuid:'gift',product_name:'The Hobbit Gift Bundle',set_code:'HOB',category:'bundle',subtype:'gift_bundle',release_date:'2026-08-21',sealed_acquisition_price:175,tcg_market_ev:9.09,optimized_live_out_ev:20.65,optimized_with_syp_potential_ev:20.65,tcg_regular_net_ev:0,manapool_net_est_ev:12.87,cash_floor_ev:14.45}];
+    else if(u.includes('sealed_product_child_components'))body=[{child_sealed_uuid:'play',child_product_name:'The Hobbit Play Booster Pack',quantity:9,component_type:'sealed'},{child_sealed_uuid:'collector',child_product_name:'The Hobbit Collector Booster Pack',quantity:1,component_type:'sealed'}];
+    else if(u.includes('sealed_product_family_economics')&&u.includes('in.'))body=[{sealed_uuid:'play',crack_gross_mean_ev:6.81,crack_net_mean_ev:5.11},{sealed_uuid:'collector',crack_gross_mean_ev:65.86,crack_net_mean_ev:49.39}];
+    else if(u.includes('sealed_product_family_economics'))body=[{crack_gross_mean_ev:136.24,crack_net_mean_ev:102.1975,fixed_tcg_market_ev:9.09,modeled_child_units:10,crack_value_complete:true}];
+    else if(u.includes('sealed_out_optimization_current'))body=[{card_name:'Bilbo, Birthday Celebrant',sku_id:'sku-1',finish:'foil',quantity:1,live_best_channel:'Card Kingdom',live_best_unit_net:20.65,live_best_component_ev:20.65,potential_best_channel:'Card Kingdom',potential_best_component_ev:20.65,ck_cash:20.65}];
+    else if(u.includes('rpc/get_sealed_component_economics'))body=[{card_name:'Bilbo, Birthday Celebrant',set_code:'HOB',collector_number:'1',finish:'foil',quantity:1,sku_id:'sku-1',tcg_market:9.09}];
+    else if(u.includes('magic_set_catalog'))body=[{code:'HOB',name:'The Hobbit',set_type:'expansion',released_at:'2026-08-21'}];
+    else if(u.includes('mtgjson_sealed_products')&&u.includes('source_updated_at'))body=[{source_updated_at:'2026-09-02T00:00:00Z'}];
+    else if(u.includes('mtgjson_sealed_products'))body=[{uuid:'gift',name:'The Hobbit Gift Bundle',set_code:'HOB',category:'bundle',subtype:'gift_bundle',release_date:'2026-08-21'}];
+    route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
+  });
+  await page.route('**/functions/v1/**',route=>route.fulfill({status:200,contentType:'application/json',body:'{}'}));
+  await page.setViewportSize({width:412,height:915});await page.goto('/');
+  await page.getByRole('button',{name:'Sealed',exact:true}).click();
+  await page.getByRole('button',{name:/The Hobbit HOB/}).click();
+  await page.getByRole('button',{name:/The Hobbit Gift Bundle/}).click();
+  await expect(page.getByText('Total modeled EV',{exact:true}).first()).toBeVisible();
+  await expect(page.locator('.cx-sealed-component-summary')).toContainText('9');
+  await expect(page.locator('.cx-sealed-component-summary')).toContainText('The Hobbit Play Booster Pack');
+  await expect(page.locator('.cx-sealed-component-summary')).toContainText('The Hobbit Collector Booster Pack');
+  await expect(page.locator('.cx-sealed-component-summary')).toContainText('$136.24');
+  await expect(page.locator('.cx-out-opt')).toContainText('Included Products Net');
+  await expect(page.locator('.cx-out-opt')).toContainText('$95.38');
+  await expect(page.locator('.cx-out-opt')).toContainText('$116.03');
+});
