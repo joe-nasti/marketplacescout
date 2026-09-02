@@ -78,6 +78,4 @@ function queueRecompute(){
 }
 
 document.addEventListener('collectish:intel-changed',e=>{if(e.detail?.source!=='primary-load')queueRecompute()});
-document.addEventListener('collectish:signals-primary-ready',()=>setTimeout(()=>void refresh(),4000));
-
 export { refresh as refreshIntelMarketEvaluations };
