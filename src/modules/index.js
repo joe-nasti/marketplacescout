@@ -120,9 +120,7 @@ document.addEventListener('collectish:scout-v5-ready',onScoutReady,{once:true});
 document.addEventListener('collectish:page-change',event=>{
   if(event.detail?.page==='signals')void loadScoutIntelligence();
 });
-document.addEventListener('collectish:scout-detail-rendered',event=>{
-  if(event.detail?.sku)void loadScoutIntelligence();
-},{once:true});
+document.addEventListener('collectish:open-scout-card',()=>void loadScoutIntelligence());
 document.addEventListener('collectish:open-ask',()=>void loadAsk());
 
 export function installModules(){
