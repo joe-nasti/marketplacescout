@@ -31,12 +31,14 @@ for(const token of [
   'competitive playtesting',
   'finance/speculation',
   'originator',
-  'amplifier'
+  'amplifier',
+  'credibleLinked',
+  'nonFinanceLinked'
 ]){
   if(!web.includes(token))throw new Error(`missing catalyst evidence token: ${token}`);
 }
 if(/market_linking_source_count===0\)\{answer=`Causal confidence: LOW/.test(web))throw new Error('explicit market linkage must not be a hard veto on inferred catalysts');
-if(!/Explicit market commentary can confirm a move/.test(web))throw new Error('research prompt must preserve explicit commentary as confirmation evidence');
+if(!/if\(nonFinanceLinked\.length\|\|credibleLinked\.length>=2\)\{catalyst_status='CONFIRMED'/.test(web))throw new Error('credible linked sources must remain the confirmation path');
 if(!/distinct_printings/.test(web)||!/MTGStocks/.test(web))throw new Error('family-level coordinated move evidence must inform inferred catalysts');
 if(!/event_confidence/.test(web)||!/timing_strength/.test(web))throw new Error('event confidence and timing strength must remain separate');
 if(!/attention impact separately from evidence quality/i.test(web))throw new Error('creator attention impact and evidence quality must remain separate');
