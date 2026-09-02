@@ -69,7 +69,8 @@ const idle=(fn,{timeout=2500,delay=0}={})=>{
 };
 let installPromise=null;
 let postRenderPromise=null;
-let idlePromise=null;
+let intelligencePromise=null;
+let askPromise=null;
 let postRenderScheduled=false;
 
 function schedulePostRenderEnhancers(){
@@ -84,27 +85,45 @@ function schedulePostRenderEnhancers(){
   },{timeout:2200,delay:350});
 }
 
-function scheduleIdleEnhancers(){
-  if(idlePromise)return idlePromise;
-  idle(()=>{
-    if(idlePromise)return;
-    idlePromise=(async()=>{
-      await Promise.all([
-        loadParallel(scoutIntelligence),
-        (async()=>{await import('./ask/context.js');await import('./ask/endpoint-proxy.js');await import('./ask/structured-surfaces.js');await import('./ask/surface-persistence.js');await import('./ask/main.js');await import('./ask/streaming.js');await import('./ask/sales-history-surface.js');await import('./ask/market-investigation-surface.js');await import('./ask/history-action-routing.js');await loadParallel(askEnhancers)})()
-      ]);
-      document.dispatchEvent(new CustomEvent('collectish:idle-modules-ready'));
-    })();
-  },{timeout:4500,delay:1500});
-  return null;
+function loadScoutIntelligence(){
+  if(intelligencePromise)return intelligencePromise;
+  intelligencePromise=loadParallel(scoutIntelligence).then(()=>{
+    document.dispatchEvent(new CustomEvent('collectish:scout-intelligence-modules-ready'));
+    document.dispatchEvent(new CustomEvent('collectish:idle-modules-ready'));
+  });
+  return intelligencePromise;
+}
+
+function loadAsk(){
+  if(askPromise)return askPromise;
+  askPromise=(async()=>{
+    await import('./ask/context.js');
+    await import('./ask/endpoint-proxy.js');
+    await import('./ask/structured-surfaces.js');
+    await import('./ask/surface-persistence.js');
+    await import('./ask/main.js');
+    await import('./ask/streaming.js');
+    await import('./ask/sales-history-surface.js');
+    await import('./ask/market-investigation-surface.js');
+    await import('./ask/history-action-routing.js');
+    await loadParallel(askEnhancers);
+    document.dispatchEvent(new CustomEvent('collectish:ask-modules-ready'));
+  })();
+  return askPromise;
 }
 
 function onScoutReady(){
   schedulePostRenderEnhancers();
-  scheduleIdleEnhancers();
 }
 
 document.addEventListener('collectish:scout-v5-ready',onScoutReady,{once:true});
+document.addEventListener('collectish:page-change',event=>{
+  if(event.detail?.page==='signals')void loadScoutIntelligence();
+});
+document.addEventListener('collectish:scout-detail-rendered',event=>{
+  if(event.detail?.sku)void loadScoutIntelligence();
+},{once:true});
+document.addEventListener('collectish:open-ask',()=>void loadAsk());
 
 export function installModules(){
   if(installPromise)return installPromise;
@@ -113,6 +132,8 @@ export function installModules(){
     await loadParallel(scoutCore);
     document.dispatchEvent(new CustomEvent('collectish:feature-modules-ready'));
     if(document.getElementById('cxScout')?.dataset.scoutV5==='promoted')onScoutReady();
+    if(document.getElementById('cxSignals')?.classList.contains('active'))void loadScoutIntelligence();
+    if(window.__CollectishOpenAskRequested||new URL(location.href).searchParams.get('overlay')==='ask')void loadAsk();
   })();
   return installPromise;
 }
