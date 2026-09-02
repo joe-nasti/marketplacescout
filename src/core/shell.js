@@ -3,6 +3,7 @@ import { readSession, saveSession, validSession, signIn } from './session.js';
 import { readUrlState, writeUrlState, onUrlStateChange } from './url-state.js';
 import store from '../state/store.js';
 import lifecycle from './lifecycle.js';
+import { startupNow, recordStartupDuration, recordStartupFlag } from './startup-metrics.js';
 
 export const WEB_VERSION='0.10.20';
 window.COLLECTISH_WEB_VERSION=WEB_VERSION;
@@ -53,6 +54,31 @@ export function switchGroup(group,{scroll=true}={}){const meta=GROUPS[group];if(
 
 export function renderShell(){document.body.innerHTML=`<div id="cxNetworkProgress" class="cx-network-progress" aria-hidden="true"><div class="cx-network-progress-runner"></div></div><main id="app" class="collectish-modern-app"><section id="collectishUxShell" class="collectish-product-shell"><aside class="cx-side"><div class="cx-brand">${brand()}</div><nav class="cx-nav" aria-label="Collectish workspace">${PRIMARY_GROUPS.map(desktopGroup).join('')}</nav><div class="cx-side-spacer"></div><div class="cx-side-tools"><button data-cx-page="admin">System</button></div><div id="cxDesktopUtilities" class="cx-desktop-utilities" aria-label="Display controls"></div><div class="cx-side-meta">web ${WEB_VERSION}<br>Smarter data. Better decisions.</div></aside><div id="cxMobileUtilities" class="cx-mobile-utilities" aria-label="App utilities"><div class="cx-top-version">web ${WEB_VERSION}</div></div><div class="cx-main"><div id="cxRouteContext" class="cx-route-context" data-group="scout">${contextGroups()}</div><section id="cxScout" class="cx-page active"></section><section id="cxSignals" class="cx-page"></section><section id="cxSealed" class="cx-page"></section><section id="cxSeller" class="cx-page"></section><section id="cxSyp" class="cx-page"></section><section id="cxInventory" class="cx-page"></section><section id="cxAdmin" class="cx-page"></section></div><nav class="cx-mobile-nav" aria-label="Primary navigation">${PRIMARY_GROUPS.map(mobileGroup).join('')}${mobileAsk()}<button type="button" data-cx-group-nav="system" class="cx-mobile-more"><span>More</span></button></nav></section></main>`;store.update('runtime',{screen:'app',page:'scout',productGroup:'scout'});document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'app'}}))}
 function pageClickHandler(event){const ask=event.target.closest?.('[data-cx-ask-nav]');if(ask){window.__CollectishOpenAskRequested=true;document.dispatchEvent(new CustomEvent('collectish:open-ask'));return}const page=event.target.closest?.('[data-cx-page]');if(page){switchPage(page.dataset.cxPage);return}const group=event.target.closest?.('[data-cx-group-nav]');if(group)switchGroup(group.dataset.cxGroupNav)}
-export async function boot(){const session=await validSession();if(!session){loginView();return null}store.update('session',{user:session.user});renderShell();if(beforeReadyHook)await beforeReadyHook();lifecycle.mountApp();const initial=readUrlState().tab;switchPage(ROUTES[initial]?initial:'scout',{scroll:false,history:false});requestAnimationFrame(()=>scrollPageToOrigin());document.dispatchEvent(new CustomEvent('collectish:ready',{detail:{version:WEB_VERSION,user:session.user}}));return session}
+export async function boot(){
+  const saved=readSession();
+  if(!saved){loginView();return null}
+  store.update('session',{user:saved.user});
+  recordStartupFlag('startup_saved_session_used');
+  renderShell();
+  recordStartupDuration('startup_shell_ms');
+  lifecycle.mountApp();
+  const initial=readUrlState().tab;
+  switchPage(ROUTES[initial]?initial:'scout',{scroll:false,history:false});
+  requestAnimationFrame(()=>scrollPageToOrigin());
+  document.dispatchEvent(new CustomEvent('collectish:ready',{detail:{version:WEB_VERSION,user:saved.user}}));
+  recordStartupDuration('startup_interactive_ms');
+  if(beforeReadyHook)void beforeReadyHook();
+
+  const validationStarted=startupNow();
+  const session=await validSession();
+  recordStartupDuration('startup_session_validation_ms',validationStarted);
+  if(session){store.update('session',{user:session.user});recordStartupFlag('startup_session_validated');return session}
+  // Rejected refreshes remove the saved session. A transport failure preserves it
+  // so cached Scout remains usable and the next protected request can retry.
+  if(!readSession()){loginView('Your session expired. Please sign in again.');return null}
+  recordStartupFlag('startup_session_degraded');
+  document.dispatchEvent(new CustomEvent('collectish:session-degraded'));
+  return saved;
+}
 export function startShell({beforeReady}={}){if(typeof beforeReady==='function')beforeReadyHook=beforeReady;if(started)return;started=true;document.addEventListener('click',pageClickHandler,true);document.addEventListener('pointerover',prefetchIntent,true);document.addEventListener('focusin',prefetchIntent,true);document.addEventListener('pointerdown',prefetchIntent,true);document.addEventListener('collectish:auth-invalid',()=>loginView('Your session was rejected by the server. Please sign in again.'));stopUrlListener=onUrlStateChange(state=>{if(store.get().runtime?.screen==='app')switchPage(ROUTES[state.tab]?state.tab:'scout',{scroll:false,history:false})});if(readSession())startupView();else loginView();void boot().catch(error=>{console.error('Collectish boot failed',error);store.update('runtime',{screen:'error',bootError:String(error?.message||error)});loginView('Collectish could not resume your session. Please sign in again.')});window.CollectishShell={boot,switchPage,switchGroup,adminView,loginView,startupView,version:WEB_VERSION,session:readSession,routes:ROUTES,groups:GROUPS}}
 export { collectishConfig };
