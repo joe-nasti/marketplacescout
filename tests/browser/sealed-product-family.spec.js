@@ -25,17 +25,31 @@ test('Hobbit family UI never grades incomplete component floors', async()=>{
   expect(family).toContain('unresolved_other_components');
 });
 
-test('mixed sealed products compare direct buy, crack probability and market exit', async()=>{
+test('mixed sealed products expose derived Singles and distinguish fixed-card routing', async()=>{
   const index=await read('src/modules/sealed/index.js');
   const compare=await read('src/modules/sealed/source-compare.js');
   expect(index).toContain("import('./source-compare.js')");
   expect(compare).toContain('sealed_single_source_compare_current?');
-  expect(compare).toContain('Buy directly');
+  expect(compare).toContain('Buy direct');
   expect(compare).toContain('Crack sealed');
-  expect(compare).toContain('Market exit');
-  expect(compare).toContain('Open in Singles');
+  expect(compare).toContain('Best exit');
+  expect(compare).toContain('Crack advantage');
+  expect(compare).toContain('Open in Scout');
   expect(compare).toContain('Fixed-card Out Optimization');
   expect(compare).toContain('Mixed sealed product:');
+  expect(compare).toContain('card_set_code');
+});
+
+test('Scout Singles compares buy direct, sealed sourcing and exit from fast cache', async()=>{
+  const index=await read('src/modules/scout/index.js');
+  const compare=await read('src/modules/scout/sealed-source-compare.js');
+  expect(index).toContain("import('./sealed-source-compare.js')");
+  expect(compare).toContain('Buy direct · Crack sealed · Best exit');
+  expect(compare).toContain('sealed_single_source_compare_current?');
+  expect(compare).toContain('ev_allocated_acquisition_per_copy');
+  expect(compare).toContain('crack_advantage_vs_direct_pct');
+  expect(compare).toContain('card_set_code=eq.');
+  expect(compare).not.toContain("rest('rpc/sealed_single_source_compare'");
 });
 
 test('Play Booster backtest preserves rounded-probability caveat', async()=>{
