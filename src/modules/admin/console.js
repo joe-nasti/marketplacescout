@@ -5,6 +5,15 @@
   const fmt=t=>t?new Date(t).toLocaleString():'—';
   const age=t=>{if(!t)return 'Never';const ms=Date.now()-new Date(t).getTime(),h=ms/36e5;if(h<1)return `${Math.max(1,Math.round(ms/6e4))}m ago`;if(h<48)return `${Math.round(h)}h ago`;return `${Math.round(h/24)}d ago`};
   const latest=(rows,key)=>{const vals=(rows||[]).map(x=>x?.[key]).filter(Boolean).sort();return vals.at(-1)||null};
+  const cacheKey=()=>`collectishAdminOverview:${window.CollectishShell?.session?.()?.user?.id||'anonymous'}`;
+  function cached(){try{const value=JSON.parse(sessionStorage.getItem(cacheKey())||'null');return value&&Date.now()-Number(value.savedAt||0)<15*60*1000?value:null}catch{return null}}
+  function skeleton(){return ['Checking singles scanning…','Loading enabled sets…','Checking sealed EV…','Finding latest scan…'].map(label=>`<div class="cx-admin-summary-card cx-ui-metric"><span>${label}</span><strong>—</strong><small>Updating in background</small></div>`).join('')}
+  function hydrate(shell){
+    const value=cached();
+    if(value){shell.querySelector('#cxAdminOverviewCards').innerHTML=value.overview||skeleton();shell.querySelector('#cxAdminSinglesSummary').innerHTML=value.singles||'';shell.querySelector('#cxAdminSealedSummary').innerHTML=value.sealed||'';shell.querySelector('#cxAdminSealedBaseSources').innerHTML=value.sources||''}
+    else shell.querySelector('#cxAdminOverviewCards').innerHTML=skeleton();
+  }
+  function remember(shell){try{sessionStorage.setItem(cacheKey(),JSON.stringify({savedAt:Date.now(),overview:shell.querySelector('#cxAdminOverviewCards')?.innerHTML||'',singles:shell.querySelector('#cxAdminSinglesSummary')?.innerHTML||'',sealed:shell.querySelector('#cxAdminSealedSummary')?.innerHTML||'',sources:shell.querySelector('#cxAdminSealedBaseSources')?.innerHTML||''}))}catch{}}
 
   function ensure(){
     const admin=document.getElementById('cxAdmin');if(!admin)return null;
@@ -24,6 +33,7 @@
         <section class="cx-admin-panel" data-admin-panel="sealed"><div id="cxAdminSealedSummary" class="cx-admin-summary-grid cx-ui-metrics"></div><div class="cx-admin-ia-subnav" id="cxAdminSealedSubnav"><button type="button" data-admin-sealed-view="health" class="active">Health</button><button type="button" data-admin-sealed-view="catalog">Catalog</button></div><p id="cxAdminSealedViewNote" class="cx-admin-ia-section-note"></p><div id="cxAdminSealedSources" class="cx-admin-source-list cx-ui-list"><div id="cxAdminSealedBaseSources"></div></div></section>
         <section class="cx-admin-panel" data-admin-panel="system"><div id="cxAdminSystemModules"></div></section>`;
       admin.replaceChildren(shell);
+      hydrate(shell);
       const sys=shell.querySelector('#cxAdminSystemModules');existing.forEach(x=>sys.appendChild(x));
       shell.querySelectorAll('[data-admin-tab]').forEach(b=>b.onclick=()=>show(b.dataset.adminTab));
       shell.querySelector('#cxAdminSealedSubnav')?.addEventListener('click',e=>{const b=e.target.closest('[data-admin-sealed-view]');if(!b)return;sealedView=b.dataset.adminSealedView;applySealedView()});
@@ -100,7 +110,7 @@
       const tcgIso=tcgLast?new Date(tcgLast).toISOString():null,ckIso=ckLast?new Date(ckLast).toISOString():null;
       shell.querySelector('#cxAdminSealedSummary').innerHTML=[metric('Products scored',String((ev||[]).length),'current recent precons'),metric('EV refreshed',evLast?age(evLast):'Never',evLast?fmt(evLast):'',sealedHealthy?'good':'bad'),metric('MTGJSON sync',syncLast?age(syncLast):'Never',syncLast?fmt(syncLast):'',syncLast?'neutral':'bad')].join('');
       const base=shell.querySelector('#cxAdminSealedBaseSources');if(base)base.innerHTML=[source('TCG sealed acquisition',tcgIso&&Date.now()-tcgLast<36*36e5?'good':'warn',tcgIso,'Authoritative sealed acquisition source'),source('Card Kingdom sealed reference',ckIso&&Date.now()-ckLast<72*36e5?'good':'warn',ckIso,'Reference-only sealed retail'),source('Component EV / scoring',sealedHealthy?'good':'warn',evLast,'Precon EV and Scout Sealed score'),source('Direct component coverage',directLast&&Date.now()-new Date(directLast).getTime()<36*36e5?'good':'warn',directLast,'Economically meaningful component SKUs'),source('SYP component coverage',sypLast?'good':'neutral',sypLast,'Stored SYP eligibility / max quantity'),source('MTGJSON identity + prices',syncLast?'good':'warn',syncLast,(sync||[]).map(x=>`${x.feed}: ${x.status||'unknown'}`).join(' · '))].join('');
-      adoptLooseChildren(shell);applySealedView();
+      adoptLooseChildren(shell);applySealedView();remember(shell);
     }catch(e){const ov=shell.querySelector('#cxAdminOverviewCards');if(ov)ov.innerHTML=`<div class="cx-admin-error">Couldn’t load Admin health: ${esc(e.message||e)}</div>`}finally{loading=false}
   }
 
