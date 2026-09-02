@@ -77,8 +77,8 @@ async function load(force=false){
   return loading;
 }
 
-document.addEventListener('collectish:intel-changed',()=>setTimeout(()=>void load(true),30));
+document.addEventListener('collectish:intel-changed',e=>{if(e.detail?.source!=='primary-load')setTimeout(()=>void load(true),30)});
 document.addEventListener('collectish:scout-detail-rendered',e=>{if(events.length)decorateScoutDetail(e.detail?.sku);else void load()});
-document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')setTimeout(()=>void load(),1500)});
+document.addEventListener('collectish:signals-primary-ready',()=>setTimeout(()=>void load(),2200));
 document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')setTimeout(decorateSignals,100)});
 export { load as loadVideoEvents };
