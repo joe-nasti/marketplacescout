@@ -26,7 +26,7 @@ test('coverage gate blocks incomplete sealed recommendations', async()=>{
   expect(family).toContain('GROSS EV ONLY');
 });
 
-test('generic collation registry preserves Hobbit as first data profile', async()=>{
+test('generic collation registry preserves Hobbit as first full data profile', async()=>{
   const migration=await read('supabase/migrations/20260902184500_sealed_collation_adapter_registry.sql');
   expect(migration).toContain('sealed_collation_adapters');
   expect(migration).toContain('sealed_collation_profile_bindings');
@@ -36,6 +36,17 @@ test('generic collation registry preserves Hobbit as first data profile', async(
   expect(migration).toContain("'HOB'");
   expect(migration).toContain("'partial'");
   expect(migration).toContain("'deterministic'");
+});
+
+test('enabled catalog is provisionally classified without fake collation certainty', async()=>{
+  const provisional=await read('supabase/migrations/20260902185000_sealed_enabled_catalog_provisional_bindings.sql');
+  const eligibility=await read('supabase/migrations/20260902185200_tighten_sealed_model_coverage_eligibility.sql');
+  for(const adapter of ['draft_booster_official_v1','set_booster_official_v1','other_booster_unclassified_v1'])expect(provisional).toContain(adapter);
+  expect(provisional).toContain("not in ('HOB','SLD')");
+  expect(provisional).toContain("'catalog-provisional-v1'");
+  expect(provisional).toContain("'unmodeled'");
+  expect(eligibility).toContain("profile_status in ('partial','component_only','unmodeled') then false");
+  expect(eligibility).toContain('Adapter family is known but set-specific collation is not hydrated');
 });
 
 test('mixed sealed products expose derived Singles and landed-cost decisions', async()=>{
