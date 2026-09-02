@@ -20,22 +20,32 @@ function cardDetail(label,ev,cardsByEval){if(!ev)return'';const rows=cardsByEval
 function intervalText(row,finish){if(!row)return'';const first=Number(row.first_sold_out_elapsed),last=Number(row.last_available_elapsed);if(Number.isFinite(first)){if(Number.isFinite(last)&&last<=first)return `${finish} sold out between T+${Math.round(last)} and T+${Math.round(first)}m`;return `${finish} confirmed sold out by T+${Math.round(first)}m`}return''}
 function imageDetails(rows){const content=rows.filter(a=>['contents','gallery'].includes(a.asset_type)&&a.public_url);if(!content.length)return'';return `<details class="cx-sl-images"><summary>Official drop images · ${content.length}</summary><div class="cx-sl-gallery">${content.slice(0,10).map(a=>`<img loading="lazy" src="${esc(a.public_url)}" alt="Official Secret Lair drop contents">`).join('')}</div></details>`}
 
+async function legacySnapshot(){
+  const releases=await rest(`secret_lair_releases?select=release_id,release_name,sale_start_at,lifecycle_state,supply_confidence&release_name=eq.${encodeURIComponent(LIVE_NAME)}&limit=1`),release=releases?.[0];
+  if(!release)return{release:null,drops:[],evaluations:[],predictions:[],observations:[],evidence:[],assets:[],intervals:[],cards:[]};
+  const [drops,evaluations,predictions,observations,evidence,assets,intervals,cards]=await Promise.all([
+    rest(`secret_lair_drops?select=drop_id,drop_name,ip_name,artist_name,supply_prior,supply_prior_confidence,supply_prior_rationale&release_id=eq.${release.release_id}&order=created_at.asc`),
+    rest(`secret_lair_evaluations?select=evaluation_id,drop_id,evaluated_at,evaluation_status,recommendation,opportunity_score,collector_score,confidence,compression_adjusted_ev,acquisition_cost,expected_roi_pct,region,finish,model_version&release_id=eq.${release.release_id}&order=evaluated_at.desc&limit=400`),
+    rest(`secret_lair_predictions?select=prediction_id,drop_id,prediction_label,prediction_type,predicted_rating,predicted_rating_scale,claim,frozen_at&release_id=eq.${release.release_id}&order=frozen_at.desc&limit=100`),
+    rest(`secret_lair_observations?select=drop_id,region,finish,availability_state,observation_type,observed_at,elapsed_minutes_from_sale&release_id=eq.${release.release_id}&order=observed_at.desc&limit=500`),
+    rest(`secret_lair_evidence?select=drop_id,source_type,raw_rating,raw_rating_scale,summary,observed_at&release_id=eq.${release.release_id}&source_type=eq.expert_review&order=observed_at.desc&limit=200`),
+    rest(`secret_lair_assets?select=drop_id,asset_type,public_url,is_primary,sort_order,download_status&release_id=eq.${release.release_id}&download_status=eq.downloaded&order=sort_order.asc`).catch(()=>[]),
+    rest(`secret_lair_sellout_intervals?select=drop_id,region,finish,last_available_elapsed,first_sold_out_elapsed,first_sold_out_at&release_id=eq.${release.release_id}`).catch(()=>[]),
+    rest(`secret_lair_card_valuations?select=evaluation_id,drop_id,finish,card_name,normal_market_floor,naive_comparable_value,compression_adjusted_value,liquid_premium_comparable,bling_gap,reprint_compression_penalty,total_sales_90d,comparable_metadata,created_at&release_id=eq.${release.release_id}&order=created_at.desc&limit=800`).catch(()=>[])
+  ]);
+  return{release,drops,evaluations,predictions,observations,evidence,assets,intervals,cards};
+}
+async function readSnapshot(){
+  try{const value=await rest('rpc/secret_lair_signals_snapshot',{method:'POST',body:{p_release_name:LIVE_NAME}});if(value&&typeof value==='object'&&!Array.isArray(value))return value}catch{}
+  return legacySnapshot();
+}
+
 async function load(){
   const box=mount();if(!box)return;const cached=readCached();if(cached)box.innerHTML=cached;else if(!box.innerHTML)box.innerHTML='<div class="cx-sl-empty">Loading Secret Lair intelligence…</div>';
   try{
-    const releases=await rest(`secret_lair_releases?select=release_id,release_name,sale_start_at,lifecycle_state,supply_confidence&release_name=eq.${encodeURIComponent(LIVE_NAME)}&limit=1`);const release=releases?.[0];
+    const snapshot=await readSnapshot(),{release,drops=[],evaluations:evals=[],predictions:preds=[],observations:obs=[],evidence=[],assets=[],intervals=[],cards=[]}=snapshot;
     if(!release){box.innerHTML='<div class="cx-sl-empty">Secret Lair intelligence is ready but this release has not been seeded for the signed-in user yet.</div>';return}
-    const [drops,evals,preds,obs,evidence,assets,intervals]=await Promise.all([
-      rest(`secret_lair_drops?select=drop_id,drop_name,ip_name,artist_name,supply_prior,supply_prior_confidence,supply_prior_rationale&release_id=eq.${release.release_id}&order=created_at.asc`),
-      rest(`secret_lair_evaluations?select=evaluation_id,drop_id,evaluated_at,evaluation_status,recommendation,opportunity_score,collector_score,confidence,compression_adjusted_ev,acquisition_cost,expected_roi_pct,region,finish,model_version&release_id=eq.${release.release_id}&order=evaluated_at.desc&limit=400`),
-      rest(`secret_lair_predictions?select=prediction_id,drop_id,prediction_label,prediction_type,predicted_rating,predicted_rating_scale,claim,frozen_at&release_id=eq.${release.release_id}&order=frozen_at.desc&limit=100`),
-      rest(`secret_lair_observations?select=drop_id,region,finish,availability_state,observation_type,observed_at,elapsed_minutes_from_sale&release_id=eq.${release.release_id}&order=observed_at.desc&limit=500`),
-      rest(`secret_lair_evidence?select=drop_id,source_type,raw_rating,raw_rating_scale,summary,observed_at&release_id=eq.${release.release_id}&source_type=eq.expert_review&order=observed_at.desc&limit=200`),
-      rest(`secret_lair_assets?select=drop_id,asset_type,public_url,is_primary,sort_order,download_status&release_id=eq.${release.release_id}&download_status=eq.downloaded&order=sort_order.asc`).catch(()=>[]),
-      rest(`secret_lair_sellout_intervals?select=drop_id,region,finish,last_available_elapsed,first_sold_out_elapsed,first_sold_out_at&release_id=eq.${release.release_id}`).catch(()=>[])
-    ]);
     const evalMap=latest(evals,r=>`${r.drop_id}:${r.region||''}:${r.finish||''}`),obsMap=latest(obs,r=>`${r.drop_id||''}:${r.region||''}:${r.finish||''}`),intervalMap=new Map((intervals||[]).map(r=>[`${r.drop_id}:${r.region||''}:${r.finish||''}`,r]));
-    const cards=await rest(`secret_lair_card_valuations?select=evaluation_id,drop_id,finish,card_name,normal_market_floor,naive_comparable_value,compression_adjusted_value,liquid_premium_comparable,bling_gap,reprint_compression_penalty,total_sales_90d,comparable_metadata,created_at&release_id=eq.${release.release_id}&order=created_at.desc&limit=800`).catch(()=>[]);
     const cardsByEval=new Map();for(const c of cards||[]){if(!cardsByEval.has(c.evaluation_id))cardsByEval.set(c.evaluation_id,[]);cardsByEval.get(c.evaluation_id).push(c)}
     const assetsByDrop=new Map();for(const a of assets||[]){if(!assetsByDrop.has(a.drop_id))assetsByDrop.set(a.drop_id,[]);assetsByDrop.get(a.drop_id).push(a)}
     const globalPred=(preds||[]).filter(p=>!p.drop_id),favorite=globalPred.find(p=>p.prediction_type==='favorite')||(preds||[]).find(p=>p.prediction_label==='POT OF GOLD');
