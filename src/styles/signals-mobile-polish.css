@@ -202,3 +202,33 @@
   #cxSignals .cx-sv-row{grid-template-columns:62px minmax(0,1fr) 49px 45px;min-height:140px}
   #cxSignals .cx-sv-art{width:62px;height:87px}
 }
+
+/* Signals subviews share one Android-native hierarchy beneath the persistent app nav. */
+@media(max-width:900px){
+  #cxSignals[data-signals-view="competitive"] #cxCompetitiveIntel,
+  #cxSignals[data-signals-view="commander"] #cxCommanderIntel,
+  #cxSignals[data-signals-view="secret-lair"] #cxSecretLairSignals,
+  #cxSignals[data-signals-view="discovery"] #cxSignalsDiscovery{margin:0 -16px;border:0;border-radius:0;background:transparent;box-shadow:none}
+  #cxSignals #cxCompetitiveIntel,
+  #cxSignals #cxCommanderIntel{padding:14px 16px 28px}
+  #cxSignals #cxCompetitiveIntel>.cx-page-head,
+  #cxSignals #cxCommanderIntel>.cx-page-head{grid-template-columns:minmax(0,1fr) auto;margin-bottom:7px}
+  #cxSignals #cxCompetitiveIntel .cx-section-title,
+  #cxSignals #cxCommanderIntel .cx-section-title{font-size:20px;letter-spacing:-.025em}
+  #cxSignals #cxCompetitiveIntel>.cx-sub,
+  #cxSignals #cxCommanderIntel>.cx-sub{margin:4px 0;font-size:9px;line-height:1.35}
+  #cxSignals #cxCompetitiveIntel .cx-detail-list,
+  #cxSignals #cxCommanderIntel .cx-detail-list{margin:8px -16px 18px;border-top:1px solid var(--cx-border)}
+  #cxSignals #cxCompetitiveIntel .cx-detail-stat,
+  #cxSignals #cxCommanderIntel .cx-detail-stat{display:grid;grid-template-columns:minmax(0,1fr);gap:7px;padding:12px 16px;border:0;border-bottom:1px solid var(--cx-border);border-radius:0;background:transparent}
+  #cxSignals #cxCompetitiveIntel .cx-detail-stat>span,
+  #cxSignals #cxCommanderIntel .cx-detail-stat>span{min-width:0}
+  #cxSignals #cxCompetitiveIntel .cx-detail-stat strong,
+  #cxSignals #cxCommanderIntel .cx-detail-stat strong{font-size:13px}
+  #cxSignals #cxCompetitiveIntel .cx-detail-stat small,
+  #cxSignals #cxCommanderIntel .cx-detail-stat small{font-size:9px;line-height:1.35}
+  #cxSignals #cxSecretLairSignals{padding:14px 16px 28px}
+  #cxSignals #cxSignalsDiscovery{padding:12px 16px 28px}
+  #cxSignals[data-signals-view]:not([data-signals-view="scan"]) .cx-page-head>div>p,
+  #cxSignals[data-signals-view]:not([data-signals-view="scan"]) .cx-page-head>div>.cx-sub{display:none}
+}
