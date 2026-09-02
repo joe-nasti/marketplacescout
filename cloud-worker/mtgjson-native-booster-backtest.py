@@ -56,8 +56,8 @@ def get_cards(uuids):
 
 def get_prices(uuids):
     out={}
-    for part in chunks(sorted(uuids),80):
-        rows=sb(f"tcgplayer_preferred_price_current_cache?select=uuid,finish,product_id,market_price,low_price,lowest_listing_price,direct_low_price,source_updated_at&uuid=in.({in_filter(part)})&limit=2000") or []
+    for part in chunks(sorted(uuids),250):
+        rows=sb('rpc/get_preferred_prices_for_uuids','POST',{'p_uuids':part}) or []
         for r in rows:out[(r['uuid'],str(r.get('finish') or 'normal').lower())]=r
     return out
 
