@@ -28,7 +28,7 @@ function showDiscovery(){
 function leaveDiscovery(){active=false;const surface=discoveryHost();if(surface)surface.hidden=true}
 function openScout(el){document.dispatchEvent(new CustomEvent('collectish:open-scout-card',{detail:{sku_id:el.dataset.sku||null,product_id:el.dataset.product||null,scryfall_id:el.dataset.scryfall||null,card_name:el.dataset.card||null}}))}
 function routeClick(e){
-  const discovery=e.target.closest?.('[data-discovery-mode]');if(discovery){e.preventDefault();showDiscovery();return}
+  const discovery=e.target.closest?.('[data-discovery-mode]');if(discovery&&!discovery.dataset.signalsMode){e.preventDefault();showDiscovery();return}
   const standard=e.target.closest?.('[data-signals-mode]');if(standard&&active){leaveDiscovery();return}
   if(!active)return;
   const filter=e.target.closest?.('[data-discovery-filter]');if(filter){e.preventDefault();setDiscoveryFilter(filter.dataset.discoveryFilter);renderWithWake(discoveryHost());return}
@@ -36,5 +36,5 @@ function routeClick(e){
 }
 function routeInput(e){if(!active||e.target?.id!=='cxDiscoverySearch')return;const pos=e.target.selectionStart;setDiscoveryQuery(e.target.value);renderWithWake(discoveryHost());const input=document.getElementById('cxDiscoverySearch');if(input){input.focus();try{input.setSelectionRange(pos,pos)}catch{}}}
 function refreshIfActive(){if(!active)return;const surface=discoveryHost();if(!surface)return;surface.innerHTML='<div class="cx-empty">Refreshing discovery candidates…</div>';void loadDiscovery(true).then(()=>renderWithWake(surface)).catch(()=>{})}
-function onSignalsLifecycle(e){if(!e?.detail?.page||e.detail.page==='signals')queueMicrotask(ensureSurface)}
-export function installSignalsDiscovery(){if(installed)return;installed=true;installDiscoveryWakeStatus();document.addEventListener('click',routeClick,true);document.addEventListener('input',routeInput,true);document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')queueMicrotask(ensureSurface);else leaveDiscovery()});document.addEventListener('collectish:lazy-page-loaded',onSignalsLifecycle);document.addEventListener('collectish:ready',()=>queueMicrotask(ensureSurface));document.addEventListener('collectish:intel-changed',refreshIfActive);queueMicrotask(ensureSurface)}
+function onSignalsLifecycle(e){if(!e?.detail?.page||e.detail.page==='signals')queueMicrotask(()=>{ensureSurface();if(signalsHost()?.dataset.signalsView==='discovery')showDiscovery()})}
+export function installSignalsDiscovery(){if(installed)return;installed=true;installDiscoveryWakeStatus();document.addEventListener('click',routeClick,true);document.addEventListener('input',routeInput,true);document.addEventListener('collectish:signals-show-discovery',showDiscovery);document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')queueMicrotask(ensureSurface);else leaveDiscovery()});document.addEventListener('collectish:lazy-page-loaded',onSignalsLifecycle);document.addEventListener('collectish:ready',()=>queueMicrotask(ensureSurface));document.addEventListener('collectish:intel-changed',refreshIfActive);queueMicrotask(ensureSurface)}
