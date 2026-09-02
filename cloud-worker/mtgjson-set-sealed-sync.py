@@ -91,7 +91,10 @@ def row_from_product(code,p):
     if isinstance(contents,str):
         try: contents=json.loads(contents)
         except: pass
-    return {'uuid':uid,'set_code':str(p.get('setCode') or code).upper(),'name':str(p.get('name') or '').strip() or '(unknown)','category':p.get('category'),'subtype':p.get('subtype'),'release_date':str(p.get('releaseDate') or '')[:10] or None,'card_count':p.get('cardCount'),'product_size':p.get('productSize'),'tcgplayer_product_id':identifier(ids,'tcgplayerProductId') or parse_tcg_from_url(purchase_url(urls,'tcgplayer')),'cardkingdom_id':identifier(ids,'cardKingdomId'),'csi_id':identifier(ids,'csiId'),'cardmarket_id':identifier(ids,'mcmId'),'identifiers':ids,'purchase_urls':urls,'contents':contents,'source_updated_at':now()}
+    name=str(p.get('name') or '').strip() or '(unknown)'
+    subtype=p.get('subtype')
+    if 'collector booster sample pack' in name.lower(): subtype='collector-sample'
+    return {'uuid':uid,'set_code':str(p.get('setCode') or code).upper(),'name':name,'category':p.get('category'),'subtype':subtype,'release_date':str(p.get('releaseDate') or '')[:10] or None,'card_count':p.get('cardCount'),'product_size':p.get('productSize'),'tcgplayer_product_id':identifier(ids,'tcgplayerProductId') or parse_tcg_from_url(purchase_url(urls,'tcgplayer')),'cardkingdom_id':identifier(ids,'cardKingdomId'),'csi_id':identifier(ids,'csiId'),'cardmarket_id':identifier(ids,'mcmId'),'identifiers':ids,'purchase_urls':urls,'contents':contents,'source_updated_at':now()}
 
 def row_from_card(code,c):
     uid=str(c.get('uuid') or '').strip()
@@ -129,7 +132,6 @@ def main():
                 b_rows.extend(booster_rows(code,booster))
         sealed_written=batched_upsert('mtgjson_sealed_products',sealed_rows)
         cards_written=batched_upsert('mtgjson_cards',card_rows)
-        # Composite key is declared as (set_code,booster_code); PostgREST accepts comma-separated on_conflict.
         if b_rows:
             for i in range(0,len(b_rows),BATCH):sb('mtgjson_set_booster_configs?on_conflict=set_code,booster_code','POST',b_rows[i:i+BATCH],'resolution=merge-duplicates,return=minimal')
         detail={'source':'individual-set-json','setsRequested':len(codes),'setsLoaded':len(codes)-len(failures),'sealedRows':sealed_written,'cardStructureRows':cards_written,'boosterConfigs':len(b_rows),'setCounts':set_counts,'failures':failures[:30]}
