@@ -7,6 +7,20 @@ async function sb(path,{method='GET',body,prefer}={}){const r=await fetch(`${SUP
 const now=new Date();
 const nowIso=now.toISOString();
 
+async function syncAgeTieredProfiles(){
+  const rows=await sb('marketplace_scan_profiles?select=user_id&limit=5000');
+  const users=[...new Set((rows||[]).map(x=>x.user_id).filter(Boolean))];
+  const results=[];
+  for(const userId of users){
+    const result=await sb('rpc/sync_scout_age_tiered_profiles',{method:'POST',body:{p_user_id:userId}}).catch(error=>{
+      console.warn(`Scout age-tier profile sync failed for ${userId}: ${error.message||error}`);
+      return null;
+    });
+    if(result)results.push(...result);
+  }
+  return results;
+}
+
 async function marketplaceHealthGate(){
   const windowHours=3;
   const since=new Date(Date.now()-windowHours*3600000).toISOString();
@@ -34,6 +48,7 @@ async function releasePausedBacklog(limit=2){
   return released;
 }
 
+const ageTierSync=await syncAgeTieredProfiles();
 const health=await marketplaceHealthGate();
 if(health.open){
   console.error(JSON.stringify({admission:'paused',reason:'marketplace_circuit_breaker',health},null,2));
@@ -96,4 +111,4 @@ for(const p of profiles||[]){
   queued++;
   break;
 }
-console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,releasedPaused,health,mode:'staggered-one-runnable-at-a-time',setIdentity:'biweekly-tcg-id-cache-name+slug'},null,2));
+console.log(JSON.stringify({due:(profiles||[]).length,queued,skipped,initialized,unresolved,releasedPaused,ageTierSync,health,mode:'staggered-one-runnable-at-a-time',setIdentity:'biweekly-tcg-id-cache-name+slug'},null,2));

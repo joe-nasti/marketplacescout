@@ -3,7 +3,7 @@ import {registerComponent} from '../../core/lifecycle.js';
 // Collectish Admin — local-first catalog-backed Marketplace scan configuration.
 (() => {
   const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const cadences=[[3,'Every 3h'],[6,'Every 6h'],[12,'Every 12h'],[24,'Daily'],[48,'Every 2 days'],[72,'Every 3 days'],[168,'Weekly']];
+  const cadences=[[3,'Every 3h'],[6,'Every 6h'],[12,'Every 12h'],[24,'Daily'],[48,'Every 2 days'],[72,'Every 3 days'],[168,'Weekly'],[336,'Every 2 weeks']];
   let loading=false,searchText='',configuredOnlyState=false;
   const drafts=new Map();
   const timers=new Map();
@@ -11,7 +11,7 @@ import {registerComponent} from '../../core/lifecycle.js';
   const userId=()=>session()?.user?.id||'';
   const opt=(values,current)=>values.map(v=>{const [value,label]=Array.isArray(v)?v:[v,v];return `<option value="${esc(value)}" ${String(value)===String(current)?'selected':''}>${esc(label)}</option>`}).join('');
   const fmt=x=>x?new Date(x).toLocaleString():'—';
-  const defaults=c=>({user_id:userId(),set_slug:c.tcgplayer_slug,set_name:c.name,enabled:false,cadence_hours:24,printing:'Both',condition:'Near Mint',language:'English',scan_depth:'Smart',next_due_at:null,last_queued_at:null,_exists:false,_persisted:null,_dirty:false,_saving:false,_saveAgain:false,_error:''});
+  const defaults=c=>({user_id:userId(),set_slug:c.tcgplayer_slug,set_name:c.name,enabled:false,cadence_hours:24,cadence_policy:'manual',printing:'Both',condition:'Near Mint',language:'English',scan_depth:'Smart',next_due_at:null,last_queued_at:null,_exists:false,_persisted:null,_dirty:false,_saving:false,_saveAgain:false,_error:''});
 
   async function rebalance(){
     try{await rest('rpc/rebalance_marketplace_scan_schedule',{method:'POST',body:{}})}catch(e){console.warn('Scan schedule rebalance failed',e)}
@@ -60,7 +60,7 @@ import {registerComponent} from '../../core/lifecycle.js';
     const previous=d._persisted;
     const scheduleChanged=!d._exists||!previous||previous.enabled!==current.enabled||previous.cadence_hours!==current.cadence_hours;
     try{
-      const body={user_id:d.user_id||userId(),set_slug:d.set_slug,set_name:d.set_name,enabled:current.enabled,cadence_hours:current.cadence_hours,printing:current.printing,condition:current.condition,language:current.language,scan_depth:current.scan_depth,updated_at:new Date().toISOString(),...(scheduleChanged?{next_due_at:null}:{})};
+      const body={user_id:d.user_id||userId(),set_slug:d.set_slug,set_name:d.set_name,enabled:current.enabled,cadence_hours:current.cadence_hours,cadence_policy:'manual',printing:current.printing,condition:current.condition,language:current.language,scan_depth:current.scan_depth,updated_at:new Date().toISOString(),...(scheduleChanged?{next_due_at:null}:{})};
       await rest('marketplace_scan_profiles?on_conflict=user_id,set_slug',{method:'POST',body,prefer:'resolution=merge-duplicates,return=minimal'});
       d._exists=true;d._persisted={...current};
       if(scheduleChanged){await rebalance();try{const x=await rest(`marketplace_scan_profiles?select=next_due_at,last_queued_at&user_id=eq.${encodeURIComponent(body.user_id)}&set_slug=eq.${encodeURIComponent(d.set_slug)}&limit=1`);if(x?.[0]){d.next_due_at=x[0].next_due_at;d.last_queued_at=x[0].last_queued_at}}catch{}}

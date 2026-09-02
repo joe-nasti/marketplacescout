@@ -16,6 +16,7 @@ on:
       - "cloud-worker/marketplace-worker.mjs"
       - "cloud-worker/ask-investigate-worker.mjs"
       - "cloud-worker/queue-configured-set-refresh.mjs"
+      - "supabase/migrations/20260902232822_enable_all_scout_sets_age_tiered.sql"
       - "cloud-worker/scout-universe-backfill.mjs"
       - "cloud-worker/validate-claim-rpc.mjs"
       - "cloud-worker/normalize-marketplace-jobs.mjs"
