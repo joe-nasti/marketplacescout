@@ -29,7 +29,11 @@ function cardUrl(env,x){
   return `${web(env)}?${p.toString()}`;
 }
 function cardText(env,x,n=58){return `[${short(x?.card_name,n)}](${cardUrl(env,x)})`}
-function reason(x){const r=Array.isArray(x?.reasons)?x.reasons:[];return short(r[0]||'worth checking against liquidity and other markets',84)}
+function reason(x){
+  const r=Array.isArray(x?.reasons)?x.reasons.filter(Boolean):[];
+  if(!r.length)return 'worth checking against liquidity and other markets';
+  return short(r.slice(0,2).join('; '),118);
+}
 function familyKey(x){
   const stable=String(x?.oracle_id||x?.oracle_card_id||x?.card_family_id||'').trim().toLowerCase();
   if(stable)return stable;
