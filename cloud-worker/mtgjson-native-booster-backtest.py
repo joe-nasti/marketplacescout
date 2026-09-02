@@ -197,6 +197,7 @@ def write_backtest(user_id,product,booster_code,booster_count,pack_vals,expected
     status='full' if officially_verified and coverage>=.98 and not missing_cards else 'partial'
     if product.get('category')=='booster_case':adapter='sealed_container_rollup_v1'
     elif booster_code=='collector-sample':adapter='collector_sample_mtgjson_v1'
+    elif booster_code=='default':adapter='beyond_booster_mtgjson_v1'
     else:adapter=f'{booster_code}_booster_mtgjson_v1' if booster_code in ('draft','set') else 'collector_booster_mtgjson_v1'
     binding={'set_code':product['set_code'],'sealed_uuid':product['uuid'],'product_category':product['category'],'product_subtype':product['subtype'],'adapter_key':adapter,'model_version':'mtgjson-native-booster-v1','profile_status':status,'source_type':'wizards_official+mtgjson_native_booster' if officially_verified else 'mtgjson_native_booster','source_ref':verification.get('official_source_url') if officially_verified else f'{product["set_code"]}:{booster_code}','assumptions':{'pricing_coverage_weighted':coverage,'backtest_id':bid,'official_verification_status':verification.get('verification_status') if verification else 'missing','native_config_fingerprint':verification.get('config_fingerprint') if verification else None},'priority':0,'enabled':True,'updated_at':now()}
     sb('sealed_collation_profile_bindings','POST',[binding],'return=minimal')
@@ -212,10 +213,11 @@ def run_set(set_code):
         verification=verifications.get(booster_code)
         if verification and verification.get('config_fingerprint')!=config_row.get('config_fingerprint'):
             verification=dict(verification,verification_status='rejected')
-        target=[p for p in products if str(p.get('subtype') or '').lower()==booster_code and p.get('category') in ('booster_pack','booster_box','booster_case')]
-        packs=[p for p in target if p['category']=='booster_pack']
+        packs=[p for p in products if p.get('category')=='booster_pack' and any(str(x.get('code') or '').lower()==booster_code for x in ((p.get('contents') or {}).get('pack') or []))]
+        if not packs:packs=[p for p in products if p.get('category')=='booster_pack' and str(p.get('subtype') or '').lower()==booster_code]
         if not packs:continue
         pack=packs[0]
+        target=[p for p in products if pack_count(p,pack['uuid'],products_by_uuid)>0]
         uuids=set()
         for sh in (cfg.get('sheets') or {}).values():uuids.update((sh.get('cards') or {}).keys())
         cards=get_cards(uuids); prices=get_prices(uuids)
