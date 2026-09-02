@@ -37,6 +37,4 @@ async function load(){
 
 document.addEventListener('collectish:intel-evaluated',()=>void load());
 document.addEventListener('collectish:intel-changed',e=>{if(e.detail?.source!=='primary-load')void load()});
-document.addEventListener('collectish:signals-primary-ready',()=>setTimeout(()=>void load(),1600));
-
 export { load as loadIntelSourcePerformance };
