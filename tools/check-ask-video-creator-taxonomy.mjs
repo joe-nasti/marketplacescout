@@ -2,6 +2,7 @@ import fs from 'node:fs';
 const web=fs.readFileSync('supabase/functions/ask-collectish-web-research/index.ts','utf8');
 for(const token of [
   'creatorContext',
+  'creatorSignals',
   'attention_impact',
   'evidence_quality',
   'timing_role',
@@ -13,10 +14,13 @@ for(const token of [
   'amplifier',
   'late_commentary',
   'clickbait',
-  'take it with a grain of salt',
+  'clickbaitFlag',
+  'credibleLinked',
+  'nonFinanceLinked',
   'creator_context_counts'
 ]) if(!web.includes(token)) throw new Error(`missing creator taxonomy contract: ${token}`);
-if(!/Standard, Pioneer, Modern, Legacy, Vintage, Pauper and cEDH/.test(web)) throw new Error('competitive format coverage missing');
-if(!/one clickbait finance creator alone must not upgrade causation to CONFIRMED/.test(web)) throw new Error('finance confirmation guard missing');
-if(!/ATTENTION IMPACT/.test(web)||!/EVIDENCE QUALITY/.test(web)) throw new Error('attention and evidence quality must remain separate');
+if(!/modern\|pioneer\|standard\|legacy\|vintage\|pauper\|cedh/.test(web)) throw new Error('competitive format coverage missing');
+if(!/context==='finance_speculation'/.test(web)||!/evidence_quality=Math\.min\(evidence_quality,.35\)/.test(web)) throw new Error('finance/clickbait evidence discount missing');
+if(!/if\(nonFinanceLinked\.length\|\|credibleLinked\.length>=2\)\{catalyst_status='CONFIRMED'/.test(web)) throw new Error('finance-only evidence must not independently confirm causation');
+if(!/attention impact separately from evidence quality/i.test(web)) throw new Error('attention and evidence quality must remain separate');
 console.log('Ask video creator taxonomy contract passed');
