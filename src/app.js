@@ -125,7 +125,9 @@ function onNavigationKeydown(event){
 function onPageChange(event){
   const next=event.detail?.page||currentRoute();
   if(lastRoute&&lastRoute!==next)rememberScroll(lastRoute);
-  lastRoute=next;syncTransientUi();restoreScroll(next);
+  // Direct top-level navigation starts at the route origin. Browser/Android
+  // Back remains the only path that restores a prior route scroll position.
+  lastRoute=next;syncTransientUi();
 }
 function onPopState(){
   suppressRestore=true;
