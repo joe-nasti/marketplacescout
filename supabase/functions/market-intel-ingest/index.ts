@@ -49,7 +49,7 @@ Deno.serve(async(req:Request)=>{
     const selected=Array.isArray(b?.selected_indexes)?b.selected_indexes.map(Number).filter((n:number)=>Number.isInteger(n)&&n>=0&&n<all.length).map((n:number)=>all[n]):all.filter((s:any)=>s?.signal_stage!=='noise');
     if(!selected.length)return J({ok:true,url,original_url:rawUrl,source_identity:identity,analysis,saved:0,duplicates:0,intel_ids:[],rejected_cards:0});
 
-    const candidates=await rest(t,`market_intel_items?select=intel_id,source_url,claim_type,direction,summary,confidence,published_at,market_intel_entities(entity_name)&user_id=eq.${encodeURIComponent(owner)}&source_type=eq.${encodeURIComponent(st)}&order=observed_at.desc&limit=1000`).catch(()=>[]);
+    // Duplicate detection is scoped to one canonical source. Loading the latest\n    // 1,000 items (plus nested entities) made every ingestion pay for the user's\n    // entire article history and could exceed PostgREST's statement timeout.\n    const candidates=await rest(t,`market_intel_items?select=intel_id,source_url,claim_type,direction,summary,confidence,published_at,market_intel_entities(entity_name)&user_id=eq.${encodeURIComponent(owner)}&source_type=eq.${encodeURIComponent(st)}&source_url=eq.${encodeURIComponent(url)}&order=observed_at.desc&limit=100`).catch(()=>[]);
     const existing=(candidates||[]).filter((x:any)=>sourceIdentity(String(x.source_url||''))===identity);
     const seen=new Map((existing||[]).map((x:any)=>[canonical({claim_type:x.claim_type,direction:x.direction,entity_name:x.market_intel_entities?.[0]?.entity_name,summary:x.summary}),x]));
     const ids:string[]=[];let duplicates=0,rejectedCards=0,fuzzyCards=0,updated=0;
