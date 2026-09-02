@@ -68,6 +68,22 @@ test('mixed sealed products expose derived Singles and landed-cost decisions', a
   for (const label of ['BUY & CRACK','FLIP SEALED','MARGINAL CRACK','KEEP SEALED','GROSS EV ONLY','PASS']) expect(compare).toContain(label);
 });
 
+test('sealed component cards route internally and composite EV includes child packs', async()=>{
+  const renderer=await read('src/modules/sealed/renderer.js');
+  const mobile=await read('src/modules/sealed/mobile-economics.js');
+  expect(renderer).toContain("u.searchParams.set('tab','scout')");
+  expect(renderer).toContain("u.searchParams.set('sku',c.sku_id)");
+  expect(renderer).toContain('scoutAnchor(');
+  expect(renderer).toContain('u.scout');
+  expect(renderer).not.toContain('`,u.scry)');
+  expect(mobile).toContain('cx-sealed-mobile-card-link');
+  expect(renderer).toContain('sealed_product_child_components?select=child_product_name,quantity,component_type');
+  expect(renderer).toContain('Included sealed products');
+  expect(renderer).toContain('Booster EV');
+  expect(renderer).toContain('Fixed-card EV');
+  expect(renderer).toContain("composite?'Total modeled EV':'TCG Market EV'");
+});
+
 test('Scout Singles compares buy direct, sealed sourcing and live outlet exit from fast cache', async()=>{
   const index=await read('src/modules/scout/index.js');
   const compare=await read('src/modules/scout/sealed-source-compare.js');

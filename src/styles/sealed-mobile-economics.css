@@ -7,6 +7,7 @@
   .cx-sealed-mobile-econ-row>summary{list-style:none;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 12px;cursor:pointer}
   .cx-sealed-mobile-econ-row>summary::-webkit-details-marker{display:none}
   .cx-sealed-mobile-econ-row>summary strong,.cx-sealed-mobile-econ-row>summary small{display:block}
+  .cx-sealed-mobile-card-link{position:relative;color:inherit;text-decoration:none;padding-right:14px}.cx-sealed-mobile-card-link::after{content:'→';position:absolute;right:0;top:0;color:var(--color-accent);font-weight:900}
   .cx-sealed-mobile-econ-row>summary strong{font-size:12px;line-height:1.25;color:var(--color-text-primary)}
   .cx-sealed-mobile-econ-row>summary small{margin-top:3px;font-size:9px;color:var(--color-text-secondary)}
   .cx-sealed-mobile-econ-primary{text-align:right;min-width:82px}
