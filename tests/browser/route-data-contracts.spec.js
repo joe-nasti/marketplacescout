@@ -45,12 +45,10 @@ test('REST reuses named route resources without recursive cache wrapping',async(
   expect(rest).toContain('loadResource(contract.key');
 });
 
-test('contract cache accelerates first read but later reads preserve explicit refresh semantics',async()=>{
+test('contract cache reuses fresh data until an explicit refresh',async()=>{
   const rest=await read('src/core/rest.js');
-  expect(rest).toContain('const contractReads=new Set()');
-  expect(rest).toContain('const seen=contractReads.has(contract.key)');
-  expect(rest).toContain('contractReads.add(contract.key)');
-  expect(rest).toContain('force:Boolean(options.force)||seen');
+  expect(rest).not.toContain('contractReads');
+  expect(rest).toContain('force:Boolean(options.force)');
 });
 
 test('route contracts never leave visible owners on silently stale SWR data',async()=>{
