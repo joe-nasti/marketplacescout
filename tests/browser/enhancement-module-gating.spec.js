@@ -6,7 +6,8 @@ test('Signals and Ask enhancement bundles load only after user intent',async({},
   const source=await readFile('src/modules/index.js','utf8');
   expect(source).not.toContain('scheduleIdleEnhancers');
   expect(source).toContain("event.detail?.page==='signals'");
-  expect(source).toContain("document.addEventListener('collectish:scout-detail-rendered'");
+  expect(source).toContain("document.addEventListener('collectish:open-scout-card'");
+  expect(source).not.toContain("document.addEventListener('collectish:scout-detail-rendered',event=>");
   expect(source).toContain("document.addEventListener('collectish:open-ask'");
   expect(source).toContain('window.__CollectishOpenAskRequested');
   expect(source.indexOf("import('./ask/main.js')")).toBeLessThan(source.indexOf("import('./ask/streaming.js')"));
