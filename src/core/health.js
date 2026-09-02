@@ -56,6 +56,9 @@ export function renderRuntimeHealth(){
   const retries=Number(metrics.statement_timeout_retries||0),recoveries=Number(metrics.statement_timeout_recoveries||0),failures=Number(metrics.statement_timeout_failures||0);
   const cache=metrics.scout_cache_used===true?`Used · ${fmtMs(metrics.scout_cache_read_ms)}`:metrics.scout_cache_fallback?`Fallback · ${fmtMs(metrics.scout_cache_read_ms)}`:'—';
   box.innerHTML=`<div class="cx-section-title">Runtime health</div><div class="cx-detail-list">
+    <div class="cx-detail-stat"><span>Startup shell</span><strong>${fmtMs(metrics.startup_shell_ms)}</strong></div>
+    <div class="cx-detail-stat"><span>Startup interactive</span><strong>${fmtMs(metrics.startup_interactive_ms)}</strong></div>
+    <div class="cx-detail-stat"><span>Session validation</span><strong>${fmtMs(metrics.startup_session_validation_ms)}</strong><small>${metrics.startup_session_degraded?'Cached/offline mode':metrics.startup_session_validated?'Validated':'Pending'}</small></div>
     <div class="cx-detail-stat"><span>Scout first load</span><strong>${fmtMs(metrics.scout_first_load_ms)}</strong></div>
     <div class="cx-detail-stat"><span>Startup cache hydration</span><strong>${fmtMs(metrics.startup_cache_hydration_ms)}</strong></div>
     <div class="cx-detail-stat"><span>Startup Scout modules</span><strong>${fmtMs(metrics.startup_scout_modules_ms)}</strong></div>
