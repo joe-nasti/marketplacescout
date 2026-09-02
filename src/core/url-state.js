@@ -1,10 +1,17 @@
 const PAGE_SET=new Set(['scout','signals','sealed','seller','syp','inventory','admin']);
+const SCOUT_DEEP_LINK_KEYS=['sku','product','card','fromCard','view','finish'];
+
+function hasScoutDeepLink(params){
+  return SCOUT_DEEP_LINK_KEYS.some(key=>Boolean(params.get(key)));
+}
 
 export function readUrlState(){
   const u=new URL(location.href);
   const p=u.searchParams;
+  const requestedTab=PAGE_SET.has(p.get('tab'))?p.get('tab'):null;
+  const tab=hasScoutDeepLink(p)?'scout':requestedTab||'scout';
   return {
-    tab:PAGE_SET.has(p.get('tab'))?p.get('tab'):'scout',
+    tab,
     sealed:{
       view:p.get('sealedView')||'sets',
       query:p.get('q')||'',
