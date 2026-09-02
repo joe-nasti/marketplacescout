@@ -8,7 +8,7 @@ test('Signals defers noncritical scan requests behind the primary feed',async()=
   expect(core).toContain("collectish:signals-primary-ready");
   expect(core).toContain('setTimeout(()=>void loadSalesResponse(),500)');
   const delays=new Map([
-    ['actionable-emerging.js','250'],['cross-source.js','900'],['source-performance.js','1600'],
+    ['source-performance.js','1600'],
     ['video-events-ui.js','2200'],['synergy-relationships.js','2800'],
     ['future-card-theses.js','3400'],['market-evaluation.js','4000']
   ]);
@@ -17,6 +17,18 @@ test('Signals defers noncritical scan requests behind the primary feed',async()=
     expect(source).toContain("collectish:signals-primary-ready");
     expect(source).toContain(`,${delay})`);
   }
+  for(const file of ['actionable-emerging.js','cross-source.js']){
+    const source=await read(`src/modules/signals/${file}`);
+    expect(source).toContain('collectish:signals-refresh-secondary');
+    expect(source).not.toContain("document.addEventListener('collectish:signals-primary-ready'");
+  }
+});
+
+test('Scout intelligence RPCs only load from deliberate card opens',async()=>{
+  const source=await read('src/modules/signals/scout-intelligence-bridge.js');
+  expect(source).toContain("#cxParityCards .cx-scout-card'))void load()");
+  expect(source).not.toContain("collectish:competitive-changed',()=>{loading=null;void load()}");
+  expect(source).not.toContain("collectish:commander-intel-changed',()=>{loading=null;void load()}");
 });
 
 test('primary intel completion does not immediately retrigger secondary requests',async()=>{
