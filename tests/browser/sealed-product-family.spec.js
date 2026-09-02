@@ -78,7 +78,8 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).not.toContain('`,u.scry)');
   expect(mobile).toContain('cx-sealed-mobile-card-link');
   expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
-  expect(renderer).toContain('sealed.detail:v2:');
+  expect(renderer).toContain('sealed.detail:v3:');
+  expect(renderer).not.toContain('sealed_product_family_economics?select=crack_gross_mean_ev,crack_net_mean_ev,crack_value_complete,fixed_tcg_market_ev,modeled_child_units&sealed_uuid=eq.${encodeURIComponent(r.sealed_uuid)}&limit=1`).catch');
   expect(renderer).toContain('sealed_uuid=in.(');
   expect(renderer).toContain('Included sealed products');
   expect(renderer).toContain('Included products · gross');
