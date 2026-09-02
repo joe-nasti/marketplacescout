@@ -63,24 +63,38 @@ async function save(p:any,best:any,q:string,status:string){
   if(status==='confirmed'){await prices(best.id,skus).catch(()=>0);await history(p.user_id,best.id).catch(()=>0)}return skus;
 }
 
+function ageMs(e:any){const t=Date.parse(e?.last_attempt_at||'');return Number.isFinite(t)?Date.now()-t:Number.POSITIVE_INFINITY}
+function isHot(p:any){return p.rarity==='mythic'||(p.rarity==='rare'&&p.treatment_canonical_name!=='Photocopy')||p.treatment_canonical_name==='Color Banding'}
+
 Deno.serve(async(req:Request)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method!=='POST')return J({error:'POST required'},405);
   if(!(await cronOk(req.headers.get('x-collectish-cron-key')||'')))return J({error:'Unauthorized'},401);
   try{
     let body:any={};try{body=await req.json()}catch{}
-    const limit=Math.max(1,Math.min(12,Number(body?.limit||8)));
+    const limit=Math.max(1,Math.min(16,Number(body?.limit||12))),hotSlots=Math.min(3,Math.max(0,limit-1));
     const rows=await rest('secret_lair_randomized_tcg_discovery_context?select=user_id,randomized_product_id,randomized_card_printing_id,card_name,rarity,collector_number,treatment_canonical_name&limit=500');
     const existing=await rest('secret_lair_randomized_tcgplayer_printings?select=randomized_card_printing_id,discovery_status,last_attempt_at&limit=1000').catch(()=>[]),em=new Map((existing||[]).map((x:any)=>[x.randomized_card_printing_id,x]));
-    const rw:any={mythic:4,rare:3,uncommon:2,common:1},tw:any={'Color Banding':3,'Photocopy Negative':2,'Photocopy':1};
-    const now=Date.now(),todo=(rows||[]).filter((p:any)=>{const e=em.get(p.randomized_card_printing_id);if(!e)return true;if(e.discovery_status==='confirmed')return false;const last=Date.parse(e.last_attempt_at||'');return !Number.isFinite(last)||now-last>20*60*1000}).sort((a:any,b:any)=>(rw[b.rarity]-rw[a.rarity])||(tw[b.treatment_canonical_name]-tw[a.treatment_canonical_name])||Number(a.collector_number)-Number(b.collector_number)).slice(0,limit),report:any[]=[];
+    const unresolved=(rows||[]).filter((p:any)=>em.get(p.randomized_card_printing_id)?.discovery_status!=='confirmed');
+    // Rolling coverage: never-attempted rows first, then oldest attempt. This guarantees
+    // every SLZ printing advances instead of repeatedly starving commons behind mythics.
+    const rolling=[...unresolved].sort((a:any,b:any)=>{
+      const ea=em.get(a.randomized_card_printing_id),eb=em.get(b.randomized_card_printing_id),aa=ageMs(ea),ab=ageMs(eb);
+      if(aa!==ab)return ab-aa;
+      return Number(a.collector_number)-Number(b.collector_number);
+    });
+    // Reserve a few slots for chase / rare-treatment rechecks once they are 20m stale.
+    const hot=rolling.filter((p:any)=>isHot(p)&&ageMs(em.get(p.randomized_card_printing_id))>=20*60*1000).slice(0,hotSlots);
+    const picked=new Set(hot.map((p:any)=>p.randomized_card_printing_id));
+    const todo=[...hot,...rolling.filter((p:any)=>!picked.has(p.randomized_card_printing_id)).slice(0,Math.max(0,limit-hot.length))],report:any[]=[];
     for(const p of todo){
       const q=`${p.card_name} ${p.collector_number} SLZ`,found=await search(q).catch(()=>[]);let best:any=null;
       for(const id of found){const d=await details(id).catch(()=>null);if(!d)continue;const s=score(p,d);if(!best||s.score>best.s.score)best={id,d,s};if(s.score>=1&&s.exactName&&s.magic&&s.cardProduct&&s.zetaSet&&s.numberOk)break}
       let status='not_found';if(best?.s?.exactName&&best.s.magic&&best.s.cardProduct&&best.s.zetaSet)status=best.s.numberOk?'confirmed':'candidate';
       const skus=await save(p,best||{id:null,d:null,s:{score:0}},q,status);
-      report.push({card:p.card_name,collector_number:p.collector_number,treatment:p.treatment_canonical_name,status,score:status==='not_found'?0:Number(best.s.score.toFixed(3)),product_id:status==='not_found'?null:best?.id||null,set_code:best?.s?.setCode||null,number_match:best?.s?.numberOk||false,sku_count:skus.length});
+      report.push({card:p.card_name,collector_number:p.collector_number,treatment:p.treatment_canonical_name,status,score:status==='not_found'?0:Number(best.s.score.toFixed(3)),product_id:status==='not_found'?null:best?.id||null,set_code:best?.s?.setCode||null,number_match:best?.s?.numberOk||false,sku_count:skus.length,queue:isHot(p)?'hot_or_roll':'roll'});
     }
-    const counts=await rest('secret_lair_randomized_tcgplayer_printings?select=discovery_status').catch(()=>[]);const summary:any={};for(const x of counts||[])summary[x.discovery_status]=(summary[x.discovery_status]||0)+1;
-    return J({ok:true,checked:report.length,summary,report});
+    const allExisting=await rest('secret_lair_randomized_tcgplayer_printings?select=randomized_card_printing_id,discovery_status,last_attempt_at&limit=1000').catch(()=>[]),summary:any={};for(const x of allExisting||[])summary[x.discovery_status]=(summary[x.discovery_status]||0)+1;
+    const attempted=new Set((allExisting||[]).filter((x:any)=>x.last_attempt_at).map((x:any)=>x.randomized_card_printing_id));
+    return J({ok:true,checked:report.length,total_printings:(rows||[]).length,attempted_printings:attempted.size,remaining_never_attempted:Math.max(0,(rows||[]).length-attempted.size),summary,report});
   }catch(e){return J({error:String((e as Error)?.message||e)},502)}
 });
