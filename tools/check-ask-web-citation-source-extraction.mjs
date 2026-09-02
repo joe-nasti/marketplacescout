@@ -10,9 +10,9 @@ for(const token of [
   'raw_source_count',
   'retained_source_count',
   'CreatorIndex',
-  'watchedh.com',
   'ask-web-source-diagnostics'
 ]) if(!web.includes(token)) throw new Error(`missing web citation extraction contract: ${token}`);
+if(!/watchedh\\\.com/.test(web)||!/archidekt\\\.com/.test(web)||!/moxfield\\\.com/.test(web)) throw new Error('creator-index host coverage missing');
 if(!/return \[\.\.\.callRows\(r\),\.\.\.annotationRows\(r\)\]/.test(web)) throw new Error('resultRows must merge web-search rows and URL citation annotations');
 if(!/source_diagnostics:diag/.test(web)) throw new Error('research response must expose source diagnostics');
 console.log('Ask web citation source extraction contract passed');
