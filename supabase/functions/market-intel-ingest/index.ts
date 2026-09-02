@@ -10,8 +10,12 @@ const H=(t:string)=>({apikey:t===S&&S?S:A,Authorization:`Bearer ${t}`,'Content-T
 const allowedSource=new Set(['article','x','discord','reddit','youtube','official','manual','other']);
 const trim=(x:any,n=500)=>String(x??'').trim().slice(0,n);
 const clamp=(n:any)=>Number.isFinite(Number(n))?Math.max(0,Math.min(1,Number(n))):0.5;
-const canonical=(s:any)=>`${trim(s?.claim_type,40).toLowerCase()}|${trim(s?.direction,20).toLowerCase()}|${trim(s?.entity_name,300).toLowerCase()}|${trim(s?.summary,450).toLowerCase()}`;
+const normText=(x:any,n=1200)=>trim(x,n).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
+const canonical=(s:any)=>`${normText(s?.claim_type,40)}|${normText(s?.direction,20)}|${normText(s?.entity_name,300)}|${normText(s?.summary,900)}`;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function youtubeId(value:string){try{const u=new URL(value),h=u.hostname.toLowerCase().replace(/^www\./,'');if(h==='youtu.be')return u.pathname.split('/').filter(Boolean)[0]||'';if(h==='youtube.com'||h.endsWith('.youtube.com'))return u.searchParams.get('v')||u.pathname.match(/\/(?:shorts|embed|live)\/([^/?#]+)/)?.[1]||''}catch{}return''}
+function canonicalSourceUrl(value:string){const raw=trim(value,2000);if(!raw)return'';const vid=youtubeId(raw);if(vid)return `https://youtube.com/watch?v=${encodeURIComponent(vid)}`;try{const u=new URL(raw);u.hash='';u.hostname=u.hostname.toLowerCase().replace(/^www\./,'');for(const key of [...u.searchParams.keys()]){const k=key.toLowerCase();if(k.startsWith('utm_')||['t','time_continue','start','si','feature','pp','ab_channel','fbclid','gclid','mc_cid','mc_eid'].includes(k))u.searchParams.delete(key)}u.searchParams.sort();if(u.pathname.length>1)u.pathname=u.pathname.replace(/\/+$/,'');return u.toString()}catch{return raw}}
+function sourceIdentity(value:string){const vid=youtubeId(value);return vid?`youtube:${vid}`:`url:${canonicalSourceUrl(value)}`}
 function sourceType(url:string,requested:any){const r=trim(requested,30).toLowerCase();if(allowedSource.has(r))return r;try{const h=new URL(url).hostname.toLowerCase();if(h==='x.com'||h==='twitter.com')return'x';if(h.includes('discord.com'))return'discord';if(h.includes('reddit.com'))return'reddit';if(h.includes('youtube.com')||h==='youtu.be')return'youtube';return'article'}catch{return'other'}}
 function sourceName(url:string,requested:any){const r=trim(requested,120);if(r)return r;try{const h=new URL(url).hostname.replace(/^www\./,'');if(h==='x.com'||h==='twitter.com')return'X';if(h==='discord.com')return'Discord';return h}catch{return'Unknown'}}
 async function auth(t:string){const r=await fetch(`${U}/auth/v1/user`,{headers:{apikey:A,Authorization:`Bearer ${t}`}});if(!r.ok)throw Error('Unauthorized');const u=await r.json();if(!u?.id)throw Error('Unauthorized');return u}
@@ -37,26 +41,35 @@ Deno.serve(async(req:Request)=>{
   else{let user:any;try{user=await auth(caller)}catch{return J({error:'Authentication required'},401)}owner=String(user.id||'')}
   if(!UUID.test(owner))return J({error:'Unable to resolve source owner'},400);
   const t=scheduler?S:caller;if(scheduler&&!S)return J({error:'Service role unavailable'},500);
-  const url=trim(b?.url||b?.analysis?.url,2000);if(!/^https?:\/\//i.test(url))return J({error:'A public http/https source URL is required'},400);
+  const rawUrl=trim(b?.url||b?.analysis?.url,2000);if(!/^https?:\/\//i.test(rawUrl))return J({error:'A public http/https source URL is required'},400);
+  const url=canonicalSourceUrl(rawUrl),identity=sourceIdentity(rawUrl),st=sourceType(url,b.source_type);
   try{
-    const analysis=b?.analysis&&Array.isArray(b.analysis.signals)?b.analysis:await analyze(t,b);
+    const analysis=b?.analysis&&Array.isArray(b.analysis.signals)?b.analysis:await analyze(t,{...b,url:rawUrl});
     const all=Array.isArray(analysis?.signals)?analysis.signals.slice(0,20):[];
     const selected=Array.isArray(b?.selected_indexes)?b.selected_indexes.map(Number).filter((n:number)=>Number.isInteger(n)&&n>=0&&n<all.length).map((n:number)=>all[n]):all.filter((s:any)=>s?.signal_stage!=='noise');
-    if(!selected.length)return J({ok:true,url,analysis,saved:0,duplicates:0,intel_ids:[],rejected_cards:0});
+    if(!selected.length)return J({ok:true,url,original_url:rawUrl,source_identity:identity,analysis,saved:0,duplicates:0,intel_ids:[],rejected_cards:0});
 
-    const existing=await rest(t,`market_intel_items?select=intel_id,claim_type,direction,summary,market_intel_entities(entity_name)&user_id=eq.${encodeURIComponent(owner)}&source_url=eq.${encodeURIComponent(url)}&limit=200`).catch(()=>[]);
-    const seen=new Set((existing||[]).map((x:any)=>`${trim(x.claim_type,40).toLowerCase()}|${trim(x.direction,20).toLowerCase()}|${trim(x.market_intel_entities?.[0]?.entity_name,300).toLowerCase()}|${trim(x.summary,450).toLowerCase()}`));
-    const ids:string[]=[];let duplicates=0,rejectedCards=0,fuzzyCards=0;
+    const candidates=await rest(t,`market_intel_items?select=intel_id,source_url,claim_type,direction,summary,confidence,published_at,market_intel_entities(entity_name)&user_id=eq.${encodeURIComponent(owner)}&source_type=eq.${encodeURIComponent(st)}&order=observed_at.desc&limit=1000`).catch(()=>[]);
+    const existing=(candidates||[]).filter((x:any)=>sourceIdentity(String(x.source_url||''))===identity);
+    const seen=new Map((existing||[]).map((x:any)=>[canonical({claim_type:x.claim_type,direction:x.direction,entity_name:x.market_intel_entities?.[0]?.entity_name,summary:x.summary}),x]));
+    const ids:string[]=[];let duplicates=0,rejectedCards=0,fuzzyCards=0,updated=0;
     for(const s of selected){
       const entity=await normalizeEntity(s);if(entity.card_resolution==='rejected')rejectedCards++;if(entity.card_resolution==='fuzzy')fuzzyCards++;
-      const normalized={...s,entity_name:entity.entity_name,entity_type:entity.entity_type};
-      if(seen.has(canonical(normalized))){duplicates++;continue}
-      const inserted=await rest(t,'market_intel_items',{method:'POST',prefer:'return=representation',body:{user_id:owner,source_type:sourceType(url,b.source_type),source_name:sourceName(url,b.source_name),source_url:url,title:trim(analysis?.title||entity.entity_name,500)||null,author:trim(analysis?.author||b?.author,250)||null,summary:trim(s?.summary,1200)||null,claim_type:trim(s?.claim_type,40)||'other',direction:trim(s?.direction,20)||'neutral',signal_stage:trim(s?.signal_stage,30)||'unclassified',confidence:clamp(s?.confidence),published_at:analysis?.published_at||b?.published_at||null}});
+      const normalized={...s,entity_name:entity.entity_name,entity_type:entity.entity_type},fingerprint=canonical(normalized),hit=seen.get(fingerprint);
+      if(hit){
+        duplicates++;
+        const patch:any={source_url:url,confidence:Math.max(Number(hit.confidence||0),clamp(s?.confidence))};
+        if(!hit.published_at&&(analysis?.published_at||b?.published_at))patch.published_at=analysis?.published_at||b?.published_at;
+        await rest(t,`market_intel_items?intel_id=eq.${encodeURIComponent(hit.intel_id)}`,{method:'PATCH',prefer:'return=minimal',body:patch}).catch(()=>null);
+        updated++;
+        continue;
+      }
+      const inserted=await rest(t,'market_intel_items',{method:'POST',prefer:'return=representation',body:{user_id:owner,source_type:st,source_name:sourceName(url,b.source_name),source_url:url,title:trim(analysis?.title||entity.entity_name,500)||null,author:trim(analysis?.author||b?.author,250)||null,summary:trim(s?.summary,1200)||null,claim_type:trim(s?.claim_type,40)||'other',direction:trim(s?.direction,20)||'neutral',signal_stage:trim(s?.signal_stage,30)||'unclassified',confidence:clamp(s?.confidence),published_at:analysis?.published_at||b?.published_at||null}});
       const item=Array.isArray(inserted)?inserted[0]:inserted;if(!item?.intel_id)continue;
       await rest(t,'market_intel_entities',{method:'POST',prefer:'return=minimal',body:{intel_id:item.intel_id,user_id:owner,entity_type:entity.entity_type,entity_name:entity.entity_name,scryfall_id:entity.scryfall_id,set_code:entity.set_code,confidence:entity.confidence}});
-      ids.push(item.intel_id);seen.add(canonical(normalized));
+      ids.push(item.intel_id);seen.set(fingerprint,item);
     }
-    if(ids.length){await rpc(t,'refresh_market_intel_entity_links',{}).catch(()=>null);await rpc(t,'refresh_market_intel_evaluations',{}).catch(()=>null)}
-    return J({ok:true,url,analysis,saved:ids.length,duplicates,intel_ids:ids,rejected_cards:rejectedCards,fuzzy_cards:fuzzyCards,source_type:sourceType(url,b.source_type),source_name:sourceName(url,b.source_name),source_profile:trim(b.source_profile,60)||null,source_subtype:trim(b.source_subtype,60)||null,mode:scheduler?'scheduled':'user'});
+    if(ids.length||updated){await rpc(t,'refresh_market_intel_entity_links',{}).catch(()=>null);await rpc(t,'refresh_market_intel_evaluations',{}).catch(()=>null)}
+    return J({ok:true,url,original_url:rawUrl,source_identity:identity,analysis,saved:ids.length,duplicates,updated,intel_ids:ids,rejected_cards:rejectedCards,fuzzy_cards:fuzzyCards,source_type:st,source_name:sourceName(url,b.source_name),source_profile:trim(b.source_profile,60)||null,source_subtype:trim(b.source_subtype,60)||null,mode:scheduler?'scheduled':'user'});
   }catch(e){return J({error:(e as Error).message},502)}
 });
