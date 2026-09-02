@@ -14,6 +14,7 @@ function bestExit(c){
   return routes[0]||null;
 }
 function directMissing(c){return hasPrice(c.tcg_direct_net)?'':'<span class="cx-sealed-mobile-econ-missing">No Direct listing</span>'}
+function scoutUrl(c){const u=new URL(location.href);for(const k of ['sealed','sealedView','q','status','settype','set','lang','buylist_backed'])u.searchParams.delete(k);u.searchParams.set('tab','scout');if(c?.sku_id)u.searchParams.set('sku',c.sku_id);else{u.searchParams.set('card',c?.card_name||'');u.searchParams.set('set',c?.set_code||'');u.searchParams.set('finish',c?.finish||'')}return `${u.pathname}?${u.searchParams.toString()}${u.hash}`}
 
 function accordion(cards){
   if(!cards?.length)return '';
@@ -30,7 +31,7 @@ function accordion(cards){
       statIf('CK buylist',c.cardkingdom_buylist),
       statIf('TCG Direct net',c.tcg_direct_net)
     ].filter(Boolean).join('');
-    return `<details class="cx-sealed-mobile-econ-row"><summary><div><strong>${esc(c.card_name||'Unknown card')}</strong><small>${esc(c.set_code||'')} #${esc(c.collector_number||'—')} · ×${qty.toLocaleString()} · ${esc(human(c.finish||''))}</small></div><div class="cx-sealed-mobile-econ-primary">${primary}</div></summary><div class="cx-sealed-mobile-econ-grid">${tiles}${directMissing(c)}</div></details>`;
+    return `<details class="cx-sealed-mobile-econ-row"><summary><a class="cx-sealed-mobile-card-link" href="${esc(scoutUrl(c))}"><strong>${esc(c.card_name||'Unknown card')}</strong><small>${esc(c.set_code||'')} #${esc(c.collector_number||'—')} · ×${qty.toLocaleString()} · ${esc(human(c.finish||''))}</small></a><div class="cx-sealed-mobile-econ-primary">${primary}</div></summary><div class="cx-sealed-mobile-econ-grid">${tiles}${directMissing(c)}</div></details>`;
   }).join('')}</div>`;
 }
 
