@@ -35,15 +35,15 @@ function extValue(p:any,names:string[]){
   for(const x of p?.extendedData||[]){if(wanted.has(norm(x?.name)))return String(x?.value??'').trim()}
   return '';
 }
-function collectorNumber(p:any){return extValue(p,['Number','Collector Number','Card Number']).replace(/^#/, '').trim()}
+function collectorNumber(p:any){return extValue(p,['Number','Collector Number','Card Number']).replace(/^#/,'').trim()}
 function productName(p:any){return String(p?.name||p?.cleanName||'').trim()}
+function skuIds(p:any){return (p?.skus||p?.sku||[]).map((x:any)=>String(x?.skuId??x?.id??'')).filter((x:string)=>/^\d+$/.test(x))}
 
 async function findZetaGroup(t:string){
-  // TCGplayer category 1 is Magic. Check newest groups first; stop as soon as SLZ/Zeta is found.
+  // Magic category = 1. Newest groups first means this should normally be one request.
   let offset=0;
-  for(let page=0;page<8;page++){
-    const q=`/catalog/categories/1/groups?offset=${offset}&limit=100&sortOrder=PublishedOn&sortDesc=true`;
-    const j=await api(q,t),rows=j?.results||[];
+  for(let page=0;page<4;page++){
+    const j=await api(`/catalog/categories/1/groups?offset=${offset}&limit=100&sortOrder=PublishedOn&sortDesc=true`,t),rows=j?.results||[];
     const hit=rows.find((g:any)=>norm(g?.abbreviation)==='slz'||norm(g?.name).includes('zeta set')||norm(g?.name).includes('secret lair x mschf'));
     if(hit)return hit;
     if(rows.length<100||offset+rows.length>=Number(j?.totalItems||0))break;
@@ -54,27 +54,12 @@ async function findZetaGroup(t:string){
 async function allProductsForGroup(groupId:number,t:string){
   const out:any[]=[];let offset=0;
   for(let page=0;page<10;page++){
-    const q=`/catalog/products?groupId=${groupId}&includeSkus=true&getExtendedFields=true&offset=${offset}&limit=250`;
-    const j=await api(q,t),rows=j?.results||[];out.push(...rows);
+    const j=await api(`/catalog/products?groupId=${groupId}&includeSkus=true&getExtendedFields=true&offset=${offset}&limit=250`,t),rows=j?.results||[];
+    out.push(...rows);
     if(!rows.length||rows.length<250||out.length>=Number(j?.totalItems||0))break;
     offset+=rows.length;
   }
   return out;
-}
-function skuIds(p:any){return (p?.skus||p?.sku||[]).map((x:any)=>String(x?.skuId??x?.id??'')).filter((x:string)=>/^\d+$/.test(x))}
-async function officialPrices(productId:string,skus:string[],t:string){
-  if(!skus.length)return 0;
-  const rows:any[]=[];
-  for(let i=0;i<skus.length;i+=50){
-    const part=skus.slice(i,i+50),j=await api(`/pricing/sku/${part.join(',')}`,t).catch(()=>null);
-    for(const x of j?.results||[])rows.push({sku_id:String(x.skuId),product_id:productId,low_price:x.lowPrice,lowest_shipping:x.lowestShipping,lowest_listing_price:x.lowestListingPrice,market_price:x.marketPrice,direct_low_price:x.directLowPrice,observed_at:new Date().toISOString(),source:'zeta_tcgplayer_official_catalog'});
-  }
-  if(rows.length){
-    await rest('tcgplayer_official_sku_price_current?on_conflict=sku_id',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:rows});
-    const hist=rows.map(x=>({...x,observed_hour:new Date(x.observed_at).toISOString().slice(0,13)+':00:00.000Z'}));
-    await rest('tcgplayer_official_sku_price_history?on_conflict=sku_id,observed_hour',{method:'POST',prefer:'resolution=ignore-duplicates,return=minimal',body:hist}).catch(()=>null);
-  }
-  return rows.length;
 }
 
 Deno.serve(async(req:Request)=>{
@@ -82,29 +67,29 @@ Deno.serve(async(req:Request)=>{
   if(req.method!=='POST')return J({error:'POST required'},405);
   if(!(await cronOk(req.headers.get('x-collectish-cron-key')||'')))return J({error:'Unauthorized'},401);
   try{
+    const context=await rest('secret_lair_randomized_tcg_discovery_context?select=user_id,randomized_product_id,randomized_card_printing_id,card_name,rarity,collector_number,treatment_canonical_name&limit=500');
+    const existing=await rest('secret_lair_randomized_tcgplayer_printings?select=randomized_card_printing_id,discovery_status&discovery_status=eq.confirmed&limit=500').catch(()=>[]);
+    if((context||[]).length>0&&(existing||[]).length>=(context||[]).length){
+      return J({ok:true,status:'mapping_complete',source:'local_mapping_state',confirmed:(existing||[]).length,context_count:(context||[]).length,tcgplayer_calls:0});
+    }
+
     const t=await token();
     const group=await findZetaGroup(t);
     if(!group)return J({ok:true,status:'set_not_published',source:'tcgplayer_official_catalog',checked:'magic_groups'});
 
     const products=await allProductsForGroup(Number(group.groupId),t);
-    const context=await rest('secret_lair_randomized_tcg_discovery_context?select=user_id,randomized_product_id,randomized_card_printing_id,card_name,rarity,collector_number,treatment_canonical_name&limit=500');
     const byKey=new Map<string,any>();
-    for(const p of products){
-      const cn=collectorNumber(p);if(!cn)continue;
-      const key=`${norm(productName(p))}|${norm(cn)}`;
-      byKey.set(key,p);
-    }
+    for(const p of products){const cn=collectorNumber(p);if(cn)byKey.set(`${norm(productName(p))}|${norm(cn)}`,p)}
 
-    let confirmed=0,unmatched=0,priceRows=0;const now=new Date().toISOString(),saveRows:any[]=[];
+    const now=new Date().toISOString(),saveRows:any[]=[];let matched=0,unmatched=0,skuCount=0;
     for(const c of context||[]){
-      const key=`${norm(c.card_name)}|${norm(c.collector_number)}`,p=byKey.get(key);
+      const p=byKey.get(`${norm(c.card_name)}|${norm(c.collector_number)}`);
       if(!p){unmatched++;continue}
-      const skus=skuIds(p),pid=String(p.productId);
-      saveRows.push({user_id:c.user_id,randomized_product_id:c.randomized_product_id,randomized_card_printing_id:c.randomized_card_printing_id,tcgplayer_product_id:pid,tcgplayer_sku_ids:skus,product_name:productName(p),set_name:group.name||'The Zeta Set',discovery_query:null,discovery_confidence:1,discovery_status:'confirmed',discovery_source:'tcgplayer_official_group_products',first_seen_at:now,last_seen_at:now,last_attempt_at:now,details:{group_id:group.groupId,group_name:group.name,group_abbreviation:group.abbreviation,collector_number:collectorNumber(p),modified_on:p.modifiedOn||null},updated_at:now});
-      confirmed++;priceRows+=await officialPrices(pid,skus,t).catch(()=>0);
+      const skus=skuIds(p);skuCount+=skus.length;matched++;
+      saveRows.push({user_id:c.user_id,randomized_product_id:c.randomized_product_id,randomized_card_printing_id:c.randomized_card_printing_id,tcgplayer_product_id:String(p.productId),tcgplayer_sku_ids:skus,product_name:productName(p),set_name:group.name||'The Zeta Set',discovery_query:null,discovery_confidence:1,discovery_status:'confirmed',discovery_source:'tcgplayer_official_group_products',first_seen_at:now,last_seen_at:now,last_attempt_at:now,details:{group_id:group.groupId,group_name:group.name,group_abbreviation:group.abbreviation,collector_number:collectorNumber(p),modified_on:p.modifiedOn||null},updated_at:now});
     }
     if(saveRows.length)await rest('secret_lair_randomized_tcgplayer_printings?on_conflict=user_id,randomized_card_printing_id',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:saveRows});
 
-    return J({ok:true,status:'set_published',source:'tcgplayer_official_catalog',group:{group_id:group.groupId,name:group.name,abbreviation:group.abbreviation,published_on:group.publishedOn,modified_on:group.modifiedOn},product_count:products.length,context_count:(context||[]).length,confirmed,unmatched,sku_price_rows:priceRows});
+    return J({ok:true,status:'set_published',source:'tcgplayer_official_catalog',group:{group_id:group.groupId,name:group.name,abbreviation:group.abbreviation,published_on:group.publishedOn,modified_on:group.modifiedOn},product_count:products.length,context_count:(context||[]).length,matched,unmatched,sku_count:skuCount});
   }catch(e){return J({error:String((e as Error)?.message||e)},502)}
 });
