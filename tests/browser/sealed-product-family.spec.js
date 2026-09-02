@@ -12,10 +12,10 @@ test('Sealed product-family surface is adapter-backed and set-aware', async()=>{
   expect(family).toContain('coverage_state');
   expect(family).toContain('recommendation_eligible');
   expect(family).toContain('cxSealedFamilySet');
-  expect(family).toContain('TCG Low EV');
-  expect(family).toContain('Direct-first net');
-  expect(family).toContain('Collectish live out');
-  expect(family).toContain('TCG Market is reference-only');
+  expect(family).toContain('Practical EV');
+  expect(family).toContain('Median est.');
+  expect(family).toContain('Top-10 share');
+  expect(family).toContain('randomized SYP');
   expect(family).not.toContain('&set_code=eq.HOB');
 });
 
@@ -25,7 +25,6 @@ test('coverage gate blocks incomplete sealed recommendations', async()=>{
   expect(family).toContain('recommendation_eligible');
   expect(family).toContain('MODEL PENDING');
   expect(family).toContain('BUY & CRACK');
-  expect(family).toContain('GROSS EV ONLY');
 });
 
 test('generic collation registry preserves Hobbit as first full data profile', async()=>{
@@ -82,25 +81,38 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
   expect(renderer).toContain('sealed.detail:v4:');
   expect(renderer).toContain("rest('rpc/get_sealed_family_economics_fast'");
-  expect(renderer).toContain("metric('Collectish EV'");
+  expect(renderer).toContain("metric('Practical EV'");
   expect(renderer).toContain("metric('TCG Low EV'");
-  expect(renderer).toContain("metric('Collectish spread'");
+  expect(renderer).toContain("metric('Practical spread'");
   expect(renderer).toContain('loadListEconomics(products)');
   expect(renderer).not.toContain('sealed_product_family_economics?select=crack_gross_mean_ev');
   expect(renderer).toContain('Included sealed products');
   expect(renderer).toContain('Included packs · TCG Low');
-  expect(renderer).toContain('Included packs · Collectish');
-  expect(renderer).toContain('Fixed-card Collectish EV');
-  expect(renderer).toContain('Collectish live-out EV');
+  expect(renderer).toContain('Included packs · practical');
+  expect(renderer).toContain('Fixed-card live-out EV');
+  expect(renderer).toContain('Practical liquidation EV');
   expect(renderer).toContain('Market excluded');
   expect(renderer).toContain('sealed_product_executable_ev_cache?');
   const optimizer=await read('src/modules/sealed/out-optimizer.js');
   expect(optimizer).toContain("(num(row.optimized_live_out_ev)||0)+childNet");
   expect(optimizer).toContain("(num(row.optimized_with_syp_potential_ev)||0)+childNet");
   expect(optimizer).toContain('Included Products Net');
-  expect(optimizer).toContain('Randomized live out');
+  expect(optimizer).toContain('Randomized practical out');
   expect(optimizer).toContain('fixed cards only');
   expect(optimizer).toContain('SYP and last-known Direct are excluded from randomized EV');
+});
+
+test('practical sealed EV discounts liquidity and gates recommendations',async()=>{
+  const migration=await read('supabase/migrations/20260902230205_sealed_practical_liquidation_ev.sql');
+  expect(migration).toContain('collectish_velocity_factor');
+  expect(migration).toContain('practical_liquidation_ev');
+  expect(migration).toContain('top10_practical_ev_share_pct');
+  expect(migration).toContain('practical_median_estimate');
+  expect(migration).toContain("then 'PRICE COVERAGE LOW'");
+  expect(migration).toContain("then 'CHASE DEPENDENT'");
+  expect(migration).toContain("sealed_low_price*1.15");
+  expect(migration).not.toContain('syp_products');
+  expect(migration).not.toContain('market_value');
 });
 
 test('sealed executable EV uses live price channels and excludes randomized SYP',async()=>{
