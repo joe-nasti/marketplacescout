@@ -65,7 +65,7 @@ function section(title,sub,items,rowFn,error=''){
 function render(){
   const h=host();if(!h||!ready())return;
   let panel=document.getElementById('cxCommanderIntel');
-  if(!panel){panel=document.createElement('section');panel.id='cxCommanderIntel';panel.className='cx-card';const comp=document.getElementById('cxCompetitiveIntel'),layout=h.querySelector('.cx-signals-layout');if(comp)comp.insertAdjacentElement('afterend',panel);else if(layout)layout.insertAdjacentElement('beforebegin',panel);else h.appendChild(panel)}
+  if(!panel){panel=document.createElement('section');panel.id='cxCommanderIntel';panel.className='cx-card';panel.hidden=h.dataset.signalsView!=='commander';const comp=document.getElementById('cxCompetitiveIntel'),layout=h.querySelector('.cx-signals-layout');if(comp)comp.insertAdjacentElement('afterend',panel);else if(layout)layout.insertAdjacentElement('beforebegin',panel);else h.appendChild(panel)}
   const established=edhEstablished(),breakouts=edhBreakouts(),cedh=cedhEstablished(),cedhUp=cedhBreakouts(),cedhCards=cedhCardEstablished(),cedhRecent=cedhCardRecent(),cedhCardUp=cedhCardBreakouts();
   const history=edhRows.length?Math.max(0,...edhRows.map(r=>Number(r.history_days||0))):null;
   const latest=cedhEvents.slice(0,4).map(e=>`${e.event_name} · ${e.player_count||e.published_deck_count||'?'} players`).join(' · ');

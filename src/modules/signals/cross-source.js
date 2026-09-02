@@ -37,7 +37,7 @@ function section(title,sub,data){return `<div class="cx-section-title">${esc(tit
 function render(){
   const h=host();if(!h||!ready())return;
   let panel=document.getElementById('cxCrossSourceIntel');
-  if(!panel){panel=document.createElement('section');panel.id='cxCrossSourceIntel';panel.className='cx-card';const comp=document.getElementById('cxCompetitiveIntel'),layout=h.querySelector('.cx-signals-layout');if(comp)comp.insertAdjacentElement('beforebegin',panel);else if(layout)layout.insertAdjacentElement('beforebegin',panel);else h.appendChild(panel)}
+  if(!panel){panel=document.createElement('section');panel.id='cxCrossSourceIntel';panel.className='cx-card';panel.hidden=h.dataset.signalsView!=='scan';const comp=document.getElementById('cxCompetitiveIntel'),layout=h.querySelector('.cx-signals-layout');if(comp)comp.insertAdjacentElement('beforebegin',panel);else if(layout)layout.insertAdjacentElement('beforebegin',panel);else h.appendChild(panel)}
   if(loading){panel.innerHTML=`<div class="cx-section-title">High-conviction watches</div><p class="cx-sub">Cross-source corroboration across competitive play, Commander demand, community intelligence and Scout market setup.</p><div class="cx-empty">Loading cross-source watches…</div>`;return}
   if(error){panel.innerHTML=`<div class="cx-section-title">High-conviction watches</div><p class="cx-sub">Cross-source corroboration is context only and does not change the Scout grade.</p><div class="cx-empty">Unavailable: ${esc(error)}</div>`;return}
   const e=emerging(),b=broad();
