@@ -58,8 +58,8 @@ jobs:
       MTGJSON_BASE_URL: https://mtgjson.com/api/v5
       MTGJSON_SET_CODES: CMM,ACR
       MTGJSON_SET_WORKERS: "1"
-      MTGJSON_NATIVE_BOOSTER_SETS: CMM
-      MTGJSON_NATIVE_BOOSTER_CODES: draft,set,collector,collector-sample
+      MTGJSON_NATIVE_BOOSTER_SETS: CMM,ACR
+      MTGJSON_NATIVE_BOOSTER_CODES: draft,set,collector,collector-sample,default
       MTGJSON_NATIVE_BOOSTER_SAMPLES: "30000"
     steps:
       - uses: actions/checkout@v4
