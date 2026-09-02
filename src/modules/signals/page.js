@@ -12,4 +12,6 @@ export async function install(){
   await details.install();
   const forward=await import('./secret-lair-forward-test.js');
   await forward.install();
+  const zeta=await import('./secret-lair-zeta.js');
+  await zeta.install();
 }
