@@ -3,6 +3,11 @@ import { invokeFunction } from '../../core/functions.js';
 const recent=new Map();
 const TTL=6*60*60*1000;
 let installed=false;
+function scheduleDiscovery(row){
+  const run=()=>void discover(row);
+  if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:5000});
+  else setTimeout(run,1500);
+}
 
 function rowForButton(button){
   const host=document.getElementById('cxUniversalResults');
@@ -49,7 +54,7 @@ export function installOnDemandSkuDiscovery(){
     const button=event.target?.closest?.('[data-universal-sku]');
     if(!button)return;
     const row=rowForButton(button);
-    if(row?.product_id)void discover(row);
+    if(row?.product_id)scheduleDiscovery(row);
   },true);
 }
 

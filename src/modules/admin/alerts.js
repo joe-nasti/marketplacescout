@@ -2,7 +2,16 @@ import { registerComponent } from '../../core/lifecycle.js';
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const age=t=>{if(!t)return'';const ms=Math.max(0,Date.now()-new Date(t).getTime()),m=Math.round(ms/60000);if(m<2)return'just now';if(m<60)return`${m}m ago`;const h=Math.round(m/60);return h<48?`${h}h ago`:`${Math.round(h/24)}d ago`};
-let loading=false,installed=false;
+let loading=false,installed=false,unavailable=false,scheduled=false;
+
+function permissionDenied(error){return /permission denied|\b401\b|\b403\b/i.test(String(error?.message||error||''))}
+function scheduleRender(){
+  if(scheduled||unavailable)return;
+  scheduled=true;
+  const run=()=>{scheduled=false;void render()};
+  if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:3000});
+  else setTimeout(run,1000);
+}
 
 async function resolveBusiness(key){
   await rest('rpc/collectish_resolve_alert',{method:'POST',body:{p_alert_key:key}});
@@ -20,7 +29,7 @@ function card(a){
 }
 
 async function render(){
-  const admin=document.getElementById('cxAdmin');if(!admin||!admin.classList.contains('active')||loading)return;
+  const admin=document.getElementById('cxAdmin');if(!admin||!admin.classList.contains('active')||loading||unavailable)return;
   loading=true;
   try{
     const rows=await rest('collectish_alerts?select=id,alert_key,category,severity,title,message,action_screen,metadata_json,last_seen_at,occurrence&resolved_at=is.null&order=severity.desc,last_seen_at.desc&limit=30');
@@ -32,9 +41,16 @@ async function render(){
     host.innerHTML=`<div class="cx-admin-alert-head"><div><div class="cx-section-title">Needs attention</div><p>${ops?`${ops} operational`:''}${ops&&biz?' · ':''}${biz?`${biz} business`:''}</p></div></div><div class="cx-admin-alert-list">${rows.map(card).join('')}</div>`;
     host.querySelectorAll('[data-alert-open]').forEach(b=>b.onclick=()=>window.CollectishShell?.switchPage?.(b.dataset.alertOpen));
     host.querySelectorAll('[data-alert-dismiss]').forEach(b=>b.onclick=()=>resolveBusiness(b.dataset.alertDismiss).catch(console.error));
-  }catch(e){console.warn('Admin alerts load failed',e)}finally{loading=false}
+  }catch(e){
+    if(permissionDenied(e)){
+      unavailable=true;
+      const host=admin.querySelector('#cxAdminAlerts');if(host)host.hidden=true;
+      return;
+    }
+    console.warn('Admin alerts load failed',e);
+  }finally{loading=false}
 }
 
-function install(){if(installed)return;installed=true;document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='admin')setTimeout(render,0)});document.addEventListener('collectish:ready',()=>{if(document.getElementById('cxAdmin')?.classList.contains('active'))render()});setInterval(()=>{if(document.getElementById('cxAdmin')?.classList.contains('active'))render()},5*60*1000)}
+function install(){if(installed)return;installed=true;document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='admin')scheduleRender()});document.addEventListener('collectish:ready',()=>{if(document.getElementById('cxAdmin')?.classList.contains('active'))scheduleRender()});setInterval(()=>{if(document.getElementById('cxAdmin')?.classList.contains('active'))scheduleRender()},5*60*1000)}
 
 registerComponent('admin-alerts',{mount:install});
