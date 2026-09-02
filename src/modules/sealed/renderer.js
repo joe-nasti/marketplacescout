@@ -180,7 +180,10 @@ function econTable(cards){
 function componentSummary(children,family){if(!children.length)return'';const total=Number(family?.crack_gross_mean_ev||0),net=Number(family?.crack_net_mean_ev||0),fixed=Number(family?.fixed_tcg_market_ev||0),booster=children.reduce((n,c)=>n+Number(c.quantity||0)*Number(c.crack_gross_mean_ev||0),0),boosterNet=children.reduce((n,c)=>n+Number(c.quantity||0)*Number(c.crack_net_mean_ev||0),0);return `<section class="cx-sealed-component-summary"><div class="cx-section-title">Included sealed products</div><div class="cx-sealed-child-econ-head"><span>Product</span><span>Qty</span><span>Gross / unit</span><span>Gross EV</span><span>Net EV</span></div>${children.map(c=>{const qty=Number(c.quantity||0),gross=Number(c.crack_gross_mean_ev||0),childNet=Number(c.crack_net_mean_ev||0);return `<div class="cx-sealed-component-row"><strong>${esc(c.child_product_name)}</strong><span data-mobile-label="Qty">${qty.toLocaleString()}</span><span>${money(gross)}</span><span>${money(qty*gross)}</span><span data-mobile-label="Net EV">${money(qty*childNet)}</span></div>`}).join('')}<div class="cx-sealed-component-rollup"><span><small>Included products · gross</small><b>${money(booster)}</b></span><span><small>Fixed-card EV</small><b>${money(fixed)}</b></span><span class="total"><small>Total modeled EV</small><b>${money(total)}</b></span><span><small>Included products · net</small><b>${money(boosterNet)}</b></span><span><small>Total modeled net</small><b>${money(net)}</b></span></div></section>`}
 
 async function loadDetailData(r){
-  return loadResource(`sealed.detail:${r.sealed_uuid}`,async()=>{
+  // Version the persisted detail contract whenever its payload grows. Older
+  // IndexedDB entries predate family/child economics and otherwise render once
+  // as zeroes while a background refresh completes without repainting.
+  return loadResource(`sealed.detail:v2:${r.sealed_uuid}`,async()=>{
     const [cards,price,contents,family,children]=await Promise.all([
       rest('rpc/get_sealed_component_economics',{method:'POST',body:{p_sealed_uuid:r.sealed_uuid}}).catch(()=>[]),
       rest(`sealed_product_price_current?select=product_id,market_price,low_price,low_with_shipping,total_listings,captured_at&source=eq.tcgplayer_public&sealed_uuid=eq.${encodeURIComponent(r.sealed_uuid)}&limit=1`).catch(()=>[]),
