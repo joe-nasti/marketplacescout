@@ -12,13 +12,13 @@ if not SUPABASE_URL or not SERVICE_KEY: raise RuntimeError('Supabase credentials
 
 def now(): return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
 
-def sb(path,method='GET',body=None,prefer=None):
+def sb(path,method='GET',body=None,prefer=None,attempts=5):
     url=f'{SUPABASE_URL}/rest/v1/{path}'
     data=None if body is None else json.dumps(body,separators=(',',':')).encode()
     headers={'apikey':SERVICE_KEY,'Authorization':f'Bearer {SERVICE_KEY}','Content-Type':'application/json'}
     if prefer:headers['Prefer']=prefer
     last=None
-    for attempt in range(5):
+    for attempt in range(attempts):
         try:
             req=urllib.request.Request(url,data=data,headers=headers,method=method)
             with urllib.request.urlopen(req,timeout=120) as r:
@@ -60,8 +60,8 @@ def get_cards(uuids):
 
 def get_prices(uuids):
     out={}
-    for part in chunks(sorted(uuids),250):
-        rows=sb('rpc/get_preferred_prices_for_uuids','POST',{'p_uuids':part}) or []
+    for part in chunks(sorted(uuids),40):
+        rows=sb('rpc/get_preferred_prices_for_uuids','POST',{'p_uuids':part},attempts=2) or []
         for r in rows:out[(r['uuid'],str(r.get('finish') or 'normal').lower())]=r
     return out
 
