@@ -78,7 +78,7 @@ function queueRecompute(){
 }
 
 document.addEventListener('collectish:intel-changed',queueRecompute);
-document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>void refresh())});
-document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')queueMicrotask(()=>void refresh())});
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals')setTimeout(()=>void refresh(),2100)});
+document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')setTimeout(()=>void refresh(),2100)});
 
 export { refresh as refreshIntelMarketEvaluations };
