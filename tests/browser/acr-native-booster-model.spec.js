@@ -12,6 +12,8 @@ test('ACR native booster rollout is exact-identity and fingerprint gated',async(
   expect(worker).toContain("booster_code=='default'");
   expect(worker).toContain("adapter='beyond_booster_mtgjson_v1'");
   expect(worker).toContain('chunks(sorted(uuids),40)');
+  expect(worker).toContain('tcgplayer_preferred_price_current_cache?select=uuid,finish');
+  expect(worker).not.toContain("rpc/get_preferred_prices_for_uuids");
   expect(worker).toContain("attempts=2");
   expect(workflow).toContain('MTGJSON_NATIVE_BOOSTER_SETS: CMM,ACR');
   expect(workflow).toContain('draft,set,collector,collector-sample,default');
