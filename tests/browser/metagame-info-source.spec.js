@@ -64,3 +64,12 @@ test('article ingestion scopes duplicate detection to the canonical source URL',
   expect(src).toContain('&limit=100`');
   expect(src).not.toContain('&limit=1000`');
 });
+
+test('Metagame rendered captures are persisted before analysis and reused on retry',async({},testInfo)=>{
+  test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
+  const src=await read('supabase/functions/market-intel-curated-content-sync/index.ts');
+  expect(src).toContain('select=capture_id,payload_json,payload_text,metadata_json');
+  expect(src).toContain("['zyte_browser_html','exa_indexed_search'].includes(cachedMode)");
+  expect(src).toContain('payload_text:capturedText||null');
+  expect(src).toContain('payload_text:capturedText,content_type');
+});
