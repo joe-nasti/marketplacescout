@@ -1,6 +1,7 @@
 // Browser-native + Vite-compatible entrypoint. CSS is linked from index.html so raw ESM fallback works too.
 // CSS source: ./styles/index.css
 // Bootstrap ownership contract: guarded app.js owns ./core/shell.js, ./state/store.js, and ./modules/index.js.
+window.__CollectishStartupStartedAt=performance.now();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function shouldRecoverModuleFailure(message){
