@@ -16,11 +16,12 @@ test('Sealed mounts the MTGJSON product-family economics pilot', async()=>{
   expect(family).toContain('GROSS EV ONLY');
 });
 
-test('Hobbit family UI does not treat partial component EV as complete', async()=>{
+test('Hobbit family UI never grades component-only lower bounds', async()=>{
   const family=await read('src/modules/sealed/product-family.js');
-  expect(family).toContain("!r.crack_value_complete");
-  expect(family).toContain('EXTRAS PENDING');
-  expect(family).toContain('partial component floor');
+  expect(family).toContain("r.crack_value_basis==='modeled_children_lower_bound'");
+  expect(family).toContain('COMPONENT FLOOR');
+  expect(family).toContain('component floor · extras pending');
+  expect(family).toContain('it is never a buy/keep recommendation');
 });
 
 test('Play Booster backtest preserves rounded-probability caveat', async()=>{
