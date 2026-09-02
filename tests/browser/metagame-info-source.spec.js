@@ -56,3 +56,11 @@ test('Metagame challenge detection ignores dormant Cloudflare scripts on real ar
   expect(src).toContain("const rendered=text(html)");
   expect(src).not.toContain("|\\/cdn-cgi\\/challenge-platform\\/|");
 });
+
+test('article ingestion scopes duplicate detection to the canonical source URL',async({},testInfo)=>{
+  test.skip(testInfo.project.name!=='desktop-chromium','source contract only needs one project');
+  const src=await read('supabase/functions/market-intel-ingest/index.ts');
+  expect(src).toContain('&source_url=eq.${encodeURIComponent(url)}');
+  expect(src).toContain('&limit=100`');
+  expect(src).not.toContain('&limit=1000`');
+});
