@@ -18,6 +18,7 @@ const watchLabel=v=>({standard_watch:'STANDARD WATCH',recent_card:'RECENT CARD',
 const watchClass=v=>v==='adoption_breakout'?'leading':v==='standard_watch'||v==='recent_card'?'confirming':'unclassified';
 function host(){return document.getElementById('cxSignals')}
 function signalsReady(){return host()?.dataset.cxLazyReady==='1'}
+function active(){return signalsReady()&&host()?.dataset.signalsView==='competitive'}
 function coverageLabel(e){return e?.coverage_type==='curated_sample'?'curated sample':e?.coverage_type==='partial_event'?'published subset':e?.coverage_type==='complete_event'?'complete event':'coverage unknown'}
 function actionable(r){const decks=Number(r.deck_count_30d||0),top8=Number(r.top8_decks_30d||0);if(r.watch_class==='standard_watch')return decks>=2||top8>=1;if(r.watch_class==='recent_card')return decks>=3||top8>=1;if(r.watch_class==='adoption_breakout')return true;return decks>=3&&top8>=1}
 function emergingGroups(){const clean=emergingRows.filter(actionable);return {
@@ -76,8 +77,9 @@ async function sync(){
   if(btn){btn.disabled=true;btn.textContent='Refreshing…'}syncMessage='Importing the next recent Standard/Pioneer/Modern/Legacy premier results…';render();
   try{const session=await validSession();if(!session)throw new Error('Sign in required');const r=await fetch(`${collectishConfig.supabaseUrl}/functions/v1/competitive-mtgo-sync`,{method:'POST',signal:controller.signal,headers:{apikey:collectishConfig.publishableKey,Authorization:`Bearer ${session.token}`,'Content-Type':'application/json'},body:JSON.stringify({limit:4,prefer_formats:['Standard','Pioneer','Modern','Legacy'],skip_imported:true})});const text=await r.text();let data;try{data=text?JSON.parse(text):{}}catch{data={error:text}};if(!r.ok)throw new Error(data?.error||`MTGO sync HTTP ${r.status}`);syncMessage=`Imported ${data.events||0} new event${Number(data.events)===1?'':'s'}, ${data.decks||0} decks and ${data.cards||0} card rows.${data.skipped_imported?` Skipped ${data.skipped_imported} already-imported event${Number(data.skipped_imported)===1?'':'s'}.`:''}`;lastLoadedAt=0;await load({force:true});document.dispatchEvent(new CustomEvent('collectish:competitive-changed',{detail:data}))}catch(e){syncMessage=e?.name==='AbortError'?'MTGO refresh timed out after 65 seconds.':(e?.message||'Could not refresh MTGO results.');render()}finally{clearTimeout(timer);const current=document.getElementById('cxRefreshMtgo');if(current){current.disabled=false;current.textContent=original}}
 }
-document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals'&&signalsReady())queueMicrotask(ensureLoaded)});
-document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals')queueMicrotask(ensureLoaded)});
+document.addEventListener('collectish:page-change',e=>{if(e.detail?.page==='signals'&&active())queueMicrotask(ensureLoaded)});
+document.addEventListener('collectish:lazy-page-loaded',e=>{if(e.detail?.page==='signals'&&active())queueMicrotask(ensureLoaded)});
+document.addEventListener('collectish:signals-view-change',e=>{if(e.detail?.view==='competitive')queueMicrotask(ensureLoaded)});
 document.addEventListener('collectish:competitive-changed',()=>{lastLoadedAt=0;if(signalsReady())void load({force:true})});
 if(signalsReady())queueMicrotask(ensureLoaded);
 export {load as loadCompetitiveIntel,sync as syncCompetitiveMtgo};
