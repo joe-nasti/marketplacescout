@@ -80,6 +80,9 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
   expect(renderer).toContain('sealed.detail:v4:');
   expect(renderer).toContain("rest('rpc/get_sealed_family_economics_fast'");
+  expect(renderer).toContain("metric('Modeled EV'");
+  expect(renderer).toContain("metric('Modeled spread'");
+  expect(renderer).toContain('loadListEconomics(products)');
   expect(renderer).not.toContain('sealed_product_family_economics?select=crack_gross_mean_ev');
   expect(renderer).toContain('Included sealed products');
   expect(renderer).toContain('Included products · gross');
