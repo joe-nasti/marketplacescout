@@ -47,7 +47,7 @@ jobs:
       - run: node --check cloud-worker/mtgjson-sync.mjs cloud-worker/refresh-sealed-commander-prices.mjs cloud-worker/refresh-enabled-sealed.mjs cloud-worker/archive-sealed-price-current.mjs cloud-worker/refresh-precon-direct.mjs cloud-worker/refresh-precon-ev.mjs
       - run: python -m py_compile cloud-worker/mtgjson-parquet-sync.py cloud-worker/mtgjson-set-sealed-sync.py cloud-worker/mtgjson-native-booster-backtest.py cloud-worker/mtgjson-deck-sku-sync.py cloud-worker/mtgjson-deck-metadata-sync.py cloud-worker/mtgjson-deck-content-sync.py
 
-  hydrate-cmm:
+  hydrate-native-booster-sets:
     if: github.event_name == 'push'
     needs: validate
     runs-on: ubuntu-latest
@@ -56,7 +56,7 @@ jobs:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       MTGJSON_BASE_URL: https://mtgjson.com/api/v5
-      MTGJSON_SET_CODES: CMM
+      MTGJSON_SET_CODES: CMM,ACR
       MTGJSON_SET_WORKERS: "1"
       MTGJSON_NATIVE_BOOSTER_SETS: CMM
       MTGJSON_NATIVE_BOOSTER_CODES: draft,set,collector,collector-sample
@@ -67,9 +67,9 @@ jobs:
         with: { python-version: "3.12" }
       - name: Require service role key
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
-      - name: Hydrate Commander Masters native booster metadata
+      - name: Hydrate native booster metadata
         run: python cloud-worker/mtgjson-set-sealed-sync.py
-      - name: Backtest Commander Masters native boosters
+      - name: Backtest verified native boosters
         run: python cloud-worker/mtgjson-native-booster-backtest.py
 
   sync:
