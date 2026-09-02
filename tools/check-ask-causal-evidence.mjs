@@ -20,24 +20,27 @@ for(const token of [
   'older events are background only',
   'no_relevant_sources:true',
   "return'Video'",
-  'creatorVideoScore',
-  'creator_video_score',
+  'creatorContext',
+  'creatorSignals',
+  'attention_impact',
+  'evidence_quality',
   'featured_commander',
   'meaningful_performance',
   'creator_attention_event_count',
-  'videos are FIRST-CLASS catalyst evidence',
-  'The Command Zone',
-  'Game Knights',
-  'Extra Turns',
-  'targeted video searches'
+  'FIRST-CLASS catalyst evidence',
+  'competitive playtesting',
+  'finance/speculation',
+  'originator',
+  'amplifier'
 ]){
   if(!web.includes(token))throw new Error(`missing catalyst evidence token: ${token}`);
 }
 if(/market_linking_source_count===0\)\{answer=`Causal confidence: LOW/.test(web))throw new Error('explicit market linkage must not be a hard veto on inferred catalysts');
-if(!/Explicit MTG buying commentary upgrades an inference to CONFIRMED but is not required/.test(web))throw new Error('research prompt must treat explicit commentary as confirmation, not prerequisite');
+if(!/Explicit market commentary can confirm a move/.test(web))throw new Error('research prompt must preserve explicit commentary as confirmation evidence');
 if(!/distinct_printings/.test(web)||!/MTGStocks/.test(web))throw new Error('family-level coordinated move evidence must inform inferred catalysts');
 if(!/event_confidence/.test(web)||!/timing_strength/.test(web))throw new Error('event confidence and timing strength must remain separate');
-if(!/featured commander\/deck focus > meaningful performance\/positive commentary > deck inclusion > incidental mention/.test(web))throw new Error('creator exposure hierarchy must remain explicit');
+if(!/ATTENTION IMPACT/.test(web)||!/EVIDENCE QUALITY/.test(web))throw new Error('creator attention impact and evidence quality must remain separate');
+if(!/one clickbait finance creator alone must not upgrade causation to CONFIRMED/.test(web))throw new Error('finance creator confirmation guard missing');
 for(const token of [
   'market_intel_items_shared_mtgstocks_read',
   'to authenticated',
