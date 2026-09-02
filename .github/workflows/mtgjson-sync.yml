@@ -8,10 +8,7 @@ on:
         required: true
         default: prices
         type: choice
-        options:
-          - prices
-          - identity
-          - all
+        options: [prices, identity, all]
   schedule:
     - cron: "15 11 * * *"
     - cron: "0 12 * * 0"
@@ -43,13 +40,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
+        with: { node-version: "24" }
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+        with: { python-version: "3.12" }
       - run: node --check cloud-worker/mtgjson-sync.mjs cloud-worker/refresh-sealed-commander-prices.mjs cloud-worker/refresh-enabled-sealed.mjs cloud-worker/archive-sealed-price-current.mjs cloud-worker/refresh-precon-direct.mjs cloud-worker/refresh-precon-ev.mjs
       - run: python -m py_compile cloud-worker/mtgjson-parquet-sync.py cloud-worker/mtgjson-set-sealed-sync.py cloud-worker/mtgjson-deck-sku-sync.py cloud-worker/mtgjson-deck-metadata-sync.py cloud-worker/mtgjson-deck-content-sync.py
+
+  hydrate-cmm:
+    if: github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MTGJSON_BASE_URL: https://mtgjson.com/api/v5
+      MTGJSON_SET_CODES: CMM
+      MTGJSON_SET_WORKERS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Require service role key
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Hydrate Commander Masters native booster metadata
+        run: python cloud-worker/mtgjson-set-sealed-sync.py
 
   sync:
     if: github.event_name != 'push'
@@ -70,11 +85,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
+        with: { node-version: "24" }
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+        with: { python-version: "3.12" }
       - name: Resolve mode
         shell: bash
         run: |
@@ -97,14 +110,8 @@ jobs:
         if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
         shell: bash
         run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
-            -X POST "$SUPABASE_URL/rest/v1/rpc/refresh_mtgjson_print_stats_cache" \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{}'
-      - name: Enrich sealed products from native set JSON
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 -X POST "$SUPABASE_URL/rest/v1/rpc/refresh_mtgjson_print_stats_cache" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{}'
+      - name: Enrich set structure from native JSON
         if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
         run: python cloud-worker/mtgjson-set-sealed-sync.py
       - name: Import deterministic deck NM English SKU mappings
@@ -123,13 +130,7 @@ jobs:
         if: env.MTGJSON_MODE == 'prices' || env.MTGJSON_MODE == 'all'
         shell: bash
         run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 \
-            -X POST "$SUPABASE_URL/rest/v1/rpc/refresh_scout_vendor_price_current_cache" \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{}'
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 -X POST "$SUPABASE_URL/rest/v1/rpc/refresh_scout_vendor_price_current_cache" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{}'
       - name: Refresh public TCG sealed Commander prices
         continue-on-error: true
         run: node cloud-worker/refresh-sealed-commander-prices.mjs
