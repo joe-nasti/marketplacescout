@@ -1,0 +1,5 @@
+create policy sealed_native_booster_verifications_authenticated_read
+on public.sealed_native_booster_verifications
+for select
+to authenticated
+using (true);
