@@ -18,8 +18,7 @@ const scoutPostRender=[
   ()=>import('./scout/volatility.js'),
   ()=>import('./scout/noise-filter.js'),
   ()=>import('./scout/quick-turn.js'),
-  ()=>import('./scout/position-sizing.js'),
-  ()=>import('./scout/portfolio-allocation.js')
+  ()=>import('./scout/position-sizing.js')
 ];
 
 const scoutIntelligence=[
@@ -103,7 +102,6 @@ function loadAsk(){
     await import('./ask/endpoint-proxy.js');
     await import('./ask/structured-surfaces.js');
     await import('./ask/surface-persistence.js');
-    await import('./ask/delvin-market-radar-route.js');
     await import('./ask/main.js');
     await import('./ask/streaming.js');
     await import('./ask/sales-history-surface.js');
