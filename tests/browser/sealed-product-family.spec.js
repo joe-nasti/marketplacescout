@@ -103,9 +103,11 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(optimizer).toContain("(num(row.optimized_live_out_ev)||0)+additiveNet");
   expect(optimizer).toContain("(num(row.optimized_with_syp_potential_ev)||0)+additiveNet");
   expect(optimizer).toContain("if(basis.includes('fixed'))fixedChildren+=1");
-  expect(optimizer).toContain("else if(basis){randomizedChildren+=1;additiveNet+=value}");
+  expect(optimizer).toContain("else if(basis){randomizedChildren+=1;additiveNet+=value;");
   expect(optimizer).toContain('unresolvedChildren+=1');
   expect(optimizer).toContain('unresolved children fail closed');
+  expect(optimizer).toContain("basis.includes('sealed_resale')?'Sealed child resale'");
+  expect(optimizer).toContain('additiveRoutes');
   expect(optimizer).toContain('Included Products Net');
   expect(optimizer).toContain('Randomized practical out');
   expect(optimizer).toContain('fixed cards only');
@@ -116,6 +118,13 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(audit).toContain("then 'additive_randomized'");
   expect(audit).toContain("else 'unresolved'");
   expect(audit).toContain('fixed child EV is comparison-only');
+  const resale=await read('supabase/migrations/20260903042146_add_sealed_child_resale_fallback.sql');
+  expect(resale).toContain('with (security_invoker=true)');
+  expect(resale).toContain("'sealed_resale_current_only'::text valuation_basis");
+  expect(resale).toContain('collectish_tcg_regular_net(sealed_tcg_low)');
+  expect(resale).toContain("p.category='box_set'");
+  expect(resale).toContain("p.subtype like 'secret_lair%'");
+  expect(resale).toContain('TCG Market and crack EV excluded');
 });
 
 test('practical sealed EV discounts liquidity and gates recommendations',async()=>{
