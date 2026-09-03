@@ -39,6 +39,8 @@ on:
       - 'cloud-worker/discord-ask-entry-v30.mjs'
       - 'cloud-worker/discord-structured-output.mjs'
       - 'cloud-worker/discord-fast-query-cache.mjs'
+      - 'cloud-worker/discord-market-intel-fast.mjs'
+      - 'cloud-worker/discord-user-watches.mjs'
       - 'cloud-worker/wrangler.discord-ask.json'
       - 'tools/check-discord-ask-routing.mjs'
       - '.github/workflows/deploy-discord-ask-worker.yml'
@@ -53,6 +55,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       DISCORD_LINK_STATE_KV_ID: ${{ secrets.DISCORD_LINK_STATE_KV_ID }}
+      DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -73,6 +76,7 @@ jobs:
           test -n "${CLOUDFLARE_API_TOKEN}" || { echo "Missing CLOUDFLARE_API_TOKEN repository secret"; exit 1; }
           test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "Missing CLOUDFLARE_ACCOUNT_ID repository secret"; exit 1; }
           test -n "${DISCORD_LINK_STATE_KV_ID}" || { echo "Missing DISCORD_LINK_STATE_KV_ID repository secret"; exit 1; }
+          test -n "${DISCORD_BOT_TOKEN}" || { echo "Missing DISCORD_BOT_TOKEN repository secret"; exit 1; }
           [[ "${DISCORD_LINK_STATE_KV_ID}" =~ ^[0-9a-fA-F]{32}$ ]] || { echo "DISCORD_LINK_STATE_KV_ID must be a 32-character Cloudflare KV namespace id"; exit 1; }
 
       - name: Build runtime Wrangler configuration
@@ -93,6 +97,12 @@ jobs:
 
       - name: Deploy Worker and Queue consumer
         run: npx --yes wrangler@4 deploy --config cloud-worker/wrangler.discord-ask.runtime.json
+
+      - name: Update Discord bot token secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "${DISCORD_BOT_TOKEN}" | npx --yes wrangler@4 secret put DISCORD_BOT_TOKEN --config cloud-worker/wrangler.discord-ask.runtime.json
 
       - name: Audit live Worker binding names
         shell: bash
