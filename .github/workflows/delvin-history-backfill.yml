@@ -1,0 +1,38 @@
+name: Delvin on-demand history backfill
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'cloud-worker/backfill-delvin-tcgcsv-history.mjs'
+      - '.github/workflows/delvin-history-backfill.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delvin-history-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      TCGCSV_USER_AGENT: Collectish/1.0 (+https://github.com/joe-nasti/marketplacescout)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install archive tooling
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq p7zip-full
+      - name: Validate worker
+        run: node --check cloud-worker/backfill-delvin-tcgcsv-history.mjs
+      - name: Process one queued cohort backfill
+        run: node cloud-worker/backfill-delvin-tcgcsv-history.mjs
