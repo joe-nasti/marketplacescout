@@ -11,6 +11,8 @@ test('Ask voice capture creates an editable MTG-aware draft without auto-send',a
   expect(main).toContain('id="cxAskVoiceState"');
   expect(modules).toContain("import('./ask/voice-capture.js')");
   expect(voice).toContain('navigator.mediaDevices.getUserMedia');
+  expect(voice).toContain("getUserMedia({audio:true,video:false})");
+  expect(voice).toContain("name==='NotReadableError'||name==='TrackStartError'");
   expect(voice).toContain('new MediaRecorder');
   expect(voice).toContain('/functions/v1/ask-collectish-transcribe');
   expect(voice).toContain("input.value=[draftBefore.trim(),text]");
@@ -47,6 +49,7 @@ test('Android hosts grant microphone capture only through runtime permission',as
   const main=await read('android-agent/app/src/main/java/com/collectish/agent/MainActivity.kt');
   const deepLink=await read('android-agent/app/src/main/java/com/collectish/agent/DeepLinkActivity.kt');
   expect(manifest).toContain('android.permission.RECORD_AUDIO');
+  expect(manifest).toContain('android.permission.MODIFY_AUDIO_SETTINGS');
   expect(delegate).toContain('PermissionRequest.RESOURCE_AUDIO_CAPTURE');
   expect(delegate).toContain('Manifest.permission.RECORD_AUDIO');
   expect(delegate).toContain('request.deny()');
@@ -62,8 +65,12 @@ test('recorded audio becomes an editable composer draft in the browser',async({p
     localStorage.setItem('collectishSession',JSON.stringify({token:'test-token'}));
     window.COLLECTISH_CONFIG={supabaseUrl:'https://collectish.test'};
     window.AskCollectish={getContext:()=>({screen:'scout',product_name_hint:'Optimus Prime, Hero'})};
-    window.__voiceProbe={stopped:false,authorization:null,context:null};
-    Object.defineProperty(navigator,'mediaDevices',{configurable:true,value:{getUserMedia:async()=>({getTracks:()=>[{stop(){window.__voiceProbe.stopped=true}}]})}});
+    window.__voiceProbe={stopped:false,authorization:null,context:null,microphoneRequests:[]};
+    Object.defineProperty(navigator,'mediaDevices',{configurable:true,value:{getUserMedia:async constraints=>{
+      window.__voiceProbe.microphoneRequests.push(constraints);
+      if(window.__voiceProbe.microphoneRequests.length===1)throw new DOMException('Could not start audio source','NotReadableError');
+      return {getTracks:()=>[{stop(){window.__voiceProbe.stopped=true}}]};
+    }}});
     window.MediaRecorder=class {
       static isTypeSupported(){return true}
       constructor(_stream,options){this.mimeType=options?.mimeType||'audio/webm';this.state='inactive'}
@@ -88,4 +95,7 @@ test('recorded audio becomes an editable composer draft in the browser',async({p
   expect(probe.stopped).toBe(true);
   expect(probe.authorization).toBe('Bearer test-token');
   expect(JSON.parse(probe.context).product_name_hint).toBe('Optimus Prime, Hero');
+  expect(probe.microphoneRequests).toHaveLength(2);
+  expect(probe.microphoneRequests[0].audio.echoCancellation).toEqual({ideal:true});
+  expect(probe.microphoneRequests[1]).toEqual({audio:true,video:false});
 });

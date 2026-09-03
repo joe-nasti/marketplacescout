@@ -73,7 +73,7 @@ class MainActivity : Activity() {
             mainHandler.postDelayed(this, 15_000L)
         }
     }
-    private val version = "0.2.36"
+    private val version = "0.2.37"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
