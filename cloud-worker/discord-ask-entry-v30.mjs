@@ -2,6 +2,7 @@ import transport from './discord-ask-entry.mjs';
 import { secretLairMediaEmbed } from './discord-secret-lair-media.mjs';
 import { rewriteStructuredDiscordOutput } from './discord-structured-output.mjs';
 import { maybeHandleFastQuery } from './discord-fast-query-cache.mjs';
+import { maybeHandleMarketIntelFast } from './discord-market-intel-fast.mjs';
 
 const DISCORD_API='https://discord.com/api/v10';
 const base=env=>String(env.SUPABASE_URL||'').replace(/\/$/,'');
@@ -23,6 +24,8 @@ async function attachSecretLairMedia(env,job){
 // noncanonical questions continue through the normal transport/Ask path.
 export default {
   async fetch(request,env,ctx){
+    const intel=await maybeHandleMarketIntelFast(request,env,ctx);
+    if(intel)return intel;
     const fast=await maybeHandleFastQuery(request,env,ctx);
     return fast||transport.fetch(request,env,ctx);
   },
