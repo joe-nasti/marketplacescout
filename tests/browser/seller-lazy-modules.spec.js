@@ -5,9 +5,9 @@ import path from 'node:path';
 const root=process.cwd();
 const read=p=>readFile(path.join(root,p),'utf8');
 
-test('Seller lazy page retains cashflow and buyer-account enhancers',async()=>{
+test('Seller lazy page retains buyer-account enhancer without the deferred buying-budget surface',async()=>{
   const source=await read('src/modules/seller/index.js');
-  expect(source).toContain("import('./cashflow-budget.js')");
+  expect(source).not.toContain("import('./cashflow-budget.js')");
   expect(source).toContain("import('./buyer-account.js')");
 });
 
