@@ -1,0 +1,51 @@
+name: Collectish sealed TCGCSV history backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_archives:
+        description: Maximum archive dates to import in this run
+        required: false
+        default: "3"
+      stride_days:
+        description: Historical sampling interval in days
+        required: false
+        default: "7"
+  schedule:
+    - cron: "15 7 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "cloud-worker/tcgcsv-sealed-history-backfill.mjs"
+      - ".github/workflows/tcgcsv-sealed-history-backfill.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-tcgcsv-sealed-history
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      TCGCSV_BASE_URL: https://tcgcsv.com
+      TCGCSV_HISTORY_MAX_ARCHIVES: ${{ inputs.max_archives || '3' }}
+      TCGCSV_HISTORY_STRIDE_DAYS: ${{ inputs.stride_days || '7' }}
+      TCGCSV_HISTORY_START: "2024-02-08"
+      TCGCSV_USER_AGENT: "Collectish-MarketplaceScout/1.0 (+https://github.com/joe-nasti/marketplacescout)"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install archive reader
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+      - name: Validate importer
+        run: node --check cloud-worker/tcgcsv-sealed-history-backfill.mjs
+      - name: Import compact collector-box history
+        run: node cloud-worker/tcgcsv-sealed-history-backfill.mjs
