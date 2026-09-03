@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const source=readFileSync(new URL('../supabase/functions/ask-collectish-delvin-route/index.ts',import.meta.url),'utf8');
 const discord=readFileSync(new URL('../cloud-worker/discord-shared-delvin-route.mjs',import.meta.url),'utf8');
 const entry=readFileSync(new URL('../cloud-worker/discord-ask-entry-v30.mjs',import.meta.url),'utf8');
+const surfaces=readFileSync(new URL('../src/modules/ask/structured-surfaces.js',import.meta.url),'utf8');
 
 test('shared Delvin resolver recognizes Zeta aftermarket purchase questions',()=>{
   assert.match(source,/function zetaIntent/);
@@ -22,4 +23,13 @@ test('Discord defers Zeta analysis to the queue instead of blocking acknowledgem
   assert.match(discord,/deliverQueuedSharedQuestion/);
   assert.match(entry,/if\(!isQueuedSharedQuestion\(job\.question\)\)/);
   assert.match(entry,/deliverQueuedSharedQuestion\(env,job,message\)/);
+});
+
+test('web Ask and Discord render the canonical Zeta decision payload',()=>{
+  assert.match(source,/type:'sealed_purchase_decision'/);
+  assert.match(source,/image_url:imageUrl/);
+  assert.match(source,/surfaces:\[surface\]/);
+  assert.match(discord,/canonical=surface\?\.response\|\|d\.response/);
+  assert.match(discord,/thumbnail:\{url:surface\.image_url\}/);
+  assert.match(surfaces,/function sealedPurchaseDecision/);
 });
