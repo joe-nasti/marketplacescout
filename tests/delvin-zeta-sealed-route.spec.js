@@ -15,7 +15,7 @@ test('shared Delvin resolver recognizes Zeta aftermarket purchase questions',()=
 
 test('Zeta decision compares live sealed sales with stored pack economics',()=>{
   for(const token of ['gross_mean_ev','gross_median_ev','net_mean_ev_after_fees','totalQuantitySold','lowSalePriceWithShipping','price_multiple_vs_msrp','exact_treatment_market_coverage'])assert.ok(source.includes(token),`missing ${token}`);
-  assert.match(source,/I would not chase the current market/);
+  assert.match(source,/Do not chase at current pricing/);
 });
 
 test('Discord defers Zeta analysis to the queue instead of blocking acknowledgement',()=>{
@@ -32,4 +32,8 @@ test('web Ask and Discord render the canonical Zeta decision payload',()=>{
   assert.match(discord,/canonical=surface\?\.response\|\|d\.response/);
   assert.match(discord,/thumbnail:\{url:surface\.image_url\}/);
   assert.match(surfaces,/function sealedPurchaseDecision/);
+  for(const token of ['action','units_sold','transactions','price_multiple_vs_msrp','why','changes','buy_zone','recheck'])assert.ok(source.includes(token),`missing scorecard ${token}`);
+  assert.match(discord,/name:'Market activity'/);
+  assert.match(discord,/name:`Why \$\{surface\.verdict\}`/);
+  assert.match(discord,/name:'Buy zone'/);
 });
