@@ -4,6 +4,7 @@ const esc=value=>String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;
 const money=value=>value==null||value===''||!Number.isFinite(Number(value))?'—':Number(value).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
 const pct=value=>value==null||!Number.isFinite(Number(value))?'—':`${Number(value)>=0?'+':''}${Number(value).toFixed(1)}%`;
 const when=value=>{const d=new Date(value);if(!Number.isFinite(d.getTime()))return '';return d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})};
+const duration=value=>{const h=Number(value);if(!Number.isFinite(h))return '—';if(h<1)return `${Math.max(1,Math.round(h*60))}m`;if(h<48)return `${h.toFixed(h<10?1:0)}h`;return `${(h/24).toFixed(h<168?1:0)}d`};
 let request=0;
 
 function reasonCopy(reasons=[]){
@@ -24,6 +25,18 @@ function forwardBits(forward){
   }).filter(Boolean).join('');
 }
 
+function episodeCard(ep){
+  const entry=ep?.entry||{},f=ep?.followthrough||{},open=ep?.status==='open';
+  const moves=[f.best_market_pct!=null?`Best market ${pct(f.best_market_pct)}`:null,f.worst_market_pct!=null?`Worst market ${pct(f.worst_market_pct)}`:null,f.best_landed_pct!=null?`Best low ${pct(f.best_landed_pct)}`:null].filter(Boolean).join(' · ');
+  const entryBits=[`Entry ${entry.grade||'—'}/${entry.score??'—'}`,entry.flag,entry.market_price!=null?`Market ${money(entry.market_price)}`:null,entry.landed_low!=null?`Low ${money(entry.landed_low)}`:null].filter(Boolean).join(' · ');
+  return `<div class="cx-scout-episode-card ${open?'is-open':'is-closed'}">
+    <div class="cx-scout-episode-top"><strong>${open?'Open opportunity':'Closed opportunity'}</strong><span>${esc(duration(ep.duration_hours))}${open?' old':''}</span></div>
+    <b>${esc(entryBits)}</b>
+    <small>Opened ${esc(when(ep.opened_at))}${ep.closed_at?` · Closed ${esc(when(ep.closed_at))}`:''} · Peak Scout ${esc(ep.peak_scout_score??'—')}</small>
+    ${moves?`<small>${esc(moves)}</small>`:''}
+  </div>`;
+}
+
 function card(e){
   const ev=e.evidence||{},components=e.components||{},forward=forwardBits(e.forward);
   const evidence=[`Direct ${money(ev.direct_low)}`,`Market ${money(ev.market_price)}`,ev.direct_available!=null?`${Number(ev.direct_available).toLocaleString()} Direct copies`:null,ev.sales_per_day!=null?`${Number(ev.sales_per_day).toFixed(2)}/day sold`:null,ev.ck_buylist!=null?`CK buy ${money(ev.ck_buylist)}`:null].filter(Boolean).join(' · ');
@@ -41,17 +54,20 @@ function card(e){
   </div>`;
 }
 
-function render(data,outcomes){
+function render(data,outcomes,episodes){
   const evaluations=Array.isArray(data?.evaluations)?data.evaluations:[];
   const outcomeRows=Array.isArray(outcomes?.evaluations)?outcomes.evaluations:[];
+  const episodeRows=Array.isArray(episodes?.episodes)?episodes.episodes:[];
   const outcomeMap=new Map(outcomeRows.map(x=>[String(x.event_at),x]));
   const recent=evaluations.slice(-8).reverse().map(e=>({...e,forward:outcomeMap.get(String(e.event_at))||null}));
   const body=recent.length?recent.map(card).join(''):'<div class="cx-scout-replay-empty">No preserved Scout evaluations in this window yet.</div>';
   const matured=outcomeRows.some(x=>Object.values(x?.horizons||{}).some(h=>h?.outcome_at));
+  const episodeBody=episodeRows.length?episodeRows.slice(0,3).map(episodeCard).join(''):'';
   return `<section class="cx-v5-section cx-scout-replay">
     <div class="cx-section-title">Scout decision history</div>
     <p class="cx-sub">What Scout actually scored and saw at each preserved evaluation. History begins when append-only capture was enabled.</p>
-    <div class="cx-scout-replay-meta"><span>${Number(data?.evaluation_count||0).toLocaleString()} preserved evaluations</span><span>Material changes + daily checkpoints</span>${matured?'<span>Forward outcomes measured</span>':''}</div>
+    <div class="cx-scout-replay-meta"><span>${Number(data?.evaluation_count||0).toLocaleString()} preserved evaluations</span><span>Material changes + daily checkpoints</span>${episodeRows.length?`<span>${episodeRows.length} opportunity episode${episodeRows.length===1?'':'s'}</span>`:''}${matured?'<span>Forward outcomes measured</span>':''}</div>
+    ${episodeBody?`<div class="cx-scout-episodes"><div class="cx-scout-episodes-title">Opportunity episodes</div>${episodeBody}</div>`:''}
     <div class="cx-scout-replay-list">${body}</div>
     ${evaluations.length>8?'<small class="cx-scout-replay-more">Showing the 8 most recent evaluations.</small>':''}
     ${matured?'<small class="cx-scout-replay-method">Forward changes use the nearest exact-SKU official observation at or after each horizon; they are market follow-through, not assumed realized returns.</small>':''}
@@ -64,18 +80,19 @@ async function decorate(event){
   if(!host||!row?.sku_id)return;
   const seq=++request;
   try{
-    const [data,outcomes]=await Promise.all([
+    const [data,outcomes,episodes]=await Promise.all([
       rest('rpc/ask_collectish_scout_evaluation_history_v1',{method:'POST',body:{p_sku_id:String(row.sku_id),p_days:365}}),
-      rest('rpc/ask_collectish_scout_forward_outcomes_v1',{method:'POST',body:{p_sku_id:String(row.sku_id),p_days:365}}).catch(()=>null)
+      rest('rpc/ask_collectish_scout_forward_outcomes_v1',{method:'POST',body:{p_sku_id:String(row.sku_id),p_days:365}}).catch(()=>null),
+      rest('rpc/ask_collectish_scout_opportunity_episodes_v1',{method:'POST',body:{p_sku_id:String(row.sku_id),p_days:365,p_limit:20}}).catch(()=>null)
     ]);
     if(seq!==request||!document.getElementById('cxParityDetail'))return;
-    const section=document.createRange().createContextualFragment(render(data,outcomes)).firstElementChild;
+    const section=document.createRange().createContextualFragment(render(data,outcomes,episodes)).firstElementChild;
     const anchor=host.querySelector('.cx-market-timeline')||host.querySelector('.cx-vendor-depth')||host.querySelector('.cx-scout-market-board');
     if(anchor)anchor.insertAdjacentElement('afterend',section);else host.appendChild(section);
   }catch(error){console.warn('Scout decision history unavailable',error)}
 }
 
 const style=document.createElement('style');
-style.textContent=`.cx-scout-replay-meta{display:flex;gap:8px;flex-wrap:wrap;margin:7px 0 9px;color:var(--cx-muted);font-size:10px}.cx-scout-replay-meta span{border:1px solid var(--cx-line);border-radius:999px;padding:3px 7px}.cx-scout-replay-list{display:grid;gap:7px}.cx-scout-replay-card{display:grid;grid-template-columns:46px minmax(0,1fr);gap:9px;border:1px solid var(--cx-line);border-radius:11px;padding:8px;background:var(--cx-bg)}.cx-scout-replay-score{display:flex;flex-direction:column;align-items:center;justify-content:center;border-right:1px solid var(--cx-line)}.cx-scout-replay-score strong{font-size:18px}.cx-scout-replay-score span{font-size:11px;color:var(--cx-muted)}.cx-scout-replay-copy{min-width:0}.cx-scout-replay-top{display:flex;justify-content:space-between;gap:8px}.cx-scout-replay-top strong{font-size:11px}.cx-scout-replay-top span,.cx-scout-replay-copy small,.cx-scout-replay-copy em{color:var(--cx-muted);font-size:10px}.cx-scout-replay-copy>b,.cx-scout-replay-copy small,.cx-scout-replay-copy em{display:block;margin-top:3px}.cx-scout-replay-copy em{font-style:normal}.cx-scout-replay-forward{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.cx-scout-replay-forward span{font-size:9px;border:1px solid var(--cx-line);border-radius:999px;padding:3px 6px}.cx-scout-replay-forward b{font-size:9px}.cx-scout-replay-more,.cx-scout-replay-empty,.cx-scout-replay-method{display:block;color:var(--cx-muted);margin-top:7px;font-size:10px}.cx-scout-replay-method{padding-top:6px;border-top:1px solid var(--cx-line)}@media(max-width:520px){.cx-scout-replay-top{display:block}.cx-scout-replay-top span{display:block;margin-top:2px}}`;
+style.textContent=`.cx-scout-replay-meta{display:flex;gap:8px;flex-wrap:wrap;margin:7px 0 9px;color:var(--cx-muted);font-size:10px}.cx-scout-replay-meta span{border:1px solid var(--cx-line);border-radius:999px;padding:3px 7px}.cx-scout-episodes{display:grid;gap:6px;margin:8px 0 10px}.cx-scout-episodes-title{font-size:11px;font-weight:800}.cx-scout-episode-card{border:1px solid var(--cx-line);border-radius:10px;padding:7px 8px;background:var(--cx-bg)}.cx-scout-episode-card.is-open{border-color:var(--cx-accent);background:color-mix(in srgb,var(--cx-accent) 6%,var(--cx-bg))}.cx-scout-episode-top{display:flex;justify-content:space-between;gap:8px}.cx-scout-episode-top strong{font-size:11px}.cx-scout-episode-top span,.cx-scout-episode-card small{font-size:10px;color:var(--cx-muted)}.cx-scout-episode-card>b,.cx-scout-episode-card small{display:block;margin-top:3px}.cx-scout-replay-list{display:grid;gap:7px}.cx-scout-replay-card{display:grid;grid-template-columns:46px minmax(0,1fr);gap:9px;border:1px solid var(--cx-line);border-radius:11px;padding:8px;background:var(--cx-bg)}.cx-scout-replay-score{display:flex;flex-direction:column;align-items:center;justify-content:center;border-right:1px solid var(--cx-line)}.cx-scout-replay-score strong{font-size:18px}.cx-scout-replay-score span{font-size:11px;color:var(--cx-muted)}.cx-scout-replay-copy{min-width:0}.cx-scout-replay-top{display:flex;justify-content:space-between;gap:8px}.cx-scout-replay-top strong{font-size:11px}.cx-scout-replay-top span,.cx-scout-replay-copy small,.cx-scout-replay-copy em{color:var(--cx-muted);font-size:10px}.cx-scout-replay-copy>b,.cx-scout-replay-copy small,.cx-scout-replay-copy em{display:block;margin-top:3px}.cx-scout-replay-copy em{font-style:normal}.cx-scout-replay-forward{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.cx-scout-replay-forward span{font-size:9px;border:1px solid var(--cx-line);border-radius:999px;padding:3px 6px}.cx-scout-replay-forward b{font-size:9px}.cx-scout-replay-more,.cx-scout-replay-empty,.cx-scout-replay-method{display:block;color:var(--cx-muted);margin-top:7px;font-size:10px}.cx-scout-replay-method{padding-top:6px;border-top:1px solid var(--cx-line)}@media(max-width:520px){.cx-scout-replay-top,.cx-scout-episode-top{display:block}.cx-scout-replay-top span,.cx-scout-episode-top span{display:block;margin-top:2px}}`;
 document.head.appendChild(style);
 document.addEventListener('collectish:scout-detail-rendered',event=>void decorate(event));
