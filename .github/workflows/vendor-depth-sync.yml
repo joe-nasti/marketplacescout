@@ -10,7 +10,9 @@ on:
         type: choice
         options: [cardkingdom]
   schedule:
-    - cron: "35 11 * * *"
+    # Full CK catalog is intentionally much slower-moving than TCGplayer/ManaPool.
+    # Refresh twice daily; Ask reuses the latest stored catalog observation.
+    - cron: "35 11,23 * * *"
   push:
     paths:
       - "cloud-worker/vendor-depth-lib.mjs"
