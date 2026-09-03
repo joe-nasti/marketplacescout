@@ -53,9 +53,14 @@ test('shared router answers sealed Direct crack rankings without clarification',
   expect(migration).toContain('grant execute on function public.ask_delvin_sealed_direct_crack_v1(integer) to service_role');
   expect(router).toContain("r.practical_action==='BUY & CRACK'");
   expect(router).toContain('Direct EV-only rows are theoretical outlet value');
+  expect(router).toContain('latest observed TCG Low + shipping');
   expect(presenter).toContain('sealedCrackPresentation');
   expect(presenter).toMatch(/ask-collectish-route-intents[\s\S]*ask-collectish-delvin-route/);
+  expect(presenter).toContain("heading:'BUY & CRACK'");
+  expect(presenter).toContain("label:'Practical ROI'");
+  expect(presenter).toContain("label:'Pass hidden'");
   expect(read('cloud-worker/discord-shared-delvin-route.mjs')).toMatch(/isQueuedSharedQuestion[\s\S]*sealed[\s\S]*crack[\s\S]*direct/);
+  expect(read('cloud-worker/discord-shared-delvin-route.mjs')).toContain("u.searchParams.set('sealedView','opportunities')");
   expect(renderer).toContain("surface?.type==='sealed_crack_ranking'");
 });
 
