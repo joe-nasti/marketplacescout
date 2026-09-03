@@ -37,6 +37,13 @@ function injectStyles(){
 }
 
 function csvEscape(v){const s=String(v??'');return /[",\n]/.test(s)?`"${s.replaceAll('"','""')}"`:s}
+function childOutContribution(children=[]){
+  const childNet=children.reduce((n,c)=>n+Number(c.quantity||0)*Number(c.practical_liquidation_ev||0),0);
+  // Exact fixed-card children are already expanded into the parent's routing
+  // rows. Randomized sealed children are not, so only those are additive.
+  const alreadyRouted=children.length>0&&children.every(c=>String(c.valuation_basis||'').toLowerCase().includes('fixed'));
+  return {childNet,additiveNet:alreadyRouted?0:childNet,alreadyRouted};
+}
 function exportCsv(row,rows,children=[]){
   const cols=[
     ['Card','card_name'],['SKU','sku_id'],['Finish','finish'],['Qty','quantity'],
@@ -46,7 +53,7 @@ function exportCsv(row,rows,children=[]){
     ['Avg daily qty sold','avg_daily_qty_sold'],['Estimated days to sell','estimated_days_to_sell']
   ];
   const lines=[cols.map(x=>csvEscape(x[0])).join(','),...rows.map(r=>cols.map(x=>csvEscape(r[x[1]])).join(','))];
-  const childNet=children.reduce((n,c)=>n+Number(c.quantity||0)*Number(c.practical_liquidation_ev||0),0),live=Number(row?.optimized_live_out_ev||0)+childNet,potential=Number(row?.optimized_with_syp_potential_ev||0)+childNet;
+  const {childNet,additiveNet}=childOutContribution(children),live=Number(row?.optimized_live_out_ev||0)+additiveNet,potential=Number(row?.optimized_with_syp_potential_ev||0)+additiveNet;
   const childMeta=children.flatMap(c=>[`Included sealed product,${csvEscape(c.child_product_name)}`,`Quantity,${csvEscape(c.quantity)}`,`TCG Low EV per unit,${csvEscape(c.tcg_low_ev)}`,`Practical liquidation contribution,${csvEscape(Number(c.quantity||0)*Number(c.practical_liquidation_ev||0))}`]);
   const meta=[`Product,${csvEscape(row?.product_name||'')}`,`Sealed acquisition,${csvEscape(row?.sealed_acquisition_price)}`,`Optimized Live Out EV,${csvEscape(live)}`,`Optimized + SYP Potential EV,${csvEscape(potential)}`,`Included sealed products net EV,${csvEscape(childNet)}`,`TCG Regular Net EV (fixed cards only),${csvEscape(row?.tcg_regular_net_ev)}`,`ManaPool Net Est EV (fixed cards only),${csvEscape(row?.manapool_net_est_ev)}`,`CK Cash EV (fixed cards only),${csvEscape(row?.cash_floor_ev??row?.cardkingdom_buylist_ev)}`,...childMeta,''];
   const blob=new Blob([[...meta,...lines].join('\n')],{type:'text/csv;charset=utf-8'});
@@ -64,7 +71,7 @@ function days(r){const d=num(r.estimated_days_to_sell);if(d==null)return '<span 
 function channelClass(ch){return ch==='ManaPool'?'cx-out-opt-slow':''}
 
 function renderPanel(row,rows,children=[]){
-  const childNet=children.reduce((n,c)=>n+Number(c.quantity||0)*Number(c.practical_liquidation_ev||0),0),childGross=children.reduce((n,c)=>n+Number(c.quantity||0)*Number(c.tcg_low_ev||0),0),live=(num(row.optimized_live_out_ev)||0)+childNet,potential=(num(row.optimized_with_syp_potential_ev)||0)+childNet,liveMix=channelMix(rows,'live_best_channel','live_best_component_ev',childNet?[{channel:'Randomized practical out',ev:childNet}]:[]),top=liveMix[0],acq=num(row.sealed_acquisition_price),cash=num(row.cash_floor_ev??row.cardkingdom_buylist_ev);
+  const {childNet,additiveNet,alreadyRouted}=childOutContribution(children),childGross=children.reduce((n,c)=>n+Number(c.quantity||0)*Number(c.tcg_low_ev||0),0),live=(num(row.optimized_live_out_ev)||0)+additiveNet,potential=(num(row.optimized_with_syp_potential_ev)||0)+additiveNet,liveMix=channelMix(rows,'live_best_channel','live_best_component_ev',additiveNet?[{channel:'Randomized practical out',ev:additiveNet}]:[]),top=liveMix[0],acq=num(row.sealed_acquisition_price),cash=num(row.cash_floor_ev??row.cardkingdom_buylist_ev);
   const liveRoi=live!=null&&acq>0?100*(live-acq)/acq:null,potentialRoi=potential!=null&&acq>0?100*(potential-acq)/acq:null;
   const warning=top&&top.share>=50?`<div class="cx-out-opt-warning"><strong>${esc(top.channel)} concentration:</strong> ${pct(top.share)} of Optimized Live Out EV (${money(top.ev)}) is routed through this one outlet.${top.channel==='ManaPool'?' ManaPool is a materially smaller/slower marketplace than TCGplayer, so this is a dream-routing assumption rather than a fast-liquidation forecast.':''}</div>`:'';
   const mix=liveMix.map(x=>`<span class="cx-out-opt-chip ${channelClass(x.channel)}">${esc(x.channel)} · ${money(x.ev)} · ${pct(x.share)}</span>`).join('');
