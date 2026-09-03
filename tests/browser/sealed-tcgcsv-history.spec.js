@@ -1,0 +1,22 @@
+import{test,expect}from'@playwright/test';
+import{readFile}from'node:fs/promises';
+
+test('sealed TCGCSV backfill is selective and storage bounded',async()=>{
+  const worker=await readFile('cloud-worker/tcgcsv-sealed-history-backfill.mjs','utf8');
+  expect(worker).toContain("category=eq.booster_box&subtype=eq.collector");
+  expect(worker).toContain('TCGCSV_HISTORY_MAX_ARCHIVES');
+  expect(worker).toContain('TCGCSV_HISTORY_STRIDE_DAYS');
+  expect(worker).toContain('sealed_product_market_history');
+  expect(worker).not.toContain('high_price:num');
+});
+
+test('collector-box lifecycle keeps price and demand provenance separate',async()=>{
+  const sql=await readFile('supabase/migrations/20260903040000_add_compact_sealed_market_history.sql','utf8');
+  const worker=await readFile('cloud-worker/tcgcsv-sealed-history-backfill.mjs','utf8');
+  expect(worker).toContain("source:'tcgcsv_archive'");
+  expect(sql).toContain('marketplace_sku_sales_buckets');
+  expect(sql).toContain('change_365d_pct');
+  expect(sql).toContain('recent TCGplayer items sold');
+  expect(sql).toContain('security_invoker=true');
+  expect(sql).toContain('enable row level security');
+});
