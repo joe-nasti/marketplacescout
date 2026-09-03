@@ -15,7 +15,6 @@ function render(data){
   const ckRetail=current.filter(x=>x.source==='cardkingdom'&&x.lane==='retail_supply');
   const ckBuy=current.find(x=>x.source==='cardkingdom'&&x.lane==='buylist_demand');
   const mana=current.filter(x=>x.source==='manapool'&&x.lane==='retail_supply');
-  const threshold=current.find(x=>x.source==='manapool'&&x.lane==='threshold_supply'&&Number(x.threshold_price)===Number(ckBuy?.price));
   const ckCopies=ckRetail.reduce((n,x)=>n+Number(x.quantity||0),0);
   const conditionSupply=ckRetail.filter(x=>Number(x.quantity)>0).map(x=>`${x.condition} ${number(x.quantity)} @ ${money(x.price)}`).join(' · ')||'Out of stock';
   const manaCopies=mana.reduce((n,x)=>n+Number(x.quantity||0),0);
@@ -23,8 +22,7 @@ function render(data){
   const rows=[
     row('CK retail supply',`${number(ckCopies)} copies`,conditionSupply),
     row('CK buylist demand',ckBuy?`${number(ckBuy.quantity)} copies @ ${money(ckBuy.price)}`:'Not currently buying','Remaining acceptance · condition not exposed'),
-    row('Mana Pool supply',mana.length?`${number(manaCopies)} copies`:'Not measured',mana.filter(x=>Number(x.quantity)>0).map(x=>`${x.condition} ${number(x.quantity)} @ ${money(x.price)}`).join(' · ')),
-    row('Mana Pool ≤ CK bid',threshold?`${number(threshold.listing_count)} listings · ${number(threshold.quantity)} copies`:'Targeted probe pending',threshold?`${threshold.count_quality.replaceAll('_',' ')} · threshold ${money(threshold.threshold_price)}`:'Requires Mana Pool buyer API credentials')
+    row('Mana Pool supply',mana.length?`${number(manaCopies)} copies`:'Not measured',mana.filter(x=>Number(x.quantity)>0).map(x=>`${x.condition} ${number(x.quantity)} @ ${money(x.price)}`).join(' · '))
   ].join('');
   return `<section class="cx-v5-section cx-vendor-depth"><div class="cx-section-title">Inventory & buylist depth</div><p class="cx-sub">Exact printing. Counts retain their source scope; CK retail stock is not buylist demand.</p><div class="cx-vendor-depth-grid">${rows}</div>${updated?`<small class="cx-vendor-depth-fresh">Observed ${esc(age(updated))}</small>`:''}</section>`;
 }
@@ -45,4 +43,3 @@ async function decorate(event){
 
 const style=document.createElement('style');style.textContent=`.cx-vendor-depth-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}.cx-vendor-depth-row{border:1px solid var(--cx-line);border-radius:10px;padding:8px;background:var(--cx-bg)}.cx-vendor-depth-row>span,.cx-vendor-depth-row>small{display:block;font-size:10px;color:var(--cx-muted)}.cx-vendor-depth-row>strong{display:block;margin:2px 0}.cx-vendor-depth-fresh{display:block;color:var(--cx-muted);margin-top:7px}@media(max-width:520px){.cx-vendor-depth-grid{grid-template-columns:1fr}}`;document.head.appendChild(style);
 document.addEventListener('collectish:scout-detail-rendered',event=>void decorate(event));
-
