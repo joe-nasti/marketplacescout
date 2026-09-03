@@ -11,6 +11,7 @@ const txt=(v:any)=>String(v??'').trim();
 const num=(v:any)=>{const n=Number(v);return Number.isFinite(n)?n:null};
 const qty=(v:any)=>{const n=Number(v);return Number.isFinite(n)?Math.max(0,Math.trunc(n)):null};
 const sh=()=>({apikey:S,Authorization:`Bearer ${S}`,'Content-Type':'application/json'});
+async function authorized(req:Request){const h=req.headers.get('authorization')||'',t=h.replace(/^Bearer\s+/i,'');if(!t)return false;if(t===S)return true;const r=await fetch(`${U}/auth/v1/user`,{headers:{apikey:S,Authorization:`Bearer ${t}`}});return r.ok}
 
 async function rest(path:string,o:any={}){
   const r=await fetch(`${U}/rest/v1/${path}`,{method:o.method||'GET',headers:{...sh(),...(o.prefer?{Prefer:o.prefer}:{})},body:o.body===undefined?undefined:JSON.stringify(o.body)});
@@ -70,8 +71,8 @@ async function thresholdDepth(card:any,variant:any,threshold:number,requestCap:n
 Deno.serve(async req=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:C});
   if(req.method!=='POST')return js({error:'POST required'},405);
-  if(!req.headers.get('authorization'))return js({error:'Authentication required'},401);
   if(!S)return js({error:'Service role unavailable'},500);
+  if(!(await authorized(req)))return js({error:'Signed-in user required'},401);
   const body=await req.json().catch(()=>({}));
   const productId=txt(body?.product_id||body?.productId),skuId=txt(body?.sku_id||body?.skuId);
   if(!/^\d+$/.test(productId)||!/^\d+$/.test(skuId))return js({error:'numeric product_id and sku_id required'},400);
