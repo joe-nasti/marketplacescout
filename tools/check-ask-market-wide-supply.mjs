@@ -5,7 +5,6 @@ const surface=fs.readFileSync('supabase/migrations/20260903135500_surface_market
 const sync=fs.readFileSync('supabase/functions/market-supply-sync/index.ts','utf8');
 const identity=fs.readFileSync('supabase/functions/ask-collectish-identity-recovery/index.ts','utf8');
 const manapool=fs.readFileSync('supabase/functions/manapool-supply-sync/index.ts','utf8');
-const legacyManapool=fs.readFileSync('cloud-worker/manapool-depth-sync.mjs','utf8');
 for(const token of ['market_supply_snapshots','ask_collectish_market_supply_v1','direct_unit_count','non_direct_unit_count','seller_count','global_supply_classification','EXACT_SKU_ALL_TCGPLAYER','Retailer price presence'])if(!migration.includes(token))throw new Error(`missing market-supply contract token: ${token}`);
 for(const token of ['mp-search-api.tcgplayer.com','productConditionId','directListing','sellerKey','quantity','channelExclusion','tcgplayer_site_listings_search','PARTIAL_PAGE_CAP'])if(!sync.includes(token))throw new Error(`missing exact TCG listing collector token: ${token}`);
 if(!/exact\(listings|const exact=listings\.filter/.test(sync))throw new Error('TCG marketplace supply must filter listings to the exact SKU');
@@ -17,8 +16,6 @@ if(!/supply\|inventory\|liquidity/.test(identity))throw new Error('supply refres
 if(/global_supply_classification','Thin \/ fragmented Direct/i.test(migration))throw new Error('Direct classification leaked into global supply classification');
 for(const token of ['manapool-supply-sync','product_id:productId','sku_id:skuId'])if(!sync.includes(token))throw new Error(`market supply does not chain exact-SKU ManaPool collector: ${token}`);
 for(const token of ['exact_ask_sku_on_demand','tcgplayer_sku_id','available_quantity','exact_tcgplayer_sku:true','numeric product_id and sku_id required'])if(!manapool.includes(token))throw new Error(`missing exact-SKU ManaPool contract token: ${token}`);
-if(/active_cardkingdom_buylist|MANAPOOL_DEPTH_TARGET_LIMIT|limit=\$\{LIMIT\}/.test(legacyManapool))throw new Error('legacy ManaPool worker still contains broad CK-buylist batch behavior');
-for(const token of ['MANAPOOL_TARGET_PRODUCT_ID','MANAPOOL_TARGET_SKU_ID','Batch ManaPool scans are disabled','manapool-supply-sync'])if(!legacyManapool.includes(token))throw new Error(`legacy ManaPool worker is not exact-target-only: ${token}`);
 for(const token of ['tcgplayer_supply_classification','market_wide_thinness_proven','claim_basis','TCGPLAYER_THIN_RETAILER_CORROBORATION_INCOMPLETE','TCGPLAYER_THINNESS_CORROBORATED_BY_CK_AND_MANAPOOL','RETAILER_DEPTH_REJECTS_TCGPLAYER_THINNESS','source_coverage','usable_for_market_claim'])if(!confidence.includes(token))throw new Error(`missing source-confidence contract token: ${token}`);
 if(!/d\.lane='retail_supply'/.test(confidence)||!/d\.lane='threshold_supply'/.test(confidence))throw new Error('ManaPool retail and threshold lanes must be modeled separately');
 if(/d\.lane in \('retail_supply','threshold_supply'\)/.test(confidence))throw new Error('ManaPool retail and threshold quantities are being mixed/double-counted');
