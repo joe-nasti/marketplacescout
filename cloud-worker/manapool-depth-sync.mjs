@@ -9,23 +9,37 @@ const EMAIL=process.env.MANAPOOL_API_EMAIL||'';
 const TOKEN=process.env.MANAPOOL_API_TOKEN||'';
 const LIMIT=Math.max(1,Math.min(1000,Number(process.env.MANAPOOL_DEPTH_TARGET_LIMIT||200)));
 const REQUEST_CAP=Math.max(1,Math.min(5000,Number(process.env.MANAPOOL_DEPTH_REQUEST_CAP||999)));
+const MIN_INTERVAL_MS=Math.max(100,Number(process.env.MANAPOOL_API_MIN_INTERVAL_MS||750));
 const observedAt=now();
 const headers={Accept:'application/json','Content-Type':'application/json',...(EMAIL&&TOKEN?{'X-ManaPool-Email':EMAIL,'X-ManaPool-Access-Token':TOKEN}:{})};
 const finishMap={nonfoil:'NF',foil:'FO',etched:'EF'};
+let lastRequestAt=0;
+
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 async function mp(path,options={}){
-  const response=await fetch(`${BASE}${path}`,{...options,headers:{...headers,...options.headers}});
-  const raw=await response.text();
-  if(!response.ok){
+  for(let attempt=0;attempt<7;attempt++){
+    const wait=Math.max(0,MIN_INTERVAL_MS-(Date.now()-lastRequestAt));
+    if(wait)await sleep(wait);
+    lastRequestAt=Date.now();
+    const response=await fetch(`${BASE}${path}`,{...options,headers:{...headers,...options.headers}});
+    const raw=await response.text();
+    if(response.ok){
+      if((response.headers.get('content-type')||'').includes('ndjson')){
+        const lines=raw.trim().split('\n').filter(Boolean);return JSON.parse(lines.at(-1));
+      }
+      return raw?JSON.parse(raw):null;
+    }
+    if(response.status===429&&attempt<6){
+      const retryAfter=Number(response.headers.get('retry-after'));
+      await sleep(Number.isFinite(retryAfter)&&retryAfter>0?retryAfter*1000:Math.min(60000,2000*(2**attempt)));
+      continue;
+    }
     const error=new Error(`Mana Pool ${response.status}: ${raw.slice(0,500)}`);
     error.status=response.status;
     try{error.payload=JSON.parse(raw)}catch{error.payload=null}
     throw error;
   }
-  if((response.headers.get('content-type')||'').includes('ndjson')){
-    const lines=raw.trim().split('\n').filter(Boolean);return JSON.parse(lines.at(-1));
-  }
-  return raw?JSON.parse(raw):null;
 }
 
 async function targets(){
