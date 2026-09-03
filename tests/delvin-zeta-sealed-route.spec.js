@@ -6,6 +6,7 @@ const source=readFileSync(new URL('../supabase/functions/ask-collectish-delvin-r
 const discord=readFileSync(new URL('../cloud-worker/discord-shared-delvin-route.mjs',import.meta.url),'utf8');
 const entry=readFileSync(new URL('../cloud-worker/discord-ask-entry-v30.mjs',import.meta.url),'utf8');
 const surfaces=readFileSync(new URL('../src/modules/ask/structured-surfaces.js',import.meta.url),'utf8');
+const presenter=readFileSync(new URL('../supabase/functions/ask-collectish-delvin-present/index.ts',import.meta.url),'utf8');
 
 test('shared Delvin resolver recognizes Zeta aftermarket purchase questions',()=>{
   assert.match(source,/function zetaIntent/);
@@ -16,6 +17,8 @@ test('shared Delvin resolver recognizes Zeta aftermarket purchase questions',()=
 test('Zeta decision compares live sealed sales with stored pack economics',()=>{
   for(const token of ['gross_mean_ev','gross_median_ev','net_mean_ev_after_fees','totalQuantitySold','lowSalePriceWithShipping','price_multiple_vs_msrp','exact_treatment_market_coverage'])assert.ok(source.includes(token),`missing ${token}`);
   assert.match(source,/Do not chase at current pricing/);
+  assert.match(source,/ZETA_MARKET_CACHE_MS=10\*60\*1000/);
+  assert.match(source,/if\(zetaMarketInFlight\)return zetaMarketInFlight/);
 });
 
 test('Discord defers Zeta analysis to the queue instead of blocking acknowledgement',()=>{
@@ -40,4 +43,9 @@ test('web Ask and Discord render the canonical Zeta decision payload',()=>{
   assert.match(discord,/name:'Recheck',value:surface\.recheck,inline:false/);
   assert.match(surfaces,/cx-ask-buy-zone/);
   assert.match(surfaces,/cx-ask-recheck/);
+  assert.match(presenter,/label:'Modeled EV'/);
+  assert.doesNotMatch(presenter,/\['Gross EV',s\.gross_mean_ev/);
+  assert.match(presenter,/heading:'Buy zone',kind:'text'/);
+  assert.match(presenter,/heading:'Recheck',kind:'text'/);
+  assert.match(discord,/section\.kind==='text'/);
 });
