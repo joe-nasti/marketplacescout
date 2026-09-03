@@ -38,6 +38,20 @@ test('shared router owns broad market radar without hijacking named sources',()=
   expect(router).toMatch(/routeSource\(q\).*routeMarketRadar\(q\).*priceHistoryIntent/s);
 });
 
+test('shared router answers sealed Direct crack rankings without clarification',()=>{
+  const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
+  const presenter=read('supabase/functions/ask-collectish-delvin-present/index.ts');
+  const renderer=read('src/modules/ask/structured-surfaces.js');
+  expect(router).toContain("route:'sealed_direct_crack_ranking'");
+  expect(router).toContain("type:'sealed_crack_ranking'");
+  expect(router).toContain('sealedDirectCrackIntent');
+  expect(router).toMatch(/routeSealedDirect\(t,q\).*routeSource\(q\)/s);
+  expect(router).toContain("r.practical_action==='BUY & CRACK'");
+  expect(router).toContain('Direct EV-only rows are theoretical outlet value');
+  expect(presenter).toContain('sealedCrackPresentation');
+  expect(renderer).toContain("surface?.type==='sealed_crack_ranking'");
+});
+
 test('named MTGStocks requests execute source lookup and refresh without clarification',()=>{
   const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
   expect(router).toContain("route:'named_source_snapshot'");
