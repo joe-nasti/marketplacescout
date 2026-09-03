@@ -38,11 +38,17 @@ function injectStyles(){
 
 function csvEscape(v){const s=String(v??'');return /[",\n]/.test(s)?`"${s.replaceAll('"','""')}"`:s}
 function childOutContribution(children=[]){
-  const childNet=children.reduce((n,c)=>n+Number(c.quantity||0)*Number(c.practical_liquidation_ev||0),0);
-  // Exact fixed-card children are already expanded into the parent's routing
-  // rows. Randomized sealed children are not, so only those are additive.
-  const alreadyRouted=children.length>0&&children.every(c=>String(c.valuation_basis||'').toLowerCase().includes('fixed'));
-  return {childNet,additiveNet:alreadyRouted?0:childNet,alreadyRouted};
+  let childNet=0,additiveNet=0,fixedChildren=0,randomizedChildren=0,unresolvedChildren=0;
+  for(const child of children){
+    const basis=String(child.valuation_basis||'').toLowerCase(),value=Number(child.quantity||0)*Number(child.practical_liquidation_ev||0);
+    childNet+=value;
+    if(basis.includes('fixed'))fixedChildren+=1;
+    else if(basis){randomizedChildren+=1;additiveNet+=value}
+    else unresolvedChildren+=1;
+  }
+  // Fixed-card children are already expanded into the parent's routing rows.
+  // Randomized children remain additive; unresolved children fail closed.
+  return {childNet,additiveNet,alreadyRouted:fixedChildren>0&&randomizedChildren===0&&unresolvedChildren===0,fixedChildren,randomizedChildren,unresolvedChildren};
 }
 function exportCsv(row,rows,children=[]){
   const cols=[
