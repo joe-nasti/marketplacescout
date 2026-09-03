@@ -8,9 +8,10 @@ if(!/move_selection=i\.move\?await preferredMoveProduct\(t,lookupRows\):null;if\
 if(!/if\(best&&best\.score>0\).*shared_internal_sku_evidence/.test(src))throw new Error('shared market evidence must outrank arbitrary same-name printing order');
 if(!/price_point_count/.test(src))throw new Error('official price-history coverage must remain an evidence fallback');
 if(!/\^\(\?:is\|are\).*supply/.test(src)||!/Boolean\(namedMarket\)/.test(src))throw new Error('named supply/sales/demand questions must trigger identity recovery');
-if(!/if\(i\.move\|\|i\.namedMarket\)\{return js\(\{ok:true,recovered:Boolean\(move_selection\|\|lookupRows\.length\|\|ids\.length\)/.test(src))throw new Error('named market recovery does not accept resolved identity immediately');
-const marketBranch=src.match(/if\(i\.move\|\|i\.namedMarket\)\{return js\([\s\S]*?\)\}\nif\(!ids\.length\)/)?.[0]||'';
+if(!/if\(i\.move\|\|i\.namedMarket\)\{let market_supply/.test(src)||!/return js\(\{ok:true,recovered:Boolean\(move_selection\|\|lookupRows\.length\|\|ids\.length\)/.test(src))throw new Error('named market recovery does not accept resolved identity immediately');
+const marketBranch=src.match(/if\(i\.move\|\|i\.namedMarket\)\{let market_supply[\s\S]*?\}\nif\(!ids\.length\)/)?.[0]||'';
 if(!marketBranch)throw new Error('could not isolate immediate identity recovery branch');
-if(/discover\(/.test(marketBranch))throw new Error('causal/named-market identity recovery must not depend on SKU discovery');
+if(!/if\(i\.namedMarket&&.*discoverFamily/.test(marketBranch))throw new Error('family supply discovery must remain inside the named-market branch');
+if(!/CARD_FAMILY_NM_LP/.test(marketBranch)||!/LIGHTLY PLAYED/.test(src))throw new Error('unscoped supply recovery must include the English NM/LP card family');
 if(!/lookup_candidates/.test(marketBranch))throw new Error('identity candidates must remain available for downstream fallback');
 console.log('Ask move-family and named-market identity guard passed');
