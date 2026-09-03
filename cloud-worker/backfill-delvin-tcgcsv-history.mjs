@@ -11,7 +11,16 @@ if(!SUPABASE_URL||!SERVICE_KEY)throw new Error('SUPABASE_URL and SUPABASE_SERVIC
 const H={apikey:SERVICE_KEY,Authorization:`Bearer ${SERVICE_KEY}`,'Content-Type':'application/json'};
 async function sb(path,{method='GET',body,prefer}={}){const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers:{...H,...(prefer?{Prefer:prefer}:{})},body:body===undefined?undefined:JSON.stringify(body)});const t=await r.text();let d;try{d=t?JSON.parse(t):null}catch{d=t}if(!r.ok)throw new Error(d?.message||`Supabase HTTP ${r.status}: ${t.slice(0,240)}`);return d}
 async function rpc(name,body={}){return sb(`rpc/${name}`,{method:'POST',body})}
-function sh(cmd,args,cwd){return new Promise((resolve,reject)=>{const p=spawn(cmd,args,{cwd,stdio:['ignore','pipe','pipe']});let out='',err='';p.stdout.on('data',d=>out+=d);p.stderr.on('data',d=>err+=d);p.on('error',reject);p.on('close',c=>c===0?resolve(out):reject(new Error(`${cmd} exited ${c}: ${err.slice(-600)}`))})}
+function sh(cmd,args,cwd){
+  return new Promise((resolve,reject)=>{
+    const p=spawn(cmd,args,{cwd,stdio:['ignore','pipe','pipe']});
+    let out='',err='';
+    p.stdout.on('data',d=>out+=d);
+    p.stderr.on('data',d=>err+=d);
+    p.on('error',reject);
+    p.on('close',c=>c===0?resolve(out):reject(new Error(`${cmd} exited ${c}: ${err.slice(-600)}`)));
+  });
+}
 const iso=d=>d.toISOString().slice(0,10);
 function dates(start,end,step){const out=[],a=new Date(`${start}T00:00:00Z`),b=new Date(`${end}T00:00:00Z`);for(let d=new Date(a);d<=b;d.setUTCDate(d.getUTCDate()+step))out.push(iso(d));if(out.at(-1)!==iso(b))out.push(iso(b));return [...new Set(out)]}
 function rowsFromJson(text,groupId,date,wanted){let j;try{j=JSON.parse(text)}catch{return[]}const arr=Array.isArray(j)?j:(Array.isArray(j?.results)?j.results:[]);return arr.filter(x=>wanted.has(Number(x.productId))).map(x=>({product_id:Number(x.productId),group_id:Number(groupId),sub_type_name:String(x.subTypeName||''),low_price:x.lowPrice??null,mid_price:x.midPrice??null,high_price:x.highPrice??null,market_price:x.marketPrice??null,direct_low_price:x.directLowPrice??null,observed_on:date,source_updated_at:new Date().toISOString()})).filter(x=>x.sub_type_name)}
