@@ -7,31 +7,29 @@ async function all(path,page=1000){const out=[];for(let offset=0;;offset+=page){
 function num(v){const n=Number(v);return Number.isFinite(n)?n:null}
 function round(v,d=1){const p=10**d;return Math.round(v*p)/p}
 function spread(reference,buy){return reference>0&&buy>0?(reference/buy-1)*100:null}
-function depthBoost(q){return q>=24?12:q>=12?10:q>=6?6:q>=3?3:0}
-function trendBoost(signal){return signal==='strong_tightening'?10:signal==='tightening'?6:signal==='loosening'?-6:0}
-function reason({eligible,spreadPct,qty,signal,basis}){if(!basis)return'No modeled landed cost available.';if(qty<3)return`Only ${qty} CT0 units available.`;if(spreadPct==null)return'No comparable TCG sealed reference price.';if(!eligible)return`Landed spread ${round(spreadPct)}% is below the 10% opportunity threshold.`;const trend=signal==='strong_tightening'?' Supply is strongly tightening.':signal==='tightening'?' Supply is tightening.':signal==='loosening'?' Supply is loosening.':'';return `${round(spreadPct)}% landed spread with ${qty} CT0 units.${trend}`}
+function depthSignal(q){return q>=24?'deep':q>=12?'healthy':q>=6?'usable':q>=3?'thin':'insufficient'}
+function reason({landedComplete,comparisonSpread,qty,signal}){if(!landedComplete)return'Comparison only: CT0 landed cost is incomplete until a consolidated basket shipping profile is configured.';if(qty<3)return`Only ${qty} CT0 units available; insufficient depth for a sourcing candidate.`;if(comparisonSpread==null)return'No TCG public comparison reference is available.';const trend=signal==='strong_tightening'?' Supply is strongly tightening.':signal==='tightening'?' Supply is tightening.':signal==='loosening'?' Supply is loosening.':'';return `${round(comparisonSpread)}% landed basis versus TCG public comparison price.${trend} Executable exit economics are required before an import recommendation.`}
 const started=new Date().toISOString();
 const [ctRows,tcgRows]=await Promise.all([
   all('sealed_product_price_current?select=sealed_uuid,raw_json,captured_at&source=eq.cardtrader'),
   all('sealed_product_price_current?select=sealed_uuid,market_price,low_with_shipping,low_price,captured_at&source=eq.tcgplayer_public')
 ]);
 const tcg=new Map(tcgRows.map(r=>[String(r.sealed_uuid),r]));
-let updated=0,eligibleCount=0,strong=0,tightening=0,loosening=0,building=0;
+let updated=0,candidates=0,comparisonOnly=0,tightening=0,loosening=0,building=0;
 for(const row of ctRows){
-  const raw=row.raw_json||{},zero=raw.ct_zero||{},trend=raw.ct_zero_trend||{},ref=tcg.get(String(row.sealed_uuid));
+  const raw=row.raw_json||{},zero=raw.ct_zero||{},trend=raw.ct_zero_trend||{},model=raw.landed_model||{},ref=tcg.get(String(row.sealed_uuid));
   const landedCandidates=[[6,num(zero.landed_6_avg)],[3,num(zero.landed_3_avg)],[1,num(zero.landed_1_avg)]].filter(([,v])=>v!=null);
   const [basis,landed]=landedCandidates[0]||[null,null];
-  const referenceType=ref?.market_price!=null?'tcg_market':ref?.low_with_shipping!=null?'tcg_low_with_shipping':ref?.low_price!=null?'tcg_low':null;
-  const reference=referenceType==='tcg_market'?num(ref.market_price):referenceType==='tcg_low_with_shipping'?num(ref.low_with_shipping):referenceType==='tcg_low'?num(ref.low_price):null;
-  const spreadPct=reference!=null&&landed!=null?spread(reference,landed):null;
+  const comparisonType=ref?.low_with_shipping!=null?'tcg_low_with_shipping':ref?.low_price!=null?'tcg_low':ref?.market_price!=null?'tcg_market_comparison_only':null;
+  const comparisonPrice=comparisonType==='tcg_low_with_shipping'?num(ref.low_with_shipping):comparisonType==='tcg_low'?num(ref.low_price):comparisonType==='tcg_market_comparison_only'?num(ref.market_price):null;
+  const comparisonSpread=comparisonPrice!=null&&landed!=null?spread(comparisonPrice,landed):null;
   const qty=Math.max(0,Number(zero.quantity||0));
   const signal=trend.signal||'building_history';
-  const eligible=spreadPct!=null&&spreadPct>=10&&qty>=3;
-  const score=spreadPct==null?null:round(spreadPct+depthBoost(qty)+trendBoost(signal));
-  const tier=eligible&&spreadPct>=20&&qty>=6&&signal!=='loosening'?'strong':eligible?'watch':'none';
-  raw.ct_zero_opportunity={version:'ct0_opportunity_v1',eligible,tier,reference_type:referenceType,reference_price:reference,landed_basis_units:basis,landed_cost:landed,landed_spread_pct:spreadPct==null?null:round(spreadPct),zero_quantity:qty,trend_signal:signal,trend_pressure_score:num(trend.pressure_score),depth_boost:depthBoost(qty),trend_boost:trendBoost(signal),opportunity_score:score,reason:reason({eligible,spreadPct,qty,signal,basis}),computed_at:new Date().toISOString()};
+  const landedComplete=model.version==='ct0_us_v2'&&model.complete===true&&landed!=null;
+  const candidate=landedComplete&&comparisonSpread!=null&&comparisonSpread>=10&&qty>=3;
+  raw.ct_zero_sourcing={version:'ct0_sourcing_v2',channel:'cardtrader_zero',candidate,actionable:false,recommendation:candidate?'WATCH IMPORT':'PASS',requires_executable_exit:true,requires_lead_time:true,requires_mapping_confidence:true,landed_model_complete:landedComplete,comparison_only:!candidate||comparisonType==='tcg_market_comparison_only',comparison_reference_type:comparisonType,comparison_reference_price:comparisonPrice,landed_basis_units:basis,landed_cost:landed,comparison_spread_pct:comparisonSpread==null?null:round(comparisonSpread),zero_quantity:qty,depth_signal:depthSignal(qty),trend_signal:signal,trend_pressure_score:num(trend.pressure_score),reason:reason({landedComplete,comparisonSpread,qty,signal}),computed_at:new Date().toISOString()};
+  raw.ct_zero_opportunity={...(raw.ct_zero_opportunity||{}),version:'ct0_opportunity_v1_deprecated',eligible:false,tier:'deprecated',deprecated:true,replaced_by:'ct_zero_sourcing',reason:'Deprecated: raw CT0/TCG public spread is no longer an actionable Scout opportunity. Use ct_zero_sourcing plus executable exit economics.'};
   await sb(`sealed_product_price_current?sealed_uuid=eq.${encodeURIComponent(row.sealed_uuid)}&source=eq.cardtrader`,{method:'PATCH',body:{raw_json:raw},prefer:'return=minimal'});
-  updated++;if(eligible)eligibleCount++;if(tier==='strong')strong++;if(signal==='tightening'||signal==='strong_tightening')tightening++;if(signal==='loosening')loosening++;if(signal==='building_history')building++;
+  updated++;if(candidate)candidates++;if(!landedComplete)comparisonOnly++;if(signal==='tightening'||signal==='strong_tightening')tightening++;if(signal==='loosening')loosening++;if(signal==='building_history')building++;
 }
-await sb('mtgjson_sync_state?on_conflict=feed',{method:'POST',body:[{feed:'cardtrader_zero_opportunities',status:'complete',last_started_at:started,last_completed_at:new Date().toISOString(),row_count:updated,detail:{version:'ct0_opportunity_v1',current_ct_rows:ctRows.length,tcg_rows:tcgRows.length,updated,eligible:eligibleCount,strong,tightening,loosening,building_history:building,eligibility_rule:'landed spread >= 10% and CT0 quantity >= 3'}}],prefer:'resolution=merge-duplicates,return=minimal'});
-console.log(JSON.stringify({updated,eligible:eligibleCount,strong,tightening,loosening,building_history:building,at:new Date().toISOString()}));
+const detail={version:'ct0_sourcing_v2',current_ct_rows:ctRows.length,tcg_rows:tcgRows.length,updated,candidates,comparison_only_incomplete_landed:comparisonOnly,tightening,loosening,building_history:building,actionability_rule:'never actionable without executable exit, lead time, and mapping confidence',candidate_rule:'complete basket-aware landed model, >=10% comparison basis, CT0 quantity >=3'};await sb('mtgjson_sync_state?on_conflict=feed',{method:'POST',body:[{feed:'cardtrader_zero_sourcing',status:'complete',last_started_at:started,last_completed_at:new Date().toISOString(),row_count:updated,detail}],prefer:'resolution=merge-duplicates,return=minimal'});console.log(JSON.stringify({...detail,at:new Date().toISOString()}));
