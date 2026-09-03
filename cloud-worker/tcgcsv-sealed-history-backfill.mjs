@@ -26,16 +26,20 @@ const dateRange=()=>{const out=[];for(let d=new Date(`${END}T00:00:00Z`),floor=n
 const num=v=>Number.isFinite(Number(v))?Number(v):null;
 const run=(cmd,args)=>new Promise((resolve,reject)=>{const p=spawn(cmd,args,{stdio:'inherit'});p.on('error',reject);p.on('exit',c=>c===0?resolve():reject(new Error(`${cmd} exited ${c}`)))});
 async function status(date,patch){await sb('sealed_tcgcsv_archive_imports?on_conflict=archive_date',{method:'POST',body:[{archive_date:date,...patch}],prefer:'resolution=merge-duplicates,return=minimal'})}
+async function cardStatus(date,patch){await sb('modeled_booster_card_archive_imports?on_conflict=archive_date',{method:'POST',body:[{archive_date:date,...patch}],prefer:'resolution=merge-duplicates,return=minimal'})}
 
 async function targets(){
   const products=await sb("mtgjson_sealed_products?select=tcgplayer_product_id&category=eq.booster_box&subtype=eq.collector&tcgplayer_product_id=not.is.null&name=not.ilike.*case*")||[];
-  const ids=[...new Set(products.map(x=>Number(x.tcgplayer_product_id)).filter(Number.isFinite))];
+  const poolItems=await sb('sealed_ev_backtest_pool_items?select=tcgplayer_product_id&tcgplayer_product_id=not.is.null&limit=5000')||[];
+  const sealedIds=new Set(products.map(x=>Number(x.tcgplayer_product_id)).filter(Number.isFinite));
+  const cardIds=new Set(poolItems.map(x=>Number(x.tcgplayer_product_id)).filter(Number.isFinite));
+  const ids=[...new Set([...sealedIds,...cardIds])];
   const groupByProduct=new Map();
   for(let i=0;i<ids.length;i+=100){
     const part=ids.slice(i,i+100),rows=await sb(`tcgcsv_tcgplayer_prices?select=product_id,group_id&product_id=in.(${part.join(',')})` )||[];
     for(const row of rows)groupByProduct.set(Number(row.product_id),Number(row.group_id));
   }
-  return{ids:new Set(ids),groups:[...new Set(groupByProduct.values())].filter(Number.isFinite)};
+  return{ids:new Set(ids),sealedIds,cardIds,groups:[...new Set(groupByProduct.values())].filter(Number.isFinite)};
 }
 
 async function download(url,path){
@@ -47,31 +51,38 @@ async function download(url,path){
 async function importDate(date,target){
   const dir=await mkdtemp(join(tmpdir(),'collectish-sealed-history-'));
   try{
-    await status(date,{status:'running',attempted_at:new Date().toISOString(),target_products:target.ids.size,detail:{strideDays:STRIDE}});
+    await status(date,{status:'running',attempted_at:new Date().toISOString(),target_products:target.sealedIds.size,detail:{strideDays:STRIDE}});
+    await cardStatus(date,{status:'running',attempted_at:new Date().toISOString(),target_products:target.cardIds.size,detail:{strideDays:STRIDE}});
     const archive=join(dir,`prices-${date}.ppmd.7z`),ok=await download(`${BASE}/archive/tcgplayer/prices-${date}.ppmd.7z`,archive);
-    if(!ok){await status(date,{status:'missing',completed_at:new Date().toISOString(),detail:{httpStatus:404}});return{date,status:'missing',rows:0}}
+    if(!ok){const patch={status:'missing',completed_at:new Date().toISOString(),detail:{httpStatus:404}};await Promise.all([status(date,patch),cardStatus(date,patch)]);return{date,status:'missing',rows:0}}
     const output=join(dir,'out');
     await run('7z',['x',archive,`-o${output}`,'-y',...target.groups.map(g=>`${date}/1/${g}/prices`)]);
-    const rows=[];
+    const sealedRows=[],cardRows=[];
     for(const group of target.groups){
       const file=join(output,date,'1',String(group),'prices');
       let parsed;try{parsed=JSON.parse(await readFile(file,'utf8'))}catch{continue}
       for(const p of Array.isArray(parsed?.results)?parsed.results:Array.isArray(parsed)?parsed:[]){
         const id=Number(p?.productId);if(!target.ids.has(id))continue;
-        rows.push({product_id:id,observed_on:date,sub_type_name:String(p?.subTypeName||'Normal'),market_price:num(p?.marketPrice),low_price:num(p?.lowPrice),direct_low_price:num(p?.directLowPrice),source:'tcgcsv_archive',source_granularity:STRIDE===1?'daily':`sampled_${STRIDE}d`,source_updated_at:`${date}T20:00:00Z`});
+        const row={product_id:id,observed_on:date,sub_type_name:String(p?.subTypeName||'Normal'),market_price:num(p?.marketPrice),low_price:num(p?.lowPrice),direct_low_price:num(p?.directLowPrice),source:'tcgcsv_archive',source_granularity:STRIDE===1?'daily':`sampled_${STRIDE}d`,source_updated_at:`${date}T20:00:00Z`};
+        if(target.sealedIds.has(id))sealedRows.push(row);
+        if(target.cardIds.has(id))cardRows.push(row);
       }
     }
-    for(let i=0;i<rows.length;i+=250)await sb('sealed_product_market_history?on_conflict=product_id,sub_type_name,observed_on',{method:'POST',body:rows.slice(i,i+250),prefer:'resolution=merge-duplicates,return=minimal'});
-    await status(date,{status:'complete',completed_at:new Date().toISOString(),imported_rows:rows.length,detail:{groups:target.groups.length,strideDays:STRIDE}});
-    return{date,status:'complete',rows:rows.length};
-  }catch(error){await status(date,{status:'failed',completed_at:new Date().toISOString(),detail:{error:String(error?.message||error).slice(0,500)}}).catch(()=>{});throw error}
+    for(let i=0;i<sealedRows.length;i+=250)await sb('sealed_product_market_history?on_conflict=product_id,sub_type_name,observed_on',{method:'POST',body:sealedRows.slice(i,i+250),prefer:'resolution=merge-duplicates,return=minimal'});
+    for(let i=0;i<cardRows.length;i+=250)await sb('modeled_booster_card_price_history?on_conflict=product_id,sub_type_name,observed_on',{method:'POST',body:cardRows.slice(i,i+250),prefer:'resolution=merge-duplicates,return=minimal'});
+    const detail={groups:target.groups.length,strideDays:STRIDE};
+    await Promise.all([status(date,{status:'complete',completed_at:new Date().toISOString(),imported_rows:sealedRows.length,detail}),cardStatus(date,{status:'complete',completed_at:new Date().toISOString(),imported_rows:cardRows.length,detail})]);
+    return{date,status:'complete',sealedRows:sealedRows.length,cardRows:cardRows.length};
+  }catch(error){const patch={status:'failed',completed_at:new Date().toISOString(),detail:{error:String(error?.message||error).slice(0,500)}};await Promise.all([status(date,patch).catch(()=>{}),cardStatus(date,patch).catch(()=>{})]);throw error}
   finally{await rm(dir,{recursive:true,force:true})}
 }
 
 const target=await targets();
 const done=await sb('sealed_tcgcsv_archive_imports?select=archive_date,status&status=in.(complete,missing)')||[];
-const completed=new Set(done.map(x=>x.archive_date));
+const cardDone=await sb('modeled_booster_card_archive_imports?select=archive_date,status&status=in.(complete,missing)')||[];
+const sealedCompleted=new Set(done.map(x=>x.archive_date)),cardCompleted=new Set(cardDone.map(x=>x.archive_date));
+const completed=new Set([...sealedCompleted].filter(x=>cardCompleted.has(x)));
 const pending=dateRange().filter(d=>!completed.has(d)).slice(0,MAX),report=[];
 for(const date of pending){try{report.push(await importDate(date,target))}catch(error){report.push({date,status:'failed',error:String(error?.message||error)})}}
-console.log(JSON.stringify({ok:report.every(x=>x.status!=='failed'),targetProducts:target.ids.size,targetGroups:target.groups.length,pending:pending.length,report},null,2));
+console.log(JSON.stringify({ok:report.every(x=>x.status!=='failed'),sealedTargetProducts:target.sealedIds.size,modeledCardTargetProducts:target.cardIds.size,targetGroups:target.groups.length,pending:pending.length,report},null,2));
 if(report.some(x=>x.status==='failed'))process.exitCode=1;
