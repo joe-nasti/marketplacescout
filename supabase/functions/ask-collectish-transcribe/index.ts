@@ -23,14 +23,16 @@ Deno.serve(async(req:Request)=>{
   let form:FormData;try{form=await req.formData()}catch{return json({error:'Invalid audio upload'},400)}
   const file=form.get('file');if(!(file instanceof File)||!file.size)return json({error:'Audio file required'},400);
   if(file.size>MAX_BYTES)return json({error:'Recording is too large'},413);
-  if(file.type&&!allowedTypes.test(file.type))return json({error:'Unsupported audio format'},415);
+  const baseType=String(file.type||'').split(';',1)[0].trim().toLowerCase();
+  if(baseType&&!allowedTypes.test(baseType))return json({error:'Unsupported audio format'},415);
+  const uploadFile=baseType&&file.type!==baseType?new File([file],file.name||'collectish-voice.webm',{type:baseType}):file;
   const client=clean(form.get('client'),30)||'unknown';
   let context:any={};try{context=JSON.parse(String(form.get('context')||'{}'))}catch{}
   const card=clean(context?.product_name_hint,160);
   const keywords=[...(card?[card]:[]),...MTG_KEYWORDS];
   const prompt=['Transcribe an English Magic: The Gathering collectible-market question exactly.','Use official MTG card, set, treatment, marketplace, and format spellings when the audio supports them.','Preserve prices, quantities, percentages, set codes, collector numbers, foil state, and conditions.','Write TCGplayer, EDHREC, Scryfall, ManaPool, Card Kingdom, MTGStocks, SYP, cEDH, nonfoil, and buylist with these spellings.','Do not answer or explain the question; output only what the speaker said.',card?`The currently selected Collectish product is ${card}.`:null].filter(Boolean).join(' ');
   const upstream=new FormData();
-  upstream.append('file',file,file.name||'collectish-voice.webm');
+  upstream.append('file',uploadFile,uploadFile.name||'collectish-voice.webm');
   upstream.append('model','gpt-transcribe');
   upstream.append('response_format','json');
   upstream.append('prompt',prompt);
