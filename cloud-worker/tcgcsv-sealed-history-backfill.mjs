@@ -31,15 +31,24 @@ async function cardStatus(date,patch){await sb('modeled_booster_card_archive_imp
 async function targets(){
   const products=await sb("mtgjson_sealed_products?select=tcgplayer_product_id&category=eq.booster_box&subtype=eq.collector&tcgplayer_product_id=not.is.null&name=not.ilike.*case*")||[];
   const poolItems=await sb('sealed_ev_backtest_pool_items?select=tcgplayer_product_id&tcgplayer_product_id=not.is.null&limit=5000')||[];
+  const playProducts=await sb('mtgjson_sealed_products?select=set_code&category=eq.booster_pack&subtype=eq.play&limit=5000')||[];
+  const playSetCodes=[...new Set(playProducts.map(x=>String(x.set_code||'').toUpperCase()).filter(Boolean))];
+  const playCards=[];
+  for(const code of playSetCodes){
+    const rows=await sb(`mtgjson_cards?select=tcgplayer_product_id,set_code&set_code=eq.${encodeURIComponent(code)}&tcgplayer_product_id=not.is.null&limit=1500`)||[];
+    playCards.push(...rows);
+  }
   const sealedIds=new Set(products.map(x=>Number(x.tcgplayer_product_id)).filter(Number.isFinite));
-  const cardIds=new Set(poolItems.map(x=>Number(x.tcgplayer_product_id)).filter(Number.isFinite));
+  const cardIds=new Set([...poolItems,...playCards].map(x=>Number(x.tcgplayer_product_id)).filter(Number.isFinite));
   const ids=[...new Set([...sealedIds,...cardIds])];
   const groupByProduct=new Map();
   for(let i=0;i<ids.length;i+=100){
     const part=ids.slice(i,i+100),rows=await sb(`tcgcsv_tcgplayer_prices?select=product_id,group_id&product_id=in.(${part.join(',')})` )||[];
     for(const row of rows)groupByProduct.set(Number(row.product_id),Number(row.group_id));
   }
-  return{ids:new Set(ids),sealedIds,cardIds,groups:[...new Set(groupByProduct.values())].filter(Number.isFinite)};
+  const setRows=playSetCodes.length?await sb(`magic_set_catalog?select=code,tcgplayer_group_id&code=in.(${playSetCodes.join(',')})&tcgplayer_group_id=not.is.null&limit=5000`):[];
+  const groups=[...new Set([...groupByProduct.values(),...(setRows||[]).map(x=>Number(x.tcgplayer_group_id))])].filter(Number.isFinite);
+  return{ids:new Set(ids),sealedIds,cardIds,groups,playSetCodes};
 }
 
 async function download(url,path){
@@ -84,5 +93,5 @@ const sealedCompleted=new Set(done.map(x=>x.archive_date)),cardCompleted=new Set
 const completed=new Set([...sealedCompleted].filter(x=>cardCompleted.has(x)));
 const pending=dateRange().filter(d=>!completed.has(d)).slice(0,MAX),report=[];
 for(const date of pending){try{report.push(await importDate(date,target))}catch(error){report.push({date,status:'failed',error:String(error?.message||error)})}}
-console.log(JSON.stringify({ok:report.every(x=>x.status!=='failed'),sealedTargetProducts:target.sealedIds.size,modeledCardTargetProducts:target.cardIds.size,targetGroups:target.groups.length,pending:pending.length,report},null,2));
+console.log(JSON.stringify({ok:report.every(x=>x.status!=='failed'),sealedTargetProducts:target.sealedIds.size,modeledCardTargetProducts:target.cardIds.size,playSetTargets:target.playSetCodes.length,targetGroups:target.groups.length,pending:pending.length,report},null,2));
 if(report.some(x=>x.status==='failed'))process.exitCode=1;
