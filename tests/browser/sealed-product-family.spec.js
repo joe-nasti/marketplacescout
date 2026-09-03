@@ -166,6 +166,20 @@ test('booster children choose one exit without double counting',async()=>{
   expect(optimizer).toContain('Each randomized child contributes exactly one route');
 });
 
+test('sealed child exits require fresh, non-thin evidence',async()=>{
+  const renderer=await read('src/modules/sealed/renderer.js');
+  const optimizer=await read('src/modules/sealed/out-optimizer.js');
+  const migration=await read('supabase/migrations/20260903180847_gate_sealed_child_exit_quality.sql');
+  expect(migration).toContain("now()-interval '12 hours'");
+  expect(migration).toContain("coalesce(lp.total_listings,0)>=2");
+  expect(migration).toContain("then 'thin'");
+  expect(migration).toContain('sealed_route_confidence');
+  expect(migration).toContain('sealed_route_eligible');
+  expect(renderer).toContain('sealed_total_listings,sealed_price_age_hours,sealed_depth_status,sealed_route_confidence,sealed_route_eligible');
+  expect(optimizer).toContain('Sealed-route depth not fully verified');
+  expect(optimizer).toContain('depth unverified');
+});
+
 test('practical sealed EV discounts liquidity and gates recommendations',async()=>{
   const migration=await read('supabase/migrations/20260903014346_add_sealed_ev_audit_sensitivity.sql');
   expect(migration).toContain('practical_liquidation_ev');
