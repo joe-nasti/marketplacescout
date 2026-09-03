@@ -92,7 +92,8 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).toContain('Included packs · TCG Low');
   expect(renderer).toContain('Included packs · practical');
   expect(renderer).toContain('Fixed-card live-out EV');
-  expect(renderer).toContain('Practical liquidation EV');
+  expect(renderer).toContain("detailFloor?'Known-card practical floor':'Practical EV'");
+  expect(renderer).toContain('EV sensitivity');
   expect(renderer).toContain('Market excluded');
   expect(renderer).toContain('sealed_product_executable_ev_cache?');
   expect(renderer).toContain("known cards only · sample pack excluded");
