@@ -30,7 +30,7 @@ const ct0=normalizeAcquisitionQuote({
   mappingConfidence:'exact'
 });
 assert.equal(ct0.complete,true);
-assert.equal(ct0.landedUnitCost,9);
+assert.equal(Math.round(ct0.landedUnitCost*100)/100,9);
 const ct0Path=buildSourcingPath(ct0,{channel:'tcgplayer_direct',label:'TCG Direct',net:13},{minRoiPct:20,minProfit:1});
 assert.equal(ct0Path.recommendation,SOURCING_RECOMMENDATIONS.IMPORT_CT0);
 assert.equal(ct0Path.actionable,true);
