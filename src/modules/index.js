@@ -83,7 +83,9 @@ function schedulePostRenderEnhancers(){
     postRenderPromise=loadParallel(scoutPostRender).then(()=>{
       document.dispatchEvent(new CustomEvent('collectish:scout-post-render-modules-ready',{detail:{ms:Math.round(performance.now()-started)}}));
     });
-  },{timeout:2200,delay:350});
+  // Leave a full post-paint interaction window before enrichment traffic. The
+  // prior 350 ms boundary raced slower mobile projects after the render event.
+  },{timeout:2200,delay:650});
 }
 
 function loadScoutIntelligence(){
