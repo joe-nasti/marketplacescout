@@ -46,8 +46,11 @@ test('shared router answers sealed Direct crack rankings without clarification',
   expect(router).toContain("type:'sealed_crack_ranking'");
   expect(router).toContain('sealedDirectCrackIntent');
   expect(router).toMatch(/routeSealedDirect\(t,q\).*routeSource\(q\)/s);
-  expect(router).toMatch(/routeSealedDirect[\s\S]*serviceRest\('sealed_product_model_coverage/);
-  expect(router).toMatch(/routeSealedDirect[\s\S]*serviceRest\('sealed_product_executable_ev_cache/);
+  expect(router).toMatch(/routeSealedDirect[\s\S]*serviceRpc\('ask_delvin_sealed_direct_crack_v1'/);
+  const migration=read('supabase/migrations/20260903195627_add_delvin_sealed_direct_ranking_rpc.sql');
+  expect(migration).toContain('security invoker');
+  expect(migration).toContain('revoke all on function public.ask_delvin_sealed_direct_crack_v1');
+  expect(migration).toContain('grant execute on function public.ask_delvin_sealed_direct_crack_v1(integer) to service_role');
   expect(router).toContain("r.practical_action==='BUY & CRACK'");
   expect(router).toContain('Direct EV-only rows are theoretical outlet value');
   expect(presenter).toContain('sealedCrackPresentation');
