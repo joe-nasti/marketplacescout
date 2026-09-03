@@ -19,6 +19,7 @@ on:
     branches: [main]
     paths:
       - "cloud-worker/tcgcsv-sealed-history-backfill.mjs"
+      - "supabase/migrations/*modeled_booster_card_history.sql"
       - ".github/workflows/tcgcsv-sealed-history-backfill.yml"
 
 permissions:
@@ -49,5 +50,5 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y p7zip-full
       - name: Validate importer
         run: node --check cloud-worker/tcgcsv-sealed-history-backfill.mjs
-      - name: Import compact collector-box history
+      - name: Import compact sealed and modeled-card history
         run: node cloud-worker/tcgcsv-sealed-history-backfill.mjs

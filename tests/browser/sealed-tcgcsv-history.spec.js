@@ -7,7 +7,18 @@ test('sealed TCGCSV backfill is selective and storage bounded',async()=>{
   expect(worker).toContain('TCGCSV_HISTORY_MAX_ARCHIVES');
   expect(worker).toContain('TCGCSV_HISTORY_STRIDE_DAYS');
   expect(worker).toContain('sealed_product_market_history');
+  expect(worker).toContain('sealed_ev_backtest_pool_items');
+  expect(worker).toContain('modeled_booster_card_price_history');
+  expect(worker).toContain('modeled_booster_card_archive_imports');
   expect(worker).not.toContain('high_price:num');
+});
+
+test('modeled card history is private, bounded, and calibration gated',async()=>{
+  const sql=await readFile('supabase/migrations/20260903203000_add_modeled_booster_card_history.sql','utf8');
+  expect(sql).toContain('primary key(product_id,sub_type_name,observed_on)');
+  expect(sql).toContain('revoke all on public.modeled_booster_card_price_history from public,anon,authenticated');
+  expect(sql).toContain("then 'CALIBRATION_READY' else 'BUILDING_HISTORY'");
+  expect(sql).toContain('never used as executable EV');
 });
 
 test('collector-box lifecycle keeps price and demand provenance separate',async()=>{
