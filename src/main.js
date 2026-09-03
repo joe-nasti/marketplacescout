@@ -2,7 +2,20 @@
 // CSS source: ./styles/index.css
 // Bootstrap ownership contract: guarded app.js owns ./core/shell.js, ./state/store.js, and ./modules/index.js.
 window.__CollectishStartupStartedAt=performance.now();
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+
+function handScoutDeepLinkToAndroid(){
+  try{
+    const u=new URL(location.href),p=u.searchParams;
+    const scoutTarget=['sku','product','card','fromCard'].some(k=>p.has(k));
+    const android=/Android/i.test(navigator.userAgent||'');
+    if(!android||!scoutTarget||p.get('webFallback')==='1')return false;
+    const fallback=new URL(u.toString());fallback.searchParams.set('webFallback','1');
+    const target=`intent://joe-nasti.github.io${u.pathname}${u.search}#Intent;scheme=https;package=com.collectish.agent;S.browser_fallback_url=${encodeURIComponent(fallback.toString())};end`;
+    location.replace(target);
+    return true;
+  }catch{return false}
+}
 
 function shouldRecoverModuleFailure(message){
   if(!/failed to fetch dynamically imported module|importing a module script failed|error loading dynamically imported module/i.test(message))return false;
@@ -37,7 +50,9 @@ function showStartupError(error){
 }
 
 const oauthConsent=/\/oauth\/consent\/?$/.test(location.pathname);
-if(oauthConsent){
+if(handScoutDeepLinkToAndroid()){
+  // Android will transfer the normal HTTPS Scout URL into the installed Collectish app.
+}else if(oauthConsent){
   import('./modules/oauth-consent/main.js').then(module=>module.startOAuthConsent()).catch(showStartupError);
 }else{
   const installDeferredStyles=()=>{
