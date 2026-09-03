@@ -4,6 +4,9 @@
   "compatibility_date": "2026-08-29",
   "workers_dev": true,
   "keep_vars": true,
+  "vars": {
+    "COLLECTISH_WEB_URL": "https://joe-nasti.github.io/marketplacescout/open.html"
+  },
   "triggers": {
     "crons": ["*/5 * * * *"]
   },
