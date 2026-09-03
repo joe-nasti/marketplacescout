@@ -5,6 +5,8 @@ const surface=fs.readFileSync('supabase/migrations/20260903135500_surface_market
 const sync=fs.readFileSync('supabase/functions/market-supply-sync/index.ts','utf8');
 const identity=fs.readFileSync('supabase/functions/ask-collectish-identity-recovery/index.ts','utf8');
 const manapool=fs.readFileSync('supabase/functions/manapool-supply-sync/index.ts','utf8');
+const supplyPresenter=fs.readFileSync('supabase/functions/ask-collectish-delvin-supply-present/index.ts','utf8');
+const discord=fs.readFileSync('cloud-worker/discord-shared-delvin-route.mjs','utf8');
 for(const token of ['market_supply_snapshots','ask_collectish_market_supply_v1','direct_unit_count','non_direct_unit_count','seller_count','global_supply_classification','EXACT_SKU_ALL_TCGPLAYER','Retailer price presence'])if(!migration.includes(token))throw new Error(`missing market-supply contract token: ${token}`);
 for(const token of ['mp-search-api.tcgplayer.com','productConditionId','directListing','sellerKey','quantity','channelExclusion','tcgplayer_site_listings_search','PARTIAL_PAGE_CAP'])if(!sync.includes(token))throw new Error(`missing exact TCG listing collector token: ${token}`);
 if(!/exact\(listings|const exact=listings\.filter/.test(sync))throw new Error('TCG marketplace supply must filter listings to the exact SKU');
@@ -12,6 +14,9 @@ if(!/nonDirect=exact\.filter/.test(sync))throw new Error('non-Direct marketplace
 if(!/syncSupply/.test(identity)||!/market-supply-sync/.test(identity))throw new Error('named supply questions do not refresh market-wide supply');
 if(/term\.language\s*=/.test(sync))throw new Error('market supply must filter language by exact SKU, not display-label facet');
 for(const token of ["'Origin':'https://www.tcgplayer.com'","'Referer':'https://www.tcgplayer.com/'",'Mozilla/5.0'])if(!sync.includes(token))throw new Error(`missing TCGplayer site request header: ${token}`);
+for(const token of ['CACHE_MINUTES=30','latestTcg','latestManaPool','tcgFresh','mpFresh','cache_policy','force_refresh'])if(!sync.includes(token))throw new Error(`missing 30-minute read-through cache contract: ${token}`);
+if(!/tcgCached\.coverage_state==='COMPLETE'&&ageMinutes\(tcgCached\.observed_at\)<CACHE_MINUTES/.test(sync))throw new Error('TCGplayer cache must require a fresh complete snapshot');
+if(!/mpCached&&ageMinutes\(mpCached\.observed_at\)<CACHE_MINUTES/.test(sync))throw new Error('ManaPool cache must reuse fresh exact retail depth');
 if(!/stock\|supply\|inventory\|liquidity/.test(identity))throw new Error('stock must be a first-class supply-like question');
 if(!/how\(\?:'s\| is\).*stock\|supply\|inventory\|liquidity/.test(identity))throw new Error('how is stock on <card> is not recognized');
 for(const token of ['exactFamilyRows','familySupply','CARD_NAME_NM_LP_ENGLISH','family_market_supply','exact_card_name_family_supply','near mint|lightly played'])if(!identity.includes(token))throw new Error(`missing card-family supply contract token: ${token}`);
@@ -19,6 +24,8 @@ if(!/Number\(r\?\.match_rank\)===0/.test(identity))throw new Error('family suppl
 if(!/for\(const row of family\)/.test(identity)||!/syncSupply\(h,text\(row\.product_id\),text\(row\.sku_id\)\)/.test(identity))throw new Error('family supply does not refresh each exact family SKU');
 for(const token of ['primary_evidence:true','tcgplayer_total_units','tcgplayer_total_listings','tcgplayer_direct_units','tcgplayer_non_direct_units','answer_instruction','CARD_NAME_FAMILY','card_name_family_supply'])if(!identity.includes(token))throw new Error(`family supply is not promoted as primary Ask evidence: ${token}`);
 if(!identity.includes('Do not describe one representative SKU as the scope of the answer'))throw new Error('family supply does not explicitly prevent representative-SKU answers');
+for(const token of ['card_family_supply','Printing depth','TCGplayer/ManaPool cache 30m','CK baseline refresh 12h','tcgplayer_total_units','manapool_quantity','cardkingdom_quantity'])if(!supplyPresenter.includes(token))throw new Error(`missing deterministic family-supply presentation token: ${token}`);
+if(!discord.includes("ask-collectish-delvin-supply-present")||!discord.includes('supplyLike'))throw new Error('Discord stock questions are not routed through the deterministic supply presenter');
 if(/global_supply_classification','Thin \/ fragmented Direct/i.test(migration))throw new Error('Direct classification leaked into global supply classification');
 for(const token of ['manapool-supply-sync','product_id:productId','sku_id:skuId'])if(!sync.includes(token))throw new Error(`market supply does not chain exact-SKU ManaPool collector: ${token}`);
 for(const token of ['exact_ask_sku_on_demand','tcgplayer_sku_id','available_quantity','exact_tcgplayer_sku:true','numeric product_id and sku_id required'])if(!manapool.includes(token))throw new Error(`missing exact-SKU ManaPool contract token: ${token}`);
