@@ -36,4 +36,8 @@ test('web Ask and Discord render the canonical Zeta decision payload',()=>{
   assert.match(discord,/name:'Market activity'/);
   assert.match(discord,/name:`Why \$\{surface\.verdict\}`/);
   assert.match(discord,/name:'Buy zone'/);
+  assert.match(discord,/name:'Buy zone',value:surface\.buy_zone,inline:false/);
+  assert.match(discord,/name:'Recheck',value:surface\.recheck,inline:false/);
+  assert.match(surfaces,/cx-ask-buy-zone/);
+  assert.match(surfaces,/cx-ask-recheck/);
 });
