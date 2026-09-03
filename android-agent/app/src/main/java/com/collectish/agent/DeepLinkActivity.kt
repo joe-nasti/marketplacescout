@@ -7,14 +7,17 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import org.json.JSONObject
 
 class DeepLinkActivity : Activity() {
     private lateinit var web: WebView
-    private var injected = false
     private lateinit var targetUrl: String
+    private var freshRetryUsed = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,37 +30,85 @@ class DeepLinkActivity : Activity() {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
-            settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+            // Deep links must never reuse a retired Vite HTML/module graph. Normal
+            // MainActivity launches can use WebView caching; this short-lived activity
+            // prioritizes correctness because its target can arrive across deployments.
+            settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
             setBackgroundColor(Color.WHITE)
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView, url: String) {
-                    super.onPageFinished(view, url)
-                    if (injected) return
-                    injected = true
-                    val prefs = getSharedPreferences("collectish-native", MODE_PRIVATE)
-                    val access = prefs.getString("accessToken", null)
-                    val refresh = prefs.getString("refreshToken", null)
-                    if (access.isNullOrBlank() || refresh.isNullOrBlank()) return
-                    val session = JSONObject().apply {
-                        put("token", access)
-                        put("refresh", refresh)
-                        put("exp", jwtExpiryMillis(access))
-                    }.toString()
-                    val js = "localStorage.setItem('collectishSession', ${JSONObject.quote(session)}); location.replace(${JSONObject.quote(targetUrl)});"
-                    view.evaluateJavascript(js, null)
+                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                    if (shouldRecoverAsset(request.url?.toString().orEmpty())) retryFresh(view)
+                    else super.onReceivedError(view, request, error)
+                }
+
+                override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
+                    if (response.statusCode >= 400 && shouldRecoverAsset(request.url?.toString().orEmpty())) retryFresh(view)
+                    else super.onReceivedHttpError(view, request, response)
                 }
             }
         }
         setContentView(web)
-        web.loadUrl(targetUrl)
+        web.clearCache(true)
+        bootstrapSessionThenOpen()
     }
 
-    private fun markNativeDeepLink(value: String): String = runCatching {
+    private fun bootstrapSessionThenOpen() {
+        val prefs = getSharedPreferences("collectish-native", MODE_PRIVATE)
+        val access = prefs.getString("accessToken", null)
+        val refresh = prefs.getString("refreshToken", null)
+        if (access.isNullOrBlank() || refresh.isNullOrBlank()) {
+            web.loadUrl(targetUrl)
+            return
+        }
+        val session = JSONObject().apply {
+            put("token", access)
+            put("refresh", refresh)
+            put("exp", jwtExpiryMillis(access))
+        }.toString()
+        val html = """
+            <!doctype html><meta charset="utf-8"><script>
+            try { localStorage.setItem('collectishSession', ${JSONObject.quote(session)}); }
+            finally { location.replace(${JSONObject.quote(targetUrl)}); }
+            </script>
+        """.trimIndent()
+        web.loadDataWithBaseURL(
+            "https://joe-nasti.github.io/marketplacescout/",
+            html,
+            "text/html",
+            "UTF-8",
+            null
+        )
+    }
+
+    private fun retryFresh(view: WebView) {
+        if (freshRetryUsed) return
+        freshRetryUsed = true
+        view.stopLoading()
+        view.clearCache(true)
+        targetUrl = markNativeDeepLink(targetUrl, forceNewBoot = true)
+        bootstrapSessionThenOpen()
+    }
+
+    private fun shouldRecoverAsset(value: String): Boolean {
+        val lower = value.lowercase()
+        return lower.contains("/marketplacescout/assets/") &&
+            (lower.endsWith(".js") || lower.contains(".js?") || lower.endsWith(".css") || lower.contains(".css?"))
+    }
+
+    private fun markNativeDeepLink(value: String, forceNewBoot: Boolean = false): String = runCatching {
         val u = Uri.parse(value)
-        u.buildUpon()
+        val builder = u.buildUpon().clearQuery()
+        val seen = mutableSetOf<String>()
+        for (name in u.queryParameterNames) {
+            if (name in setOf("webFallback", "nativeHost", "nativeBoot")) continue
+            for (item in u.getQueryParameters(name)) builder.appendQueryParameter(name, item)
+            seen += name
+        }
+        builder
             .appendQueryParameter("webFallback", "1")
             .appendQueryParameter("nativeHost", "1")
+            .appendQueryParameter("nativeBoot", System.currentTimeMillis().toString())
             .build()
             .toString()
     }.getOrDefault(value)
