@@ -16,7 +16,12 @@ const finishMap={nonfoil:'NF',foil:'FO',etched:'EF'};
 async function mp(path,options={}){
   const response=await fetch(`${BASE}${path}`,{...options,headers:{...headers,...options.headers}});
   const raw=await response.text();
-  if(!response.ok)throw new Error(`Mana Pool ${response.status}: ${raw.slice(0,500)}`);
+  if(!response.ok){
+    const error=new Error(`Mana Pool ${response.status}: ${raw.slice(0,500)}`);
+    error.status=response.status;
+    try{error.payload=JSON.parse(raw)}catch{error.payload=null}
+    throw error;
+  }
   if((response.headers.get('content-type')||'').includes('ndjson')){
     const lines=raw.trim().split('\n').filter(Boolean);return JSON.parse(lines.at(-1));
   }
@@ -46,9 +51,17 @@ async function publicVariants(targetsList){
 async function thresholdDepth(target,variant){
   if(!EMAIL||!TOKEN)return null;
   const finish=finishMap[String(target.finish).toLowerCase()]||'NF';
-  const request={cart:[{quantity_requested:REQUEST_CAP,type:'mtg_single',mtgjson_id:target.mtgjson_uuid,name:target.card_name,
+  const requested=Math.max(1,Math.min(REQUEST_CAP,qty(target.quantity)||REQUEST_CAP));
+  const request={cart:[{quantity_requested:requested,type:'mtg_single',mtgjson_id:target.mtgjson_uuid,name:target.card_name,
     language_ids:['EN'],finish_ids:[finish],condition_ids:[variant.condition_id]}],model:'lowest_price',destination_country:'US'};
-  const optimized=await mp('/buyer/optimizer',{method:'POST',body:JSON.stringify(request)});
+  let optimized;
+  try{optimized=await mp('/buyer/optimizer',{method:'POST',body:JSON.stringify(request)})}
+  catch(error){
+    const available=qty(error?.payload?.details?.[0]?.total_available);
+    if(error?.status!==409||!available)throw error;
+    request.cart[0].quantity_requested=Math.min(requested,available);
+    optimized=await mp('/buyer/optimizer',{method:'POST',body:JSON.stringify(request)});
+  }
   const selected=new Map((optimized.cart||[]).map(x=>[x.inventory_id,Number(x.quantity_selected||0)]));
   if(!selected.size)return {listing_count:0,quantity:0,quality:'optimizer_derived',selected_total:0};
   const params=new URLSearchParams();for(const id of selected.keys())params.append('id',id);
@@ -57,7 +70,8 @@ async function thresholdDepth(target,variant){
   const eligible=details.filter(x=>Number(x.price_cents)<=thresholdCents);
   const quantity=eligible.reduce((n,x)=>n+Math.min(Number(x.quantity||0),selected.get(x.id)||0),0);
   const selectedTotal=[...selected.values()].reduce((a,b)=>a+b,0);
-  return {listing_count:eligible.length,quantity,quality:selectedTotal>=REQUEST_CAP?'capped':'optimizer_derived',selected_total:selectedTotal,
+  return {listing_count:eligible.length,quantity,quality:selectedTotal>=requested?'capped':'optimizer_derived',selected_total:selectedTotal,
+    requested,
     inventory_ids:eligible.map(x=>x.id)};
 }
 
@@ -88,7 +102,7 @@ try{
           lane:'threshold_supply',condition:variant.condition_id,finish:f,language:variant.language_id,price:null,quantity:depth.quantity,listing_count:depth.listing_count,
           threshold_price:Number(target.price),measurement_scope:'optimizer_selected_offers_at_or_below_cardkingdom_buylist',count_quality:depth.quality,
           is_executable:depth.quantity>0,source_as_of:card.source_as_of||null,source_as_of_raw:card.source_as_of||null,observed_at:observedAt,
-          first_seen_at:observedAt,last_changed_at:observedAt,run_id:run.id,detail:{request_cap:REQUEST_CAP,selected_total:depth.selected_total,
+          first_seen_at:observedAt,last_changed_at:observedAt,run_id:run.id,detail:{request_cap:REQUEST_CAP,requested:depth.requested,selected_total:depth.selected_total,
             threshold_source:'cardkingdom_buylist',inventory_ids:depth.inventory_ids}}));
       }
     }
@@ -102,4 +116,3 @@ try{
   await finishRun(run.id,{status:'failed',detail:{error:String(error?.stack||error)}}).catch(()=>null);
   throw error;
 }
-
