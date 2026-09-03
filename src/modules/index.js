@@ -48,6 +48,7 @@ const scoutIntelligence=[
 ];
 
 const askEnhancers=[
+  ()=>import('./ask/voice-capture.js'),
   ()=>import('./ask/preferences-cache.js'),
   ()=>import('./ask/actionable-signals-context.js'),
   ()=>import('./ask/signals-starters.js'),

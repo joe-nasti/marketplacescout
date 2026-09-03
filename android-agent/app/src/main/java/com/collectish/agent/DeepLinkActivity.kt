@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
 import android.webkit.WebChromeClient
+import android.webkit.PermissionRequest
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -18,6 +19,7 @@ class DeepLinkActivity : Activity() {
     private lateinit var web: WebView
     private lateinit var targetUrl: String
     private var freshRetryUsed = false
+    private val microphonePermission by lazy { MicrophonePermissionDelegate(this, 7402) }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,7 +33,15 @@ class DeepLinkActivity : Activity() {
             settings.databaseEnabled = true
             settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
             setBackgroundColor(Color.WHITE)
-            webChromeClient = WebChromeClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onPermissionRequest(request: PermissionRequest) {
+                    runOnUiThread { if (!microphonePermission.handle(request)) request.deny() }
+                }
+                override fun onPermissionRequestCanceled(request: PermissionRequest) {
+                    microphonePermission.canceled(request)
+                    super.onPermissionRequestCanceled(request)
+                }
+            }
             webViewClient = object : WebViewClient() {
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                     if (shouldRecoverAsset(request.url?.toString().orEmpty())) retryFresh(view)
@@ -137,7 +147,13 @@ class DeepLinkActivity : Activity() {
     }.getOrDefault(System.currentTimeMillis() + 55 * 60 * 1000L)
 
     override fun onDestroy() {
+        microphonePermission.cancel()
         if (::web.isInitialized) web.destroy()
         super.onDestroy()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (microphonePermission.result(requestCode, permissions, grantResults)) return
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 }
