@@ -35,6 +35,7 @@ test('voice recording has explicit stop, cancellation, timeout, and close cleanu
   expect(voice).toContain('createMediaStreamSource');
   expect(voice).toContain('getByteTimeDomainData');
   expect(voice).toContain('requestAnimationFrame(renderMeter)');
+  expect(voice).toContain('WAVEFORM_POINTS=42,WAVEFORM_SAMPLE_MS=120');
   expect(voice).toContain("I’m not hearing anything · check your microphone");
   expect(voice).toContain('navigator.vibrate?.(pattern)');
   expect(voice).toContain("document.addEventListener('collectish:ask-sent'");

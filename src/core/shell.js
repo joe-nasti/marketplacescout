@@ -5,7 +5,7 @@ import store from '../state/store.js';
 import lifecycle from './lifecycle.js';
 import { startupNow, recordStartupDuration, recordStartupFlag } from './startup-metrics.js';
 
-export const WEB_VERSION='0.10.21';
+export const WEB_VERSION='0.10.22';
 window.COLLECTISH_WEB_VERSION=WEB_VERSION;
 
 const ROUTES={
