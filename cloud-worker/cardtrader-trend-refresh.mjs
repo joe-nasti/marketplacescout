@@ -24,22 +24,25 @@ function nearestAtOrBefore(rows,target){
   for(const row of rows){const t=new Date(row.captured_at).getTime();if(t<=target&&(!best||t>new Date(best.captured_at).getTime()))best=row}
   return best;
 }
-function snap(row){const raw=row?.raw_json||{},z=raw.ct_zero||{};return{captured_at:row?.captured_at||null,quantity:num(z.quantity),landed6:num(z.landed_6_avg),raw6:num(z.cost_6_avg),low:num(z.low)}}
+function snap(row){const raw=row?.raw_json||{},z=raw.ct_zero||{},model=raw.landed_model||{};return{captured_at:row?.captured_at||null,quantity:num(z.quantity),landed6:model.complete===true?num(z.landed_6_avg):null,beforeShipping6:num(z.landed_before_shipping_6_avg),raw6:num(z.cost_6_avg),low:num(z.low),landedComplete:model.complete===true}}
 function compare(current,prior){
   if(!prior)return null;
-  return{baseline_at:prior.captured_at,age_hours:Math.round((new Date(current.captured_at)-new Date(prior.captured_at))/36e5*10)/10,quantity_pct:pctChange(current.quantity,prior.quantity),landed6_pct:pctChange(current.landed6,prior.landed6),raw6_pct:pctChange(current.raw6,prior.raw6),low_pct:pctChange(current.low,prior.low)}
+  const costNow=current.landedComplete?current.landed6:(current.beforeShipping6??current.raw6),costPrior=prior.landedComplete?prior.landed6:(prior.beforeShipping6??prior.raw6);
+  const costBasis=current.landedComplete&&prior.landedComplete?'landed':'pre_shipping';
+  return{baseline_at:prior.captured_at,age_hours:Math.round((new Date(current.captured_at)-new Date(prior.captured_at))/36e5*10)/10,quantity_pct:pctChange(current.quantity,prior.quantity),acquisition_cost_pct:pctChange(costNow,costPrior),acquisition_cost_basis:costBasis,landed6_pct:current.landedComplete&&prior.landedComplete?pctChange(current.landed6,prior.landed6):null,before_shipping6_pct:pctChange(current.beforeShipping6,prior.beforeShipping6),raw6_pct:pctChange(current.raw6,prior.raw6),low_pct:pctChange(current.low,prior.low)}
 }
 function classify(cmp){
   if(!cmp)return{signal:'building_history',pressure_score:null,reason:'No snapshot at least four hours old yet'};
-  const q=cmp.quantity_pct,l=cmp.landed6_pct;
+  const q=cmp.quantity_pct,c=cmp.acquisition_cost_pct;
   let score=0;
   if(q!=null)score+=Math.max(-60,Math.min(60,-q))*0.9;
-  if(l!=null)score+=Math.max(-40,Math.min(40,l))*1.25;
+  if(c!=null)score+=Math.max(-40,Math.min(40,c))*1.25;
   score=Math.max(-100,Math.min(100,Math.round(score)));
-  if((q!=null&&q<=-30&&l!=null&&l>=5)||(q!=null&&q<=-50))return{signal:'tightening_strong',pressure_score:score,reason:'Zero supply is falling materially and acquisition cost is firming'};
-  if((q!=null&&q<=-15)||(l!=null&&l>=5))return{signal:'tightening',pressure_score:score,reason:'Zero supply or landed acquisition cost is tightening'};
-  if((q!=null&&q>=20&&l!=null&&l<=0)||(l!=null&&l<=-5))return{signal:'loosening',pressure_score:score,reason:'Zero supply is expanding or landed acquisition cost is falling'};
-  return{signal:'stable',pressure_score:score,reason:'No material CT0 supply/cost pressure detected'};
+  const basis=cmp.acquisition_cost_basis==='landed'?'landed acquisition cost':'pre-shipping acquisition cost';
+  if((q!=null&&q<=-30&&c!=null&&c>=5)||(q!=null&&q<=-50))return{signal:'strong_tightening',pressure_score:score,reason:`Zero supply is falling materially and ${basis} is firming`};
+  if((q!=null&&q<=-15)||(c!=null&&c>=5))return{signal:'tightening',pressure_score:score,reason:`Zero supply or ${basis} is tightening`};
+  if((q!=null&&q>=20&&c!=null&&c<=0)||(c!=null&&c<=-5))return{signal:'loosening',pressure_score:score,reason:`Zero supply is expanding or ${basis} is falling`};
+  return{signal:'stable',pressure_score:score,reason:'No material CT0 supply/acquisition-cost pressure detected'};
 }
 
 const now=Date.now(),started=new Date().toISOString();
@@ -56,12 +59,12 @@ for(const row of currentRows){
   const primary=snap(baseline24h||baseline6h||baseline4h);
   const cmpPrimary=(baseline24h||baseline6h||baseline4h)?compare(current,primary):null;
   const cls=classify(cmpPrimary);
-  if(cls.signal==='building_history')building++;else if(cls.signal==='tightening_strong')strong++;else if(cls.signal==='tightening')tightening++;else if(cls.signal==='loosening')loosening++;else stable++;
-  const trend={version:'ct0_trend_v1',signal:cls.signal,pressure_score:cls.pressure_score,reason:cls.reason,history_samples:history.length,computed_at:new Date().toISOString(),primary_window:baseline24h?'24h':baseline6h?'6h':baseline4h?'4h':null,primary:cmpPrimary,windows:{h6:baseline6h?compare(current,snap(baseline6h)):null,h24:baseline24h?compare(current,snap(baseline24h)):null,d7:baseline7d?compare(current,snap(baseline7d)):null}};
+  if(cls.signal==='building_history')building++;else if(cls.signal==='strong_tightening')strong++;else if(cls.signal==='tightening')tightening++;else if(cls.signal==='loosening')loosening++;else stable++;
+  const trend={version:'ct0_trend_v2',signal:cls.signal,pressure_score:cls.pressure_score,reason:cls.reason,history_samples:history.length,computed_at:new Date().toISOString(),primary_window:baseline24h?'24h':baseline6h?'6h':baseline4h?'4h':null,cost_basis:cmpPrimary?.acquisition_cost_basis||null,primary:cmpPrimary,windows:{h6:baseline6h?compare(current,snap(baseline6h)):null,h24:baseline24h?compare(current,snap(baseline24h)):null,d7:baseline7d?compare(current,snap(baseline7d)):null}};
   const raw={...(row.raw_json||{}),ct_zero_trend:trend};
   await sb(`sealed_product_price_current?sealed_uuid=eq.${encodeURIComponent(key)}&source=eq.cardtrader`,{method:'PATCH',body:{raw_json:raw},prefer:'return=minimal'});
   updated++;
 }
-const detail={version:'ct0_trend_v1',started_at:started,current_rows:currentRows.length,history_rows:historyRows.length,updated,building_history:building,tightening,strong_tightening:strong,loosening,stable,min_baseline_hours:4};
+const detail={version:'ct0_trend_v2',started_at:started,current_rows:currentRows.length,history_rows:historyRows.length,updated,building_history:building,tightening,strong_tightening:strong,loosening,stable,min_baseline_hours:4,cost_basis_rule:'landed when basket profile complete; otherwise pre-shipping acquisition cost'};
 await sb('mtgjson_sync_state?on_conflict=feed',{method:'POST',body:[{feed:'cardtrader_zero_trends',status:'complete',last_started_at:started,last_completed_at:new Date().toISOString(),row_count:updated,detail}],prefer:'resolution=merge-duplicates,return=minimal'});
 console.log(JSON.stringify(detail));
