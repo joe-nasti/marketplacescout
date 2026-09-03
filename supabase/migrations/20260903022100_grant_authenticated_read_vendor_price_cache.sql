@@ -1,0 +1,10 @@
+grant select on table public.scout_vendor_price_current_cache to authenticated;
+
+drop policy if exists scout_vendor_price_current_cache_authenticated_read
+on public.scout_vendor_price_current_cache;
+
+create policy scout_vendor_price_current_cache_authenticated_read
+on public.scout_vendor_price_current_cache
+for select
+to authenticated
+using (true);
