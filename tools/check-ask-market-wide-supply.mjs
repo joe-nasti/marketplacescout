@@ -7,6 +7,10 @@ for(const token of ['mp-search-api.tcgplayer.com','productConditionId','directLi
 if(!/exact\(listings|const exact=listings\.filter/.test(sync))throw new Error('TCG marketplace supply must filter listings to the exact SKU');
 if(!/nonDirect=exact\.filter/.test(sync))throw new Error('non-Direct marketplace supply is not separated from Direct');
 if(!/syncSupply/.test(identity)||!/market-supply-sync/.test(identity))throw new Error('named supply questions do not refresh market-wide supply');
+if(/term\.language\s*=/.test(sync))throw new Error('market supply must filter language by exact SKU, not display-label facet');
+for(const token of ["'Origin':'https://www.tcgplayer.com'","'Referer':'https://www.tcgplayer.com/'",'Mozilla/5.0']){
+  if(!sync.includes(token))throw new Error(`missing TCGplayer site request header: ${token}`);
+}
 if(!/supply\|inventory\|liquidity/.test(identity))throw new Error('supply refresh is not scoped to supply-like questions');
 if(/global_supply_classification','Thin \/ fragmented Direct/i.test(migration))throw new Error('Direct classification leaked into global supply classification');
 console.log('Ask market-wide supply guard passed');

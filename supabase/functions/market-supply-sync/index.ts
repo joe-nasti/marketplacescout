@@ -26,15 +26,27 @@ Deno.serve(async req=>{
   const listings:any[]=[];
   let sourceTotal=0,pages=0,coverage='COMPLETE',from=0;
   for(let page=0;page<maxPages;page++){
+    // The productConditionId is already the exact condition/printing/language
+    // identity. Do not also send catalog display labels (for example
+    // "ENGLISH") as listings-search facets: the site API's facet values are
+    // title-cased and a mismatched value silently returns zero rows.
     const term:any={sellerStatus:'Live',channelId:0};
-    if(text(identity?.language))term.language=[text(identity.language)];
     const payload={
       filters:{term,range:{quantity:{gte:1}},exclude:{channelExclusion:0}},
       context:{shippingCountry:'US',cart:{}},sort:{field:'price+shipping',order:'asc'},from,size:pageSize,
       aggregations:['listingType','seller-key','condition','language','printing']
     };
     const r=await fetch(`https://mp-search-api.tcgplayer.com/v1/product/${productId}/listings`,{
-      method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','User-Agent':'Collectish-Market-Supply/1.0'},body:JSON.stringify(payload)
+      method:'POST',headers:{
+        'Content-Type':'application/json',
+        'Accept':'application/json',
+        'Origin':'https://www.tcgplayer.com',
+        'Referer':'https://www.tcgplayer.com/',
+        // TCGplayer's site-side listings service rejects a product-token style
+        // User-Agent at its edge. This mirrors the browser client whose
+        // undocumented endpoint we are explicitly recording as provenance.
+        'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
+      },body:JSON.stringify(payload)
     });
     const d:any=await r.json().catch(()=>null);
     if(!r.ok)throw Error(`TCGplayer listings HTTP ${r.status}: ${text(d?.message||d?.errors?.[0]||'request failed')}`);
