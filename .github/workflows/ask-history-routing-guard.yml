@@ -7,6 +7,7 @@ on:
       - 'supabase/functions/ask-collectish-identity-recovery/**'
       - 'supabase/functions/ask-collectish-orchestrator/**'
       - 'supabase/functions/ask-collectish-web-research/**'
+      - 'supabase/functions/market-supply-sync/**'
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
       - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'supabase/migrations/20260831200700_make_ask_price_history_index_native.sql'
@@ -14,6 +15,7 @@ on:
       - 'supabase/migrations/20260901144700_make_ask_market_research_shared_across_clients.sql'
       - 'supabase/migrations/20260901164500_share_mtgstocks_signals_with_authenticated_clients.sql'
       - 'supabase/migrations/20260902044000_ask_timeline_mtgstocks_fallback_anchor.sql'
+      - 'supabase/migrations/20260903010000_market_wide_supply_depth.sql'
       - 'src/modules/index.js'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'src/modules/ask/structured-surfaces.js'
@@ -28,6 +30,7 @@ on:
       - 'tools/check-ask-causal-evidence.mjs'
       - 'tools/check-ask-market-research-fallback.mjs'
       - 'tools/check-ask-shared-market-evidence.mjs'
+      - 'tools/check-ask-market-wide-supply.mjs'
       - 'tools/check-ask-video-creator-taxonomy.mjs'
       - 'tools/check-ask-two-pass-creator-retrieval.mjs'
       - 'tools/check-ask-web-citation-source-extraction.mjs'
@@ -42,6 +45,7 @@ on:
       - 'supabase/functions/ask-collectish-identity-recovery/**'
       - 'supabase/functions/ask-collectish-orchestrator/**'
       - 'supabase/functions/ask-collectish-web-research/**'
+      - 'supabase/functions/market-supply-sync/**'
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
       - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'supabase/migrations/20260831200700_make_ask_price_history_index_native.sql'
@@ -49,6 +53,7 @@ on:
       - 'supabase/migrations/20260901144700_make_ask_market_research_shared_across_clients.sql'
       - 'supabase/migrations/20260901164500_share_mtgstocks_signals_with_authenticated_clients.sql'
       - 'supabase/migrations/20260902044000_ask_timeline_mtgstocks_fallback_anchor.sql'
+      - 'supabase/migrations/20260903010000_market_wide_supply_depth.sql'
       - 'src/modules/index.js'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'src/modules/ask/structured-surfaces.js'
@@ -63,6 +68,7 @@ on:
       - 'tools/check-ask-causal-evidence.mjs'
       - 'tools/check-ask-market-research-fallback.mjs'
       - 'tools/check-ask-shared-market-evidence.mjs'
+      - 'tools/check-ask-market-wide-supply.mjs'
       - 'tools/check-ask-video-creator-taxonomy.mjs'
       - 'tools/check-ask-two-pass-creator-retrieval.mjs'
       - 'tools/check-ask-web-citation-source-extraction.mjs'
@@ -87,6 +93,7 @@ jobs:
       - run: node tools/check-ask-causal-evidence.mjs
       - run: node tools/check-ask-market-research-fallback.mjs
       - run: node tools/check-ask-shared-market-evidence.mjs
+      - run: node tools/check-ask-market-wide-supply.mjs
       - run: node tools/check-ask-video-creator-taxonomy.mjs
       - run: node tools/check-ask-two-pass-creator-retrieval.mjs
       - run: node tools/check-ask-web-citation-source-extraction.mjs
