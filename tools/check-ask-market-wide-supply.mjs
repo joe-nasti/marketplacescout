@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 const migration=fs.readFileSync('supabase/migrations/20260903010000_market_wide_supply_depth.sql','utf8');
 const confidence=fs.readFileSync('supabase/migrations/20260903135000_market_supply_source_freshness_confidence.sql','utf8');
+const surface=fs.readFileSync('supabase/migrations/20260903135500_surface_market_supply_confidence_in_scout_card.sql','utf8');
 const sync=fs.readFileSync('supabase/functions/market-supply-sync/index.ts','utf8');
 const identity=fs.readFileSync('supabase/functions/ask-collectish-identity-recovery/index.ts','utf8');
 const manapool=fs.readFileSync('supabase/functions/manapool-supply-sync/index.ts','utf8');
@@ -23,4 +24,7 @@ if(!/d\.lane='retail_supply'/.test(confidence)||!/d\.lane='threshold_supply'/.te
 if(/d\.lane in \('retail_supply','threshold_supply'\)/.test(confidence))throw new Error('ManaPool retail and threshold quantities are being mixed/double-counted');
 if(!/retailer_fresh_sources=2 and retailer_qty<=8/.test(confidence))throw new Error('market-wide thinness is not gated on fresh CK + ManaPool corroboration');
 if(!/tcg_label in \('DEEP','MODERATE'\)/.test(confidence))throw new Error('deep/moderate TCGplayer depth should independently reject global thinness');
+for(const token of ['tcgplayer_supply_classification','market_supply_confidence','market_wide_thinness_proven','market_supply_claim_basis','EXACT_SKU_MARKET_DEPTH'])if(!surface.includes(token))throw new Error(`Scout card does not surface market confidence token: ${token}`);
+if(!surface.includes('broader-market thinness remains unproven'))throw new Error('Scout card does not explicitly warn when TCGplayer thinness lacks retailer corroboration');
+if(!surface.includes('do not describe the broader market as thin'))throw new Error('Scout card does not explicitly reject thin language when retailer depth contradicts TCGplayer tightness');
 console.log('Ask market-wide supply guard passed');
