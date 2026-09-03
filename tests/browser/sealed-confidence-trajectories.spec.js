@@ -22,7 +22,8 @@ test('collector-box analogs use fetched observations and disclose forecast limit
   expect(sql).toContain('change_30d_pct');
   expect(sql).toContain('change_90d_pct');
   expect(sql).toContain('units_per_day_30d');
-  expect(sync).toContain("['quarter','year']");
+  expect(sync).toContain("['annual','quarter']");
+  expect(sync).toContain("requestedRange==='year'?'annual'");
   expect(sync).toContain('apply_marketplace_sales_history');
   expect(ui).toContain('Demand-pattern analogs');
   expect(ui).toContain('descriptive—not forecasts');
