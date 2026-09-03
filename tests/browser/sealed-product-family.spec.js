@@ -81,7 +81,7 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).not.toContain('`,u.scry)');
   expect(mobile).toContain('cx-sealed-mobile-card-link');
   expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
-  expect(renderer).toContain('sealed.detail:v6:');
+  expect(renderer).toContain('sealed.detail:v7:');
   expect(renderer).toContain("rest('rpc/get_sealed_family_economics_fast'");
   expect(renderer).toContain("floor?'Practical floor':'Practical EV'");
   expect(renderer).toContain("metric('TCG Low EV'");
@@ -119,11 +119,11 @@ test('sealed component cards route internally and composite EV includes child pa
 });
 
 test('practical sealed EV discounts liquidity and gates recommendations',async()=>{
-  const migration=await read('supabase/migrations/20260902230205_sealed_practical_liquidation_ev.sql');
-  expect(migration).toContain('collectish_velocity_factor');
+  const migration=await read('supabase/migrations/20260903014346_add_sealed_ev_audit_sensitivity.sql');
   expect(migration).toContain('practical_liquidation_ev');
   expect(migration).toContain('top10_practical_ev_share_pct');
   expect(migration).toContain('practical_median_estimate');
+  expect(migration).toContain('price_coverage_pct<90');
   expect(migration).toContain("then 'PRICE COVERAGE LOW'");
   expect(migration).toContain("then 'CHASE DEPENDENT'");
   expect(migration).toContain("sealed_low_price*1.15");
