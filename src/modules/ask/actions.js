@@ -21,7 +21,6 @@
     const screen=active();const actions=[];
     if(screen==='scout'){
       actions.push(['Investigate',()=>window.CollectishAskV3Safe?.investigate?.()]);
-      actions.push(['Build purchase list',()=>submit('Build and save a purchase list from current Scout opportunities. Ask me only for constraints that materially affect the allocation.')]);
       actions.push(['Add to watchlist',()=>submit("Add this exact current Scout card/SKU to my internal Collectish watchlist. If needed, create one named 'Watchlist'.")]);
     }else if(screen==='seller'){
       actions.push(['Restock?',()=>submit('Should I restock the current Seller product using Seller History, Scout, inventory coverage and acquisition opportunities?')]);
@@ -34,7 +33,6 @@
       actions.push(['Reprice',()=>submit('Recommend an internal Collectish target price for this inventory position; do not modify external marketplaces.')]);
     }else if(screen==='admin'){
       actions.push(['Collectish Brief',()=>submit('Generate my Collectish Brief from currently synchronized data.')]);
-      actions.push(['Latest purchase list',latestPurchaseList]);
     }
     for(const [label,fn] of actions){const b=document.createElement('button');b.type='button';b.className='cx-ask-starter cx-v3-safe-starter';b.textContent=label;b.onclick=fn;h.append(b)}
   }
@@ -62,9 +60,6 @@
   async function postTurnSync(){
     if(document.getElementById('cxAskCollectish')?.hidden)return;
     await pendingConfirmations();
-    // Only surface a purchase card when the recent conversation appears purchase-oriented.
-    const recent=[...document.querySelectorAll('#cxAskMessages .cx-ask-user .cx-ask-msg-body')].slice(-2).map(x=>x.textContent||'').join(' ').toLowerCase();
-    if(/purchase list|portfolio|allocate|rebalance|budget/.test(recent))await latestPurchaseList();
   }
 
   // Event-driven only: enhance after Ask is explicitly opened.
