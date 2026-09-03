@@ -57,7 +57,8 @@ const askEnhancers=[
   ()=>import('./ask/rich-surfaces.js'),
   ()=>import('./ask/investigate.js'),
   ()=>import('./ask/actions.js'),
-  ()=>import('./ask/admin.js')
+  ()=>import('./ask/admin.js'),
+  ()=>import('./ask/deep-history-backfill.js')
 ];
 
 const loadParallel=loaders=>Promise.all(loaders.map(load=>load()));
