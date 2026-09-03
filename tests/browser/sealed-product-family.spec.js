@@ -106,12 +106,12 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(optimizer).toContain("else if(basis){randomizedChildren+=1;additiveNet+=value;");
   expect(optimizer).toContain('unresolvedChildren+=1');
   expect(optimizer).toContain('unresolved children fail closed');
-  expect(optimizer).toContain("basis.includes('sealed_resale')?'Sealed child resale'");
+  expect(optimizer).toContain("child.selected_exit_route==='sell_sealed'?'Sell child sealed'");
   expect(optimizer).toContain('additiveRoutes');
   expect(optimizer).toContain('Included Products Net');
   expect(optimizer).toContain('Randomized practical out');
   expect(optimizer).toContain('fixed cards only');
-  expect(optimizer).toContain('SYP and last-known Direct are excluded from randomized EV');
+  expect(optimizer).toContain('TCG Market, SYP, and last-known Direct remain excluded');
   const audit=await read('supabase/migrations/20260903035910_audit_sealed_composite_ev_routing.sql');
   expect(audit).toContain('with (security_invoker=true)');
   expect(audit).toContain("then 'already_routed'");
@@ -143,6 +143,23 @@ test('missing booster-child prices refresh only for the opened parent',async()=>
   expect(migration).toContain("'sealed_resale_current_only'::text valuation_basis");
   expect(migration).toContain('TCG Market and crack EV excluded');
   expect(migration).not.toContain('market_price) practical_liquidation_ev');
+});
+
+test('booster children choose one exit without double counting',async()=>{
+  const renderer=await read('src/modules/sealed/renderer.js');
+  const optimizer=await read('src/modules/sealed/out-optimizer.js');
+  const migration=await read('supabase/migrations/20260903133915_add_sealed_child_exit_optimization.sql');
+  expect(migration).toContain('sealed_child_exit_decision_current');
+  expect(migration).toContain('greatest(coalesce(crack_unit_net,0),coalesce(sealed_unit_net,0))');
+  expect(migration).toContain("then 'already_routed'");
+  expect(migration).toContain("then 'sell_sealed'");
+  expect(migration).toContain('selected_unit_net-d.parent_included_unit_net');
+  expect(migration).toContain('base practical EV plus only the child-route improvement');
+  expect(migration).not.toContain('crack_unit_net+sealed_unit_net');
+  expect(renderer).toContain('sealed_product_exit_optimized_current?');
+  expect(renderer).toContain('sealed_child_exit_decision_current?');
+  expect(optimizer).toContain("child.selected_exit_route==='sell_sealed'");
+  expect(optimizer).toContain('Each randomized child contributes exactly one route');
 });
 
 test('practical sealed EV discounts liquidity and gates recommendations',async()=>{
