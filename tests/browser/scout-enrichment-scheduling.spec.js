@@ -5,8 +5,7 @@ const enrichmentMarkers=[
   'scout_sku_volatility',
   'scout_opportunities_24h',
   'rpc/liquid_scout_opportunities',
-  'rpc/scout_position_sizing',
-  'rpc/scout_portfolio_allocation'
+  'rpc/scout_position_sizing'
 ];
 
 function tokenWithFutureExpiry(){
@@ -36,7 +35,7 @@ test('Scout RPC enrichers wait until after first render',async({page})=>{
   await page.waitForTimeout(250);
   expect(enrichmentReads).toHaveLength(0);
 
-  await page.waitForFunction(()=>performance.getEntriesByType('resource').some(r=>/volatility|position-sizing|portfolio-allocation|quick-turn|noise-filter/.test(r.name)),null,{timeout:5000});
+  await page.waitForFunction(()=>performance.getEntriesByType('resource').some(r=>/volatility|position-sizing|quick-turn|noise-filter/.test(r.name)),null,{timeout:5000});
   await page.waitForTimeout(250);
   expect(enrichmentReads.length).toBeGreaterThan(0);
 });

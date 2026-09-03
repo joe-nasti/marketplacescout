@@ -18,8 +18,7 @@ const scoutPostRender=[
   ()=>import('./scout/volatility.js'),
   ()=>import('./scout/noise-filter.js'),
   ()=>import('./scout/quick-turn.js'),
-  ()=>import('./scout/position-sizing.js'),
-  ()=>import('./scout/portfolio-allocation.js')
+  ()=>import('./scout/position-sizing.js')
 ];
 
 const scoutIntelligence=[

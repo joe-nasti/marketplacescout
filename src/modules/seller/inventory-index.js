@@ -1,5 +1,4 @@
 const enhancers=[
-  ()=>import('./cashflow-budget.js'),
   ()=>import('./buyer-account.js'),
   ()=>import('./inventory-progress.js'),
   ()=>import('./inventory-sync-controller.js'),

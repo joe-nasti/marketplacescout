@@ -11,7 +11,6 @@ function scheduleSecondary(){
       import('./drilldowns.js'),
       import('./detail-polish.js'),
       import('./report-presentation.js'),
-      import('./cashflow-budget.js'),
       import('./buyer-account.js'),
       import('./buyer-history.js'),
       import('./buyer-range-options.js')
