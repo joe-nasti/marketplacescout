@@ -19,6 +19,16 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".DeepLinkActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="joe-nasti.github.io" android:pathPrefix="/marketplacescout" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".MainActivity"
             android:exported="false"
             android:stateNotNeeded="true" />
