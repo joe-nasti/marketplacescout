@@ -15,7 +15,6 @@ on:
     paths:
       - "cloud-worker/vendor-depth-lib.mjs"
       - "cloud-worker/cardkingdom-depth-sync.mjs"
-      - "cloud-worker/manapool-depth-sync.mjs"
       - "tools/check-vendor-depth-contract.mjs"
       - ".github/workflows/vendor-depth-sync.yml"
 
@@ -33,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: "24" }
-      - run: node --check cloud-worker/vendor-depth-lib.mjs cloud-worker/cardkingdom-depth-sync.mjs cloud-worker/manapool-depth-sync.mjs
+      - run: node --check cloud-worker/vendor-depth-lib.mjs cloud-worker/cardkingdom-depth-sync.mjs
       - run: node tools/check-vendor-depth-contract.mjs
 
   sync:
