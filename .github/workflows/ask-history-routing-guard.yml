@@ -8,6 +8,8 @@ on:
       - 'supabase/functions/ask-collectish-orchestrator/**'
       - 'supabase/functions/ask-collectish-web-research/**'
       - 'supabase/functions/market-supply-sync/**'
+      - 'supabase/functions/manapool-supply-sync/**'
+      - 'cloud-worker/manapool-depth-sync.mjs'
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
       - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'supabase/migrations/20260831200700_make_ask_price_history_index_native.sql'
@@ -46,6 +48,8 @@ on:
       - 'supabase/functions/ask-collectish-orchestrator/**'
       - 'supabase/functions/ask-collectish-web-research/**'
       - 'supabase/functions/market-supply-sync/**'
+      - 'supabase/functions/manapool-supply-sync/**'
+      - 'cloud-worker/manapool-depth-sync.mjs'
       - 'supabase/migrations/20260831163500_normalize_ask_slash_command_lookup.sql'
       - 'supabase/migrations/20260831195300_normalize_ask_resolver_history_prompts.sql'
       - 'supabase/migrations/20260831200700_make_ask_price_history_index_native.sql'
@@ -89,11 +93,11 @@ jobs:
       - run: node tools/check-ask-surface-boot-order.mjs
       - run: node tools/check-ask-surface-persistence.mjs
       - run: node tools/check-ask-causal-move-routing.mjs
+      - run: node tools/check-ask-market-wide-supply.mjs
       - run: node tools/check-ask-move-family-identity.mjs
       - run: node tools/check-ask-causal-evidence.mjs
       - run: node tools/check-ask-market-research-fallback.mjs
       - run: node tools/check-ask-shared-market-evidence.mjs
-      - run: node tools/check-ask-market-wide-supply.mjs
       - run: node tools/check-ask-video-creator-taxonomy.mjs
       - run: node tools/check-ask-two-pass-creator-retrieval.mjs
       - run: node tools/check-ask-web-citation-source-extraction.mjs
