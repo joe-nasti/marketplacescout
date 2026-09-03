@@ -36,6 +36,8 @@ test('transcription edge function is authenticated and supplies MTG vocabulary',
   expect(fn).toContain("upstream.append('model','gpt-transcribe')");
   expect(fn).toContain("upstream.append('keywords[]',item)");
   expect(fn).toContain("upstream.append('languages[]','en')");
+  expect(fn).toContain("String(file.type||'').split(';',1)[0]");
+  expect(fn).toContain("new File([file],file.name||'collectish-voice.webm',{type:baseType})");
   expect(fn).toContain('currently selected Collectish product');
   expect(fn).toContain("'TCGplayer'");
   expect(fn).toContain("'EDHREC'");
