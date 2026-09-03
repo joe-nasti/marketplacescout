@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 const migration=fs.readFileSync('supabase/migrations/20260903010000_market_wide_supply_depth.sql','utf8');
+const confidence=fs.readFileSync('supabase/migrations/20260903135000_market_supply_source_freshness_confidence.sql','utf8');
 const sync=fs.readFileSync('supabase/functions/market-supply-sync/index.ts','utf8');
 const identity=fs.readFileSync('supabase/functions/ask-collectish-identity-recovery/index.ts','utf8');
 const manapool=fs.readFileSync('supabase/functions/manapool-supply-sync/index.ts','utf8');
@@ -10,13 +11,16 @@ if(!/exact\(listings|const exact=listings\.filter/.test(sync))throw new Error('T
 if(!/nonDirect=exact\.filter/.test(sync))throw new Error('non-Direct marketplace supply is not separated from Direct');
 if(!/syncSupply/.test(identity)||!/market-supply-sync/.test(identity))throw new Error('named supply questions do not refresh market-wide supply');
 if(/term\.language\s*=/.test(sync))throw new Error('market supply must filter language by exact SKU, not display-label facet');
-for(const token of ["'Origin':'https://www.tcgplayer.com'","'Referer':'https://www.tcgplayer.com/'",'Mozilla/5.0']){
-  if(!sync.includes(token))throw new Error(`missing TCGplayer site request header: ${token}`);
-}
+for(const token of ["'Origin':'https://www.tcgplayer.com'","'Referer':'https://www.tcgplayer.com/'",'Mozilla/5.0'])if(!sync.includes(token))throw new Error(`missing TCGplayer site request header: ${token}`);
 if(!/supply\|inventory\|liquidity/.test(identity))throw new Error('supply refresh is not scoped to supply-like questions');
 if(/global_supply_classification','Thin \/ fragmented Direct/i.test(migration))throw new Error('Direct classification leaked into global supply classification');
 for(const token of ['manapool-supply-sync','product_id:productId','sku_id:skuId'])if(!sync.includes(token))throw new Error(`market supply does not chain exact-SKU ManaPool collector: ${token}`);
 for(const token of ['exact_ask_sku_on_demand','tcgplayer_sku_id','available_quantity','exact_tcgplayer_sku:true','numeric product_id and sku_id required'])if(!manapool.includes(token))throw new Error(`missing exact-SKU ManaPool contract token: ${token}`);
 if(/active_cardkingdom_buylist|MANAPOOL_DEPTH_TARGET_LIMIT|limit=\$\{LIMIT\}/.test(legacyManapool))throw new Error('legacy ManaPool worker still contains broad CK-buylist batch behavior');
 for(const token of ['MANAPOOL_TARGET_PRODUCT_ID','MANAPOOL_TARGET_SKU_ID','Batch ManaPool scans are disabled','manapool-supply-sync'])if(!legacyManapool.includes(token))throw new Error(`legacy ManaPool worker is not exact-target-only: ${token}`);
+for(const token of ['tcgplayer_supply_classification','market_wide_thinness_proven','claim_basis','TCGPLAYER_THIN_RETAILER_CORROBORATION_INCOMPLETE','TCGPLAYER_THINNESS_CORROBORATED_BY_CK_AND_MANAPOOL','RETAILER_DEPTH_REJECTS_TCGPLAYER_THINNESS','source_coverage','usable_for_market_claim'])if(!confidence.includes(token))throw new Error(`missing source-confidence contract token: ${token}`);
+if(!/d\.lane='retail_supply'/.test(confidence)||!/d\.lane='threshold_supply'/.test(confidence))throw new Error('ManaPool retail and threshold lanes must be modeled separately');
+if(/d\.lane in \('retail_supply','threshold_supply'\)/.test(confidence))throw new Error('ManaPool retail and threshold quantities are being mixed/double-counted');
+if(!/retailer_fresh_sources=2 and retailer_qty<=8/.test(confidence))throw new Error('market-wide thinness is not gated on fresh CK + ManaPool corroboration');
+if(!/tcg_label in \('DEEP','MODERATE'\)/.test(confidence))throw new Error('deep/moderate TCGplayer depth should independently reject global thinness');
 console.log('Ask market-wide supply guard passed');
