@@ -13,6 +13,14 @@
       || /\b(?:sku|product(?:\s*id)?)\s*(?:#|:)?\s*\d+\b/i.test(text)
       || /tcgplayer\.com\/product\/\d+/i.test(text);
   };
+  const marketWideTarget=q=>{
+    const text=String(q||'').toLowerCase();
+    return /\bmarket radar\b/.test(text)
+      || /\b(?:top|biggest|best|leading)\s+(?:market\s+)?(?:movers?|gainers?|losers?|opportunities)\b/.test(text)
+      || /\bwhat(?:'s| is| are)\s+(?:moving|spiking|rising|gaining)\s+(?:today|now|right now)\b/.test(text)
+      || /\bwhat should i (?:look at|watch|buy)\s+(?:today|now|right now)\b/.test(text)
+      || /\bbest\s+(?:scout\s+)?opportunities\s+(?:today|now|right now)\b/.test(text);
+  };
 
   function rewritten(input){
     const raw=input instanceof Request?input.url:String(input||'');
@@ -46,13 +54,15 @@
       const prompt=String(body?.message||body?.question||'');
       const supplied=body.context||{};
       const context={...canonical,...supplied,entity:canonical.entity,view:canonical.view};
-      if(explicitCardTarget(prompt)){
+      const contextMode=explicitCardTarget(prompt)?'explicit_target':marketWideTarget(prompt)?'market_wide':null;
+      if(contextMode){
         context.entity=null;
         context.sku_id=null;
         context.product_id=null;
         context.product_name_hint=null;
         context.set_name=null;
-        context.entity_context_mode='fallback_suppressed_explicit_target';
+        context.entity_context_mode=`fallback_suppressed_${contextMode}`;
+        if(contextMode==='market_wide')context.query_scope='market_wide';
       }
       return {...init,body:JSON.stringify({...body,client:body.client||'web',context})};
     }catch{return init}

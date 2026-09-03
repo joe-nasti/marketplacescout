@@ -29,6 +29,15 @@ test('shared router owns history and seller surfaces with finish-aware moves',()
   expect(router).toContain('historyAlias');
 });
 
+test('shared router owns broad market radar without hijacking named sources',()=>{
+  const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
+  expect(router).toContain("route:'market_radar'");
+  expect(router).toContain("type:'market_radar'");
+  expect(router).toContain('ask_delvin_market_radar_v1');
+  expect(router).toContain('if(namedSource(q))return false');
+  expect(router).toMatch(/routeSource\(q\).*routeMarketRadar\(q\).*priceHistoryIntent/s);
+});
+
 test('named MTGStocks requests execute source lookup and refresh without clarification',()=>{
   const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
   expect(router).toContain("route:'named_source_snapshot'");
@@ -59,5 +68,7 @@ test('web Ask converges on the stable API and renders shared surfaces',()=>{
   const renderer=read('src/modules/ask/structured-surfaces.js');
   expect(proxy).toContain("/ask-collectish-api");
   expect(renderer).toContain("surface?.type==='seller_opportunity_map'");
+  expect(renderer).toContain("surface?.type==='market_radar'");
+  expect(renderer).toContain("surface?.type==='delvin_query'&&surface?.query_key==='market_radar'");
   expect(renderer).toContain('surface.price_points');
 });

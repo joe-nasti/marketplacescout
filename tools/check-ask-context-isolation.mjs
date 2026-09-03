@@ -53,4 +53,15 @@ assert.equal(sent.context.entity.product_name,'Magda, the Hoardmaster','context-
 assert.equal(sent.context.sku_id,'9999999');
 assert.equal(sent.context.product_id,'999999');
 
-console.log('Ask explicit-target context isolation: ok');
+await sandbox.window.fetch(endpoint,{method:'POST',body:JSON.stringify({action:'chat',message:'What are the top movers today?'})});
+sent=JSON.parse(calls.at(-1).init.body);
+assert.equal(sent.context.entity,null,'market-wide Ask must not inherit the open Scout entity');
+assert.equal(sent.context.sku_id,null);
+assert.equal(sent.context.product_id,null);
+assert.equal(sent.context.product_name_hint,null);
+assert.equal(sent.context.entity_context_mode,'fallback_suppressed_market_wide');
+assert.equal(sent.context.query_scope,'market_wide');
+assert.equal(sent.context.screen,'scout');
+assert.deepEqual(sent.context.view,{tab:'Scout'});
+
+console.log('Ask explicit-target and market-wide context isolation: ok');

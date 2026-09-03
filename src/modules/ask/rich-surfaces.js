@@ -97,7 +97,8 @@
     if(window.__CollectishAskSurfaceQueue?.[0]?.surfaces?.length)return;
     const prompt=latestUserPrompt(element).toLowerCase();
     try{
-      if(/best|top|opportunit|strong signal|what.*buy|power search/.test(prompt)){
+      const marketWide=/\b(?:market radar|movers?|gainers?|losers?|moving today|moving right now)\b/.test(prompt);
+      if(!marketWide&&/best|top|opportunit|strong signal|what.*buy|power search/.test(prompt)){
         const rows=await topScoutRows(6);if(rows.length)attach(element,opportunityCarousel(rows));return;
       }
       if(/compare|versus|\bvs\b/.test(prompt)){attach(element,comparisonSurface());return}
