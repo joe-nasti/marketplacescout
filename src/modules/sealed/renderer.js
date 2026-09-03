@@ -241,9 +241,9 @@ function calibratedReleaseSummary(ageDays,ev,rows){
   if(!ready.length)return'';
   const currentMedian=calibrationFactor(ready,ageDays),cards=ready.filter(x=>Number(x.horizon_days)>ageDays).map(x=>{
     const day=Number(x.horizon_days),median=ev*calibrationFactor(ready,day)/currentMedian;
-    const down=ev*calibrationFactor(ready,day,'downside_change_pct')/calibrationFactor(ready,ageDays,'downside_change_pct');
-    const up=ev*calibrationFactor(ready,day,'upside_change_pct')/calibrationFactor(ready,ageDays,'upside_change_pct');
-    const lo=Math.min(down,up),hi=Math.max(down,up),change=Number(x.median_change_pct),confidence=String(x.confidence_label||'LOW');
+    const down=ev*calibrationFactor(ready,day,'downside_change_pct')/currentMedian;
+    const up=ev*calibrationFactor(ready,day,'upside_change_pct')/currentMedian;
+    const lo=Math.min(down,median,up),hi=Math.max(down,median,up),change=Number(x.median_change_pct),confidence=String(x.confidence_label||'LOW');
     return stat(`${day}d calibrated EV`,money(median),`${money(lo)}–${money(hi)} historical range · ${money(median/1.15)} max buy · ${change>=0?'+':''}${change.toFixed(1)}% since release · ${Number(x.cohort_count)} cohorts / ${confidence}`);
   }).join('');
   if(!cards)return'';
