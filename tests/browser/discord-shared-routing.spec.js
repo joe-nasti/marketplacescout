@@ -55,6 +55,7 @@ test('shared router answers sealed Direct crack rankings without clarification',
   expect(router).toContain('Direct EV-only rows are theoretical outlet value');
   expect(presenter).toContain('sealedCrackPresentation');
   expect(presenter).toMatch(/ask-collectish-route-intents[\s\S]*ask-collectish-delvin-route/);
+  expect(read('cloud-worker/discord-shared-delvin-route.mjs')).toMatch(/isQueuedSharedQuestion[\s\S]*sealed[\s\S]*crack[\s\S]*direct/);
   expect(renderer).toContain("surface?.type==='sealed_crack_ranking'");
 });
 
