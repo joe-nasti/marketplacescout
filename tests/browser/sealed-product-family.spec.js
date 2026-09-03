@@ -83,16 +83,16 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
   expect(renderer).toContain('sealed.detail:v9:');
   expect(renderer).toContain("rest('rpc/get_sealed_family_economics_fast'");
-  expect(renderer).toContain("floor?'Practical floor':'Practical EV'");
+  expect(renderer).toContain("sealedExitWins(f)?'Best Exit EV':'Practical EV'");
   expect(renderer).toContain("metric('TCG Low EV'");
   expect(renderer).toContain("metric('Practical spread'");
   expect(renderer).toContain('loadListEconomics(products)');
   expect(renderer).not.toContain('sealed_product_family_economics?select=crack_gross_mean_ev');
   expect(renderer).toContain('Included sealed products');
   expect(renderer).toContain('Included packs · TCG Low');
-  expect(renderer).toContain('Included packs · practical');
+  expect(renderer).toContain('Included products · selected exit');
   expect(renderer).toContain('Fixed-card live-out EV');
-  expect(renderer).toContain("detailFloor?'Known-card practical floor':'Practical EV'");
+  expect(renderer).toContain("detailFloor?'Known-card practical floor':practicalLabel(d.family)");
   expect(renderer).toContain('EV sensitivity');
   expect(renderer).toContain('Market excluded');
   expect(renderer).toContain('sealed_product_executable_ev_cache?');
@@ -158,7 +158,11 @@ test('booster children choose one exit without double counting',async()=>{
   expect(migration).not.toContain('crack_unit_net+sealed_unit_net');
   expect(renderer).toContain('sealed_product_exit_optimized_current?');
   expect(renderer).toContain('sealed_child_exit_decision_current?');
+  expect(renderer).toContain('base_practical_liquidation_ev');
+  expect(renderer).toContain('Selected exit net');
+  expect(renderer).toContain('Best Exit EV may instead sell an included sealed product');
   expect(optimizer).toContain("child.selected_exit_route==='sell_sealed'");
+  expect(optimizer).toContain("?'Best Product Exit':'Optimized Live Out'");
   expect(optimizer).toContain('Each randomized child contributes exactly one route');
 });
 
