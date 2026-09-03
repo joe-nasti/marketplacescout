@@ -1,7 +1,7 @@
 import transport from './discord-ask-entry.mjs';
 import { secretLairMediaEmbed } from './discord-secret-lair-media.mjs';
 import { rewriteStructuredDiscordOutput } from './discord-structured-output.mjs';
-import { maybeHandleSharedDelvinRoute } from './discord-shared-delvin-route.mjs';
+import { deliverQueuedSharedQuestion, isQueuedSharedQuestion, maybeHandleSharedDelvinRoute } from './discord-shared-delvin-route.mjs';
 import { maybeHandleFastQuery } from './discord-fast-query-cache.mjs';
 import { maybeHandleMarketIntelFast } from './discord-market-intel-fast.mjs';
 import { maybeHandleCardInvestigator } from './discord-card-investigator.mjs';
@@ -50,8 +50,15 @@ export default {
     return fast||transport.fetch(request,env,ctx);
   },
   async queue(batch,env,ctx){
-    const jobs=batch.messages.map(m=>m.body||{});
-    await transport.queue(batch,env,ctx);
+    const fallback=[];
+    for(const message of batch.messages){
+      const job=message.body||{};
+      if(!isQueuedSharedQuestion(job.question)){fallback.push(message);continue;}
+      const handled=await deliverQueuedSharedQuestion(env,job,message);
+      if(!handled)fallback.push(message);
+    }
+    const jobs=fallback.map(m=>m.body||{});
+    if(fallback.length)await transport.queue({messages:fallback},env,ctx);
     await Promise.all(jobs.map(job=>rewriteStructuredDiscordOutput(env,job)));
     await Promise.all(jobs.map(job=>attachSecretLairMedia(env,job)));
   },
