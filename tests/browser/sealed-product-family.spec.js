@@ -81,7 +81,7 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).not.toContain('`,u.scry)');
   expect(mobile).toContain('cx-sealed-mobile-card-link');
   expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
-  expect(renderer).toContain('sealed.detail:v4:');
+  expect(renderer).toContain('sealed.detail:v6:');
   expect(renderer).toContain("rest('rpc/get_sealed_family_economics_fast'");
   expect(renderer).toContain("floor?'Practical floor':'Practical EV'");
   expect(renderer).toContain("metric('TCG Low EV'");
@@ -102,11 +102,20 @@ test('sealed component cards route internally and composite EV includes child pa
   const optimizer=await read('src/modules/sealed/out-optimizer.js');
   expect(optimizer).toContain("(num(row.optimized_live_out_ev)||0)+additiveNet");
   expect(optimizer).toContain("(num(row.optimized_with_syp_potential_ev)||0)+additiveNet");
-  expect(optimizer).toContain("alreadyRouted?0:childNet");
+  expect(optimizer).toContain("if(basis.includes('fixed'))fixedChildren+=1");
+  expect(optimizer).toContain("else if(basis){randomizedChildren+=1;additiveNet+=value}");
+  expect(optimizer).toContain('unresolvedChildren+=1');
+  expect(optimizer).toContain('unresolved children fail closed');
   expect(optimizer).toContain('Included Products Net');
   expect(optimizer).toContain('Randomized practical out');
   expect(optimizer).toContain('fixed cards only');
   expect(optimizer).toContain('SYP and last-known Direct are excluded from randomized EV');
+  const audit=await read('supabase/migrations/20260903035910_audit_sealed_composite_ev_routing.sql');
+  expect(audit).toContain('with (security_invoker=true)');
+  expect(audit).toContain("then 'already_routed'");
+  expect(audit).toContain("then 'additive_randomized'");
+  expect(audit).toContain("else 'unresolved'");
+  expect(audit).toContain('fixed child EV is comparison-only');
 });
 
 test('practical sealed EV discounts liquidity and gates recommendations',async()=>{
