@@ -18,6 +18,7 @@
     const name=String(error?.name||'');
     if(name==='NotAllowedError'||name==='SecurityError')return'Microphone access is off. Allow it in Collectish app permissions and try again.';
     if(name==='NotFoundError')return'No microphone was found.';
+    if(name==='NotReadableError'||name==='TrackStartError')return'Android could not open the microphone. Close other apps using it, make sure system Microphone access is on, then try again.';
     if(name==='AbortError')return'Voice input canceled.';
     return String(error?.message||error||'Voice input failed.');
   };
@@ -37,6 +38,15 @@
   const reset=()=>{clearTimers();stopTracks();recorder=null;chunks=[];setMode('idle')};
   const bestMime=()=>['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg;codecs=opus'].find(type=>MediaRecorder.isTypeSupported?.(type))||'';
   const extension=mime=>mime.includes('mp4')?'m4a':mime.includes('ogg')?'ogg':mime.includes('wav')?'wav':'webm';
+  const openMicrophone=async()=>{
+    try{
+      return await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:{ideal:true},noiseSuppression:{ideal:true},autoGainControl:{ideal:true}},video:false});
+    }catch(error){
+      const terminal=['NotAllowedError','SecurityError','NotFoundError','AbortError'].includes(String(error?.name||''));
+      if(terminal)throw error;
+      return navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    }
+  };
 
   async function transcribe(blob){
     const token=session()?.token;
@@ -64,7 +74,7 @@
     draftBefore=input.value;
     setState('Requesting microphone…');
     try{
-      stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+      stream=await openMicrophone();
       const mimeType=bestMime();recorder=new MediaRecorder(stream,mimeType?{mimeType}:undefined);chunks=[];
       recorder.ondataavailable=event=>{if(event.data?.size)chunks.push(event.data)};
       recorder.onerror=event=>{setState(errorText(event.error),'error');reset()};
