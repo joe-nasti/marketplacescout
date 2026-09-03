@@ -1,5 +1,3 @@
-33dbe9668fa26c4a084e4e76dfad203b7940fd6a
-14749b1b4d76073347829a4134dfeb751dff56a1
 const DISCORD_API='https://discord.com/api/v10';const enc=new TextEncoder(),dec=new TextDecoder();const base=env=>String(env.SUPABASE_URL||'').replace(/\/$/,'');
 function json(b,s=200){return new Response(JSON.stringify(b),{status:s,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}})}
 function hex(v,n){const h=String(v||'').trim();if(!new RegExp(`^[0-9a-f]{${n*2}}$`,'i').test(h))return null;const o=new Uint8Array(n);for(let i=0;i<n;i++)o[i]=parseInt(h.slice(i*2,i*2+2),16);return o}
