@@ -22,7 +22,8 @@ jobs:
       CARDTRADER_JWT_TOKEN: ${{ secrets.CARDTRADER_JWT_TOKEN }}
       CARDTRADER_CATALOG_STALE_HOURS: "24"
       CARDTRADER_REQUEST_INTERVAL_MS: "1050"
-      CARDTRADER_SHIPPING_RESERVE_PER_UNIT_USD: "10"
+      CARDTRADER_ZERO_BASKET_SHIPPING_TOTAL_USD: ${{ vars.CARDTRADER_ZERO_BASKET_SHIPPING_TOTAL_USD }}
+      CARDTRADER_ZERO_BASKET_UNITS: ${{ vars.CARDTRADER_ZERO_BASKET_UNITS }}
       CARDTRADER_FUNDING_FEE_PCT: "0"
       CARDTRADER_FUNDING_FIXED_USD: "0"
     steps:
@@ -42,13 +43,13 @@ jobs:
         run: node cloud-worker/cardtrader-sealed-refresh.mjs
       - name: Reconcile mappings after any catalog refresh
         run: node cloud-worker/cardtrader-sealed-map-refresh.mjs
-      - name: Model CT0 US landed cost
+      - name: Model CT0 basket-aware landed cost
         run: node cloud-worker/cardtrader-landed-refresh.mjs
-      - name: Model CT0 supply and landed-cost trends
+      - name: Model CT0 supply and acquisition-cost trends
         run: node cloud-worker/cardtrader-trend-refresh.mjs
-      - name: Rank CT0 landed opportunities
+      - name: Refresh CT0 sourcing candidates
         run: node cloud-worker/cardtrader-opportunity-refresh.mjs
-      - name: Compute CT0 Scout shadow score
+      - name: Retire legacy CT0 Scout shadow score
         run: node cloud-worker/cardtrader-shadow-score-refresh.mjs
       - name: Archive sealed price observations
         if: always()
