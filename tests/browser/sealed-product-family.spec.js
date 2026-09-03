@@ -130,14 +130,17 @@ test('sealed executable EV uses live price channels and excludes randomized SYP'
 test('Scout Singles compares buy direct, sealed sourcing and live outlet exit from fast cache', async()=>{
   const index=await read('src/modules/scout/index.js');
   const compare=await read('src/modules/scout/sealed-source-compare.js');
+  const sourcing=await read('src/modules/scout/sourcing.js');
   expect(index).toContain("import('./sealed-source-compare.js')");
   expect(compare).toContain('Buy direct · Crack sealed · Best exit');
   expect(compare).toContain('sealed_single_source_compare_current?');
   expect(compare).toContain('ev_allocated_acquisition_per_copy');
   expect(compare).toContain('card_set_code=eq.');
-  expect(compare).toContain("['TCG Direct',Number(row?.direct_net_est)]");
-  expect(compare).toContain("['Card Kingdom',Number(row?.ck_buylist)]");
-  expect(compare).toContain("['ManaPool',Number(row?.manapool_retail||0)*0.921]");
+  expect(compare).toContain("import { bestExitQuoteFromScoutRow, normalizeAcquisitionQuote, SOURCING_CHANNELS } from './sourcing.js'");
+  expect(compare).toContain('bestExitQuoteFromScoutRow(row)');
+  expect(sourcing).toContain("label:'TCG Direct',net:positive(row.direct_net_est)");
+  expect(sourcing).toContain("label:'Card Kingdom',net:positive(row.ck_buylist)");
+  expect(sourcing).toContain("label:'ManaPool',net:positive(row.manapool_net_est)");
   expect(compare).toContain('Best live exit');
   expect(compare).not.toContain("rest('rpc/sealed_single_source_compare'");
 });
