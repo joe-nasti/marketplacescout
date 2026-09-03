@@ -3,6 +3,7 @@ package com.collectish.agent
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
 import android.webkit.WebChromeClient
@@ -18,8 +19,9 @@ class DeepLinkActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        targetUrl = intent?.data?.toString()?.takeIf { isCollectishUrl(it) }
+        val incoming = intent?.data?.toString()?.takeIf { isCollectishUrl(it) }
             ?: "https://joe-nasti.github.io/marketplacescout/"
+        targetUrl = markNativeDeepLink(incoming)
 
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
@@ -51,8 +53,17 @@ class DeepLinkActivity : Activity() {
         web.loadUrl(targetUrl)
     }
 
+    private fun markNativeDeepLink(value: String): String = runCatching {
+        val u = Uri.parse(value)
+        u.buildUpon()
+            .appendQueryParameter("webFallback", "1")
+            .appendQueryParameter("nativeHost", "1")
+            .build()
+            .toString()
+    }.getOrDefault(value)
+
     private fun isCollectishUrl(value: String): Boolean = runCatching {
-        val u = android.net.Uri.parse(value)
+        val u = Uri.parse(value)
         u.scheme.equals("https", true) && u.host.equals("joe-nasti.github.io", true) && u.path.orEmpty().startsWith("/marketplacescout")
     }.getOrDefault(false)
 
