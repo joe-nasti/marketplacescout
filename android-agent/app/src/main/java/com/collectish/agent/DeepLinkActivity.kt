@@ -22,17 +22,13 @@ class DeepLinkActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val incoming = intent?.data?.toString()?.takeIf { isCollectishUrl(it) }
-            ?: "https://joe-nasti.github.io/marketplacescout/"
-        targetUrl = markNativeDeepLink(incoming)
+        val incoming = intent?.data?.takeIf { isCollectishUri(it) }
+        targetUrl = markNativeDeepLink(toHostedScoutUrl(incoming))
 
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
-            // Deep links must never reuse a retired Vite HTML/module graph. Normal
-            // MainActivity launches can use WebView caching; this short-lived activity
-            // prioritizes correctness because its target can arrive across deployments.
             settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
             setBackgroundColor(Color.WHITE)
             webChromeClient = WebChromeClient()
@@ -51,6 +47,20 @@ class DeepLinkActivity : Activity() {
         setContentView(web)
         web.clearCache(true)
         bootstrapSessionThenOpen()
+    }
+
+    private fun toHostedScoutUrl(uri: Uri?): String {
+        if (uri == null) return "https://joe-nasti.github.io/marketplacescout/"
+        if (uri.scheme.equals("https", true)) return uri.toString()
+
+        val builder = Uri.Builder()
+            .scheme("https")
+            .authority("joe-nasti.github.io")
+            .path("/marketplacescout/")
+        for (name in uri.queryParameterNames) {
+            for (value in uri.getQueryParameters(name)) builder.appendQueryParameter(name, value)
+        }
+        return builder.build().toString()
     }
 
     private fun bootstrapSessionThenOpen() {
@@ -86,7 +96,7 @@ class DeepLinkActivity : Activity() {
         freshRetryUsed = true
         view.stopLoading()
         view.clearCache(true)
-        targetUrl = markNativeDeepLink(targetUrl, forceNewBoot = true)
+        targetUrl = markNativeDeepLink(targetUrl)
         bootstrapSessionThenOpen()
     }
 
@@ -96,14 +106,12 @@ class DeepLinkActivity : Activity() {
             (lower.endsWith(".js") || lower.contains(".js?") || lower.endsWith(".css") || lower.contains(".css?"))
     }
 
-    private fun markNativeDeepLink(value: String, forceNewBoot: Boolean = false): String = runCatching {
+    private fun markNativeDeepLink(value: String): String = runCatching {
         val u = Uri.parse(value)
         val builder = u.buildUpon().clearQuery()
-        val seen = mutableSetOf<String>()
         for (name in u.queryParameterNames) {
             if (name in setOf("webFallback", "nativeHost", "nativeBoot")) continue
             for (item in u.getQueryParameters(name)) builder.appendQueryParameter(name, item)
-            seen += name
         }
         builder
             .appendQueryParameter("webFallback", "1")
@@ -113,10 +121,13 @@ class DeepLinkActivity : Activity() {
             .toString()
     }.getOrDefault(value)
 
-    private fun isCollectishUrl(value: String): Boolean = runCatching {
-        val u = Uri.parse(value)
-        u.scheme.equals("https", true) && u.host.equals("joe-nasti.github.io", true) && u.path.orEmpty().startsWith("/marketplacescout")
-    }.getOrDefault(false)
+    private fun isCollectishUri(uri: Uri): Boolean {
+        val hosted = uri.scheme.equals("https", true) &&
+            uri.host.equals("joe-nasti.github.io", true) &&
+            uri.path.orEmpty().startsWith("/marketplacescout")
+        val native = uri.scheme.equals("collectish", true) && uri.host.equals("scout", true)
+        return hosted || native
+    }
 
     private fun jwtExpiryMillis(token: String): Long = runCatching {
         val payload = token.split('.')[1]
