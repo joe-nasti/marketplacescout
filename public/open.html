@@ -20,10 +20,12 @@
     (function(){
       var incoming=new URL(location.href), target=new URL('/marketplacescout/',location.origin);
       incoming.searchParams.forEach(function(v,k){if(k!=='target'&&k!=='open')target.searchParams.append(k,v)});
-      target.searchParams.delete('webFallback');target.searchParams.delete('nativeHost');
+      target.searchParams.delete('webFallback');target.searchParams.delete('nativeHost');target.searchParams.delete('nativeBoot');
+      var nativeParams=new URLSearchParams();
+      target.searchParams.forEach(function(v,k){nativeParams.append(k,v)});
+      var nativeUrl='collectish://scout'+(nativeParams.toString()?'?'+nativeParams.toString():'');
       var fallback=new URL(target.toString());fallback.searchParams.set('webFallback','1');
-      var intent='intent://joe-nasti.github.io'+target.pathname+target.search+'#Intent;scheme=https;package=com.collectish.agent;S.browser_fallback_url='+encodeURIComponent(fallback.toString())+';end';
-      document.getElementById('openApp').href=intent;
+      document.getElementById('openApp').href=nativeUrl;
       document.getElementById('openWeb').href=fallback.toString();
     })();
   </script>

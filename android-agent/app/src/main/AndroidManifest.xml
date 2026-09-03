@@ -27,6 +27,12 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="joe-nasti.github.io" android:pathPrefix="/marketplacescout" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="collectish" android:host="scout" />
+            </intent-filter>
         </activity>
         <activity
             android:name=".MainActivity"
