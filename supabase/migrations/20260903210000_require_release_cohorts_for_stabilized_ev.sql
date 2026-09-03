@@ -25,11 +25,12 @@ with play_sets as (
 )
 select count(*)::bigint observation_count,count(distinct product_id)::integer product_count,
   min(observed_on) history_start,max(observed_on) history_end,
-  count(distinct observed_on)::integer observation_days,s.covered_play_sets,s.mature_release_cohorts,
+  count(distinct observed_on)::integer observation_days,
   case when count(distinct observed_on)>=12 and max(observed_on)-min(observed_on)>=75
       and s.covered_play_sets>=4 and s.mature_release_cohorts>=3
     then 'CALIBRATION_READY' else 'BUILDING_HISTORY' end calibration_status,
-  'Readiness requires at least four Play Booster sets and three independent 60-day release cohorts. TCGCSV Market history is calibration evidence only and is never used as executable EV.'::text policy
+  'Readiness requires at least four Play Booster sets and three independent 60-day release cohorts. TCGCSV Market history is calibration evidence only and is never used as executable EV.'::text policy,
+  s.covered_play_sets,s.mature_release_cohorts
 from public.modeled_booster_card_price_history h cross join summary s
 group by s.covered_play_sets,s.mature_release_cohorts;
 
