@@ -1,0 +1,34 @@
+name: Backfill TCGplayer MTG Top Selling reports
+
+on:
+  workflow_dispatch:
+    inputs:
+      months_back:
+        description: Months of monthly Top Selling reports to probe
+        required: false
+        default: "25"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/backfill_tcgplayer_top_selling.py"
+      - ".github/workflows/signals-tcgplayer-top-selling-backfill.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-tcgplayer-top-selling-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MONTHS_BACK: ${{ github.event.inputs.months_back || '25' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backfill historical Marketplace Top Selling reports
+        run: python3 scripts/backfill_tcgplayer_top_selling.py
