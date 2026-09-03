@@ -11,5 +11,5 @@ test('sealed lifecycle transitions mature into leakage-safe observed outcomes', 
   expect(sql).toContain('TCG Market measures trajectory and is never liquidation EV');
   expect(renderer).toContain('Lifecycle history');
   expect(renderer).toContain('no synthetic transitions are backfilled');
-  expect(renderer).toContain('sealed.detail:v9');
+  expect(renderer).toContain('sealed.detail:v10');
 });
