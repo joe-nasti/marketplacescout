@@ -63,7 +63,7 @@ test('mixed sealed products expose derived Singles and landed-cost decisions', a
   expect(compare).toContain('Crack advantage');
   expect(compare).toContain('Open in Scout');
   expect(compare).toContain('Composite product:');
-  expect(compare).toContain('Optimized Live Out includes modeled net EV from sealed children');
+  expect(compare).toContain('Included deck cards are already represented in Optimized Live Out');
   expect(compare).toContain('card_set_code');
   expect(compare).toContain('Your landed acquisition cost');
   expect(compare).toContain('applyScenario');
@@ -100,8 +100,9 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).toContain("floor?'COMPONENT FLOOR':'MODEL PENDING'");
   expect(renderer).toContain("if(componentFloor(r))return null");
   const optimizer=await read('src/modules/sealed/out-optimizer.js');
-  expect(optimizer).toContain("(num(row.optimized_live_out_ev)||0)+childNet");
-  expect(optimizer).toContain("(num(row.optimized_with_syp_potential_ev)||0)+childNet");
+  expect(optimizer).toContain("(num(row.optimized_live_out_ev)||0)+additiveNet");
+  expect(optimizer).toContain("(num(row.optimized_with_syp_potential_ev)||0)+additiveNet");
+  expect(optimizer).toContain("alreadyRouted?0:childNet");
   expect(optimizer).toContain('Included Products Net');
   expect(optimizer).toContain('Randomized practical out');
   expect(optimizer).toContain('fixed cards only');
