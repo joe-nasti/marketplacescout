@@ -81,7 +81,7 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).not.toContain('`,u.scry)');
   expect(mobile).toContain('cx-sealed-mobile-card-link');
   expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
-  expect(renderer).toContain('sealed.detail:v7:');
+  expect(renderer).toContain('sealed.detail:v9:');
   expect(renderer).toContain("rest('rpc/get_sealed_family_economics_fast'");
   expect(renderer).toContain("floor?'Practical floor':'Practical EV'");
   expect(renderer).toContain("metric('TCG Low EV'");
@@ -125,6 +125,24 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(resale).toContain("p.category='box_set'");
   expect(resale).toContain("p.subtype like 'secret_lair%'");
   expect(resale).toContain('TCG Market and crack EV excluded');
+});
+
+test('missing booster-child prices refresh only for the opened parent',async()=>{
+  const renderer=await read('src/modules/sealed/renderer.js');
+  const fn=await read('supabase/functions/sealed-child-price-refresh/index.ts');
+  const migration=await read('supabase/migrations/20260903064000_add_on_demand_sealed_child_pricing.sql');
+  expect(renderer).toContain("invokeFunction('sealed-child-price-refresh',{parent_sealed_uuid:parent})");
+  expect(renderer).toContain('childPriceRefreshAttempted');
+  expect(fn).toContain('parent_sealed_uuid=eq.${encodeURIComponent(parent)}');
+  expect(fn).toContain('category=eq.booster_pack');
+  expect(fn).toContain('const MAX_CHILDREN=25');
+  expect(fn).toContain('const FRESH_MS=12*60*60*1000');
+  expect(fn).not.toContain('offset=');
+  expect(fn).not.toContain('next_offset');
+  expect(migration).toContain("p.category='booster_pack'");
+  expect(migration).toContain("'sealed_resale_current_only'::text valuation_basis");
+  expect(migration).toContain('TCG Market and crack EV excluded');
+  expect(migration).not.toContain('market_price) practical_liquidation_ev');
 });
 
 test('practical sealed EV discounts liquidity and gates recommendations',async()=>{

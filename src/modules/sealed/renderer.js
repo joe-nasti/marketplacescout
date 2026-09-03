@@ -1,6 +1,7 @@
 import store from '../../state/store.js';
 import { loadResource } from '../../state/resources.js';
 import { rest } from '../../core/rest.js';
+import { invokeFunction } from '../../core/functions.js';
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const money=n=>n==null||n===''||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString(undefined,{style:'currency',currency:'USD'});
@@ -21,6 +22,7 @@ let setTypesLoading=null;
 const scrollByView=new Map();
 const listEconomicsLoaded=new Set();
 const listEconomicsPending=new Set();
+const childPriceRefreshAttempted=new Set();
 
 const familyEconomics=r=>store.get().sealed?.familyEconomics?.[String(r?.sealed_uuid)]||null;
 const componentFloor=r=>{const f=familyEconomics(r),v=Number(f?.practical_liquidation_ev);return f?.practical_action==='MODEL PENDING'&&Number.isFinite(v)&&v>0&&String(f?.valuation_basis||'').includes('fixed')};
@@ -230,11 +232,11 @@ function lifecycleSummary(x){if(!x)return'';const e=x.lifecycle_evidence||{},mov
 function transitionSummary(rows){if(!rows?.length)return'<section class="cx-sealed-component-summary"><div class="cx-section-title">Lifecycle history</div><div class="cx-sealed-econ-note">Baseline established. Future state changes will appear here and mature into measured 30/90-day outcomes; no synthetic transitions are backfilled.</div></section>';return `<section class="cx-sealed-component-summary"><div class="cx-section-title">Lifecycle history</div>${rows.map(x=>{const move=n=>n==null?'—':`${Number(n)>=0?'+':''}${Number(n).toFixed(1)}%`,result=x.direction_correct_90d==null?(x.direction_correct_30d==null?'maturing':`${x.direction_correct_30d?'matched':'missed'} at 30d`):`${x.direction_correct_90d?'matched':'missed'} at 90d`;return `<div class="cx-sealed-component-row"><strong>${esc(human(x.from_state))} → ${esc(human(x.to_state))}</strong><span>${esc(String(x.observed_at||'').slice(0,10))}</span><span>${esc(x.outcome_status)}</span><span>${move(x.return_30d_pct)} / 30d</span><span>${move(x.return_90d_pct)} / 90d · ${esc(result)}</span></div>`}).join('')}<div class="cx-sealed-econ-note">Real observed transitions only. Outcome prices use TCG Market for trajectory measurement—not liquidation EV—and never alter Scout action until separately calibrated.</div></section>`}
 function analogSummary(rows,backtest){if(!rows?.length)return'';const n=Number(backtest?.sample_count||0),calibration=n>0?`Walk-forward calibration: ${n.toLocaleString()} checkpoints · ${Number(backtest.direction_accuracy_pct||0).toFixed(1)}% direction hit · ${Number(backtest.median_absolute_error_pct||0).toFixed(1)}pp median error.`:'Walk-forward calibration is waiting for enough historical checkpoints and 90-day outcomes.';return `<section class="cx-sealed-component-summary"><div class="cx-section-title">Demand-pattern analogs</div>${rows.map(x=>`<div class="cx-sealed-component-row"><strong>${esc(x.analog_product_name)}</strong><span>${esc(x.analog_set_code||'')}</span><span>${Number(x.similarity_score||0).toFixed(0)}% match</span><span>${money(x.analog_market_price)}</span><span>${x.analog_change_90d_pct==null?'—':`${Number(x.analog_change_90d_pct)>=0?'+':''}${Number(x.analog_change_90d_pct).toFixed(1)}% / 90d`}</span></div>`).join('')}<div class="cx-sealed-econ-note">${esc(calibration)} Matches use only information available at each checkpoint. TCG Market is trajectory evidence—not liquidation EV—and analogs remain descriptive until calibration earns confidence.</div></section>`}
 
-async function loadDetailData(r){
+async function loadDetailData(r,force=false){
   // Version the persisted detail contract whenever its payload grows. Never
   // cache a partial economics payload: permission/query errors must surface
   // instead of being converted into authoritative-looking zeroes.
-  return loadResource(`sealed.detail:v8:${r.sealed_uuid}`,async()=>{
+  return loadResource(`sealed.detail:v9:${r.sealed_uuid}`,async()=>{
     const [cards,price,contents,children,analogs,backtests,lifecycles,transitions]=await Promise.all([
       rest('rpc/get_sealed_component_economics',{method:'POST',body:{p_sealed_uuid:r.sealed_uuid}}).catch(()=>[]),
       rest(`sealed_product_price_current?select=product_id,market_price,low_price,low_with_shipping,total_listings,captured_at&source=eq.tcgplayer_public&sealed_uuid=eq.${encodeURIComponent(r.sealed_uuid)}&limit=1`).catch(()=>[]),
@@ -247,7 +249,20 @@ async function loadDetailData(r){
     ]);
     const childIds=(children||[]).map(c=>c.child_sealed_uuid).filter(Boolean),ids=[r.sealed_uuid,...childIds],[legacy,executable]=await Promise.all([rest('rpc/get_sealed_family_economics_fast',{method:'POST',body:{p_sealed_uuids:ids}}),executableEconomics(ids)]),execById=new Map((executable||[]).map(x=>[String(x.sealed_uuid),x])),legacyIds=new Set((legacy||[]).map(x=>String(x.sealed_uuid))),familyValues=[...(legacy||[]).map(x=>({...x,...execById.get(String(x.sealed_uuid))})),...(executable||[]).filter(x=>!legacyIds.has(String(x.sealed_uuid)))],byId=new Map(familyValues.map(x=>[String(x.sealed_uuid),x]));
     return{cards:cards||[],price:(price||[])[0]||null,contents:(contents||[])[0]||null,family:byId.get(String(r.sealed_uuid))||null,children:(children||[]).map(c=>({...c,...byId.get(String(c.child_sealed_uuid))})),analogs:analogs||[],backtest:(backtests||[])[0]||null,lifecycle:(lifecycles||[])[0]||null,transitions:transitions||[]};
-  },{ttl:5*60*1000});
+  },{ttl:5*60*1000,force});
+}
+
+async function refreshMissingChildPrices(r,data){
+  const parent=String(r?.sealed_uuid||'');
+  if(!parent||childPriceRefreshAttempted.has(parent)||!(data?.children||[]).some(c=>!Number(c?.practical_liquidation_ev)))return;
+  childPriceRefreshAttempted.add(parent);
+  try{
+    const result=await invokeFunction('sealed-child-price-refresh',{parent_sealed_uuid:parent});
+    if(Number(result?.written)>0&&String(store.get().sealed?.selectedId||'')===parent){
+      await loadDetailData(r,true);
+      if(String(store.get().sealed?.selectedId||'')===parent)await renderDetail(r);
+    }
+  }catch(error){console.warn('[sealed child price refresh]',error)}
 }
 
 async function renderDetail(r){
@@ -262,6 +277,7 @@ async function renderDetail(r){
     h.innerHTML=`<h3>${sealedUrl?`<a class="cx-source-anchor" href="${esc(sealedUrl)}" target="_blank" rel="noopener">${esc(r.product_name)}</a>`:esc(r.product_name)}</h3><span class="cx-sub">${esc(r.set_code||'')} · ${esc(type?human(type):human(r.subtype||r.category||''))} · ${esc(r.release_date||'')}</span><div class="cx-sealed-badges">${detailFloor?'<span class="cx-sealed-badge risk">COMPONENT FLOOR</span>':sc==null?'':`<span class="cx-sealed-badge direct">Scout ${esc(detailGrade)} · ${sc.toFixed(1)}/100</span>`}${confidenceBadge(d.family)}${badges(r)}</div>${languageNote(r)}<div class="cx-sealed-freshness"><span><b>Prices synced</b> ${age(pricesAt)}</span><span><b>Contents synced</b> ${age(d.contents?.source_updated_at)}</span></div><div class="cx-section-title">EV sensitivity</div><div class="cx-sealed-grid">${stat('Cash floor',money(cashFloor),'Card Kingdom cash buylist; missing cards $0')}${stat(detailFloor?'Known-card practical floor':'Practical EV',money(totalEv),detailFloor?'sample pack excluded · not scored':'fees + liquidity + labor adjusted')}${stat('Optimistic EV',money(optimisticEv),composite?`${Number(d.family?.modeled_child_units||0)} packs + fixed cards`:'best current route after marketplace fees')}${stat('Sealed acquisition',money(a),d.price?.captured_at?`TCG observed ${age(d.price.captured_at)}`:'current pipeline value',sealedUrl)}${stat('TCG Low EV',money(lowEv),'gross reference · Market excluded')}${stat('Top-10 concentration',Number.isFinite(concentration)?pct(concentration):'—','share of practical EV')}${stat('Practical spread',money(totalSpread),detailFloor?'not scored until pack is modeled':totalRoi==null?'':`${totalRoi>=0?'+':''}${totalRoi.toFixed(1)}%`)}</div>${r.blocker?`<div class="cx-sealed-summary"><strong>Current blocker:</strong> ${esc(human(r.blocker))}.</div>`:''}${distributionSummary(d.family)}${lifecycleSummary(d.lifecycle)}${transitionSummary(d.transitions)}${analogSummary(d.analogs,d.backtest)}${evAuditSummary(d.family)}${componentSummary(d.children,d.family)}<div class="cx-section-title cx-sealed-econ-title">Component economics</div>${econTable(d.cards)}`;
     store.update('sealed',{detail:{id:r.sealed_uuid,cards:d.cards,price:d.price,contents:d.contents}});
     document.dispatchEvent(new CustomEvent('collectish:sealed-detail-rendered',{detail:{id:r.sealed_uuid,row:r,data:d}}));
+    void refreshMissingChildPrices(r,d);
   }catch(error){if(seq===detailSeq)h.innerHTML=`<div class="cx-empty">${esc(error.message||error)}</div>`}
 }
 
