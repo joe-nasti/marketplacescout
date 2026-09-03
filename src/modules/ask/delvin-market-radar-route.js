@@ -11,7 +11,7 @@
   };
   const resolverUrl = input => {
     const u = new URL(typeof input === 'string' ? input : input?.url || '', location.href);
-    return `${u.origin}/functions/v1/ask-collectish-delvin-present`;
+    return `${u.origin}/functions/v1/ask-collectish-delvin-present-v2`;
   };
 
   window.fetch = async function(input, init = {}) {
@@ -37,7 +37,7 @@
             response: data.response,
             model: 'Delvin deterministic',
             usage: { total_tokens: 0 },
-            tools: [{ name: 'ask-collectish-delvin-present', ok: true, classification: 'READ' }],
+            tools: [{ name: 'ask-collectish-delvin-present-v2', ok: true, classification: 'READ' }],
             ui_actions: data?.presentation?.actions || [],
             context_screen: 'market',
             deterministic_route: data.route || 'shared_delvin',
@@ -45,10 +45,10 @@
               shared_delvin_router: true,
               shared_presentation_contract: true,
               deterministic_route: data.route || 'shared_delvin',
-              presentation_version: data.presentation_version || 1
+              presentation_version: data.presentation_version || data?.presentation?.version || 2
             },
             presentation: data.presentation || null,
-            presentation_version: data.presentation_version || 1,
+            presentation_version: data.presentation_version || data?.presentation?.version || 2,
             surfaces: data.surfaces || [],
             generated_at: data?.data?.generated_at || data?.data?.generated_from_cache_at || null
           }), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
