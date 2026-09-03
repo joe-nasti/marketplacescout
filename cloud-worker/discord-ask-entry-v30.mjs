@@ -4,6 +4,7 @@ import { rewriteStructuredDiscordOutput } from './discord-structured-output.mjs'
 import { maybeHandleFastQuery } from './discord-fast-query-cache.mjs';
 import { maybeHandleMarketIntelFast } from './discord-market-intel-fast.mjs';
 import { maybeHandleCardInvestigator } from './discord-card-investigator.mjs';
+import { maybeHandleCollectibleCohortThesis } from './discord-collectible-cohort-thesis.mjs';
 import { maybeHandleFamilySetIntel } from './discord-family-set-intel.mjs';
 import { maybeHandleSignalHistory } from './discord-signal-history.mjs';
 import { maybeHandleUserWatch, deliverPendingUserWatches } from './discord-user-watches.mjs';
@@ -24,14 +25,16 @@ async function attachSecretLairMedia(env,job){
 }
 
 // v30 keeps routing in the shared Ask API, but known public market queries,
-// card/printing-family investigations, set/treatment intelligence, and signal-history
-// reports may bypass Queue latency with deterministic evidence paths.
+// collectible-cohort theses, card/printing-family investigations, set/treatment
+// intelligence, and signal-history reports may bypass Queue latency with deterministic evidence paths.
 export default {
   async fetch(request,env,ctx){
     const watch=await maybeHandleUserWatch(request,env,ctx);
     if(watch)return watch;
     const history=await maybeHandleSignalHistory(request,env,ctx);
     if(history)return history;
+    const cohort=await maybeHandleCollectibleCohortThesis(request,env,ctx);
+    if(cohort)return cohort;
     const family=await maybeHandleFamilySetIntel(request,env,ctx);
     if(family)return family;
     const investigate=await maybeHandleCardInvestigator(request,env,ctx);
