@@ -101,6 +101,7 @@ function loadAsk(){
     await import('./ask/context.js');
     await import('./ask/endpoint-proxy.js');
     await import('./ask/delvin-market-radar-route.js');
+    await import('./ask/shared-presentation.js');
     await import('./ask/structured-surfaces.js');
     await import('./ask/surface-persistence.js');
     await import('./ask/main.js');
