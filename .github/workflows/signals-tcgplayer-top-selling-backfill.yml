@@ -31,4 +31,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Backfill historical Marketplace Top Selling reports
-        run: python3 scripts/backfill_tcgplayer_top_selling.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Saved report captures make the script idempotent. A second pass is
+          # deliberate: bit.ly occasionally returns transient 502s while the
+          # underlying HubSpot CSV remains healthy.
+          python3 scripts/backfill_tcgplayer_top_selling.py
+          sleep 10
+          python3 scripts/backfill_tcgplayer_top_selling.py
