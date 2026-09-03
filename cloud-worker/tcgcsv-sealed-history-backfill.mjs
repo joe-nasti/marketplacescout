@@ -12,6 +12,7 @@ const MAX=Math.max(1,Math.min(12,Number(process.env.TCGCSV_HISTORY_MAX_ARCHIVES|
 const STRIDE=Math.max(1,Number(process.env.TCGCSV_HISTORY_STRIDE_DAYS||7));
 const START=process.env.TCGCSV_HISTORY_START||'2024-02-08';
 const END=process.env.TCGCSV_HISTORY_END||new Date(Date.now()-86400000).toISOString().slice(0,10);
+const CARD_SCOPE_VERSION='play-booster-sets-v2';
 const UA=process.env.TCGCSV_USER_AGENT||'Collectish-MarketplaceScout/1.0 (+https://github.com/joe-nasti/marketplacescout)';
 if(!URL||!KEY)throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
 const H={apikey:KEY,Authorization:`Bearer ${KEY}`,'Content-Type':'application/json'};
@@ -61,9 +62,9 @@ async function importDate(date,target){
   const dir=await mkdtemp(join(tmpdir(),'collectish-sealed-history-'));
   try{
     await status(date,{status:'running',attempted_at:new Date().toISOString(),target_products:target.sealedIds.size,detail:{strideDays:STRIDE}});
-    await cardStatus(date,{status:'running',attempted_at:new Date().toISOString(),target_products:target.cardIds.size,detail:{strideDays:STRIDE}});
+    await cardStatus(date,{status:'running',attempted_at:new Date().toISOString(),target_products:target.cardIds.size,detail:{strideDays:STRIDE,scopeVersion:CARD_SCOPE_VERSION}});
     const archive=join(dir,`prices-${date}.ppmd.7z`),ok=await download(`${BASE}/archive/tcgplayer/prices-${date}.ppmd.7z`,archive);
-    if(!ok){const patch={status:'missing',completed_at:new Date().toISOString(),detail:{httpStatus:404}};await Promise.all([status(date,patch),cardStatus(date,patch)]);return{date,status:'missing',rows:0}}
+    if(!ok){const completed_at=new Date().toISOString();await Promise.all([status(date,{status:'missing',completed_at,detail:{httpStatus:404}}),cardStatus(date,{status:'missing',completed_at,detail:{httpStatus:404,scopeVersion:CARD_SCOPE_VERSION}})]);return{date,status:'missing',rows:0}}
     const output=join(dir,'out');
     await run('7z',['x',archive,`-o${output}`,'-y',...target.groups.map(g=>`${date}/1/${g}/prices`)]);
     const sealedRows=[],cardRows=[];
@@ -80,16 +81,16 @@ async function importDate(date,target){
     for(let i=0;i<sealedRows.length;i+=250)await sb('sealed_product_market_history?on_conflict=product_id,sub_type_name,observed_on',{method:'POST',body:sealedRows.slice(i,i+250),prefer:'resolution=merge-duplicates,return=minimal'});
     for(let i=0;i<cardRows.length;i+=250)await sb('modeled_booster_card_price_history?on_conflict=product_id,sub_type_name,observed_on',{method:'POST',body:cardRows.slice(i,i+250),prefer:'resolution=merge-duplicates,return=minimal'});
     const detail={groups:target.groups.length,strideDays:STRIDE};
-    await Promise.all([status(date,{status:'complete',completed_at:new Date().toISOString(),imported_rows:sealedRows.length,detail}),cardStatus(date,{status:'complete',completed_at:new Date().toISOString(),imported_rows:cardRows.length,detail})]);
+    await Promise.all([status(date,{status:'complete',completed_at:new Date().toISOString(),imported_rows:sealedRows.length,detail}),cardStatus(date,{status:'complete',completed_at:new Date().toISOString(),imported_rows:cardRows.length,detail:{...detail,scopeVersion:CARD_SCOPE_VERSION}})]);
     return{date,status:'complete',sealedRows:sealedRows.length,cardRows:cardRows.length};
-  }catch(error){const patch={status:'failed',completed_at:new Date().toISOString(),detail:{error:String(error?.message||error).slice(0,500)}};await Promise.all([status(date,patch).catch(()=>{}),cardStatus(date,patch).catch(()=>{})]);throw error}
+  }catch(error){const completed_at=new Date().toISOString(),message=String(error?.message||error).slice(0,500);await Promise.all([status(date,{status:'failed',completed_at,detail:{error:message}}).catch(()=>{}),cardStatus(date,{status:'failed',completed_at,detail:{error:message,scopeVersion:CARD_SCOPE_VERSION}}).catch(()=>{})]);throw error}
   finally{await rm(dir,{recursive:true,force:true})}
 }
 
 const target=await targets();
 const done=await sb('sealed_tcgcsv_archive_imports?select=archive_date,status&status=in.(complete,missing)')||[];
-const cardDone=await sb('modeled_booster_card_archive_imports?select=archive_date,status&status=in.(complete,missing)')||[];
-const sealedCompleted=new Set(done.map(x=>x.archive_date)),cardCompleted=new Set(cardDone.map(x=>x.archive_date));
+const cardDone=await sb('modeled_booster_card_archive_imports?select=archive_date,status,detail&status=in.(complete,missing)')||[];
+const sealedCompleted=new Set(done.map(x=>x.archive_date)),cardCompleted=new Set(cardDone.filter(x=>x.detail?.scopeVersion===CARD_SCOPE_VERSION).map(x=>x.archive_date));
 const completed=new Set([...sealedCompleted].filter(x=>cardCompleted.has(x)));
 const pending=dateRange().filter(d=>!completed.has(d)).slice(0,MAX),report=[];
 for(const date of pending){try{report.push(await importDate(date,target))}catch(error){report.push({date,status:'failed',error:String(error?.message||error)})}}
