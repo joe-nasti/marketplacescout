@@ -8,6 +8,7 @@ import { maybeHandleCollectibleCohortThesis } from './discord-collectible-cohort
 import { maybeHandleFamilySetIntel } from './discord-family-set-intel.mjs';
 import { maybeHandleSignalHistory } from './discord-signal-history.mjs';
 import { maybeHandleUserWatch, deliverPendingUserWatches } from './discord-user-watches.mjs';
+import { deliverPendingResearchBackfills } from './discord-research-backfills.mjs';
 
 const DISCORD_API='https://discord.com/api/v10';
 const base=env=>String(env.SUPABASE_URL||'').replace(/\/$/,'');
@@ -51,6 +52,6 @@ export default {
     await Promise.all(jobs.map(job=>attachSecretLairMedia(env,job)));
   },
   async scheduled(_controller,env,ctx){
-    ctx?.waitUntil?.(deliverPendingUserWatches(env));
+    ctx?.waitUntil?.(Promise.all([deliverPendingUserWatches(env),deliverPendingResearchBackfills(env)]));
   },
 };
