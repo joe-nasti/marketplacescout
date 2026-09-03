@@ -18,7 +18,7 @@ export function csvLinks(html:string,url:string):ReportLink[]{
 function parseCsv(raw:string){const rows:string[][]=[];let row:string[]=[],field='',q=false;for(let i=0;i<raw.length;i++){const c=raw[i];if(q){if(c==='"'&&raw[i+1]==='"'){field+='"';i++}else if(c==='"')q=false;else field+=c}else if(c==='"')q=true;else if(c===','){row.push(field);field=''}else if(c==='\n'){row.push(field.replace(/\r$/,''));rows.push(row);row=[];field=''}else field+=c}if(field.length||row.length){row.push(field.replace(/\r$/,''));rows.push(row)}return rows.filter(r=>r.some(x=>x.trim()))}
 function key(s:string){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()}
 function first(o:any,names:string[]){for(const n of names){const v=o[key(n)];if(v!==undefined&&String(v).trim())return String(v).trim()}return''}
-function num(v:string){const n=Number(String(v||'').replace(/[$,%\s]/g,'').replace(/,/g,''));return Number.isFinite(n)?n:null}
+function num(v:string){const cleaned=String(v??'').trim();if(!cleaned)return null;const n=Number(cleaned.replace(/[$,%\s]/g,'').replace(/,/g,''));return Number.isFinite(n)?n:null}
 
 export function salesReportRows(raw:string){
  const rows=parseCsv(raw);if(rows.length<2)return[];const h=rows[0].map(key);
