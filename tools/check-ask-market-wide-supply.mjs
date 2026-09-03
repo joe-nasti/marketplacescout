@@ -12,7 +12,11 @@ if(!/nonDirect=exact\.filter/.test(sync))throw new Error('non-Direct marketplace
 if(!/syncSupply/.test(identity)||!/market-supply-sync/.test(identity))throw new Error('named supply questions do not refresh market-wide supply');
 if(/term\.language\s*=/.test(sync))throw new Error('market supply must filter language by exact SKU, not display-label facet');
 for(const token of ["'Origin':'https://www.tcgplayer.com'","'Referer':'https://www.tcgplayer.com/'",'Mozilla/5.0'])if(!sync.includes(token))throw new Error(`missing TCGplayer site request header: ${token}`);
-if(!/supply\|inventory\|liquidity/.test(identity))throw new Error('supply refresh is not scoped to supply-like questions');
+if(!/stock\|supply\|inventory\|liquidity/.test(identity))throw new Error('stock must be a first-class supply-like question');
+if(!/how\(\?:'s\| is\).*stock\|supply\|inventory\|liquidity/.test(identity))throw new Error('how is stock on <card> is not recognized');
+for(const token of ['exactFamilyRows','familySupply','CARD_NAME_NM_LP_ENGLISH','family_market_supply','exact_card_name_family_supply','near mint|lightly played'])if(!identity.includes(token))throw new Error(`missing card-family supply contract token: ${token}`);
+if(!/Number\(r\?\.match_rank\)===0/.test(identity))throw new Error('family supply must require an exact card-name match before fan-out');
+if(!/for\(const row of family\)/.test(identity)||!/syncSupply\(h,text\(row\.product_id\),text\(row\.sku_id\)\)/.test(identity))throw new Error('family supply does not refresh each exact family SKU');
 if(/global_supply_classification','Thin \/ fragmented Direct/i.test(migration))throw new Error('Direct classification leaked into global supply classification');
 for(const token of ['manapool-supply-sync','product_id:productId','sku_id:skuId'])if(!sync.includes(token))throw new Error(`market supply does not chain exact-SKU ManaPool collector: ${token}`);
 for(const token of ['exact_ask_sku_on_demand','tcgplayer_sku_id','available_quantity','exact_tcgplayer_sku:true','numeric product_id and sku_id required'])if(!manapool.includes(token))throw new Error(`missing exact-SKU ManaPool contract token: ${token}`);
