@@ -1,0 +1,60 @@
+name: Collectish vendor depth sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Vendor source
+        required: true
+        default: all
+        type: choice
+        options: [all, cardkingdom, manapool]
+  schedule:
+    - cron: "35 11 * * *"
+  push:
+    paths:
+      - "cloud-worker/vendor-depth-lib.mjs"
+      - "cloud-worker/cardkingdom-depth-sync.mjs"
+      - "cloud-worker/manapool-depth-sync.mjs"
+      - "tools/check-vendor-depth-contract.mjs"
+      - ".github/workflows/vendor-depth-sync.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-vendor-depth-sync
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: node --check cloud-worker/vendor-depth-lib.mjs cloud-worker/cardkingdom-depth-sync.mjs cloud-worker/manapool-depth-sync.mjs
+      - run: node tools/check-vendor-depth-contract.mjs
+
+  sync:
+    if: github.event_name != 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MANAPOOL_API_EMAIL: ${{ secrets.MANAPOOL_API_EMAIL }}
+      MANAPOOL_API_TOKEN: ${{ secrets.MANAPOOL_API_TOKEN }}
+      MANAPOOL_DEPTH_TARGET_LIMIT: "200"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - name: Sync Card Kingdom exact supply and demand
+        if: github.event_name == 'schedule' || inputs.source == 'all' || inputs.source == 'cardkingdom'
+        run: node cloud-worker/cardkingdom-depth-sync.mjs
+      - name: Sync Mana Pool targeted depth
+        if: github.event_name == 'schedule' || inputs.source == 'all' || inputs.source == 'manapool'
+        run: node cloud-worker/manapool-depth-sync.mjs
+
