@@ -40,6 +40,7 @@ on:
       - 'cloud-worker/discord-structured-output.mjs'
       - 'cloud-worker/discord-fast-query-cache.mjs'
       - 'cloud-worker/discord-market-intel-fast.mjs'
+      - 'cloud-worker/discord-card-investigator.mjs'
       - 'cloud-worker/discord-user-watches.mjs'
       - 'cloud-worker/wrangler.discord-ask.json'
       - 'tools/check-discord-ask-routing.mjs'
