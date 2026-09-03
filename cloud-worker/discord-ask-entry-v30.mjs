@@ -21,9 +21,9 @@ async function attachSecretLairMedia(env,job){
 }
 
 // v30 keeps routing in the shared Ask API, but known public market queries may be
-// answered from the precomputed Delvin cache before Queue latency. User-scoped
-// watches are owned by the linked Collectish account and use Discord only as a
-// delivery surface. Cache misses and noncanonical questions use the normal path.
+// answered from the precomputed Delvin cache before Queue latency. Persistent
+// Discord watches are guest-first and owned by Discord user identity; an optional
+// Collectish link may enrich them later but never gates creation or management.
 export default {
   async fetch(request,env,ctx){
     const watch=await maybeHandleUserWatch(request,env,ctx);
