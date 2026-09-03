@@ -54,6 +54,7 @@ test('shared router answers sealed Direct crack rankings without clarification',
   expect(router).toContain("r.practical_action==='BUY & CRACK'");
   expect(router).toContain('Direct EV-only rows are theoretical outlet value');
   expect(presenter).toContain('sealedCrackPresentation');
+  expect(presenter).toMatch(/ask-collectish-route-intents[\s\S]*ask-collectish-delvin-route/);
   expect(renderer).toContain("surface?.type==='sealed_crack_ranking'");
 });
 
