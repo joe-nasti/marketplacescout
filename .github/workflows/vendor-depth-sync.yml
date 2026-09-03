@@ -24,7 +24,7 @@ permissions:
 
 concurrency:
   group: collectish-vendor-depth-sync
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -57,4 +57,3 @@ jobs:
       - name: Sync Mana Pool targeted depth
         if: github.event_name == 'schedule' || inputs.source == 'all' || inputs.source == 'manapool'
         run: node cloud-worker/manapool-depth-sync.mjs
-
