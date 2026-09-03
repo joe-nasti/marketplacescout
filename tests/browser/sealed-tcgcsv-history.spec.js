@@ -10,7 +10,20 @@ test('sealed TCGCSV backfill is selective and storage bounded',async()=>{
   expect(worker).toContain('sealed_ev_backtest_pool_items');
   expect(worker).toContain('modeled_booster_card_price_history');
   expect(worker).toContain('modeled_booster_card_archive_imports');
+  expect(worker).toContain("category=eq.booster_pack&subtype=eq.play");
+  expect(worker).toContain('magic_set_catalog?select=code,tcgplayer_group_id');
+  expect(worker).toContain("CARD_SCOPE_VERSION='play-booster-sets-v2'");
+  expect(worker).toContain('x.detail?.scopeVersion===CARD_SCOPE_VERSION');
   expect(worker).not.toContain('high_price:num');
+});
+
+test('stabilized EV readiness requires independent release cohorts',async()=>{
+  const sql=await readFile('supabase/migrations/20260903210000_require_release_cohorts_for_stabilized_ev.sql','utf8');
+  expect(sql).toContain('covered_play_sets>=4');
+  expect(sql).toContain('mature_release_cohorts>=3');
+  expect(sql).toContain('first_observation<=release_date+14');
+  expect(sql).toContain('last_observation>=release_date+60');
+  expect(sql).toContain('never used as executable EV');
 });
 
 test('modeled card history is private, bounded, and calibration gated',async()=>{
