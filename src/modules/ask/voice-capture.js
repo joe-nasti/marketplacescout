@@ -18,8 +18,9 @@
   button.closest('.cx-ask-compose')?.classList.add('cx-ask-voice-ready');
 
   let mode='idle',stream=null,recorder=null,chunks=[],startedAt=0,timer=null,limitTimer=null,transcribeAbort=null,draftBefore='';
-  let audioContext=null,analyser=null,sourceNode=null,meterFrame=null,heardInput=false,peakLevel=0;
-  const waveform=Array(34).fill(.08);
+  let audioContext=null,analyser=null,sourceNode=null,meterFrame=null,heardInput=false,lastWaveSampleAt=0;
+  const WAVEFORM_POINTS=42,WAVEFORM_SAMPLE_MS=120;
+  const waveform=Array(WAVEFORM_POINTS).fill(.08);
   const session=()=>{try{return JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{return null}};
   const errorText=error=>{
     const name=String(error?.name||'');
@@ -56,17 +57,18 @@
     const gap=2.5*scale,barWidth=Math.max(1.5*scale,(width-gap*(waveform.length-1))/waveform.length);
     waveform.forEach((level,index)=>{const barHeight=Math.max(2*scale,Math.min(height*.9,level*height));context.fillRect(index*(barWidth+gap),(height-barHeight)/2,barWidth,barHeight)});
   };
-  const renderMeter=()=>{
+  const renderMeter=timestamp=>{
     if(mode!=='recording'||!analyser)return;
     const data=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(data);
     let energy=0;for(const sample of data){const normalized=(sample-128)/128;energy+=normalized*normalized}
-    const level=Math.min(1,Math.sqrt(energy/data.length)*4.2);peakLevel=Math.max(peakLevel,level);if(level>.08)heardInput=true;
-    waveform.push(Math.max(.06,level));waveform.shift();drawWaveform();meterFrame=requestAnimationFrame(renderMeter);
+    const level=Math.min(1,Math.sqrt(energy/data.length)*4.2);if(level>.08)heardInput=true;
+    if(!lastWaveSampleAt||timestamp-lastWaveSampleAt>=WAVEFORM_SAMPLE_MS){waveform.push(Math.max(.06,level));waveform.shift();drawWaveform();lastWaveSampleAt=timestamp}
+    meterFrame=requestAnimationFrame(renderMeter);
   };
   const startMeter=async activeStream=>{
-    heardInput=false;peakLevel=0;waveform.fill(.08);drawWaveform();
+    heardInput=false;lastWaveSampleAt=0;waveform.fill(.08);drawWaveform();
     const AudioContext=window.AudioContext||window.webkitAudioContext;if(!AudioContext)return;
-    try{audioContext=new AudioContext();await audioContext.resume?.();sourceNode=audioContext.createMediaStreamSource(activeStream);analyser=audioContext.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=.72;sourceNode.connect(analyser);renderMeter()}catch{stopMeter()}
+    try{audioContext=new AudioContext();await audioContext.resume?.();sourceNode=audioContext.createMediaStreamSource(activeStream);analyser=audioContext.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=.72;sourceNode.connect(analyser);meterFrame=requestAnimationFrame(renderMeter)}catch{stopMeter()}
   };
   const bestMime=()=>['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg;codecs=opus'].find(type=>MediaRecorder.isTypeSupported?.(type))||'';
   const extension=mime=>mime.includes('mp4')?'m4a':mime.includes('ogg')?'ogg':mime.includes('wav')?'wav':'webm';
