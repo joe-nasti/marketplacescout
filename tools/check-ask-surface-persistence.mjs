@@ -12,6 +12,6 @@ if(!direct&&!merged)throw new Error('orchestrated assistant surfaces are not per
 for(const token of ['window.__CollectishAskSurfaceQueue.length=0','metadata.surfaces','persisted:true']){
   if(!bridge.includes(token))throw new Error(`missing Ask restore bridge token: ${token}`);
 }
-const boot="await import('./ask/structured-surfaces.js');await import('./ask/surface-persistence.js');await import('./ask/main.js')";
-if(!modules.includes(boot))throw new Error('surface persistence must load after renderer and before Ask main');
+const boot=/await import\('\.\/ask\/structured-surfaces\.js'\);\s*await import\('\.\/ask\/surface-persistence\.js'\);\s*await import\('\.\/ask\/main\.js'\)/;
+if(!boot.test(modules))throw new Error('surface persistence must load after renderer and before Ask main');
 console.log('Ask surface persistence guard passed');
