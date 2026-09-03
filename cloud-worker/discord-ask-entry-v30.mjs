@@ -1,6 +1,7 @@
 import transport from './discord-ask-entry.mjs';
 import { secretLairMediaEmbed } from './discord-secret-lair-media.mjs';
 import { rewriteStructuredDiscordOutput } from './discord-structured-output.mjs';
+import { maybeHandleSharedDelvinRoute } from './discord-shared-delvin-route.mjs';
 import { maybeHandleFastQuery } from './discord-fast-query-cache.mjs';
 import { maybeHandleMarketIntelFast } from './discord-market-intel-fast.mjs';
 import { maybeHandleCardInvestigator } from './discord-card-investigator.mjs';
@@ -25,13 +26,16 @@ async function attachSecretLairMedia(env,job){
   }catch(error){console.warn('secret lair discord thumbnail skipped',String(error?.message||error).slice(0,180))}
 }
 
-// v30 keeps routing in the shared Ask API, but known public market queries,
-// collectible-cohort theses, card/printing-family investigations, set/treatment
-// intelligence, and signal-history reports may bypass Queue latency with deterministic evidence paths.
+// v30 uses one shared deterministic resolver for Collectish Ask + Discord wherever
+// that resolver has a grounded route. Discord-only watch/alert management stays local.
+// Older specialist handlers remain as fallback while their presentation features are
+// progressively moved into the shared resolver.
 export default {
   async fetch(request,env,ctx){
     const watch=await maybeHandleUserWatch(request,env,ctx);
     if(watch)return watch;
+    const shared=await maybeHandleSharedDelvinRoute(request,env,ctx);
+    if(shared)return shared;
     const history=await maybeHandleSignalHistory(request,env,ctx);
     if(history)return history;
     const cohort=await maybeHandleCollectibleCohortThesis(request,env,ctx);
