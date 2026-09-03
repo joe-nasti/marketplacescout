@@ -9,7 +9,12 @@ const moduleSource=async(path,replacements=[])=>{
 
 async function injectModule(page,path,replacements=[]){
   const source=await moduleSource(path,replacements);
-  await page.addScriptTag({type:'module',content:source});
+  await page.evaluate(async({source,path})=>{
+    const base=new URL(path,`${location.origin}/`);
+    const resolved=source.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,(_match,quote,spec)=>`from ${quote}${new URL(spec,base).href}${quote}`);
+    const url=URL.createObjectURL(new Blob([resolved],{type:'text/javascript'}));
+    try{await import(url)}finally{URL.revokeObjectURL(url)}
+  },{source,path});
 }
 
 const ORACLE_ID='11111111-1111-1111-1111-111111111111';
@@ -72,10 +77,12 @@ test('mobile Oracle compare survives the full interaction lifecycle',async({page
   await injectModule(page,'src/modules/scout/oracle-printings.js',[
     ["import store from '../../state/store.js';","const store=window.__oracleTestStore;"],
     ["import { readOracleFamily, seedOracleFamily } from './oracle-family-data.js';","const readOracleFamily=(oracle,{limit=2000}={})=>window.__oracleTestRest('rpc/scout_catalog_by_oracle',{method:'POST',body:{p_oracle_id:oracle,p_limit:limit}});const seedOracleFamily=(_oracle,rows)=>rows;"],
-    ["fetch(`https://api.scryfall.com/","window.__oracleTestFetch(`https://api.scryfall.com/"]
+    ["fetch(`https://api.scryfall.com/","window.__oracleTestFetch(`https://api.scryfall.com/"],
+    ["installOraclePrintingsLink();","installOraclePrintingsLink();window.__oracleTestAddLink=addLink;"]
   ]);
 
-  await page.evaluate(()=>document.dispatchEvent(new CustomEvent('collectish:scout-detail-rendered',{detail:{sku:'sku-1'}})));
+  await expect(page.locator('#cxScoutOraclePrintingsStyle')).toHaveCount(1);
+  await page.evaluate(()=>window.__oracleTestAddLink({sku:'sku-1'}));
   await expect(page.getByText('All printings',{exact:true})).toBeVisible();
   await expect(page.locator('.cx-inline-printing-row')).toHaveCount(3);
   const compare=page.getByRole('button',{name:/Open comparison workspace/});

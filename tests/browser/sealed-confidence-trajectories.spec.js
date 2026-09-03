@@ -26,5 +26,5 @@ test('collector-box analogs use fetched observations and disclose forecast limit
   expect(sync).toContain("requestedRange==='year'?'annual'");
   expect(sync).toContain('apply_marketplace_sales_history');
   expect(ui).toContain('Demand-pattern analogs');
-  expect(ui).toContain('descriptive—not forecasts');
+  expect(ui).toContain('analogs remain descriptive until calibration earns confidence');
 });

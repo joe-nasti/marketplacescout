@@ -12,14 +12,14 @@ test('Signals composes Secret Lair surface without replacing core renderer', asy
 
 test('Secret Lair Signals surface keeps research, scores, regional supply and card EV distinct', async()=>{
   const src=await fs.readFile('src/modules/signals/secret-lair-surface.js','utf8');
-  expect(src).toContain('Secret Lair · Pre-sale');
+  expect(src).toContain('Secret Lair · Live');
   expect(src).toContain('global supply unknown');
-  expect(src).toContain('US / REU / UK');
+  expect(src).toContain("`${d.drop_id}:US:nonfoil`");
   expect(src).toContain("evaluation_status==='scored'");
   expect(src).toContain('Research only');
   expect(src).toContain('compression_adjusted_value');
   expect(src).toContain('naive_comparable_value');
-  expect(src).toContain('Card EV + provenance');
+  expect(src).toContain('card EV + provenance');
 });
 
 test('live Secret Lair observation contract supports pulled separately from sold out', async()=>{

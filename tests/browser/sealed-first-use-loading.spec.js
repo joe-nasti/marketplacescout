@@ -29,5 +29,5 @@ test('Sealed detail remains interaction-driven and keeps its local skeleton',asy
   const renderer=await read('src/modules/sealed/renderer.js');
   expect(renderer).toContain('cx-sealed-detail-skeleton');
   expect(renderer).toContain('loadDetailData(r)');
-  expect(renderer).toContain("sealed.detail:${r.sealed_uuid}");
+  expect(renderer).toMatch(/sealed\.detail:v\d+:\$\{r\.sealed_uuid\}/);
 });

@@ -7,13 +7,14 @@ function row(i){return {sku_id:`sku-${i}`,product_id:String(70000+i),product_nam
 async function setup(page){
   const session={token:token(),refresh:'render-refresh',exp:Date.now()+3600_000,user:{id:'render-user',email:'render@example.com'}};
   await page.addInitScript(({key,value})=>localStorage.setItem(key,JSON.stringify(value)),{key:SESSION_KEY,value:session});
-  const rows=Array.from({length:100},(_,i)=>row(i+1));
+  const rows=Array.from({length:500},(_,i)=>row(i+1));
   let listReads=0;
   await page.route('**/rest/v1/**',route=>{
     const url=new URL(route.request().url());
     const path=url.pathname+url.search;
-    if(path.includes('scout_opportunities_v5_cache')&&url.searchParams.get('limit')==='500'){
-      listReads++;return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(rows)});
+    if(path.includes('scout_opportunities_actionability_ranked')){
+      const limit=Number(url.searchParams.get('limit')||120);
+      listReads++;return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(rows.slice(0,limit))});
     }
     if(path.includes('scout_opportunities_v5_cache')&&url.searchParams.get('sku_id')){
       const sku=(url.searchParams.get('sku_id')||'').replace(/^eq\./,'');
@@ -30,7 +31,9 @@ test('Scout progressively connects cards and expands without ranking refetch',as
   const listReads=await setup(page);
   await page.goto('/');
   await expect(page.locator('.cx-scout-card').first()).toContainText('Progressive Card 1');
-  await page.waitForFunction(()=>document.getElementById('cxParityCards')?.dataset.progressiveRendered);
+  await page.waitForFunction(()=>window.CollectishScoutProgressive?.compact);
+  await page.evaluate(()=>window.CollectishScoutProgressive.compact());
+  await expect.poll(()=>page.evaluate(()=>window.CollectishScoutProgressive.getState().remaining)).toBeGreaterThan(0);
   const initial=await page.locator('.cx-scout-card').count();
   expect(initial).toBeLessThanOrEqual(isMobile?32:56);
   expect(initial).toBeGreaterThan(0);

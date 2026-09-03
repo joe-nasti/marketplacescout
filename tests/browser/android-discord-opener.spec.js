@@ -13,8 +13,8 @@ test('Android Scout links are diverted before Vite boot', () => {
 test('static opener requires a real user gesture and has browser fallback', () => {
   const html = read('public/open.html');
   expect(html).toContain('id="openApp"');
-  expect(html).toContain('package=com.collectish.agent');
-  expect(html).toContain('browser_fallback_url');
+  expect(html).toContain("var nativeUrl='collectish://scout'");
+  expect(html).toContain("fallback.searchParams.set('webFallback','1')");
   expect(html).toContain('id="openWeb"');
 });
 

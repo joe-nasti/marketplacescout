@@ -9,7 +9,7 @@ test('Zeta Signals uses exact treatment printings and conservative value floor',
   expect(ui).toContain('secret_lair_randomized_oracle_floors');
   expect(ui).toContain('exact treatment printings');
   expect(ui).toContain('Oracle-floor mean baseline');
-  expect(ui).toContain('zero Zeta treatment premium');
+  expect(ui).toContain('Actual treatment premiums remain zero');
   expect(ui).toContain('1–121 Photocopy');
   expect(ui).toContain('122–242 Photocopy Negative');
   expect(ui).toContain('243–363 Color Banding');

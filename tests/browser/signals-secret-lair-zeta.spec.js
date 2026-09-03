@@ -23,6 +23,6 @@ test('Zeta keeps hypothetical pack-count scenarios explicitly non-print-run',()=
 
 test('Zeta waits for treatment-specific markets before claiming pack EV',()=>{
   expect(zeta).toContain('Pack EV waiting for card-market mapping');
-  expect(zeta).toContain('mean/median EV');
-  expect(zeta).toContain('chase concentration');
+  expect(zeta).toContain('Floor-only baseline · mean');
+  expect(zeta).toContain('Underlying chase-value floor');
 });

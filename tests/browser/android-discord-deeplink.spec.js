@@ -24,5 +24,5 @@ test('DeepLinkActivity restores the native session before reloading the exact ta
   expect(activity).toContain('collectish-native');
   expect(activity).toContain('collectishSession');
   expect(activity).toContain('location.replace');
-  expect(activity).toContain('intent?.data?.toString()');
+  expect(activity).toContain('intent?.data?.takeIf { isCollectishUri(it) }');
 });
