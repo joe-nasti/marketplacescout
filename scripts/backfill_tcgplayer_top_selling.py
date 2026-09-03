@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import csv, io, json, os, re, sys, time
+import csv, io, json, os, re, sys
 from datetime import datetime, timezone
 from html import unescape
 from urllib.parse import quote, urljoin, urlparse, unquote
@@ -9,7 +9,6 @@ from urllib.error import HTTPError, URLError
 SUPABASE_URL=os.environ.get('SUPABASE_URL','').rstrip('/')
 SERVICE_KEY=os.environ.get('SUPABASE_SERVICE_ROLE_KEY','')
 MONTHS=['january','february','march','april','may','june','july','august','september','october','november','december']
-SOURCE='TCGplayer Seller Blog'
 REPORT_SOURCE='TCGplayer Top Selling Report'
 UA='MarketplaceScout/0.9 (+historical TCGplayer Top Selling backfill)'
 
@@ -46,12 +45,16 @@ def article_info(html,url):
         m=re.search(r'<time\b[^>]*datetime=["\']([^"\']+)',html,re.I); published=m.group(1) if m else None
     author=meta(html,'author') or None
     body=(re.search(r'<article\b[^>]*>([\s\S]*?)</article>',html,re.I) or re.search(r'<main\b[^>]*>([\s\S]*?)</main>',html,re.I) or ['',html])[1]
-    plain=text_of(body)
-    return {'url':url,'title':title,'published_at':published,'author':author,'plain':plain,'html':html}
+    return {'url':url,'title':title,'published_at':published,'author':author,'plain':text_of(body),'html':html}
 
 def is_mtg_top_selling(a):
-    h=(a['title']+' '+a['plain'][:4000]).lower()
-    return ('top selling' in h or 'top-selling' in h or 'best-selling' in h) and ('magic: the gathering' in h or re.search(r'\bmtg\b',h)) and 'direct by tcgplayer' not in a['title'].lower() and ' in direct' not in a['title'].lower()
+    title=a['title'].lower()
+    lead=a['plain'][:2200].lower()
+    top=('top selling' in title or 'top-selling' in title or 'best-selling' in title)
+    magic=('magic: the gathering' in title or re.search(r'\bmtg\b',title) or 'top-selling magic' in title)
+    if not magic:
+        magic='top-selling magic: the gathering cards' in lead or 'top-selling magic cards' in lead
+    return bool(top and magic and 'direct by tcgplayer' not in title and ' in direct' not in title)
 
 def report_window(html):
     t=text_of(html)
@@ -112,11 +115,6 @@ def rest_post(table,obj):
     data=json.dumps(obj).encode(); headers={'apikey':SERVICE_KEY,'Authorization':f'Bearer {SERVICE_KEY}','Content-Type':'application/json','Prefer':'return=minimal'}
     with urlopen(Request(url,data=data,method='POST',headers=headers),timeout=40) as r:r.read()
 
-def rest_patch(table,filters,obj):
-    url=f'{SUPABASE_URL}/rest/v1/{table}?{filters}'
-    data=json.dumps(obj).encode(); headers={'apikey':SERVICE_KEY,'Authorization':f'Bearer {SERVICE_KEY}','Content-Type':'application/json','Prefer':'return=minimal'}
-    with urlopen(Request(url,data=data,method='PATCH',headers=headers),timeout=40) as r:r.read()
-
 def ingest(owner,a,report_url,rows,win,bkt):
     saved=dupes=0
     for i in range(0,len(rows),20):
@@ -143,7 +141,7 @@ def main():
     subs=rest_get('source_captures?select=user_id&capture_type=eq.content_subscription&payload_json-%3E%3Ediscovery=eq.tcgplayer_seller_blog_mtg')
     owners=sorted({str(x.get('user_id') or '') for x in subs if x.get('user_id')})
     if not owners:raise SystemExit('No TCGplayer Seller Blog subscriptions configured')
-    found=[]; total_saved=total_dupes=0
+    found=[]; total_saved=total_dupes=0; skipped_existing=0
     for mon,year,urls in candidates(int(os.environ.get('MONTHS_BACK','25'))):
         a=None
         for u in urls:
@@ -155,7 +153,7 @@ def main():
         if not a:continue
         win=report_window(a['html']); dl_links=links(a['html'],a['url'])
         if not win or not dl_links:
-            print(json.dumps({'article':a['url'],'status':'skipped','reason':'missing window or CSV links'}));continue
+            print(json.dumps({'article':a['url'],'status':'skipped','reason':'missing window or CSV links'}),flush=True);continue
         article_reports=[]
         for lk in dl_links:
             try:
@@ -164,19 +162,22 @@ def main():
                 rows=parse_rows(raw)
                 if not rows:continue
                 bkt=bucket(lk['label'],final)
+                processed=False
                 for owner in owners:
-                    s,d=ingest(owner,a,final,rows,win,bkt);total_saved+=s;total_dupes+=d
-                    existing=rest_get(f"source_captures?select=capture_id&user_id=eq.{quote(owner)}&source=eq.{quote(REPORT_SOURCE)}&capture_type=eq.data_report&source_key=eq.{quote(final,safe='')}&limit=1")
+                    existing=rest_get(f"source_captures?select=capture_id,metadata_json&user_id=eq.{quote(owner)}&source=eq.{quote(REPORT_SOURCE)}&capture_type=eq.data_report&source_key=eq.{quote(final,safe='')}&limit=1")
+                    if existing and (existing[0].get('metadata_json') or {}).get('status')=='saved':
+                        skipped_existing+=1
+                        continue
+                    s,d=ingest(owner,a,final,rows,win,bkt);total_saved+=s;total_dupes+=d;processed=True
                     payload={'parent_article_url':a['url'],'parent_article_title':a['title'],'published_at':a['published_at'],'report_window_start':win[0],'report_window_end':win[1],'report_window_note':win[2],'criteria':{'ranking':'total copies sold','condition':'all','printing_finish':'all','prior_month_average_sale_price_bucket':bkt},'rows':len(rows),'download_url':lk['url'],'final_url':final,'label':lk['label'] or None}
                     meta={'status':'saved','source_profile':'marketplace_editorial','source_subtype':'first_party_market_sales','retrieved_at':datetime.now(timezone.utc).isoformat(),'historical_backfill':True}
-                    if existing:rest_patch('source_captures',f"capture_id=eq.{existing[0]['capture_id']}",{'payload_json':payload,'metadata_json':meta,'payload_text':raw[:200000].decode('utf-8','replace')})
-                    else:rest_post('source_captures',{'user_id':owner,'source':REPORT_SOURCE,'capture_type':'data_report','source_key':final,'content_type':'text/csv','payload_json':payload,'payload_text':raw[:200000].decode('utf-8','replace'),'metadata_json':meta})
-                article_reports.append({'url':final,'label':lk['label'],'bucket':bkt,'rows':len(rows)})
+                    rest_post('source_captures',{'user_id':owner,'source':REPORT_SOURCE,'capture_type':'data_report','source_key':final,'content_type':'text/csv','payload_json':payload,'payload_text':raw[:200000].decode('utf-8','replace'),'metadata_json':meta})
+                article_reports.append({'url':final,'label':lk['label'],'bucket':bkt,'rows':len(rows),'processed':processed})
             except Exception as e:
-                print(json.dumps({'article':a['url'],'report':lk['url'],'status':'error','error':str(e)}),file=sys.stderr)
+                print(json.dumps({'article':a['url'],'report':lk['url'],'status':'error','error':str(e)}),file=sys.stderr,flush=True)
         if article_reports:
             found.append({'article':a['url'],'title':a['title'],'sales_window':[win[0],win[1]],'reports':article_reports})
-            print(json.dumps(found[-1]))
-    print(json.dumps({'ok':True,'articles':len(found),'reports':sum(len(x['reports']) for x in found),'saved':total_saved,'duplicates':total_dupes,'found':found},indent=2))
+            print(json.dumps(found[-1]),flush=True)
+    print(json.dumps({'ok':True,'articles':len(found),'reports':sum(len(x['reports']) for x in found),'saved':total_saved,'duplicates':total_dupes,'skipped_existing':skipped_existing,'found':found},indent=2),flush=True)
 
 if __name__=='__main__':main()
