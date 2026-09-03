@@ -94,5 +94,10 @@ const sealedCompleted=new Set(done.map(x=>x.archive_date)),cardCompleted=new Set
 const completed=new Set([...sealedCompleted].filter(x=>cardCompleted.has(x)));
 const pending=dateRange().filter(d=>!completed.has(d)).slice(0,MAX),report=[];
 for(const date of pending){try{report.push(await importDate(date,target))}catch(error){report.push({date,status:'failed',error:String(error?.message||error)})}}
-console.log(JSON.stringify({ok:report.every(x=>x.status!=='failed'),sealedTargetProducts:target.sealedIds.size,modeledCardTargetProducts:target.cardIds.size,playSetTargets:target.playSetCodes.length,targetGroups:target.groups.length,pending:pending.length,report},null,2));
+let calibrationRows=null;
+if(report.some(x=>x.status==='complete')){
+  const refreshed=await sb('rpc/refresh_modeled_booster_ev_calibration',{method:'POST',body:{}});
+  calibrationRows=Number(Array.isArray(refreshed)?refreshed[0]:refreshed);
+}
+console.log(JSON.stringify({ok:report.every(x=>x.status!=='failed'),sealedTargetProducts:target.sealedIds.size,modeledCardTargetProducts:target.cardIds.size,playSetTargets:target.playSetCodes.length,targetGroups:target.groups.length,pending:pending.length,calibrationRows,report},null,2));
 if(report.some(x=>x.status==='failed'))process.exitCode=1;
