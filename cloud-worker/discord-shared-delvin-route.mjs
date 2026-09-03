@@ -3,7 +3,9 @@ function json(b,s=200){return new Response(JSON.stringify(b),{status:s,headers:{
 function hex(v,n){const h=String(v||'').trim();if(!new RegExp(`^[0-9a-f]{${n*2}}$`,'i').test(h))return null;const o=new Uint8Array(n);for(let i=0;i<n;i++)o[i]=parseInt(h.slice(i*2,i*2+2),16);return o}
 async function verify(req,raw,keyHex){const sig=hex(req.headers.get('x-signature-ed25519'),64),ts=req.headers.get('x-signature-timestamp')||'',pk=hex(keyHex,32);if(!sig||!ts||!pk)return false;const a=enc.encode(ts),b=new Uint8Array(raw),m=new Uint8Array(a.length+b.length);m.set(a);m.set(b,a.length);const k=await crypto.subtle.importKey('raw',pk,{name:'Ed25519'},false,['verify']);return crypto.subtle.verify({name:'Ed25519'},k,sig,m)}
 function qFrom(x){const o=(x?.data?.options||[]).find(v=>String(v?.name||'').toLowerCase()==='question');return String(o?.value||'').trim()}
-async function route(env,q){const r=await fetch(`${base(env)}/functions/v1/ask-collectish-delvin-present-v2`,{method:'POST',headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({question:q,client:'discord'})});if(!r.ok)return null;return r.json()}
+const supplyLike=q=>/\b(?:stock|supply|inventory|liquidity)\b/i.test(String(q||''));
+async function callRoute(env,name,body){const r=await fetch(`${base(env)}/functions/v1/${name}`,{method:'POST',headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)return null;return r.json()}
+async function route(env,q){if(supplyLike(q)){const s=await callRoute(env,'ask-collectish-delvin-supply-present',{question:q,client:'discord'}).catch(()=>null);if(s?.handled&&s?.response)return s}return callRoute(env,'ask-collectish-delvin-present-v2',{question:q,client:'discord'}).catch(()=>null)}
 function cleanMarkdown(s){return String(s||'').replace(/^##\s+/gm,'').replace(/^###\s+/gm,'**').replace(/^(\*\*[^\n]+)$/gm,'$1**')}
 const colors={BUY:0x2da44e,WATCH:0xbf8700,PASS:0xcf222e};
 const usd=v=>Number.isFinite(Number(v))?`$${Number(v).toFixed(2)}`:'—';
