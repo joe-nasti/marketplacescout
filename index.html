@@ -4,6 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f5f8ff">
+  <script>
+    (function(){
+      try{
+        var p=new URL(location.href).searchParams;
+        var scoutTarget=['sku','product','card','fromCard'].some(function(k){return p.has(k)});
+        var android=/Android/i.test(navigator.userAgent||'');
+        var nativeHost=p.get('nativeHost')==='1';
+        var webFallback=p.get('webFallback')==='1';
+        if(android&&scoutTarget&&!nativeHost&&!webFallback&&!/\/open\.html$/.test(location.pathname)){
+          location.replace(new URL('./open.html'+location.search,location.href).toString());
+        }
+      }catch(_){}
+    })();
+  </script>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="./collectish-icon-192.png">
   <link rel="stylesheet" href="./src/styles/index.css">
@@ -70,8 +84,6 @@
         }catch(error){window.__collectishBootErrors?.push(`fresh-loader: ${error?.message||error}`)}
       }
       await import('./src/main.js');
-      // Never race legacy worker/cache cleanup against the native module graph.
-      // Once the app has mounted, retire it well outside the critical boot path.
       if(nativeAndroid)setTimeout(()=>void clearNativeWorkerState(),15_000);
     }
     boot().catch(error=>{
