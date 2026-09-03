@@ -25,6 +25,8 @@ test('coverage gate blocks incomplete sealed recommendations', async()=>{
   expect(family).toContain('recommendation_eligible');
   expect(family).toContain('MODEL PENDING');
   expect(family).toContain('BUY & CRACK');
+  expect(family).toContain('known cards only; sealed child excluded');
+  expect(family).toContain('Component floors value only known cards');
 });
 
 test('generic collation registry preserves Hobbit as first full data profile', async()=>{
@@ -81,7 +83,7 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
   expect(renderer).toContain('sealed.detail:v4:');
   expect(renderer).toContain("rest('rpc/get_sealed_family_economics_fast'");
-  expect(renderer).toContain("metric('Practical EV'");
+  expect(renderer).toContain("floor?'Practical floor':'Practical EV'");
   expect(renderer).toContain("metric('TCG Low EV'");
   expect(renderer).toContain("metric('Practical spread'");
   expect(renderer).toContain('loadListEconomics(products)');
@@ -93,6 +95,9 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).toContain('Practical liquidation EV');
   expect(renderer).toContain('Market excluded');
   expect(renderer).toContain('sealed_product_executable_ev_cache?');
+  expect(renderer).toContain("known cards only · sample pack excluded");
+  expect(renderer).toContain("floor?'COMPONENT FLOOR':'MODEL PENDING'");
+  expect(renderer).toContain("if(componentFloor(r))return null");
   const optimizer=await read('src/modules/sealed/out-optimizer.js');
   expect(optimizer).toContain("(num(row.optimized_live_out_ev)||0)+childNet");
   expect(optimizer).toContain("(num(row.optimized_with_syp_potential_ev)||0)+childNet");
