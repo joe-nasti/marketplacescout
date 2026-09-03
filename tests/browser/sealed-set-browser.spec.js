@@ -14,8 +14,7 @@ async function seed(page){
 }
 
 test('mobile Sealed drills from grouped sets into products and restores via browser Back',async({page})=>{
-  await seed(page);await page.setViewportSize({width:412,height:915});await page.goto('/');
-  await page.getByRole('button',{name:'Sealed',exact:true}).click();
+  await seed(page);await page.setViewportSize({width:412,height:915});await page.goto('/?tab=sealed');
   await expect(page.getByRole('heading',{name:'Scout Sealed'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Commander Decks'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Expansions'})).toBeVisible();
@@ -53,10 +52,11 @@ test('composite sealed detail rolls child products through economics and optimiz
   await expect(giftRow).toContainText('-$95.35');
   await giftRow.click();
   await expect(page.getByText('Total practical EV',{exact:true}).first()).toBeVisible();
-  await expect(page.locator('.cx-sealed-component-summary')).toContainText('9');
-  await expect(page.locator('.cx-sealed-component-summary')).toContainText('The Hobbit Play Booster Pack');
-  await expect(page.locator('.cx-sealed-component-summary')).toContainText('The Hobbit Collector Booster Pack');
-  await expect(page.locator('.cx-sealed-component-summary')).toContainText('$79.65');
+  const included=page.locator('.cx-sealed-component-summary').filter({hasText:'Included sealed products'});
+  await expect(included).toContainText('9');
+  await expect(included).toContainText('The Hobbit Play Booster Pack');
+  await expect(included).toContainText('The Hobbit Collector Booster Pack');
+  await expect(included).toContainText('$79.65');
   await expect(page.locator('.cx-out-opt')).toContainText('Included Products Net');
   await expect(page.locator('.cx-out-opt')).toContainText('$59.00');
   await expect(page.locator('.cx-out-opt')).toContainText('$79.65');

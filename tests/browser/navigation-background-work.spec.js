@@ -6,8 +6,8 @@ const read=path=>readFile(path,'utf8');
 test('Signals navigation reads cached evaluations without recomputing them',async()=>{
   const source=await read('src/modules/signals/market-evaluation.js');
   expect(source).toContain("if(recompute)await rest('rpc/refresh_market_intel_evaluations'");
-  expect(source).toContain("if(e.detail?.page==='signals')queueMicrotask(()=>void refresh())");
-  expect(source).toContain("document.addEventListener('collectish:intel-changed',queueRecompute)");
+  expect(source).toContain("if(e.detail?.source!=='primary-load')queueRecompute()");
+  expect(source).toContain("document.addEventListener('collectish:intel-changed'");
 });
 
 test('optional background requests wait until navigation is idle',async()=>{

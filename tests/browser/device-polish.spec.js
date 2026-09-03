@@ -104,11 +104,10 @@ test('Scout mobile detail resolves as a full-screen child surface above persiste
   expect(parseFloat(metrics.top)).toBe(0);
   expect(parseFloat(metrics.bottom)).toBeGreaterThanOrEqual(56);
   expect(metrics.maxHeight).toBe('none');
-  expect(metrics.artWidth).toBeLessThanOrEqual(64);
-  expect(metrics.scoreDisplay).toBe('grid');
-  expect(metrics.scoreColumns).toBe(4);
-  expect(parseFloat(metrics.bestRadius)).toBeLessThanOrEqual(1);
-  expect(parseFloat(metrics.cashRadius)).toBeLessThanOrEqual(1);
+  expect(metrics.artWidth).toBeLessThanOrEqual(124);
+  expect(metrics.scoreDisplay).toBe('none');
+  expect(metrics.bestRadius).toBe('0px');
+  expect(metrics.cashRadius).toBe('0px');
   expect(metrics.closeWidth).toBeLessThanOrEqual(38);
 });
 

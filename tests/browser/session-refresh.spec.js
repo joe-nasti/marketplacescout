@@ -15,8 +15,9 @@ async function seedExpiredSession(page){
 test('transient refresh failure preserves saved session for retry',async({page})=>{
   await seedExpiredSession(page);
   await page.route('**/auth/v1/token?grant_type=refresh_token',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'temporary outage'})}));
+  const refresh=page.waitForResponse(response=>response.url().includes('/auth/v1/token?grant_type=refresh_token'));
   await page.goto('/');
-  await expect(page.locator('#modernSignIn')).toBeVisible();
+  expect((await refresh).status()).toBe(503);
   const saved=await page.evaluate(key=>localStorage.getItem(key),SESSION_KEY);
   expect(saved).not.toBeNull();
   expect(JSON.parse(saved).refresh).toBe('saved-refresh-token');

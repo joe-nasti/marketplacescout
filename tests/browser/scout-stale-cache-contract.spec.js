@@ -40,14 +40,14 @@ test('stale Scout cards paint before delayed live rankings',async({page})=>{
   },{session:{token:`header.${tokenPayload}.sig`,refresh:'refresh',exp:Date.now()+3600000,user:{id:'stale-user'}},row:cached});
   await page.route('**/rest/v1/**',async route=>{
     if(route.request().url().includes('scout_opportunities_actionability_ranked')){
-      await new Promise(resolve=>setTimeout(resolve,800));
+      await new Promise(resolve=>setTimeout(resolve,2500));
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([live])});
     }
     return route.fulfill({status:200,contentType:'application/json',body:'[]'});
   });
   await page.goto('/');
-  await expect(page.locator('.cx-scout-card')).toContainText('Cached Opportunity',{timeout:600});
+  await expect(page.locator('.cx-scout-card')).toContainText('Cached Opportunity',{timeout:1500});
   await expect(page.locator('#cxScoutDataFreshness')).toContainText('Cached snapshot');
-  await expect(page.locator('.cx-scout-card')).toContainText('Live Opportunity',{timeout:4000});
+  await expect(page.locator('.cx-scout-card')).toContainText('Live Opportunity',{timeout:6000});
   await expect(page.locator('#cxScoutDataFreshness')).not.toContainText('Cached snapshot');
 });

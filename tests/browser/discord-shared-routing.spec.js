@@ -34,10 +34,11 @@ test('named MTGStocks requests execute source lookup and refresh without clarifi
   expect(router).toContain("route:'named_source_snapshot'");
   expect(router).toContain("type:'named_source_snapshot'");
   expect(router).toContain("refresh:'market-intel-mtgstocks-interests-sync'");
-  expect(router).toContain('refresh_attempted:stale');
-  expect(router).toContain('fallback_used:Boolean(refresh_error&&after.rows.length)');
+  expect(router).toContain('refresh_attempted=false');
+  expect(router).toContain('if(stale&&src.refresh){refresh_attempted=true');
+  expect(router).toContain('fallback_used:Boolean((refresh_error||stale)&&after?.raw?.length)');
   expect(router).toContain("scout_signal_required:false");
-  expect(router).toContain("source_scope:'same_source_same_feature'");
+  expect(router).toContain("source_scope:'canonical_mtgstocks_plus_collectish_vetting'");
   expect(router).toMatch(/routeSource\(q\).*priceHistoryIntent/s);
 });
 

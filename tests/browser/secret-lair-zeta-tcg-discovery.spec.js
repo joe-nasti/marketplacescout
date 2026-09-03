@@ -3,13 +3,14 @@ import { readFile } from 'node:fs/promises';
 
 const read=path=>readFile(path,'utf8');
 
-test('Zeta TCG discovery requires exact SLZ printing identity', async()=>{
+test('Zeta TCG discovery requires exact official-group printing identity', async()=>{
   const src=await read('supabase/functions/secret-lair-zeta-market-sync/index.ts');
-  expect(src).toContain("code==='slz'");
-  expect(src).toContain('exactName&&best.s.magic&&best.s.cardProduct&&best.s.zetaSet');
-  expect(src).toContain("best.s.numberOk?'confirmed':'candidate'");
-  expect(src).toContain("status='not_found'");
-  expect(src).toContain("tcgplayer_product_id:keep?best?.id||null:null");
+  expect(src).toContain("norm(g?.abbreviation)==='slz'");
+  expect(src).toContain('allProductsForGroup(Number(group.groupId),t)');
+  expect(src).toContain("byKey.set(`${norm(productName(p))}|${norm(cn)}`,p)");
+  expect(src).toContain("byKey.get(`${norm(c.card_name)}|${norm(c.collector_number)}`)");
+  expect(src).toContain("discovery_status:'confirmed'");
+  expect(src).toContain("discovery_source:'tcgplayer_official_group_products'");
   expect(src).not.toContain("status=best.s.score>=.80?'confirmed'");
 });
 

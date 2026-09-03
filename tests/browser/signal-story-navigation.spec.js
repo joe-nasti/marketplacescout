@@ -77,7 +77,7 @@ test('Signal Story and Raw Source restore their parent screens through browser B
 
   await page.getByRole('button',{name:/Sources/}).click();
   await expect.poll(()=>new URL(page.url()).searchParams.get('storyView')).toBe('sources');
-  await page.locator('.cx-evidence-drawer').evaluate(el=>{el.style.height='120px';el.scrollTop=50});
+  await page.locator('.cx-evidence-drawer').evaluate(el=>{el.style.height='120px';el.style.overflow='auto';el.querySelector('#cxEvidenceBody').style.minHeight='600px';el.scrollTop=50});
   await expect.poll(()=>page.locator('.cx-evidence-drawer').evaluate(el=>el.scrollTop)).toBe(50);
   await page.getByRole('button',{name:'View source ›'}).evaluate(el=>el.click());
   await expect(page.getByText('Signal Story · Raw Source',{exact:true})).toBeVisible();

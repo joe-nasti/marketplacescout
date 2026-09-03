@@ -8,12 +8,12 @@ test('Scout persists decision-relevant view and only explicit selected SKU in th
   const state=await read('src/modules/scout/route-state.js');
   const index=await read('src/modules/scout/index.js');
   expect(state).toContain("new Set(['top','quick','buylist','velocity'])");
-  expect(state).toContain("p.set('view',view)");
+  expect(state).toContain("if(view&&view!=='top')p.set('view',view);else p.delete('view')");
   expect(state).toContain("if(sku&&view!=='quick')p.set('sku',sku)");
   expect(state).toContain('rememberExplicitSku');
   expect(state).toContain("document.addEventListener('click',explicitClick,true)");
   expect(state).toContain('renderer.setSaved(view)');
-  expect(state).toContain("CollectishScoutDetailNavigation?.open?.({sku_id:sku})");
+  expect(state).toContain("CollectishScoutDetailNavigation?.open?.({sku_id:sku,from_card_sku:fromCard})");
   expect(state).not.toContain('filterOpen');
   expect(index).toContain("import('./route-state.js')");
 });
