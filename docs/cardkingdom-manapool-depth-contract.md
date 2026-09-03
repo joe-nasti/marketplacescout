@@ -2,6 +2,10 @@
 
 Validated September 2–3, 2026 against Card Kingdom's complete v2 price list and Mana Pool API v1 schema 0.32.0.
 
+## Product status
+
+Card Kingdom retail supply and buylist demand history remain active. Mana Pool-to-Card Kingdom buylist optimization is deferred: it is not scheduled, exposed as a bulk/manual workflow, or shown as a pending Scout feature. The validated Mana Pool notes below are retained as research for a possible future implementation. Exact-SKU Mana Pool supply used for general market-supply questions is a separate, on-demand capability and must not fan out from the Card Kingdom buylist.
+
 ## Card Kingdom
 
 Source: `https://api.cardkingdom.com/api/v2/pricelist`
@@ -31,4 +35,3 @@ The same observation contract can accept exact-SKU listing count and quantity fr
 ## Retention
 
 `vendor_depth_current` is overwritten in place. A trigger writes `vendor_depth_events` only when the material value hash changes, so unchanged daily polls do not grow history. Every event links to `vendor_depth_runs`, retaining Collectish observation time, raw source time, endpoint, payload hash, schema version, and run status.
-
