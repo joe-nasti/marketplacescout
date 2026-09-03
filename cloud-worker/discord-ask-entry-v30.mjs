@@ -3,6 +3,7 @@ import { secretLairMediaEmbed } from './discord-secret-lair-media.mjs';
 import { rewriteStructuredDiscordOutput } from './discord-structured-output.mjs';
 import { maybeHandleFastQuery } from './discord-fast-query-cache.mjs';
 import { maybeHandleMarketIntelFast } from './discord-market-intel-fast.mjs';
+import { maybeHandleCardInvestigator } from './discord-card-investigator.mjs';
 import { maybeHandleUserWatch, deliverPendingUserWatches } from './discord-user-watches.mjs';
 
 const DISCORD_API='https://discord.com/api/v10';
@@ -20,14 +21,15 @@ async function attachSecretLairMedia(env,job){
   }catch(error){console.warn('secret lair discord thumbnail skipped',String(error?.message||error).slice(0,180))}
 }
 
-// v30 keeps routing in the shared Ask API, but known public market queries may be
-// answered from the precomputed Delvin cache before Queue latency. Persistent
-// Discord watches are guest-first and owned by Discord user identity; an optional
-// Collectish link may enrich them later but never gates creation or management.
+// v30 keeps routing in the shared Ask API, but known public market queries and
+// card investigations may bypass Queue latency with deterministic evidence paths.
+// Persistent Discord watches are guest-first and owned by Discord user identity.
 export default {
   async fetch(request,env,ctx){
     const watch=await maybeHandleUserWatch(request,env,ctx);
     if(watch)return watch;
+    const investigate=await maybeHandleCardInvestigator(request,env,ctx);
+    if(investigate)return investigate;
     const intel=await maybeHandleMarketIntelFast(request,env,ctx);
     if(intel)return intel;
     const fast=await maybeHandleFastQuery(request,env,ctx);
