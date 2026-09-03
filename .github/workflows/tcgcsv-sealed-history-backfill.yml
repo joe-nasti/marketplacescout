@@ -6,13 +6,15 @@ on:
       max_archives:
         description: Maximum archive dates to import in this run
         required: false
-        default: "3"
+        default: "12"
       stride_days:
         description: Historical sampling interval in days
         required: false
         default: "7"
   schedule:
-    - cron: "15 7 * * *"
+    # Run frequently while the finite weekly archive backlog is being filled.
+    # Once complete, the importer exits without rewriting completed dates.
+    - cron: "15 * * * *"
   push:
     branches: [main]
     paths:
@@ -34,7 +36,7 @@ jobs:
       SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       TCGCSV_BASE_URL: https://tcgcsv.com
-      TCGCSV_HISTORY_MAX_ARCHIVES: ${{ inputs.max_archives || '3' }}
+      TCGCSV_HISTORY_MAX_ARCHIVES: ${{ inputs.max_archives || '12' }}
       TCGCSV_HISTORY_STRIDE_DAYS: ${{ inputs.stride_days || '7' }}
       TCGCSV_HISTORY_START: "2024-02-08"
       TCGCSV_USER_AGENT: "Collectish-MarketplaceScout/1.0 (+https://github.com/joe-nasti/marketplacescout)"
