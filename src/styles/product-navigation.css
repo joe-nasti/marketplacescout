@@ -6,6 +6,7 @@
 .cx-nav-group-label small{font-size:10px;line-height:1.25;color:var(--color-text-secondary);font-weight:600}
 .cx-nav-sub{display:grid;gap:3px}
 .cx-nav-sub button,.cx-side-tools button{width:100%;border:0;background:transparent;color:var(--color-text-primary);font-weight:700;cursor:pointer;padding:10px 13px;border-radius:11px;text-align:left;font-size:13px}
+.cx-nav-assistant{margin-top:6px}.cx-nav-assistant [data-cx-ask-nav]{display:flex;align-items:center;gap:7px}.cx-nav-assistant [data-cx-ask-nav] span{color:var(--color-accent)}
 .cx-nav-sub button.active,.cx-side-tools button.active{background:var(--color-accent-soft);color:var(--color-accent)}
 .cx-nav-group.active .cx-nav-group-label strong{color:var(--color-accent)}
 .cx-side-tools{padding-top:8px;border-top:1px solid var(--color-border)}

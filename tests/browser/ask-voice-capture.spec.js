@@ -8,6 +8,10 @@ test('Ask voice capture creates an editable MTG-aware draft without auto-send',a
   const voice=await read('src/modules/ask/voice-capture.js');
   const modules=await read('src/modules/index.js');
   expect(main).toContain('id="cxAskVoice"');
+  expect(main).toContain('id="cxAskVoiceWave"');
+  expect(main).toContain('id="cxAskVoiceTimer"');
+  expect(main).toContain('id="cxAskVoiceCancel"');
+  expect(main).toContain('id="cxAskVoiceFinish"');
   expect(main).toContain('id="cxAskVoiceState"');
   expect(modules).toContain("import('./ask/voice-capture.js')");
   expect(voice).toContain('navigator.mediaDevices.getUserMedia');
@@ -28,6 +32,12 @@ test('voice recording has explicit stop, cancellation, timeout, and close cleanu
   expect(voice).toContain("document.addEventListener('collectish:ask-closed',cancel)");
   expect(voice).toContain('transcribeAbort?.abort()');
   expect(voice).toContain('track.stop()');
+  expect(voice).toContain('createMediaStreamSource');
+  expect(voice).toContain('getByteTimeDomainData');
+  expect(voice).toContain('requestAnimationFrame(renderMeter)');
+  expect(voice).toContain("I’m not hearing anything · check your microphone");
+  expect(voice).toContain('navigator.vibrate?.(pattern)');
+  expect(voice).toContain("document.addEventListener('collectish:ask-sent'");
 });
 
 test('transcription edge function is authenticated and supplies MTG vocabulary',async()=>{
@@ -61,7 +71,7 @@ test('Android hosts grant microphone capture only through runtime permission',as
 
 test('recorded audio becomes an editable composer draft in the browser',async({page})=>{
   const voice=await read('src/modules/ask/voice-capture.js');
-  await page.route('**/__voice-harness',route=>route.fulfill({contentType:'text/html',body:'<form class="cx-ask-compose"><button id="cxAskVoice" type="button" hidden></button><textarea id="cxAskInput">price check</textarea><div id="cxAskVoiceState" hidden></div></form>'}));
+  await page.route('**/__voice-harness',route=>route.fulfill({contentType:'text/html',body:'<form class="cx-ask-compose"><button id="cxAskVoice" type="button" hidden></button><textarea id="cxAskInput">price check</textarea><div id="cxAskVoiceCapture" hidden><button id="cxAskVoiceCancel" type="button">Cancel</button><canvas id="cxAskVoiceWave"></canvas><time id="cxAskVoiceTimer">0:00</time><button id="cxAskVoiceFinish" type="button">Finish</button></div><button class="cx-ask-send" type="submit">Send</button><div id="cxAskVoiceState" hidden></div></form>'}));
   await page.goto('/__voice-harness');
   await page.evaluate(()=>{
     localStorage.setItem('collectishSession',JSON.stringify({token:'test-token'}));
@@ -90,7 +100,8 @@ test('recorded audio becomes an editable composer draft in the browser',async({p
   await expect(mic).toBeVisible();
   await mic.click();
   await expect(mic).toHaveAttribute('aria-label','Stop recording');
-  await mic.click();
+  await expect(page.locator('#cxAskVoiceCapture')).toBeVisible();
+  await page.locator('#cxAskVoiceFinish').click();
   await expect(page.locator('#cxAskInput')).toHaveValue('price check What is the TCGplayer Direct Low for Optimus Prime, Hero?');
   await expect(page.locator('#cxAskVoiceState')).toContainText('review, edit, then send');
   const probe=await page.evaluate(()=>window.__voiceProbe);
@@ -100,4 +111,13 @@ test('recorded audio becomes an editable composer draft in the browser',async({p
   expect(probe.microphoneRequests).toHaveLength(2);
   expect(probe.microphoneRequests[0].audio.echoCancellation).toEqual({ideal:true});
   expect(probe.microphoneRequests[1]).toEqual({audio:true,video:false});
+});
+
+test('desktop shell exposes Ask as a first-class context-preserving launcher',async()=>{
+  const shell=await read('src/core/shell.js');
+  expect(shell).toContain('function desktopAsk()');
+  expect(shell).toContain('<strong>Assistant</strong>');
+  expect(shell).toContain('data-cx-ask-nav');
+  expect(shell).toContain("${PRIMARY_GROUPS.map(desktopGroup).join('')}${desktopAsk()}");
+  expect(shell).toContain("document.dispatchEvent(new CustomEvent('collectish:open-ask'))");
 });

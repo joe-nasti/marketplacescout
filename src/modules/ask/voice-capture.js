@@ -5,7 +5,12 @@
   const button=document.getElementById('cxAskVoice');
   const input=document.getElementById('cxAskInput');
   const stateEl=document.getElementById('cxAskVoiceState');
-  if(!button||!input||!stateEl)return;
+  const capture=document.getElementById('cxAskVoiceCapture');
+  const cancelButton=document.getElementById('cxAskVoiceCancel');
+  const finishButton=document.getElementById('cxAskVoiceFinish');
+  const canvas=document.getElementById('cxAskVoiceWave');
+  const timerEl=document.getElementById('cxAskVoiceTimer');
+  if(!button||!input||!stateEl||!capture||!cancelButton||!finishButton||!canvas||!timerEl)return;
 
   const supported=Boolean(navigator.mediaDevices?.getUserMedia&&window.MediaRecorder&&endpoint);
   if(!supported)return;
@@ -13,6 +18,8 @@
   button.closest('.cx-ask-compose')?.classList.add('cx-ask-voice-ready');
 
   let mode='idle',stream=null,recorder=null,chunks=[],startedAt=0,timer=null,limitTimer=null,transcribeAbort=null,draftBefore='';
+  let audioContext=null,analyser=null,sourceNode=null,meterFrame=null,heardInput=false,peakLevel=0;
+  const waveform=Array(34).fill(.08);
   const session=()=>{try{return JSON.parse(localStorage.getItem('collectishSession')||'null')}catch{return null}};
   const errorText=error=>{
     const name=String(error?.name||'');
@@ -27,15 +34,40 @@
   };
   const setMode=next=>{
     mode=next;button.dataset.mode=next;
+    button.closest('.cx-ask-compose')?.classList.toggle('cx-ask-recording',next==='recording');
+    capture.hidden=next!=='recording';
     button.setAttribute('aria-label',next==='recording'?'Stop recording':next==='transcribing'?'Cancel transcription':'Start voice input');
     button.title=button.getAttribute('aria-label');
     input.setAttribute('aria-busy',next==='transcribing'?'true':'false');
   };
   const elapsed=()=>Math.max(0,Math.floor((Date.now()-startedAt)/1000));
-  const clock=()=>{if(mode==='recording')setState(`Listening… ${Math.floor(elapsed()/60)}:${String(elapsed()%60).padStart(2,'0')} · tap the mic to finish`,'recording')};
+  const timeLabel=()=>`${Math.floor(elapsed()/60)}:${String(elapsed()%60).padStart(2,'0')}`;
+  const clock=()=>{if(mode==='recording'){timerEl.textContent=timeLabel();setState(!heardInput&&elapsed()>=3?'I’m not hearing anything · check your microphone':'Listening…','recording')}};
   const clearTimers=()=>{if(timer)clearInterval(timer);if(limitTimer)clearTimeout(limitTimer);timer=null;limitTimer=null};
-  const stopTracks=()=>{stream?.getTracks?.().forEach(track=>track.stop());stream=null};
+  const stopMeter=()=>{if(meterFrame)cancelAnimationFrame(meterFrame);meterFrame=null;try{sourceNode?.disconnect()}catch{}sourceNode=null;analyser=null;if(audioContext){void audioContext.close?.().catch?.(()=>{})}audioContext=null};
+  const stopTracks=()=>{stopMeter();stream?.getTracks?.().forEach(track=>track.stop());stream=null};
   const reset=()=>{clearTimers();stopTracks();recorder=null;chunks=[];setMode('idle')};
+  const haptic=pattern=>{try{navigator.vibrate?.(pattern)}catch{}}
+  const drawWaveform=()=>{
+    const rect=canvas.getBoundingClientRect(),scale=Math.min(devicePixelRatio||1,2),width=Math.max(1,Math.round(rect.width*scale)),height=Math.max(1,Math.round(rect.height*scale));
+    if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height}
+    const context=canvas.getContext('2d');if(!context)return;
+    context.clearRect(0,0,width,height);context.fillStyle=getComputedStyle(canvas).color;
+    const gap=2.5*scale,barWidth=Math.max(1.5*scale,(width-gap*(waveform.length-1))/waveform.length);
+    waveform.forEach((level,index)=>{const barHeight=Math.max(2*scale,Math.min(height*.9,level*height));context.fillRect(index*(barWidth+gap),(height-barHeight)/2,barWidth,barHeight)});
+  };
+  const renderMeter=()=>{
+    if(mode!=='recording'||!analyser)return;
+    const data=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(data);
+    let energy=0;for(const sample of data){const normalized=(sample-128)/128;energy+=normalized*normalized}
+    const level=Math.min(1,Math.sqrt(energy/data.length)*4.2);peakLevel=Math.max(peakLevel,level);if(level>.08)heardInput=true;
+    waveform.push(Math.max(.06,level));waveform.shift();drawWaveform();meterFrame=requestAnimationFrame(renderMeter);
+  };
+  const startMeter=async activeStream=>{
+    heardInput=false;peakLevel=0;waveform.fill(.08);drawWaveform();
+    const AudioContext=window.AudioContext||window.webkitAudioContext;if(!AudioContext)return;
+    try{audioContext=new AudioContext();await audioContext.resume?.();sourceNode=audioContext.createMediaStreamSource(activeStream);analyser=audioContext.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=.72;sourceNode.connect(analyser);renderMeter()}catch{stopMeter()}
+  };
   const bestMime=()=>['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg;codecs=opus'].find(type=>MediaRecorder.isTypeSupported?.(type))||'';
   const extension=mime=>mime.includes('mp4')?'m4a':mime.includes('ogg')?'ogg':mime.includes('wav')?'wav':'webm';
   const openMicrophone=async()=>{
@@ -84,15 +116,19 @@
         if(!blob.size){setState('I could not hear a question. Try again.','error');setMode('idle');return}
         try{await transcribe(blob)}catch(error){setState(errorText(error),'error');setMode('idle')}
       };
-      recorder.start(250);startedAt=Date.now();setMode('recording');clock();timer=setInterval(clock,1000);limitTimer=setTimeout(()=>stop(),90000);
+      recorder.start(250);startedAt=Date.now();setMode('recording');await startMeter(stream);clock();timer=setInterval(clock,250);limitTimer=setTimeout(()=>stop(),90000);haptic(12);
     }catch(error){reset();setState(errorText(error),'error')}
   }
-  function stop(){if(mode==='recording'&&recorder?.state!=='inactive'){setState('Finishing recording…');recorder.stop()}}
+  function stop(){if(mode==='recording'&&recorder?.state!=='inactive'){setState('Finishing recording…');haptic([10,25,10]);recorder.stop()}}
   function cancel(){
     if(mode==='transcribing'){transcribeAbort?.abort();setState('Voice input canceled.');setMode('idle');return}
     if(mode==='recording'){recorder.onstop=null;try{recorder.stop()}catch{}reset();setState('Voice input canceled.')}
   }
   function toggle(){if(mode==='idle')void start();else if(mode==='recording')stop();else cancel()}
   button.addEventListener('click',toggle);
+  finishButton.addEventListener('click',stop);
+  cancelButton.addEventListener('click',cancel);
+  input.addEventListener('input',()=>{if(mode==='idle'&&stateEl.dataset.kind==='ready')setState()});
+  document.addEventListener('collectish:ask-sent',()=>{if(mode==='idle')setState()});
   document.addEventListener('collectish:ask-closed',cancel);
 })();
