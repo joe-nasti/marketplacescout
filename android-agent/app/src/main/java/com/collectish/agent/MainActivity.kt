@@ -16,6 +16,7 @@ import android.view.View
 import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceResponse
 import android.webkit.WebResourceRequest
@@ -47,6 +48,7 @@ import kotlin.concurrent.thread
 class MainActivity : Activity() {
     private val api = NativeSupabase()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val microphonePermission by lazy { MicrophonePermissionDelegate(this, 7401) }
     private lateinit var rootHost: FrameLayout
     private lateinit var nativeShell: LinearLayout
     private lateinit var contentHost: FrameLayout
@@ -71,7 +73,7 @@ class MainActivity : Activity() {
             mainHandler.postDelayed(this, 15_000L)
         }
     }
-    private val version = "0.2.16"
+    private val version = "0.2.36"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +97,13 @@ class MainActivity : Activity() {
                 val line = "console ${message.messageLevel()}: ${message.message()} @ ${message.sourceId()}:${message.lineNumber()}"
                 hostedBootDiagnostics.add(line.take(500))
                 return super.onConsoleMessage(message)
+            }
+            override fun onPermissionRequest(request: PermissionRequest) {
+                runOnUiThread { if (!microphonePermission.handle(request)) request.deny() }
+            }
+            override fun onPermissionRequestCanceled(request: PermissionRequest) {
+                microphonePermission.canceled(request)
+                super.onPermissionRequestCanceled(request)
             }
         }
         agentWeb.addJavascriptInterface(Bridge(), "CollectishAndroid")
@@ -138,8 +147,14 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        microphonePermission.cancel()
         mainHandler.removeCallbacks(hostedAgentKick)
         super.onDestroy()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (microphonePermission.result(requestCode, permissions, grantResults)) return
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
     private fun bg() = Color.rgb(245, 248, 252)
