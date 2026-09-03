@@ -129,6 +129,11 @@ jobs:
       - name: Import MTGJSON deck contents
         if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
         run: python cloud-worker/mtgjson-deck-content-sync.py
+      - name: Hydrate deterministic Commander sealed components
+        if: env.MTGJSON_MODE == 'identity' || env.MTGJSON_MODE == 'all'
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 -X POST "$SUPABASE_URL/rest/v1/rpc/refresh_sealed_deterministic_deck_components" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{}'
       - name: Import MTGJSON daily prices
         if: env.MTGJSON_MODE == 'prices' || env.MTGJSON_MODE == 'all'
         run: node cloud-worker/mtgjson-sync.mjs prices
