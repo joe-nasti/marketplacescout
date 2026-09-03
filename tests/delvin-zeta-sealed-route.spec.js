@@ -17,6 +17,7 @@ test('shared Delvin resolver recognizes Zeta aftermarket purchase questions',()=
 test('Zeta decision compares live sealed sales with stored pack economics',()=>{
   for(const token of ['gross_mean_ev','gross_median_ev','net_mean_ev_after_fees','totalQuantitySold','lowSalePriceWithShipping','price_multiple_vs_msrp','exact_treatment_market_coverage'])assert.ok(source.includes(token),`missing ${token}`);
   assert.match(source,/Do not chase at current pricing/);
+  assert.match(source,/release_date:releases\?\.\[0\]\?\.sale_start_at/);
   assert.match(source,/ZETA_MARKET_CACHE_MS=10\*60\*1000/);
   assert.match(source,/if\(zetaMarketInFlight\)return zetaMarketInFlight/);
 });
@@ -43,7 +44,9 @@ test('web Ask and Discord render the canonical Zeta decision payload',()=>{
   assert.match(discord,/name:'Recheck',value:surface\.recheck,inline:false/);
   assert.match(surfaces,/cx-ask-buy-zone/);
   assert.match(surfaces,/cx-ask-recheck/);
+  assert.match(surfaces,/surface\.release_date/);
   assert.match(presenter,/label:'Modeled EV'/);
+  assert.match(presenter,/label:'MSRP'.*release/);
   assert.doesNotMatch(presenter,/\['Gross EV',s\.gross_mean_ev/);
   assert.match(presenter,/heading:'Buy zone',kind:'text'/);
   assert.match(presenter,/heading:'Recheck',kind:'text'/);
