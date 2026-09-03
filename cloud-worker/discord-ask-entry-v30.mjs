@@ -3,6 +3,7 @@ import { secretLairMediaEmbed } from './discord-secret-lair-media.mjs';
 import { rewriteStructuredDiscordOutput } from './discord-structured-output.mjs';
 import { maybeHandleFastQuery } from './discord-fast-query-cache.mjs';
 import { maybeHandleMarketIntelFast } from './discord-market-intel-fast.mjs';
+import { maybeHandleUserWatch, deliverPendingUserWatches } from './discord-user-watches.mjs';
 
 const DISCORD_API='https://discord.com/api/v10';
 const base=env=>String(env.SUPABASE_URL||'').replace(/\/$/,'');
@@ -20,10 +21,13 @@ async function attachSecretLairMedia(env,job){
 }
 
 // v30 keeps routing in the shared Ask API, but known public market queries may be
-// answered from the precomputed Delvin cache before Queue latency. Cache misses and
-// noncanonical questions continue through the normal transport/Ask path.
+// answered from the precomputed Delvin cache before Queue latency. User-scoped
+// watches are owned by the linked Collectish account and use Discord only as a
+// delivery surface. Cache misses and noncanonical questions use the normal path.
 export default {
   async fetch(request,env,ctx){
+    const watch=await maybeHandleUserWatch(request,env,ctx);
+    if(watch)return watch;
     const intel=await maybeHandleMarketIntelFast(request,env,ctx);
     if(intel)return intel;
     const fast=await maybeHandleFastQuery(request,env,ctx);
@@ -34,5 +38,8 @@ export default {
     await transport.queue(batch,env,ctx);
     await Promise.all(jobs.map(job=>rewriteStructuredDiscordOutput(env,job)));
     await Promise.all(jobs.map(job=>attachSecretLairMedia(env,job)));
+  },
+  async scheduled(_controller,env,ctx){
+    ctx?.waitUntil?.(deliverPendingUserWatches(env));
   },
 };
