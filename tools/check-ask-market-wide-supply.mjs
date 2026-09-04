@@ -12,12 +12,14 @@ if(!/exact\(listings|const exact=listings\.filter/.test(sync))throw new Error('T
 if(!/nonDirect=exact\.filter/.test(sync))throw new Error('non-Direct marketplace supply is not separated from Direct');
 if(!/syncSupply/.test(identity)||!/market-supply-sync/.test(identity))throw new Error('named supply questions do not refresh market-wide supply');
 if(/term\.language\s*=/.test(sync))throw new Error('market supply must filter language by exact SKU, not display-label facet');
-for(const token of ["'Origin':'https://www.tcgplayer.com'","'Referer':'https://www.tcgplayer.com/'",'Mozilla/5.0']){
-  if(!sync.includes(token))throw new Error(`missing TCGplayer site request header: ${token}`);
-}
+for(const token of ["'Origin':'https://www.tcgplayer.com'","'Referer':'https://www.tcgplayer.com/'",'Mozilla/5.0'])if(!sync.includes(token))throw new Error(`missing TCGplayer site request header: ${token}`);
 if(!/supply\|inventory\|liquidity/.test(identity))throw new Error('supply refresh is not scoped to supply-like questions');
 if(/global_supply_classification','Thin \/ fragmented Direct/i.test(migration))throw new Error('Direct classification leaked into global supply classification');
 for(const token of ['CARD_FAMILY_NM_LP','NEAR MINT','LIGHTLY PLAYED','unique_seller_count','exact_skus','family_scope'])if(!sync.includes(token))throw new Error(`missing NM/LP family supply token: ${token}`);
+for(const token of ['CACHE_MINUTES=30','market_supply_current','cache_hit','force_refresh','seller_keys','seller_count_quality','conservative_lower_bound'])if(!sync.includes(token))throw new Error(`missing family read-through cache token: ${token}`);
+if(!/manapool-supply-sync/.test(sync)||!/vendor_depth_current\?source=eq\.manapool&lane=eq\.retail_supply/.test(sync))throw new Error('family supply must reuse or refresh exact ManaPool retail depth');
+if(!/manapool_retail_quantity/.test(sync)||!/manapool:\{hits:mpHits,misses:mpResults.length-mpHits\}/.test(sync))throw new Error('family supply must expose ManaPool family totals and cache behavior');
+if(!/refreshProducts/.test(sync)||!/group\.some\(\(t:any\)=>!fresh\(cachedTcg\.get\(t\.sku_id\)\)\)/.test(sync))throw new Error('TCGplayer family refresh must be product-scoped and cache-aware');
 for(const token of ['scryfall_oracle_id','availability','ENGLISH','tcgplayer_product_id','tcgplayer_etched_product_id','tcgplayer_alt_foil_product_id'])if(!family.includes(token))throw new Error(`missing Oracle-family product boundary token: ${token}`);
 if(!/desired_conditions/.test(discovery)||!/persist:false,force:true/.test(identity))throw new Error('family SKU discovery must fetch NM+LP once per product without mutating the scout workload');
 if(!/market_supply_family/.test(api)||!/card_family_supply_nm_lp/.test(routes))throw new Error('Discord guest flow does not expose deterministic family-supply evidence');
