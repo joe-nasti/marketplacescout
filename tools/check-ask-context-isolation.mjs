@@ -38,7 +38,7 @@ vm.runInContext(source,sandbox,{filename:'endpoint-proxy.js'});
 const endpoint='https://project.supabase.co/functions/v1/ask-collectish';
 await sandbox.window.fetch(endpoint,{method:'POST',body:JSON.stringify({action:'chat',message:'show me the foil price history for Optimus Prime, Hero BOT #13'})});
 let sent=JSON.parse(calls.at(-1).init.body);
-assert.match(calls.at(-1).url,/\/functions\/v1\/ask-collectish-api$/);
+assert.match(calls.at(-1).url,/\/functions\/v1\/ask-collectish-api-v2$/);
 assert.equal(sent.context.entity,null,'explicit printing must not inherit the open Scout entity');
 assert.equal(sent.context.sku_id,null);
 assert.equal(sent.context.product_id,null);
