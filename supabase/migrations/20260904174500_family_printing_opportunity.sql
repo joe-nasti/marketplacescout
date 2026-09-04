@@ -169,7 +169,7 @@ with requested as (
   from classified
 )
 select case
-  when auth.uid() is null then jsonb_build_object('available',false,'error','authentication required')
+  when auth.uid() is null and coalesce(auth.role(),'')<>'service_role' then jsonb_build_object('available',false,'error','authentication required')
   when coalesce(array_length(p_sku_ids,1),0)=0 then jsonb_build_object('available',false,'error','sku ids required')
   else jsonb_build_object(
     'available',exists(select 1 from classified),
