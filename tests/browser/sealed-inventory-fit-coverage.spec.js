@@ -25,4 +25,15 @@ test('Direct worker changes trigger an immediate production refresh',async()=>{
   expect(workflow).toContain('refresh-sealed-direct-on-push:');
   expect(workflow).toContain('Refresh sealed and precon exact-SKU Direct observations');
   expect(workflow).toContain('node cloud-worker/refresh-precon-direct.mjs');
+  expect(workflow).toContain('node cloud-worker/backfill-sealed-component-history.mjs');
+  expect(workflow).toMatch(/Backfill targeted sealed component quarter history[\s\S]*?continue-on-error: true/);
+});
+
+test('quarter history backfill is exact-SKU and provenance preserving',async()=>{
+  const worker=await readFile('cloud-worker/backfill-sealed-component-history.mjs','utf8');
+  expect(worker).toContain('sealed_inventory_fit_component_targets?select=sku_id,product_id');
+  expect(worker).toContain('String(x.skuId)===String(t.sku_id)');
+  expect(worker).toContain("source:'tcgplayer_infinite_quarter_history'");
+  expect(worker).toContain('lowest_listing_price:null');
+  expect(worker).toContain('resolution=ignore-duplicates');
 });
