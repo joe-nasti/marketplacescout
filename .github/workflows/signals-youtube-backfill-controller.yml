@@ -11,6 +11,7 @@ on:
       - "cloud-worker/youtube-backfill-controller.mjs"
       - "cloud-worker/youtube-ledger-discovery.mjs"
       - "supabase/functions/market-intel-youtube-ledger-evaluate/**"
+      - "supabase/functions/market-intel-video-product-event-extract/**"
 
 permissions:
   contents: read
@@ -49,5 +50,6 @@ jobs:
           cat "$response_file"
           echo
           test "$status" -ge 200 -a "$status" -lt 300
+          jq -e 'all(.results[]?; ((.events // 0) == ((.card_events // 0) + (.product_events // 0))))' "$response_file" >/dev/null
       - name: Refill backlog after evaluation
         run: node cloud-worker/youtube-backfill-controller.mjs
