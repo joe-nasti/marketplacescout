@@ -80,7 +80,7 @@ select jsonb_build_object(
       'probe_state',syp_probe_state,'latest_probe_completed_at',syp_probe_latest,'probe_age_hours',round(syp_probe_age::numeric,1),'queued_probe_count',queued_count,'oldest_or_latest_queued_at',syp_queued_latest,
       'snapshot_state',syp_snapshot_state,'latest_snapshot_at',syp_snapshot_latest,'snapshot_age_hours',round(syp_snapshot_age::numeric,1),'latest_snapshot_rows',latest_row_count,
       'collector_state',android_state,'collector_last_seen_at',android_latest,'collector_age_hours',round(android_age::numeric,1),
-      'expected_cadence','30m last-updated checks; forced full snapshot at least daily','note','SYP requires an authenticated seller-session collector. A stale collector means missing SYP evidence is unknown, not no SYP pressure.'),
+      'expected_cadence','30m last-updated checks; forced full snapshot at least daily','note','SYP requires an authenticated seller-session collector. A stale collector means missing SYP evidence is unknown, not no SYP pressure.')
   ),
   'overall_state',case
     when price_state='STALE' or sales_state='STALE' then 'DEGRADED'
