@@ -32,6 +32,7 @@ const archivePlan=()=>{
 };
 const num=v=>Number.isFinite(Number(v))?Number(v):null;
 const run=(cmd,args)=>new Promise((resolve,reject)=>{const p=spawn(cmd,args,{stdio:'inherit'});p.on('error',reject);p.on('exit',c=>c===0?resolve():reject(new Error(`${cmd} exited ${c}`)))});
+async function refresh(path){try{const value=await sb(`rpc/${path}`,{method:'POST',body:{}});return{rows:Number(Array.isArray(value)?value[0]:value),error:null}}catch(error){return{rows:null,error:String(error?.message||error).slice(0,500)}}}
 async function status(date,patch){await sb('sealed_tcgcsv_archive_imports?on_conflict=archive_date',{method:'POST',body:[{archive_date:date,...patch}],prefer:'resolution=merge-duplicates,return=minimal'})}
 async function cardStatus(date,patch){await sb('modeled_booster_card_archive_imports?on_conflict=archive_date',{method:'POST',body:[{archive_date:date,...patch}],prefer:'resolution=merge-duplicates,return=minimal'})}
 
@@ -101,14 +102,12 @@ const completed=new Set([...sealedCompleted].filter(x=>cardCompleted.has(x)));
 const plan=archivePlan(),dailyMissing=plan.daily.filter(x=>!completed.has(x.date)),weeklyMissing=plan.weekly.filter(x=>!completed.has(x.date));
 const pending=[...dailyMissing.slice(0,1),...weeklyMissing,...dailyMissing.slice(1)].slice(0,MAX),report=[];
 for(const item of pending){try{report.push(await importDate(item.date,target,item.strideDays,item.tier))}catch(error){report.push({date:item.date,status:'failed',error:String(error?.message||error)})}}
-let calibrationRows=null,similarityRows=null,collectorForecastRows=null;
+let calibrationRows=null,similarityRows=null,collectorForecastRows=null,refreshErrors=[];
 if(report.some(x=>x.status==='complete')){
-  const refreshed=await sb('rpc/refresh_modeled_booster_ev_calibration',{method:'POST',body:{}});
-  calibrationRows=Number(Array.isArray(refreshed)?refreshed[0]:refreshed);
-  const similarity=await sb('rpc/refresh_modeled_play_booster_similarity_forecasts',{method:'POST',body:{}});
-  similarityRows=Number(Array.isArray(similarity)?similarity[0]:similarity);
-  const collector=await sb('rpc/refresh_collector_booster_trajectory_forecasts',{method:'POST',body:{}}).catch(()=>null);
-  collectorForecastRows=collector==null?null:Number(Array.isArray(collector)?collector[0]:collector);
+  const calibration=await refresh('refresh_modeled_booster_ev_calibration');calibrationRows=calibration.rows;
+  const similarity=await refresh('refresh_modeled_play_booster_similarity_forecasts');similarityRows=similarity.rows;
+  const collector=await refresh('refresh_collector_booster_trajectory_forecasts');collectorForecastRows=collector.rows;
+  refreshErrors=[['calibration',calibration.error],['playSimilarity',similarity.error],['collectorTrajectory',collector.error]].filter(([,error])=>error).map(([model,error])=>({model,error}));
 }
-console.log(JSON.stringify({ok:report.every(x=>x.status!=='failed'),sealedTargetProducts:target.sealedIds.size,modeledCardTargetProducts:target.cardIds.size,playSetTargets:target.playSetCodes.length,targetGroups:target.groups.length,dailyRetentionDays:DAILY_DAYS,historicalStrideDays:STRIDE,pending:pending.length,calibrationRows,similarityRows,collectorForecastRows,report},null,2));
+console.log(JSON.stringify({ok:report.every(x=>x.status!=='failed'),sealedTargetProducts:target.sealedIds.size,modeledCardTargetProducts:target.cardIds.size,playSetTargets:target.playSetCodes.length,targetGroups:target.groups.length,dailyRetentionDays:DAILY_DAYS,historicalStrideDays:STRIDE,pending:pending.length,calibrationRows,similarityRows,collectorForecastRows,refreshErrors,report},null,2));
 if(report.some(x=>x.status==='failed'))process.exitCode=1;

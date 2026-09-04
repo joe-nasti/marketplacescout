@@ -18,10 +18,17 @@ test('sealed TCGCSV backfill is selective and storage bounded',async()=>{
   expect(worker).toContain('magic_set_catalog?select=code,tcgplayer_group_id');
   expect(worker).toContain("CARD_SCOPE_VERSION='play-booster-sets-v2'");
   expect(worker).toContain('x.detail?.scopeVersion===CARD_SCOPE_VERSION');
-  expect(worker).toContain("rpc/refresh_modeled_booster_ev_calibration");
-  expect(worker).toContain("rpc/refresh_modeled_play_booster_similarity_forecasts");
-  expect(worker).toContain("rpc/refresh_collector_booster_trajectory_forecasts");
+  expect(worker).toContain("refresh('refresh_modeled_booster_ev_calibration')");
+  expect(worker).toContain("refresh('refresh_modeled_play_booster_similarity_forecasts')");
+  expect(worker).toContain("refresh('refresh_collector_booster_trajectory_forecasts')");
+  expect(worker).toContain('refreshErrors');
   expect(worker).not.toContain('high_price:num');
+});
+
+test('trajectory refreshes have a bounded history-scale timeout',async()=>{
+  const sql=await readFile('supabase/migrations/20260904174800_extend_trajectory_refresh_timeouts.sql','utf8');
+  for(const fn of ['refresh_modeled_booster_ev_calibration','refresh_modeled_play_booster_similarity_forecasts','refresh_collector_booster_trajectory_forecasts'])expect(sql).toContain(fn);
+  expect(sql.match(/statement_timeout='120s'/g)).toHaveLength(3);
 });
 
 test('stabilized EV readiness requires independent release cohorts',async()=>{
