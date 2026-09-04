@@ -10,6 +10,7 @@ const KEY=process.env.SUPABASE_SERVICE_ROLE_KEY||'';
 const BASE=(process.env.TCGCSV_BASE_URL||'https://tcgcsv.com').replace(/\/$/,'');
 const MAX=Math.max(1,Math.min(12,Number(process.env.TCGCSV_HISTORY_MAX_ARCHIVES||3)));
 const STRIDE=Math.max(1,Number(process.env.TCGCSV_HISTORY_STRIDE_DAYS||7));
+const DAILY_DAYS=Math.max(7,Math.min(180,Number(process.env.TCGCSV_HISTORY_DAILY_DAYS||90)));
 const START=process.env.TCGCSV_HISTORY_START||'2024-02-08';
 const END=process.env.TCGCSV_HISTORY_END||new Date(Date.now()-86400000).toISOString().slice(0,10);
 const CARD_SCOPE_VERSION='play-booster-sets-v2';
@@ -23,7 +24,12 @@ async function sb(path,{method='GET',body,prefer}={}){
   if(!r.ok)throw new Error(`Supabase ${r.status}: ${String(text).slice(0,300)}`);return data;
 }
 const iso=d=>d.toISOString().slice(0,10);
-const dateRange=()=>{const out=[];for(let d=new Date(`${END}T00:00:00Z`),floor=new Date(`${START}T00:00:00Z`);d>=floor;d=new Date(d.getTime()-STRIDE*86400000))out.push(iso(d));return out};
+const archivePlan=()=>{
+  const floor=new Date(`${START}T00:00:00Z`),end=new Date(`${END}T00:00:00Z`),dailyFloor=new Date(Math.max(floor.getTime(),end.getTime()-(DAILY_DAYS-1)*86400000));
+  const daily=[];for(let d=end;d>=dailyFloor;d=new Date(d.getTime()-86400000))daily.push({date:iso(d),strideDays:1,tier:'current_daily'});
+  const weekly=[];for(let d=floor;d<dailyFloor;d=new Date(d.getTime()+STRIDE*86400000))weekly.push({date:iso(d),strideDays:STRIDE,tier:'historical_sample'});
+  return{daily,weekly};
+};
 const num=v=>Number.isFinite(Number(v))?Number(v):null;
 const run=(cmd,args)=>new Promise((resolve,reject)=>{const p=spawn(cmd,args,{stdio:'inherit'});p.on('error',reject);p.on('exit',c=>c===0?resolve():reject(new Error(`${cmd} exited ${c}`)))});
 async function status(date,patch){await sb('sealed_tcgcsv_archive_imports?on_conflict=archive_date',{method:'POST',body:[{archive_date:date,...patch}],prefer:'resolution=merge-duplicates,return=minimal'})}
@@ -58,11 +64,11 @@ async function download(url,path){
   await pipeline(r.body,createWriteStream(path));return true;
 }
 
-async function importDate(date,target){
+async function importDate(date,target,strideDays,tier){
   const dir=await mkdtemp(join(tmpdir(),'collectish-sealed-history-'));
   try{
-    await status(date,{status:'running',attempted_at:new Date().toISOString(),target_products:target.sealedIds.size,detail:{strideDays:STRIDE}});
-    await cardStatus(date,{status:'running',attempted_at:new Date().toISOString(),target_products:target.cardIds.size,detail:{strideDays:STRIDE,scopeVersion:CARD_SCOPE_VERSION}});
+    await status(date,{status:'running',attempted_at:new Date().toISOString(),target_products:target.sealedIds.size,detail:{strideDays,tier}});
+    await cardStatus(date,{status:'running',attempted_at:new Date().toISOString(),target_products:target.cardIds.size,detail:{strideDays,tier,scopeVersion:CARD_SCOPE_VERSION}});
     const archive=join(dir,`prices-${date}.ppmd.7z`),ok=await download(`${BASE}/archive/tcgplayer/prices-${date}.ppmd.7z`,archive);
     if(!ok){const completed_at=new Date().toISOString();await Promise.all([status(date,{status:'missing',completed_at,detail:{httpStatus:404}}),cardStatus(date,{status:'missing',completed_at,detail:{httpStatus:404,scopeVersion:CARD_SCOPE_VERSION}})]);return{date,status:'missing',rows:0}}
     const output=join(dir,'out');
@@ -73,14 +79,14 @@ async function importDate(date,target){
       let parsed;try{parsed=JSON.parse(await readFile(file,'utf8'))}catch{continue}
       for(const p of Array.isArray(parsed?.results)?parsed.results:Array.isArray(parsed)?parsed:[]){
         const id=Number(p?.productId);if(!target.ids.has(id))continue;
-        const row={product_id:id,observed_on:date,sub_type_name:String(p?.subTypeName||'Normal'),market_price:num(p?.marketPrice),low_price:num(p?.lowPrice),direct_low_price:num(p?.directLowPrice),source:'tcgcsv_archive',source_granularity:STRIDE===1?'daily':`sampled_${STRIDE}d`,source_updated_at:`${date}T20:00:00Z`};
+        const row={product_id:id,observed_on:date,sub_type_name:String(p?.subTypeName||'Normal'),market_price:num(p?.marketPrice),low_price:num(p?.lowPrice),direct_low_price:num(p?.directLowPrice),source:'tcgcsv_archive',source_granularity:strideDays===1?'daily':`sampled_${strideDays}d`,source_updated_at:`${date}T20:00:00Z`};
         if(target.sealedIds.has(id))sealedRows.push(row);
         if(target.cardIds.has(id))cardRows.push(row);
       }
     }
     for(let i=0;i<sealedRows.length;i+=250)await sb('sealed_product_market_history?on_conflict=product_id,sub_type_name,observed_on',{method:'POST',body:sealedRows.slice(i,i+250),prefer:'resolution=merge-duplicates,return=minimal'});
     for(let i=0;i<cardRows.length;i+=250)await sb('modeled_booster_card_price_history?on_conflict=product_id,sub_type_name,observed_on',{method:'POST',body:cardRows.slice(i,i+250),prefer:'resolution=merge-duplicates,return=minimal'});
-    const detail={groups:target.groups.length,strideDays:STRIDE};
+    const detail={groups:target.groups.length,strideDays,tier};
     await Promise.all([status(date,{status:'complete',completed_at:new Date().toISOString(),imported_rows:sealedRows.length,detail}),cardStatus(date,{status:'complete',completed_at:new Date().toISOString(),imported_rows:cardRows.length,detail:{...detail,scopeVersion:CARD_SCOPE_VERSION}})]);
     return{date,status:'complete',sealedRows:sealedRows.length,cardRows:cardRows.length};
   }catch(error){const completed_at=new Date().toISOString(),message=String(error?.message||error).slice(0,500);await Promise.all([status(date,{status:'failed',completed_at,detail:{error:message}}).catch(()=>{}),cardStatus(date,{status:'failed',completed_at,detail:{error:message,scopeVersion:CARD_SCOPE_VERSION}}).catch(()=>{})]);throw error}
@@ -92,14 +98,17 @@ const done=await sb('sealed_tcgcsv_archive_imports?select=archive_date,status&st
 const cardDone=await sb('modeled_booster_card_archive_imports?select=archive_date,status,detail&status=in.(complete,missing)')||[];
 const sealedCompleted=new Set(done.map(x=>x.archive_date)),cardCompleted=new Set(cardDone.filter(x=>x.detail?.scopeVersion===CARD_SCOPE_VERSION).map(x=>x.archive_date));
 const completed=new Set([...sealedCompleted].filter(x=>cardCompleted.has(x)));
-const pending=dateRange().filter(d=>!completed.has(d)).slice(0,MAX),report=[];
-for(const date of pending){try{report.push(await importDate(date,target))}catch(error){report.push({date,status:'failed',error:String(error?.message||error)})}}
-let calibrationRows=null,similarityRows=null;
+const plan=archivePlan(),dailyMissing=plan.daily.filter(x=>!completed.has(x.date)),weeklyMissing=plan.weekly.filter(x=>!completed.has(x.date));
+const pending=[...dailyMissing.slice(0,1),...weeklyMissing,...dailyMissing.slice(1)].slice(0,MAX),report=[];
+for(const item of pending){try{report.push(await importDate(item.date,target,item.strideDays,item.tier))}catch(error){report.push({date:item.date,status:'failed',error:String(error?.message||error)})}}
+let calibrationRows=null,similarityRows=null,collectorForecastRows=null;
 if(report.some(x=>x.status==='complete')){
   const refreshed=await sb('rpc/refresh_modeled_booster_ev_calibration',{method:'POST',body:{}});
   calibrationRows=Number(Array.isArray(refreshed)?refreshed[0]:refreshed);
   const similarity=await sb('rpc/refresh_modeled_play_booster_similarity_forecasts',{method:'POST',body:{}});
   similarityRows=Number(Array.isArray(similarity)?similarity[0]:similarity);
+  const collector=await sb('rpc/refresh_collector_booster_trajectory_forecasts',{method:'POST',body:{}}).catch(()=>null);
+  collectorForecastRows=collector==null?null:Number(Array.isArray(collector)?collector[0]:collector);
 }
-console.log(JSON.stringify({ok:report.every(x=>x.status!=='failed'),sealedTargetProducts:target.sealedIds.size,modeledCardTargetProducts:target.cardIds.size,playSetTargets:target.playSetCodes.length,targetGroups:target.groups.length,pending:pending.length,calibrationRows,similarityRows,report},null,2));
+console.log(JSON.stringify({ok:report.every(x=>x.status!=='failed'),sealedTargetProducts:target.sealedIds.size,modeledCardTargetProducts:target.cardIds.size,playSetTargets:target.playSetCodes.length,targetGroups:target.groups.length,dailyRetentionDays:DAILY_DAYS,historicalStrideDays:STRIDE,pending:pending.length,calibrationRows,similarityRows,collectorForecastRows,report},null,2));
 if(report.some(x=>x.status==='failed'))process.exitCode=1;
