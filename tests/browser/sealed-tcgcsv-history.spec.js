@@ -6,6 +6,10 @@ test('sealed TCGCSV backfill is selective and storage bounded',async()=>{
   expect(worker).toContain("category=eq.booster_box&subtype=eq.collector");
   expect(worker).toContain('TCGCSV_HISTORY_MAX_ARCHIVES');
   expect(worker).toContain('TCGCSV_HISTORY_STRIDE_DAYS');
+  expect(worker).toContain('TCGCSV_HISTORY_DAILY_DAYS');
+  expect(worker).toContain("tier:'current_daily'");
+  expect(worker).toContain("tier:'historical_sample'");
+  expect(worker).toContain('const pending=[...dailyMissing.slice(0,1),...weeklyMissing');
   expect(worker).toContain('sealed_product_market_history');
   expect(worker).toContain('sealed_ev_backtest_pool_items');
   expect(worker).toContain('modeled_booster_card_price_history');
@@ -16,6 +20,7 @@ test('sealed TCGCSV backfill is selective and storage bounded',async()=>{
   expect(worker).toContain('x.detail?.scopeVersion===CARD_SCOPE_VERSION');
   expect(worker).toContain("rpc/refresh_modeled_booster_ev_calibration");
   expect(worker).toContain("rpc/refresh_modeled_play_booster_similarity_forecasts");
+  expect(worker).toContain("rpc/refresh_collector_booster_trajectory_forecasts");
   expect(worker).not.toContain('high_price:num');
 });
 

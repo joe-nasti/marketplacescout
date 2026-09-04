@@ -39,6 +39,7 @@ jobs:
       TCGCSV_BASE_URL: https://tcgcsv.com
       TCGCSV_HISTORY_MAX_ARCHIVES: ${{ inputs.max_archives || '12' }}
       TCGCSV_HISTORY_STRIDE_DAYS: ${{ inputs.stride_days || '7' }}
+      TCGCSV_HISTORY_DAILY_DAYS: "90"
       TCGCSV_HISTORY_START: "2024-02-08"
       TCGCSV_USER_AGENT: "Collectish-MarketplaceScout/1.0 (+https://github.com/joe-nasti/marketplacescout)"
     steps:
