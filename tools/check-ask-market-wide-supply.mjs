@@ -9,6 +9,9 @@ const routes=fs.readFileSync('supabase/functions/ask-collectish-route-intents/in
 const presenter=fs.readFileSync('supabase/functions/ask-collectish-delvin-supply-present/index.ts','utf8');
 const family=fs.readFileSync('supabase/migrations/20260903143000_card_family_nm_lp_supply_scope.sql','utf8');
 const canonical=fs.readFileSync('supabase/migrations/20260904005500_canonical_nm_lp_family_sku_resolver.sql','utf8');
+const context=fs.readFileSync('supabase/migrations/20260904152000_scout_oracle_family_market_context.sql','utf8');
+const scoutContext=fs.readFileSync('src/modules/scout/family-market-context.js','utf8');
+const scoutIndex=fs.readFileSync('src/modules/scout/index.js','utf8');
 const concentration=fs.readFileSync('supabase/migrations/20260904001500_family_supply_concentration_profile.sql','utf8');
 const history=fs.readFileSync('supabase/migrations/20260904002500_family_supply_history_trend.sql','utf8');
 for(const token of ['market_supply_snapshots','ask_collectish_market_supply_v1','direct_unit_count','non_direct_unit_count','seller_count','global_supply_classification','EXACT_SKU_ALL_TCGPLAYER','Retailer price presence'])if(!migration.includes(token))throw new Error(`missing market-supply contract token: ${token}`);
@@ -23,10 +26,14 @@ for(const token of ['cardKingdomFamily','scryfall_id','condition_mapping','sourc
 for(const token of ['global_supply_classification','market_wide_thinness_proven','COMPLETE_TCGPLAYER_FAMILY_ONLY','retailer_sources_usable'])if(!classifier.includes(token))throw new Error(`missing family classification contract token: ${token}`);
 for(const token of ['ask_collectish_supply_family_skus_v1','mtgjson_tcgplayer_skus','scryfall_oracle_id','LIGHTLY PLAYED','service_role'])if(!canonical.includes(token))throw new Error(`missing canonical MTGJSON resolver token: ${token}`);
 if(!/upper\(coalesce\(s\.condition,''\)\) in \('NEAR MINT','LIGHTLY PLAYED','NM','LP'\)/.test(canonical))throw new Error('canonical resolver is not NM/LP scoped');
+for(const token of ['scout_oracle_family_market_context_v1','tcgplayer_official_sku_price_current','market_supply_current','manapool','cardkingdom','market_price_min','market_price_max','by_sku'])if(!context.includes(token))throw new Error(`missing shared Scout family market context token: ${token}`);
+if(!/grant execute on function public\.scout_oracle_family_market_context_v1\(uuid\) to authenticated,service_role/.test(context))throw new Error('Scout family market context must be available only to authenticated/service callers');
+for(const token of ['scout_oracle_family_market_context_v1','Family market context','Market','TCG supply','ManaPool','Card Kingdom','data-family-market'])if(!scoutContext.includes(token))throw new Error(`missing Scout family result market context token: ${token}`);
+if(!scoutIndex.includes("import('./family-market-context.js')"))throw new Error('Scout does not load family market context enhancer');
 for(const token of ['ask_collectish_family_supply_concentration_v1','top1_supply_share_pct','top3_supply_share_pct','hhi','tightest_printing'])if(!concentration.includes(token))throw new Error(`missing concentration token: ${token}`);
 for(const token of ['ask_collectish_family_supply_trend_v1','SINGLE_COMPLETE_POINT','TIGHTENING','LOOSENING','daily_points'])if(!history.includes(token))throw new Error(`missing history token: ${token}`);
 if(!/Missing days are not filled or carried forward/.test(history))throw new Error('family history must not interpolate missing days');
-for(const token of ['ask_collectish_supply_family_skus_v1','market-supply-sync','canonical_target_count','family_resolved_market_sync_failed','fresh_sku_count','expected_sku_count','partial','Where the stock is','Tight printing','Canonical MTGJSON family','English NM/LP','printing_rows'])if(!presenter.includes(token))throw new Error(`missing deterministic Discord supply token: ${token}`);
+for(const token of ['ask_collectish_supply_family_skus_v1','market-supply-sync','canonical_target_count','family_resolved_market_sync_failed','fresh_sku_count','expected_sku_count','partial','Where the stock is','Tight printing','Canonical MTGJSON family','English NM/LP','printing_rows','scout_oracle_family_market_context_v1','Market price','Open all printings in Collectish Scout','oracle=','marketDepth=1'])if(!presenter.includes(token))throw new Error(`missing deterministic Discord supply token: ${token}`);
 if(/kind:'ranked_rows'/.test(presenter))throw new Error('primary Discord supply embed must stay compact instead of rendering the full printing table');
 if(!/rows\.slice\(0,3\)|ranked\.slice\(0,3\)/.test(presenter))throw new Error('compact supply embed must summarize only the top three printing variants');
 if(!/prettyClass/.test(presenter)||!/VERY_THIN/.test(presenter))throw new Error('supply presenter must convert internal classification enums to reader-facing labels');
