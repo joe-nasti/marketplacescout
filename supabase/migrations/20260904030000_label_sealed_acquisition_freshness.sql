@@ -1,5 +1,7 @@
 -- Keep recommendation acquisition economics executable and make observation
 -- age visible to every caller. Raw TCG Low is never an acquisition fallback.
+drop function if exists public.ask_delvin_sealed_direct_crack_v1(integer);
+
 create or replace function public.ask_delvin_sealed_direct_crack_v1(p_limit integer default 10)
 returns table(
   sealed_uuid uuid, product_name text, set_code text, category text,
