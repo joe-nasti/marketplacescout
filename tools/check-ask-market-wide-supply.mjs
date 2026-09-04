@@ -6,6 +6,7 @@ const discovery=fs.readFileSync('supabase/functions/scout-tcgplayer-sku-discover
 const api=fs.readFileSync('supabase/functions/ask-collectish-api/index.ts','utf8');
 const routes=fs.readFileSync('supabase/functions/ask-collectish-route-intents/index.ts','utf8');
 const family=fs.readFileSync('supabase/migrations/20260903143000_card_family_nm_lp_supply_scope.sql','utf8');
+const concentration=fs.readFileSync('supabase/migrations/20260904001500_family_supply_concentration_profile.sql','utf8');
 for(const token of ['market_supply_snapshots','ask_collectish_market_supply_v1','direct_unit_count','non_direct_unit_count','seller_count','global_supply_classification','EXACT_SKU_ALL_TCGPLAYER','Retailer price presence'])if(!migration.includes(token))throw new Error(`missing market-supply contract token: ${token}`);
 for(const token of ['mp-search-api.tcgplayer.com','productConditionId','directListing','sellerKey','quantity','channelExclusion','tcgplayer_site_listings_search','PARTIAL_PAGE_CAP'])if(!sync.includes(token))throw new Error(`missing exact TCG listing collector token: ${token}`);
 if(!/exact\s*=\s*listings\.filter/.test(sync))throw new Error('TCG marketplace supply must filter listings to the exact SKU');
@@ -20,6 +21,9 @@ for(const token of ['CACHE_MINUTES=30','market_supply_current','cache_hit','forc
 if(!/manapool-supply-sync/.test(sync)||!/vendor_depth_current\?source=eq\.manapool&lane=eq\.retail_supply/.test(sync))throw new Error('family supply must reuse or refresh exact ManaPool retail depth');
 if(!/manapool_retail_quantity/.test(sync)||!/manapool:\{hits:mpHits,misses:mpResults.length-mpHits\}/.test(sync))throw new Error('family supply must expose ManaPool family totals and cache behavior');
 if(!/refreshProducts/.test(sync)||!/group\.some\(\(t:any\)=>!fresh\(cachedTcg\.get\(t\.sku_id\)\)\)/.test(sync))throw new Error('TCGplayer family refresh must be product-scoped and cache-aware');
+for(const token of ['ask_collectish_family_supply_concentration_v1','CARD_FAMILY_NM_LP_PRODUCT_FINISH_CONCENTRATION','finish_scope','top1_supply_share_pct','top3_supply_share_pct','hhi','concentration_classification','tightest_printing','deepest_printing','supply_share_pct'])if(!concentration.includes(token))throw new Error(`missing family supply concentration token: ${token}`);
+if(!/group by l\.product_id,l\.finish_scope/.test(concentration))throw new Error('family concentration must separate product + finish before combining NM/LP');
+if(!/A scarce premium printing does not make the whole card family thin/.test(concentration))throw new Error('family concentration lost card-family vs scarce-printing semantic safeguard');
 for(const token of ['scryfall_oracle_id','availability','ENGLISH','tcgplayer_product_id','tcgplayer_etched_product_id','tcgplayer_alt_foil_product_id'])if(!family.includes(token))throw new Error(`missing Oracle-family product boundary token: ${token}`);
 if(!/desired_conditions/.test(discovery)||!/persist:false,force:true/.test(identity))throw new Error('family SKU discovery must fetch NM+LP once per product without mutating the scout workload');
 if(!/market_supply_family/.test(api)||!/card_family_supply_nm_lp/.test(routes))throw new Error('Discord guest flow does not expose deterministic family-supply evidence');
