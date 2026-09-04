@@ -9,14 +9,15 @@ let request=0;
 
 function flagLabel(value){return String(value||'').replace(/_/g,' ').toLowerCase().replace(/^./,c=>c.toUpperCase())}
 function historyLine(history,current){
+  if(history===undefined)return '<small class="cx-price-confidence-history" data-confidence-history>Loading confidence history…</small>';
   const events=Array.isArray(history?.events)?history.events:[];
-  if(!events.length)return '<small class="cx-price-confidence-history">Confidence history starts with the next material actionable-state observation.</small>';
+  if(!events.length)return '<small class="cx-price-confidence-history" data-confidence-history>Confidence history starts with the next material actionable-state observation.</small>';
   const latest=events[0],prior=events.find(e=>e.microstructure!==latest.microstructure||e.confidence_label!==latest.confidence_label||Number(e.confidence_score)!==Number(latest.confidence_score));
   const since=events[events.length-1]?.evaluated_at;
   const bits=[`${events.length} recorded state${events.length===1?'':'s'}`,since?`since ${stamp(since)}`:null];
   if(prior)bits.push(`previously ${prior.confidence_score} ${prior.confidence_label} · ${prior.microstructure}`);
   else if(latest&&current&&Number(latest.confidence_score)!==Number(current.confidence_score))bits.push(`last captured ${latest.confidence_score} ${latest.confidence_label} · ${latest.microstructure}`);
-  return `<small class="cx-price-confidence-history">${esc(bits.filter(Boolean).join(' · '))}</small>`;
+  return `<small class="cx-price-confidence-history" data-confidence-history>${esc(bits.filter(Boolean).join(' · '))}</small>`;
 }
 
 function render(data,history){
@@ -42,6 +43,20 @@ function render(data,history){
   </section>`;
 }
 
+async function enrichHistory(section,row,data,seq){
+  try{
+    const history=await rest('rpc/ask_collectish_price_confidence_history_v1',{method:'POST',body:{p_sku_id:String(row.sku_id),p_days:30}});
+    if(seq!==request||!section?.isConnected)return;
+    const fresh=document.createRange().createContextualFragment(historyLine(history,data)).firstElementChild;
+    section.querySelector('[data-confidence-history]')?.replaceWith(fresh);
+  }catch(error){
+    if(seq!==request||!section?.isConnected)return;
+    const line=section.querySelector('[data-confidence-history]');
+    if(line)line.textContent='Confidence history unavailable; current evidence is unaffected.';
+    console.warn('Price confidence history unavailable',error);
+  }
+}
+
 async function decorate(event){
   const row=event.detail?.row;
   const host=document.getElementById('cxParityDetail');
@@ -49,15 +64,13 @@ async function decorate(event){
   const seq=++request;
   host.querySelector('.cx-price-confidence')?.remove();
   try{
-    const [data,history]=await Promise.all([
-      rest('rpc/ask_collectish_price_microstructure_v1',{method:'POST',body:{p_sku_id:String(row.sku_id)}}),
-      rest('rpc/ask_collectish_price_confidence_history_v1',{method:'POST',body:{p_sku_id:String(row.sku_id),p_days:30}}).catch(()=>null)
-    ]);
+    const data=await rest('rpc/ask_collectish_price_microstructure_v1',{method:'POST',body:{p_sku_id:String(row.sku_id)}});
     if(seq!==request||!document.getElementById('cxParityDetail'))return;
-    const html=render(data,history);if(!html)return;
+    const html=render(data,undefined);if(!html)return;
     const section=document.createRange().createContextualFragment(html).firstElementChild;
     const anchor=host.querySelector('.cx-scout-market-board')||host.querySelector('.cx-vendor-depth')||host.querySelector('.cx-scout-why-buy');
     if(anchor)anchor.insertAdjacentElement('afterend',section);else host.appendChild(section);
+    void enrichHistory(section,row,data,seq);
   }catch(error){console.warn('Price confidence unavailable',error)}
 }
 
