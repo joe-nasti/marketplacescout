@@ -70,6 +70,7 @@ test('sealed inventory-fit questions use deferred Discord delivery',()=>{
   const presenter=read('supabase/functions/ask-collectish-delvin-present/index.ts');
   expect(worker).toMatch(/isQueuedSharedQuestion[\s\S]*inventory\\s\+fit/);
   expect(worker).toContain("ask-collectish-delvin-present-v2");
+  expect(read('cloud-worker/discord-card-investigator.mjs')).toMatch(/inventory\\s\+fit[\s\S]*return null/);
   expect(router).toContain("ask_delvin_sealed_direct_crack_v1");
   expect(router).toContain('max_buy_15_pct');
   expect(router).toContain('optimized_live_out_ev');
