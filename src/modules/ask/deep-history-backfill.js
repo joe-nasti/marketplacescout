@@ -1,6 +1,6 @@
 // Ask Collectish deep-history sidecar.
-// Detects deterministic collectible-cohort questions, requests shared historical
-// coverage when needed, and surfaces completion without blocking the main Ask turn.
+// Shared Ask routing decides whether async enrichment applies; this module only owns
+// app-specific queue status and ready notifications.
 (() => {
   const CONV_KEY='askCollectishConversationId';
   let pollTimer=null;
@@ -37,26 +37,24 @@
       }
     }catch(e){console.warn('Ask deep-history ready check failed',e)}
   }
-  async function maybeQueue(question){
+  async function queueFromSharedResponse(detail){
+    const response=detail?.response||{},request=detail?.request||{},hint=response?.async_enrichment;
+    if(hint?.kind!=='collectible_history'||hint?.route!=='collectible_cohort_thesis'||!hint?.treatment)return;
+    const question=String(request?.message||request?.question||'').trim();if(!question)return;
     try{
-      const route=await rpc('resolve_delvin_shared_query_v1',{p_question:question,p_limit:30});
-      if(!route?.handled||route.route!=='collectible_cohort_thesis')return;
       const d=await rpc('ensure_delvin_collectible_history_v1',{
-        p_treatment:route.treatment,
-        p_set_codes:Array.isArray(route.set_codes)&&route.set_codes.length?route.set_codes:null,
+        p_treatment:hint.treatment,
+        p_set_codes:Array.isArray(hint.set_codes)&&hint.set_codes.length?hint.set_codes:null,
         p_surface:'app',
         p_original_question:question,
         p_discord_user_id:null,p_discord_guild_id:null,p_discord_channel_id:null,p_discord_thread_id:null,
         p_collectish_user_id:null,
-        p_ask_session_id:localStorage.getItem(CONV_KEY)||null
+        p_ask_session_id:response?.conversation_id||localStorage.getItem(CONV_KEY)||null
       });
-      if(d?.needs_backfill){setTimeout(()=>addBubble(`Current history only reaches ${d.coverage_start||'the recent period'}. I queued a shared TCGCSV backfill toward ${d.desired_start||'release'} for ${d.product_count||'the matching'} printings. You can leave Ask; I’ll notify you in Collectish when the deeper history is ready.`,'Deep history queued'),900)}
+      if(d?.needs_backfill)setTimeout(()=>addBubble(`Current history only reaches ${d.coverage_start||'the recent period'}. I queued a shared TCGCSV backfill toward ${d.desired_start||'release'} for ${d.product_count||'the matching'} printings. You can leave Ask; I’ll notify you in Collectish when the deeper history is ready.`,'Deep history queued'),900);
     }catch(e){console.warn('Ask deep-history queue skipped',e)}
   }
-  document.addEventListener('collectish:ask-message-rendered',event=>{
-    if(event.detail?.role!=='user')return;
-    const q=event.detail?.element?.textContent?.trim();if(q)void maybeQueue(q);
-  });
+  document.addEventListener('collectish:ask-response',event=>void queueFromSharedResponse(event.detail));
   document.addEventListener('collectish:ask-opened',()=>{void checkReady();if(!pollTimer)pollTimer=setInterval(checkReady,30000)});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)void checkReady()});
 })();
