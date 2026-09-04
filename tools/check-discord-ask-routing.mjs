@@ -26,6 +26,6 @@ if(!worker.includes('ask-collectish-api'))throw new Error('Discord worker must c
 if(!shared.includes('queuedSupplyLike(q)'))throw new Error('Market-depth questions must be owned by the queued shared route');
 if(!shared.includes('^how\\s+deep\\b'))throw new Error('Discord shared route must recognize "how deep" market questions');
 if(!shared.includes('market\\s+depth'))throw new Error('Discord shared route must recognize market-depth phrasing');
-if(!supply.includes('ask_delvin_card_family_supply_targets_v1'))throw new Error('Supply presenter must resolve card families deterministically from the service RPC');
+if(!supply.includes('ask_collectish_supply_family_skus_v1'))throw new Error('Supply presenter must resolve card families deterministically from the canonical family-SKU RPC');
 if(supply.includes('ask-collectish-identity-recovery'))throw new Error('Supply presenter must not depend on identity recovery for unscoped card-family depth');
 console.log('Discord Ask routing ownership check passed');
