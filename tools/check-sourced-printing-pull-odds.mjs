@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const odds=fs.readFileSync('supabase/migrations/20260904201500_sourced_printing_pull_odds.sql','utf8');
+const v3=fs.readFileSync('supabase/migrations/20260904203000_printing_opportunity_sourced_odds.sql','utf8');
+for(const token of ['printing_pull_odds_sources','ask_collectish_printing_pull_odds_v1','WOTC_OFFICIAL','SPECIFIC_ENGLISH_PRINTING_IN_NON_JAPANESE_COLLECTOR_BOOSTER','DSK','386','396','0.006','166.666667','0.0007','1428.571429','Missing rows mean odds are unknown, not common'])if(!odds.includes(token))throw new Error(`missing sourced pull-odds token: ${token}`);
+if(!/6% \/ 10/.test(odds)||!/0\.7% \/ 10/.test(odds))throw new Error('DSK specific-card odds must preserve the official slot-to-specific-card derivation');
+if(/rarity[^\n]{0,80}(probability|packs_per_hit)/i.test(odds))throw new Error('printed rarity must not be converted into invented pull odds');
+for(const token of ['ask_collectish_family_printing_opportunity_v3','ask_collectish_family_printing_opportunity_v2','packs_per_hit','pull_rarity_multiple_vs_sourced_peer','price_multiple_vs_sourced_peer','pull_rarity_price_gap','UNDERPRICED_FOR_PULL_RARITY_CANDIDATE','PULL_RARITY_VALUE_SIGNAL_DEMAND_UNCONFIRMED','PULL_ODDS_UNAVAILABLE','SOURCED_ODDS_BASELINE'])if(!v3.includes(token))throw new Error(`missing sourced opportunity token: ${token}`);
+if(!/demand_status[^\n]{0,160}CONFIRMED/.test(v3))throw new Error('underpriced-for-pull-rarity candidate must require confirmed demand');
+if(!/research candidate rather than a buy recommendation/i.test(v3))throw new Error('sourced pull-rarity value signal must remain research-only');
+console.log('Sourced printing pull-odds guard passed');

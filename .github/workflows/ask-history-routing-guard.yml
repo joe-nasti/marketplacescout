@@ -19,6 +19,8 @@ on:
       - 'supabase/migrations/20260902044000_ask_timeline_mtgstocks_fallback_anchor.sql'
       - 'supabase/migrations/20260903010000_market_wide_supply_depth.sql'
       - 'supabase/migrations/20260904193000_family_printing_opportunity_demand.sql'
+      - 'supabase/migrations/20260904201500_sourced_printing_pull_odds.sql'
+      - 'supabase/migrations/20260904203000_printing_opportunity_sourced_odds.sql'
       - 'src/modules/index.js'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'src/modules/ask/structured-surfaces.js'
@@ -35,6 +37,7 @@ on:
       - 'tools/check-ask-shared-market-evidence.mjs'
       - 'tools/check-ask-market-wide-supply.mjs'
       - 'tools/check-printing-opportunity-demand.mjs'
+      - 'tools/check-sourced-printing-pull-odds.mjs'
       - 'tools/check-ask-video-creator-taxonomy.mjs'
       - 'tools/check-ask-two-pass-creator-retrieval.mjs'
       - 'tools/check-ask-web-citation-source-extraction.mjs'
@@ -61,6 +64,8 @@ on:
       - 'supabase/migrations/20260902044000_ask_timeline_mtgstocks_fallback_anchor.sql'
       - 'supabase/migrations/20260903010000_market_wide_supply_depth.sql'
       - 'supabase/migrations/20260904193000_family_printing_opportunity_demand.sql'
+      - 'supabase/migrations/20260904201500_sourced_printing_pull_odds.sql'
+      - 'supabase/migrations/20260904203000_printing_opportunity_sourced_odds.sql'
       - 'src/modules/index.js'
       - 'src/modules/ask/endpoint-proxy.js'
       - 'src/modules/ask/structured-surfaces.js'
@@ -77,6 +82,7 @@ on:
       - 'tools/check-ask-shared-market-evidence.mjs'
       - 'tools/check-ask-market-wide-supply.mjs'
       - 'tools/check-printing-opportunity-demand.mjs'
+      - 'tools/check-sourced-printing-pull-odds.mjs'
       - 'tools/check-ask-video-creator-taxonomy.mjs'
       - 'tools/check-ask-two-pass-creator-retrieval.mjs'
       - 'tools/check-ask-web-citation-source-extraction.mjs'
@@ -99,6 +105,7 @@ jobs:
       - run: node tools/check-ask-causal-move-routing.mjs
       - run: node tools/check-ask-market-wide-supply.mjs
       - run: node tools/check-printing-opportunity-demand.mjs
+      - run: node tools/check-sourced-printing-pull-odds.mjs
       - run: node tools/check-ask-move-family-identity.mjs
       - run: node tools/check-ask-causal-evidence.mjs
       - run: node tools/check-ask-market-research-fallback.mjs
