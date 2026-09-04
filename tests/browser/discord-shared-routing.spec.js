@@ -60,7 +60,7 @@ test('shared router answers sealed Direct crack rankings without clarification',
   expect(presenter).toContain("label:'Practical ROI'");
   expect(presenter).toContain("label:'Pass hidden'");
   expect(read('cloud-worker/discord-shared-delvin-route.mjs')).toMatch(/isQueuedSharedQuestion[\s\S]*sealed[\s\S]*crack[\s\S]*direct/);
-  expect(read('cloud-worker/discord-shared-delvin-route.mjs')).toContain("u.searchParams.set('sealedView','opportunities')");
+  expect(read('cloud-worker/discord-shared-delvin-route.mjs')).toContain("a.sealed_view||'opportunities'");
   expect(renderer).toContain("surface?.type==='sealed_crack_ranking'");
 });
 
@@ -77,6 +77,53 @@ test('sealed inventory-fit questions use deferred Discord delivery',()=>{
   expect(presenter).toContain("label:'Buy landed'");
   expect(presenter).toContain("label:'Practical net EV'");
   expect(presenter).toContain("label:'Max buy @ 15%'");
+  expect(router).toContain("sealed_uuid:product.uuid");
+  expect(worker).toContain("u.searchParams.set('sealed',String(a.sealed_uuid))");
+  expect(router).toContain('buy=Number(decision.acquisition_price)');
+  expect(presenter).toContain('acquisition_observation_status');
+  const acquisition=read('supabase/migrations/20260904030000_label_sealed_acquisition_freshness.sql');
+  expect(acquisition).toContain('p.low_with_shipping::numeric acquisition_price');
+  expect(acquisition).not.toMatch(/coalesce\s*\(\s*p\.low_with_shipping\s*,\s*p\.low_price/i);
+  expect(acquisition).toContain("else 'STALE'");
+});
+
+test('sealed inventory-fit queue delivery renders decision economics and exact-product link',async()=>{
+  const {maybeHandleCardInvestigator}=await import('../../cloud-worker/discord-card-investigator.mjs');
+  const {isQueuedSharedQuestion,deliverQueuedSharedQuestion}=await import('../../cloud-worker/discord-shared-delvin-route.mjs');
+  const question='Analyze inventory fit for Secret Lair 20 Ways to Win';
+  expect(isQueuedSharedQuestion(question)).toBe(true);
+  const declined=await maybeHandleCardInvestigator(new Request('https://worker/discord/interactions',{method:'POST',body:JSON.stringify({type:2,data:{name:'ask',options:[{name:'question',value:question}]}})}),{},{});
+  expect(declined).toBeNull();
+
+  const uuid='11111111-2222-3333-4444-555555555555',requests=[];
+  const presentation={
+    type:'sealed_inventory_fit',title:'Secret Lair 20 Ways to Win · inventory fit',summary:'BUY & CRACK at $285.95 landed.',
+    metrics:[
+      {label:'Buy landed',display:'$285.95'},{label:'Practical net EV',display:'$343.62'},
+      {label:'Practical ROI',display:'+20.2%'},{label:'Direct-first net',display:'$376.79'},
+      {label:'Max buy @ 15%',display:'$298.80'}
+    ],actions:[{type:'navigate',label:'Open exact product',screen:'sealed',sealed_view:'opportunities',sealed_uuid:uuid}]
+  };
+  const originalFetch=globalThis.fetch;
+  globalThis.fetch=async(url,init={})=>{
+    requests.push({url:String(url),init});
+    if(String(url).includes('/functions/v1/ask-collectish-delvin-present-v2'))return new Response(JSON.stringify({handled:true,route:'sealed_inventory_fit',response:presentation.summary,presentation}),{status:200,headers:{'Content-Type':'application/json'}});
+    return new Response('{}',{status:200,headers:{'Content-Type':'application/json'}});
+  };
+  let acked=false;
+  try{
+    const handled=await deliverQueuedSharedQuestion({SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'service',DISCORD_APPLICATION_ID:'app',COLLECTISH_WEB_URL:'https://collectish.example/open.html'},{interaction_id:'interaction',interaction_token:'token',application_id:'app',question},{ack(){acked=true}});
+    expect(handled).toBe(true);expect(acked).toBe(true);
+    const discord=requests.find(x=>x.url.includes('/webhooks/app/token/messages/@original'));
+    expect(discord).toBeTruthy();
+    const payload=JSON.parse(discord.init.body);
+    const rendered=JSON.stringify(payload.embeds);
+    for(const expected of ['$285.95','$343.62','+20.2%','$376.79','$298.80'])expect(rendered).toContain(expected);
+    const link=new URL(payload.components[0].components[0].url);
+    expect(link.searchParams.get('tab')).toBe('sealed');
+    expect(link.searchParams.get('sealedView')).toBe('opportunities');
+    expect(link.searchParams.get('sealed')).toBe(uuid);
+  }finally{globalThis.fetch=originalFetch}
 });
 
 test('named MTGStocks requests execute source lookup and refresh without clarification',()=>{
