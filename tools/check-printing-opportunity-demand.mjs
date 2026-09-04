@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const sql=fs.readFileSync('supabase/migrations/20260904193000_family_printing_opportunity_demand.sql','utf8');
+for(const token of ['ask_collectish_family_printing_opportunity_v2','marketplace_sku_sales_observations','quarter_quantity_sold','quarter_transaction_count','qty_per_day_90d','tx_per_day_90d','demand_status','WORTH_INVESTIGATING_DEMAND_CONFIRMED','WORTH_INVESTIGATING_DEMAND_THIN','WORTH_INVESTIGATING_DEMAND_UNKNOWN','SCARCE_ALREADY_PRICED','NO_SOURCED_VARIANT_PULL_ODDS'])if(!sql.includes(token))throw new Error(`missing demand opportunity token: ${token}`);
+if(!/distinct on \(o\.sku_id\)/.test(sql))throw new Error('demand model must use the latest exact-SKU sales observation');
+if(!/upper\(coalesce\(o\.condition,''\)\) in \('NEAR MINT','NM'\)/.test(sql))throw new Error('demand confirmation must be based on exact NM sales evidence');
+if(!/sales_observed_at is null then 'UNKNOWN'/.test(sql))throw new Error('missing sales coverage must remain UNKNOWN, never zero demand');
+if(!/quarter_quantity_sold\/90\.0/.test(sql)||!/quarter_transaction_count\/90\.0/.test(sql))throw new Error('low-volume demand must be derived from 90-day totals rather than rounded daily fields');
+if(!/research signal only, not a buy recommendation/i.test(sql))throw new Error('printing opportunity must remain a research signal');
+if(!/exact packs-per-hit is not invented/i.test(sql))throw new Error('printing opportunity must not invent pull odds');
+console.log('Printing opportunity demand guard passed');
