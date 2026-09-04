@@ -18,6 +18,7 @@ if(/term\.language\s*=/.test(sync))throw new Error('market supply must filter la
 if(!/stock\|supply\|inventory\|liquidity/.test(identity))throw new Error('stock must remain a first-class supply synonym');
 for(const token of ['CACHE_MINUTES=30','market_supply_current','cache_hit','force_refresh','seller_keys','seller_count_quality','conservative_lower_bound'])if(!sync.includes(token))throw new Error(`missing family cache token: ${token}`);
 if(!sync.includes('manapool-supply-sync'))throw new Error('market supply lost exact on-demand ManaPool integration');
+for(const token of ['cardKingdomFamily','scryfall_id','condition_mapping','usable_for_market_claim','source_depth','global_supply_classification','market_wide_thinness_proven','Source inventories are reported independently'])if(!sync.includes(token))throw new Error(`missing normalized retailer-depth contract token: ${token}`);
 for(const token of ['ask_collectish_supply_family_skus_v1','mtgjson_tcgplayer_skus','scryfall_oracle_id','LIGHTLY PLAYED','service_role'])if(!canonical.includes(token))throw new Error(`missing canonical MTGJSON resolver token: ${token}`);
 if(!/upper\(coalesce\(s\.condition,''\)\) in \('NEAR MINT','LIGHTLY PLAYED','NM','LP'\)/.test(canonical))throw new Error('canonical resolver is not NM/LP scoped');
 for(const token of ['ask_collectish_family_supply_concentration_v1','top1_supply_share_pct','top3_supply_share_pct','hhi','tightest_printing'])if(!concentration.includes(token))throw new Error(`missing concentration token: ${token}`);
