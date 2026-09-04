@@ -10,6 +10,7 @@ on:
       - ".github/workflows/signals-youtube-sync.yml"
       - "supabase/functions/market-intel-youtube-sync/**"
       - "supabase/functions/market-intel-video-event-extract/**"
+      - "supabase/functions/market-intel-video-product-event-extract/**"
       - "supabase/functions/market-intel-ingest/index.ts"
       - "supabase/functions/market-intel-analyze/index.ts"
 
@@ -55,9 +56,11 @@ jobs:
           attempted="$(jq -r '.transcript_attempts // 0' "$response_file")"
           billable="$(jq -r '.billable_credits_observed // 0' "$response_file")"
           events_saved="$(jq -r '.events_saved // 0' "$response_file")"
+          card_events_saved="$(jq -r '.card_events_saved // 0' "$response_file")"
+          product_events_saved="$(jq -r '.product_events_saved // 0' "$response_file")"
           source_failures="$(jq -r '.failed // 0' "$response_file")"
           diagnostics="$(jq -c '.diagnostics // {}' "$response_file")"
-          echo "mode=$policy_mode ai_generation=$ai_generation attempted=$attempted observed_billable=$billable events_saved=$events_saved source_failures=$source_failures diagnostics=$diagnostics"
+          echo "mode=$policy_mode ai_generation=$ai_generation attempted=$attempted observed_billable=$billable events_saved=$events_saved card_events_saved=$card_events_saved product_events_saved=$product_events_saved source_failures=$source_failures diagnostics=$diagnostics"
           test "$policy_mode" = "native"
           test "$ai_generation" = "false"
           test "$attempted" -le 2
