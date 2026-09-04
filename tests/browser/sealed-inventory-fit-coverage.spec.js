@@ -12,6 +12,9 @@ test('sealed inventory-fit refresh uses resolved exact SKUs and complete product
   expect(worker).toContain('sealed_inventory_fit_component_targets?select=');
   expect(worker).toContain('select=user_id,sku_id,product_id');
   expect(worker).toContain("filter(r=>String(r.user_id)===String(u.user_id))");
+  expect(worker).toContain('offset+=1000');
+  expect(worker).toContain('&limit=1000&offset=${offset}');
+  expect(worker).toContain('all(`precon_card_ev_current?select=');
   expect(worker).toContain('/v1/product/${encodeURIComponent(productId)}/listings');
   expect(worker).toContain("Origin:'https://www.tcgplayer.com'");
   expect(worker).toContain("Referer:'https://www.tcgplayer.com/'");
