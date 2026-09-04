@@ -34,6 +34,7 @@
     try{
       const data=await response.clone().json();
       if(/^collectish\.ask\.surface\.v\d+$/.test(String(data?.surface_schema||''))&&Array.isArray(data.surfaces)&&data.surfaces.length)window.__CollectishAskSurfaceQueue.push({schema:data.surface_schema,surfaces:data.surfaces,conversation_id:data.conversation_id||null});
+      document.dispatchEvent(new CustomEvent('collectish:ask-response',{detail:{request:body||null,response:data||null}}));
       if(data?.orchestration?.shared_delvin_router)status('Delvin · shared deterministic','ok');
       else if(isExternal&&data?.orchestration?.pass4)status(`Web research · ${data.surfaces?.find?.(s=>s?.type==='external_research')?.source_count||0} sources`,'ok');
       else if(isExternal&&data?.orchestration?.external_research_error)status('Web research failed','bad');
