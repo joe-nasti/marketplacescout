@@ -42,7 +42,7 @@ function scoutSurfaceIsBlank(){
 async function recoverBlankScoutSurface(){
   if(!scoutSurfaceIsBlank())return false;
   try{
-    const bootstrap=window.CollectishScoutBootstrap||await import('../modules/scout/bootstrap.js').then(()=>window.CollectishScoutBootstrap);
+    const bootstrap=window.CollectishScoutBootstrap;
     await bootstrap?.start?.();
   }catch(error){console.warn('Scout blank-surface recovery failed',error)}
   if(!scoutSurfaceIsBlank())return true;
