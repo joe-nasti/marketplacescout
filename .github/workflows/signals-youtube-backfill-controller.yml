@@ -45,11 +45,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          response_file="$(mktemp)"
-          status="$(curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"limit":4}' "$EVALUATOR_URL")"
-          cat "$response_file"
-          echo
-          test "$status" -ge 200 -a "$status" -lt 300
-          jq -e 'all(.results[]?; ((.events // 0) == ((.card_events // 0) + (.product_events // 0))))' "$response_file" >/dev/null
+          for i in 1 2 3 4; do
+            response_file="$(mktemp)"
+            status="$(curl --silent --show-error --max-time 145 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"limit":1}' "$EVALUATOR_URL")"
+            cat "$response_file"
+            echo
+            test "$status" -ge 200 -a "$status" -lt 300
+            jq -e 'all(.results[]?; ((.events // 0) == ((.card_events // 0) + (.product_events // 0))))' "$response_file" >/dev/null
+            processed="$(jq -r '.processed // 0' "$response_file")"
+            rm -f "$response_file"
+            if (( processed == 0 )); then break; fi
+          done
       - name: Refill backlog after evaluation
         run: node cloud-worker/youtube-backfill-controller.mjs
