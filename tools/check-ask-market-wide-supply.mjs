@@ -5,9 +5,11 @@ const identity=fs.readFileSync('supabase/functions/ask-collectish-identity-recov
 const discovery=fs.readFileSync('supabase/functions/scout-tcgplayer-sku-discovery/index.ts','utf8');
 const api=fs.readFileSync('supabase/functions/ask-collectish-api/index.ts','utf8');
 const routes=fs.readFileSync('supabase/functions/ask-collectish-route-intents/index.ts','utf8');
+const presenter=fs.readFileSync('supabase/functions/ask-collectish-delvin-supply-present/index.ts','utf8');
 const family=fs.readFileSync('supabase/migrations/20260903143000_card_family_nm_lp_supply_scope.sql','utf8');
 const concentration=fs.readFileSync('supabase/migrations/20260904001500_family_supply_concentration_profile.sql','utf8');
 const history=fs.readFileSync('supabase/migrations/20260904002500_family_supply_history_trend.sql','utf8');
+const serviceAnalytics=fs.readFileSync('supabase/migrations/20260904003500_allow_service_role_family_supply_analytics.sql','utf8');
 for(const token of ['market_supply_snapshots','ask_collectish_market_supply_v1','direct_unit_count','non_direct_unit_count','seller_count','global_supply_classification','EXACT_SKU_ALL_TCGPLAYER','Retailer price presence'])if(!migration.includes(token))throw new Error(`missing market-supply contract token: ${token}`);
 for(const token of ['mp-search-api.tcgplayer.com','productConditionId','directListing','sellerKey','quantity','channelExclusion','tcgplayer_site_listings_search','PARTIAL_PAGE_CAP'])if(!sync.includes(token))throw new Error(`missing exact TCG listing collector token: ${token}`);
 if(!/exact\s*=\s*listings\.filter/.test(sync))throw new Error('TCG marketplace supply must filter listings to the exact SKU');
@@ -28,6 +30,10 @@ if(!/A scarce premium printing does not make the whole card family thin/.test(co
 for(const token of ['ask_collectish_family_supply_trend_v1','CARD_FAMILY_NM_LP_OBSERVED_HISTORY','MULTI_POINT_COMPLETE','SINGLE_COMPLETE_POINT','NO_COMPLETE_POINT','TIGHTENING_FAST','TIGHTENING','LOOSENING_FAST','LOOSENING','printing_changes','daily_points'])if(!history.includes(token))throw new Error(`missing observed family supply history token: ${token}`);
 if(!/having count\(\*\)=\(select sku_count from target\)/.test(history)||!/coverage_state='COMPLETE'/.test(history))throw new Error('family history must require complete exact-SKU coverage for each measured family point');
 if(!/Missing days are not filled or carried forward/.test(history))throw new Error('family history must not interpolate unobserved inventory');
+for(const token of ['ask-collectish-identity-recovery','identity?.market_supply','CARD_FAMILY_NM_LP','ask_collectish_family_supply_concentration_v1','ask_collectish_family_supply_trend_v1','Supply concentration','Observed trend','CK mapped NM/LP','English NM/LP Oracle-family scope'])if(!presenter.includes(token))throw new Error(`missing canonical Delvin family-supply presentation token: ${token}`);
+if(/scout_card_catalog\?card_name=/.test(presenter))throw new Error('Discord supply presenter must not rebuild the family from Scout catalog and drop ephemeral LP SKUs');
+if(/market-supply-sync/.test(presenter))throw new Error('Discord supply presenter must not independently refresh market supply after identity recovery already did so');
+if(!/service_role/.test(serviceAnalytics)||!/auth\.role\(\)/.test(serviceAnalytics))throw new Error('server-side Delvin presenter cannot execute restricted family analytics');
 for(const token of ['scryfall_oracle_id','availability','ENGLISH','tcgplayer_product_id','tcgplayer_etched_product_id','tcgplayer_alt_foil_product_id'])if(!family.includes(token))throw new Error(`missing Oracle-family product boundary token: ${token}`);
 if(!/desired_conditions/.test(discovery)||!/persist:false,force:true/.test(identity))throw new Error('family SKU discovery must fetch NM+LP once per product without mutating the scout workload');
 if(!/market_supply_family/.test(api)||!/card_family_supply_nm_lp/.test(routes))throw new Error('Discord guest flow does not expose deterministic family-supply evidence');
