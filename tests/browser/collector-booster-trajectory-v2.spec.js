@@ -59,6 +59,9 @@ test('Delvin routes and presents named Collector Box lifecycle questions',async(
   expect(router).toContain("category=eq.booster_box&subtype=eq.collector");
   expect(router).toContain("route:'sealed_collector_trajectory'");
   expect(router).toContain('The pooled cohort remains primary');
+  expect(router).toContain('normalizeCollectorTrajectory');
+  expect(router).toContain("role=primaryDays.length&&shadowDays.length?'MIXED'");
+  expect(router).toContain("'similarity PRIMARY':'pooled PRIMARY'");
   expect(router).toContain('Scout grade is unchanged');
   expect(presenter).toContain('sealedCollectorTrajectoryPresentation');
   expect(presenter).toContain("d?.route==='sealed_collector_trajectory'");
