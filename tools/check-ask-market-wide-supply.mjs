@@ -26,7 +26,11 @@ if(!/upper\(coalesce\(s\.condition,''\)\) in \('NEAR MINT','LIGHTLY PLAYED','NM'
 for(const token of ['ask_collectish_family_supply_concentration_v1','top1_supply_share_pct','top3_supply_share_pct','hhi','tightest_printing'])if(!concentration.includes(token))throw new Error(`missing concentration token: ${token}`);
 for(const token of ['ask_collectish_family_supply_trend_v1','SINGLE_COMPLETE_POINT','TIGHTENING','LOOSENING','daily_points'])if(!history.includes(token))throw new Error(`missing history token: ${token}`);
 if(!/Missing days are not filled or carried forward/.test(history))throw new Error('family history must not interpolate missing days');
-for(const token of ['ask_collectish_supply_family_skus_v1','market-supply-sync','canonical_target_count','family_resolved_market_sync_failed','fresh_sku_count','expected_sku_count','partial','Supply concentration','Observed trend','Canonical MTGJSON family','English NM/LP'])if(!presenter.includes(token))throw new Error(`missing deterministic Discord supply token: ${token}`);
+for(const token of ['ask_collectish_supply_family_skus_v1','market-supply-sync','canonical_target_count','family_resolved_market_sync_failed','fresh_sku_count','expected_sku_count','partial','Where the stock is','Tight printing','Canonical MTGJSON family','English NM/LP','printing_rows'])if(!presenter.includes(token))throw new Error(`missing deterministic Discord supply token: ${token}`);
+if(/kind:'ranked_rows'/.test(presenter))throw new Error('primary Discord supply embed must stay compact instead of rendering the full printing table');
+if(!/rows\.slice\(0,3\)|ranked\.slice\(0,3\)/.test(presenter))throw new Error('compact supply embed must summarize only the top three printing variants');
+if(!/prettyClass/.test(presenter)||!/VERY_THIN/.test(presenter))throw new Error('supply presenter must convert internal classification enums to reader-facing labels');
+if(!/TCG split/.test(presenter))throw new Error('Direct and non-Direct must be combined into one compact TCG split metric');
 if(/ask-collectish-identity-recovery/.test(presenter))throw new Error('Discord supply presenter must not depend on user-auth identity recovery');
 if(/ask_delvin_card_family_supply_targets_v1/.test(presenter))throw new Error('Discord supply presenter must not use Scout-catalog-only targets');
 if(/scout_card_catalog\?card_name=/.test(presenter))throw new Error('Discord supply presenter must not rebuild family from Scout catalog');
