@@ -1,0 +1,22 @@
+[
+  { "card_name": "Guttural Response", "archetype": "low_exact_sku_depth" },
+  { "card_name": "Inventors' Fair", "archetype": "low_exact_sku_depth" },
+  { "card_name": "Exquisite Blood", "archetype": "scarce_looking_reprint_family" },
+  { "card_name": "The Ur-Dragon", "archetype": "scarce_looking_premium_card" },
+  { "card_name": "Akroma's Memorial", "archetype": "scarce_looking_reprint_family" },
+  { "card_name": "Emrakul, the Promised End", "archetype": "scarce_looking_reprint_family" },
+  { "card_name": "Blightsteel Colossus", "archetype": "premium_variant_mix" },
+  { "card_name": "Staff of Domination", "archetype": "multi_printing_staple" },
+  { "card_name": "Darksteel Citadel", "archetype": "direct_heavy_exact_sku" },
+  { "card_name": "Slickshot Show-Off", "archetype": "non_direct_heavy_exact_sku" },
+  { "card_name": "Kitsa, Otterball Elite", "archetype": "non_direct_heavy_exact_sku" },
+  { "card_name": "Descent into Avernus", "archetype": "non_direct_heavy_exact_sku" },
+  { "card_name": "Anguished Unmaking", "archetype": "multi_printing_staple" },
+  { "card_name": "Heroic Intervention", "archetype": "multi_printing_staple" },
+  { "card_name": "Jet Medallion", "archetype": "multi_printing_staple" },
+  { "card_name": "Inspiring Vantage", "archetype": "multi_printing_staple" },
+  { "card_name": "Enduring Vitality", "archetype": "known_deep_family" },
+  { "card_name": "Orcish Bowmasters", "archetype": "known_deep_family" },
+  { "card_name": "Stock Up", "archetype": "known_deep_family" },
+  { "card_name": "Arcane Signet", "archetype": "high_print_count_boundary" }
+]

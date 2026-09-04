@@ -4,6 +4,7 @@ const sync=fs.readFileSync('supabase/functions/market-supply-sync/index.ts','utf
 const classifier=fs.readFileSync('supabase/functions/_shared/family-supply-classification.mjs','utf8');
 const identity=fs.readFileSync('supabase/functions/ask-collectish-identity-recovery/index.ts','utf8');
 const discovery=fs.readFileSync('supabase/functions/scout-tcgplayer-sku-discovery/index.ts','utf8');
+const manapool=fs.readFileSync('supabase/functions/manapool-supply-sync/index.ts','utf8');
 const api=fs.readFileSync('supabase/functions/ask-collectish-api/index.ts','utf8');
 const routes=fs.readFileSync('supabase/functions/ask-collectish-route-intents/index.ts','utf8');
 const presenter=fs.readFileSync('supabase/functions/ask-collectish-delvin-supply-present/index.ts','utf8');
@@ -44,6 +45,8 @@ if(/scout_card_catalog\?card_name=/.test(presenter))throw new Error('Discord sup
 if(!/canonical_family_not_found/.test(presenter)||!/handled:true/.test(presenter))throw new Error('stock questions must not fall through to generic printing clarification');
 for(const token of ['scryfall_oracle_id','availability','ENGLISH','tcgplayer_product_id'])if(!family.includes(token))throw new Error(`missing Oracle family boundary token: ${token}`);
 if(!/desired_conditions/.test(discovery))throw new Error('signed-in SKU discovery lost multi-condition support');
+if(!/known_identity/.test(discovery)||!/INCOMPLETE_CARD_FAMILY_DISCOVERY/.test(identity))throw new Error('family discovery gaps must use trusted ephemeral identity and remain globally unproven');
+if(!/same_product_printing_sibling/.test(manapool)||!/MISSING_PRINTING_IDENTITY/.test(manapool))throw new Error('ManaPool NM/LP sibling identity fallback is missing');
 if(!/market_supply_family/.test(api)||!/card_family_supply_nm_lp/.test(routes))throw new Error('shared Ask family-supply route missing');
 if(!/Direct is a subset/.test(routes)||!/Retail price presence is not counted as stock/.test(routes))throw new Error('family response lost supply-scope safeguards');
 console.log('Ask market-wide supply guard passed');
