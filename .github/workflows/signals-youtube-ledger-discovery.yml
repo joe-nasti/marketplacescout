@@ -1,5 +1,6 @@
 name: Collectish YouTube ledger discovery
 
+# Channel subscriptions are configured dynamically in source_captures.
 on:
   workflow_dispatch:
   schedule:
