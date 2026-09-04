@@ -27,6 +27,7 @@ test('Direct worker changes trigger an immediate production refresh',async()=>{
   expect(workflow).toContain('node cloud-worker/refresh-precon-direct.mjs');
   expect(workflow).toMatch(/Refresh sealed and precon exact-SKU Direct observations[\s\S]*?node cloud-worker\/refresh-precon-direct\.mjs[\s\S]*?Recalculate sealed and precon EV with fresh Direct data[\s\S]*?node cloud-worker\/refresh-precon-ev\.mjs/);
   expect(workflow).toContain('node cloud-worker/backfill-sealed-component-history.mjs');
+  expect(workflow).toContain('PRECON_RELEASE_FROM: "2024-01-01"');
   expect(workflow).toMatch(/Backfill targeted sealed component quarter history[\s\S]*?continue-on-error: true/);
 });
 
