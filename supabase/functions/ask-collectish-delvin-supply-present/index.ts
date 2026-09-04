@@ -1,32 +1,132 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
 const U=(Deno.env.get('SUPABASE_URL')||'').replace(/\/$/,'');
 const S=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
 const js=(b:any,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{...C,'Content-Type':'application/json','Cache-Control':'no-store'}});
-const t=(v:any)=>String(v??'').trim(),fmt=(v:any)=>Number(v||0).toLocaleString('en-US'),pct=(v:any)=>Number.isFinite(Number(v))?`${Number(v).toFixed(1)}%`:'—';
+const t=(v:any)=>String(v??'').trim();
+const fmt=(v:any)=>Number(v||0).toLocaleString('en-US');
+const pct=(v:any)=>Number.isFinite(Number(v))?`${Number(v).toFixed(1)}%`:'—';
 const H={apikey:S,Authorization:`Bearer ${S}`,'Content-Type':'application/json'};
-async function call(url:string,body:any){const r=await fetch(url,{method:'POST',headers:H,body:JSON.stringify(body)}),raw=await r.text();let d:any;try{d=JSON.parse(raw)}catch{d=raw}if(!r.ok)throw Error(d?.error||d?.message||`${r.status}`);return d}
+
+async function call(url:string,body:any){
+  const r=await fetch(url,{method:'POST',headers:H,body:JSON.stringify(body)}),raw=await r.text();
+  let d:any;try{d=JSON.parse(raw)}catch{d=raw}
+  if(!r.ok)throw Error(d?.error||d?.message||`${r.status}`);
+  return d;
+}
 const rpc=(name:string,body:any)=>call(`${U}/rest/v1/rpc/${name}`,body);
-function card(q:string){for(const p of[/^how\s+deep\s+is\s+(?:the\s+)?market\s+(?:on|for|of)\s+(.+?)(?:[?.!,]|$)/i,/^(?:what(?:'s| is)\s+)?(?:the\s+)?market\s+depth\s+(?:on|for|of)\s+(.+?)(?:[?.!,]|$)/i,/^how(?:'s| is)\s+(?:the\s+)?(?:stock|supply|inventory|liquidity|depth)\s+(?:on|for|of)\s+(.+?)(?:[?.!,]|$)/i,/^(?:what(?:'s| is)|show(?: me)?|give me)\s+(?:the\s+)?(?:stock|supply|inventory|liquidity|depth)\s+(?:on|for|of)\s+(.+?)(?:[?.!,]|$)/i,/\b(?:stock|supply|inventory|liquidity|market\s+depth)\s+(?:on|for|of)\s+(.+?)(?:[?.!,]|$)/i]){const m=q.match(p);if(m?.[1])return m[1].trim()}return''}
-function finish(v:any){const s=t(v).toUpperCase().replace(/[^A-Z]/g,'');return s.includes('FOIL')&&!s.includes('NONFOIL')?'FOIL':'NON FOIL'}
-function labelFor(productId:any,finishScope:any,targets:any[]){const x=targets.find((r:any)=>t(r.product_id)===t(productId)&&finish(r.printing)===finishScope)||targets.find((r:any)=>t(r.product_id)===t(productId));return [x?.set_code,x?.collector_number?`#${x.collector_number}`:null,finishScope==='FOIL'?'foil':'nonfoil'].filter(Boolean).join(' ')||`${productId} ${t(finishScope).toLowerCase()}`}
-function summaryFor(v:any){const s=t(v).toUpperCase();if(s==='DEEP')return'Plenty available across the measured NM/LP family.';if(s==='MODERATE')return'Supply looks healthy overall, with some tighter variants.';if(s==='THIN'||s==='VERY_THIN')return'The measured NM/LP family is genuinely tight.';return'Current family depth is incomplete.'}
-Deno.serve(async req=>{if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method!=='POST')return js({error:'POST required'},405);if(!S)return js({error:'Service role unavailable'},500);const b=await req.json().catch(()=>({})),q=t(b.question||b.message),name=card(q);if(!name)return js({handled:false,reason:'not_supply_question'});
- try{
-  const targets:any[]=await rpc('ask_collectish_supply_family_skus_v1',{p_card_name:name,p_scryfall_id:null}).catch(()=>[]);
-  if(!targets.length)return js({handled:true,route:'card_family_supply',response:`I recognized the stock question, but Collectish has no canonical English NM/LP MTGJSON family mapping for “${name}”.`,presentation:{version:6,type:'card_family_supply',title:`${name} — Market depth`,summary:'Canonical family mapping unavailable.',badges:['UNPROVEN'],metrics:[],sections:[],footnote:'No printing clarification is needed unless the card name itself is ambiguous.',actions:[]},data:{reason:'canonical_family_not_found'}});
-  let supply:any;try{supply=await call(`${U}/functions/v1/market-supply-sync`,{targets,scope:'CARD_FAMILY_NM_LP',max_pages:40})}catch(e){return js({handled:true,route:'card_family_supply',response:`${targets[0].card_name||name} resolved to ${targets.length} English NM/LP SKUs, but the market-depth refresh failed. Try again shortly.`,presentation:{version:6,type:'card_family_supply',title:`${targets[0].card_name||name} — Market depth`,summary:'Card family resolved; market refresh failed.',badges:['REFRESH FAILED'],metrics:[],sections:[],footnote:`Canonical MTGJSON family: ${targets.length} English NM/LP SKUs.`,actions:[]},data:{reason:'family_resolved_market_sync_failed'}})}
-  const skus=[...new Set(targets.map(z=>t(z.sku_id)))];const [concentration,trend]=await Promise.all([rpc('ask_collectish_family_supply_concentration_v1',{p_sku_ids:skus}).catch(()=>null),rpc('ask_collectish_family_supply_trend_v1',{p_sku_ids:skus,p_days:90}).catch(()=>null)]);
-  const x=supply?.combined||{},ck=supply?.source_depth?.cardkingdom_retail||{},mp=supply?.source_depth?.manapool_retail||{},g=t(supply?.global_supply_classification||supply?.classification||'UNPROVEN').toUpperCase(),tcg=t(supply?.tcgplayer_supply_classification||x.classification||'UNPROVEN').toUpperCase(),units=Number(x.unit_count||0),listings=Number(x.listing_count||0),direct=Number(x.direct_unit_count||0),non=Number(x.non_direct_unit_count||0),mpq=Number(mp.quantity??x.manapool_retail_quantity??0),n=targets[0].card_name||name,directShare=units>0?direct/units*100:null;
-  const mpCovered=Number(mp.fresh_sku_count??mp.covered_sku_count??0),mpExpected=Number(mp.expected_sku_count??targets.length),mpComplete=mpExpected>0&&mpCovered>=mpExpected,mpLabel=mpComplete?'ManaPool NM/LP':'ManaPool observed',mpCoverage=`coverage ${mpCovered} of ${mpExpected} condition-level SKUs${mpComplete?'':' · partial'}`;
-  const rows=Array.isArray(concentration?.printing_rows)?concentration.printing_rows:[],deep=concentration?.deepest_printing||null,tight=concentration?.tightest_printing||null,top1=Number(concentration?.top1_supply_share_pct),top3=Number(concentration?.top3_supply_share_pct),deepLabel=deep?labelFor(deep.product_id,deep.finish,targets):null,tightLabel=tight?labelFor(tight.product_id,tight.finish,targets):null;
-  const trendLabel=t(trend?.trend||'UNPROVEN'),points=Number(trend?.complete_observation_points||0),trendText=trendLabel==='UNPROVEN'?`Supply trend not established yet (${points} complete family observation${points===1?'':'s'}).`:`${fmt(trend?.first_units)} → ${fmt(trend?.last_units)} TCG units (${Number(trend?.unit_change_pct)>=0?'+':''}${Number(trend?.unit_change_pct||0).toFixed(1)}%) across ${fmt(trend?.observed_span_days)} observed days · ${trendLabel.replaceAll('_',' ')}`;
-  const conclusion=g==='DEEP'?`${n} is not market-wide scarce right now.`:g==='MODERATE'?`${n} has healthy overall depth, with some tighter printings.`:['THIN','VERY_THIN'].includes(g)?`${n} is genuinely tight across the measured family.`:`${n} market-wide depth remains unproven.`;
-  const response=`**${n} — Market depth**\n${conclusion}\n\nTCGplayer: **${fmt(units)}** NM/LP units across **${fmt(listings)}** listings\n↳ Direct **${fmt(direct)}**${directShare!=null?` (${pct(directShare)} of TCG units)`:''} · Non-Direct **${fmt(non)}**\n${mpLabel}: **${fmt(mpq)}** copies · ${mpCoverage}\nCard Kingdom NM/EX: **${ck?.available?fmt(ck.quantity):'unavailable'}**\n\n${deepLabel&&Number.isFinite(top1)?`Supply is concentrated: **${pct(top1)}** is ${deepLabel}; top 3 printings = **${pct(top3)}**.\n`:''}${tight&&tightLabel&&['THIN','VERY_THIN'].includes(t(tight.supply_classification))?`Tightest printing: **${tightLabel}** — ${t(tight.supply_classification)} (${fmt(tight.unit_count)} units).\n`:''}${points>=2?`Trend: ${trendText}`:trendText}`;
-  const variantRows=rows.slice(0,10).map((r:any)=>({title:labelFor(r.product_id,r.finish,targets),subtitle:`${pct(r.supply_share_pct)} of TCG family supply`,badges:[t(r.supply_classification)],metrics:[{label:'TCG',display:fmt(r.unit_count)},{label:'Listings',display:fmt(r.listing_count)},{label:'Direct',display:fmt(r.direct_unit_count)}]}));
-  const sections:any[]=[];if(concentration?.available)sections.push({heading:'Supply concentration',kind:'text',text:`Largest printing ${pct(top1)} · top 3 ${pct(top3)}. A scarce premium printing does not make the whole card family thin.`});if(variantRows.length)sections.push({heading:'Printing depth',kind:'ranked_rows',rows:variantRows});if(points>=2)sections.push({heading:'Observed trend',kind:'text',text:trendText});
-  const trendFoot=points<2?` · ${trendText}`:'';
-  const presentation={version:6,type:'card_family_supply',title:`${n} — Market depth`,summary:`${conclusion} ${fmt(units)} TCGplayer NM/LP units across ${fmt(listings)} listings.${directShare!=null?` Direct is ${pct(directShare)} of observed TCG units.`:''}`,badges:[`${g} MARKET`,`${t(supply?.confidence||'LOW')} CONFIDENCE`],metrics:[{label:'TCGplayer',display:`${fmt(units)} units · ${fmt(listings)} listings`},{label:'Direct',display:`${fmt(direct)}${directShare!=null?` · ${pct(directShare)}`:''}`},{label:'Non-Direct',display:fmt(non)},{label:mpLabel,display:`${fmt(mpq)} · ${mpCoverage}`},{label:'CK NM/EX',display:ck?.available?`${fmt(ck.quantity)} · ${t(ck.freshness_status||'').toLowerCase()}`:'unavailable'}],sections,footnote:`Canonical MTGJSON family · English NM/LP · ${supply?.coverage?.complete_sku_count||0}/${targets.length} TCG SKUs complete · TCGplayer/ManaPool cache 30m · ManaPool ${mpCoverage} · Direct is a subset of TCGplayer.${trendFoot}`,actions:[]};
-  return js({handled:true,route:'card_family_supply',response,presentation,data:{card_name:n,scope:'CARD_FAMILY_NM_LP',canonical_target_count:targets.length,market_supply:supply,concentration,trend,sku_ids:skus}})
- }catch(e){return js({handled:true,route:'card_family_supply',response:`I resolved “${name}” as a stock question, but the family-supply analysis failed. Try again shortly.`,presentation:{version:6,type:'card_family_supply',title:`${name} — Market depth`,summary:'Family-supply analysis failed.',badges:['ERROR'],metrics:[],sections:[],footnote:'This should not fall through to a set/SKU clarification.',actions:[]},data:{reason:'family_supply_error',error:String((e as Error)?.message||e)}})}
+
+function card(q:string){
+  for(const p of[
+    /^how\s+deep\s+is\s+(?:the\s+)?market\s+(?:on|for|of)\s+(.+?)(?:[?.!,]|$)/i,
+    /^(?:what(?:'s| is)\s+)?(?:the\s+)?market\s+depth\s+(?:on|for|of)\s+(.+?)(?:[?.!,]|$)/i,
+    /^how(?:'s| is)\s+(?:the\s+)?(?:stock|supply|inventory|liquidity|depth)\s+(?:on|for|of)\s+(.+?)(?:[?.!,]|$)/i,
+    /^(?:what(?:'s| is)|show(?: me)?|give me)\s+(?:the\s+)?(?:stock|supply|inventory|liquidity|depth)\s+(?:on|for|of)\s+(.+?)(?:[?.!,]|$)/i,
+    /\b(?:stock|supply|inventory|liquidity|market\s+depth)\s+(?:on|for|of)\s+(.+?)(?:[?.!,]|$)/i
+  ]){const m=q.match(p);if(m?.[1])return m[1].trim()}
+  return'';
+}
+function finish(v:any){
+  const s=t(v).toUpperCase().replace(/[^A-Z]/g,'');
+  return s.includes('FOIL')&&!s.includes('NONFOIL')?'FOIL':'NON FOIL';
+}
+function labelFor(productId:any,finishScope:any,targets:any[]){
+  const x=targets.find((r:any)=>t(r.product_id)===t(productId)&&finish(r.printing)===finishScope)||targets.find((r:any)=>t(r.product_id)===t(productId));
+  return [x?.set_code,x?.collector_number?`#${x.collector_number}`:null,finishScope==='FOIL'?'foil':'nonfoil'].filter(Boolean).join(' ')||`${productId} ${t(finishScope).toLowerCase()}`;
+}
+function prettyClass(v:any){
+  const s=t(v).toUpperCase();
+  if(s==='VERY_THIN')return'Very thin';
+  if(s==='THIN')return'Thin';
+  if(s==='MODERATE')return'Moderate';
+  if(s==='DEEP')return'Deep';
+  return'Unproven';
+}
+function conclusionFor(name:string,v:any){
+  const s=t(v).toUpperCase();
+  if(s==='DEEP')return`${name} is not market-wide scarce right now.`;
+  if(s==='MODERATE')return`${name} has healthy overall depth, with some tighter printings.`;
+  if(s==='THIN'||s==='VERY_THIN')return`${name} is genuinely tight across the measured family.`;
+  return`${name} market-wide depth remains unproven.`;
+}
+
+Deno.serve(async req=>{
+  if(req.method==='OPTIONS')return new Response('ok',{headers:C});
+  if(req.method!=='POST')return js({error:'POST required'},405);
+  if(!S)return js({error:'Service role unavailable'},500);
+  const b=await req.json().catch(()=>({})),q=t(b.question||b.message),name=card(q);
+  if(!name)return js({handled:false,reason:'not_supply_question'});
+
+  try{
+    const targets:any[]=await rpc('ask_collectish_supply_family_skus_v1',{p_card_name:name,p_scryfall_id:null}).catch(()=>[]);
+    if(!targets.length)return js({handled:true,route:'card_family_supply',response:`I recognized the stock question, but Collectish has no canonical English NM/LP MTGJSON family mapping for “${name}”.`,presentation:{version:7,type:'card_family_supply',title:`${name} — Market depth`,summary:'Canonical family mapping unavailable.',badges:['UNPROVEN'],metrics:[],sections:[],footnote:'No printing clarification is needed unless the card name itself is ambiguous.',actions:[]},data:{reason:'canonical_family_not_found'}});
+
+    let supply:any;
+    try{supply=await call(`${U}/functions/v1/market-supply-sync`,{targets,scope:'CARD_FAMILY_NM_LP',max_pages:40})}
+    catch{return js({handled:true,route:'card_family_supply',response:`${targets[0].card_name||name} resolved to ${targets.length} English NM/LP SKUs, but the market-depth refresh failed. Try again shortly.`,presentation:{version:7,type:'card_family_supply',title:`${targets[0].card_name||name} — Market depth`,summary:'Card family resolved; market refresh failed.',badges:['REFRESH FAILED'],metrics:[],sections:[],footnote:`Canonical MTGJSON family · ${targets.length} English NM/LP SKUs.`,actions:[]},data:{reason:'family_resolved_market_sync_failed'}})}
+
+    const skus=[...new Set(targets.map(z=>t(z.sku_id)))];
+    const [concentration,trend]=await Promise.all([
+      rpc('ask_collectish_family_supply_concentration_v1',{p_sku_ids:skus}).catch(()=>null),
+      rpc('ask_collectish_family_supply_trend_v1',{p_sku_ids:skus,p_days:90}).catch(()=>null)
+    ]);
+
+    const x=supply?.combined||{},ck=supply?.source_depth?.cardkingdom_retail||{},mp=supply?.source_depth?.manapool_retail||{};
+    const g=t(supply?.global_supply_classification||supply?.classification||'UNPROVEN').toUpperCase();
+    const tcg=t(supply?.tcgplayer_supply_classification||x.classification||'UNPROVEN').toUpperCase();
+    const units=Number(x.unit_count||0),listings=Number(x.listing_count||0),direct=Number(x.direct_unit_count||0),non=Number(x.non_direct_unit_count||0),mpq=Number(mp.quantity??x.manapool_retail_quantity??0),n=targets[0].card_name||name;
+    const directShare=units>0?direct/units*100:null,conclusion=conclusionFor(n,g);
+    const mpCovered=Number(mp.fresh_sku_count??mp.covered_sku_count??0),mpExpected=Number(mp.expected_sku_count??targets.length),mpComplete=mpExpected>0&&mpCovered>=mpExpected;
+    const mpCoverage=`${mpCovered}/${mpExpected} SKUs${mpComplete?'':' · partial'}`;
+
+    const rows=Array.isArray(concentration?.printing_rows)?concentration.printing_rows:[];
+    const ranked=[...rows].sort((a:any,b:any)=>Number(b?.unit_count||0)-Number(a?.unit_count||0));
+    const top=ranked.slice(0,3),topUnits=top.reduce((s:number,r:any)=>s+Number(r?.unit_count||0),0),otherUnits=Math.max(0,units-topUnits),otherShare=units>0?otherUnits/units*100:0;
+    const tight=concentration?.tightest_printing||null,tightLabel=tight?labelFor(tight.product_id,tight.finish,targets):null;
+    const tightClass=t(tight?.supply_classification).toUpperCase(),tightIsNotable=['THIN','VERY_THIN'].includes(tightClass);
+    const topLines=top.map((r:any)=>`• **${labelFor(r.product_id,r.finish,targets)}** — ${fmt(r.unit_count)} · ${pct(r.supply_share_pct)}`);
+    if(otherUnits>0)topLines.push(`• Other variants — ${fmt(otherUnits)} · ${pct(otherShare)}`);
+
+    const trendLabel=t(trend?.trend||'UNPROVEN'),points=Number(trend?.complete_observation_points||0);
+    const trendText=trendLabel==='UNPROVEN'?`Trend not established yet (${points} complete family observation${points===1?'':'s'}).`:`${fmt(trend?.first_units)} → ${fmt(trend?.last_units)} TCG units (${Number(trend?.unit_change_pct)>=0?'+':''}${Number(trend?.unit_change_pct||0).toFixed(1)}%) over ${fmt(trend?.observed_span_days)} observed days · ${trendLabel.replaceAll('_',' ')}`;
+
+    const response=[
+      `**${n} — Market depth**`,
+      `**${g}** · ${conclusion}`,
+      '',
+      `TCGplayer: **${fmt(units)}** NM/LP units · **${fmt(listings)}** listings`,
+      `↳ Direct **${fmt(direct)}**${directShare!=null?` (${pct(directShare)})`:''} · Non-Direct **${fmt(non)}**`,
+      `ManaPool: **${fmt(mpq)}+** observed · ${mpCoverage}`,
+      `Card Kingdom: **${ck?.available?fmt(ck.quantity):'unavailable'}** NM/EX${ck?.available&&ck?.freshness_status?` · ${t(ck.freshness_status).toLowerCase()}`:''}`,
+      '',
+      tightIsNotable&&tightLabel?`⚠️ ${tightLabel}: **${prettyClass(tightClass)}** · ${fmt(tight.unit_count)} TCG units`:null,
+      points>=2?`Trend: ${trendText}`:null
+    ].filter(x=>x!==null).join('\n');
+
+    const sections:any[]=[{heading:'Where the stock is',kind:'text',text:topLines.join('\n')}];
+    if(tightIsNotable&&tightLabel)sections.push({heading:'Tight printing',kind:'text',text:`⚠️ **${tightLabel}** · ${prettyClass(tightClass)} · ${fmt(tight.unit_count)} TCG units across ${fmt(tight.listing_count)} listings.`});
+    if(points>=2)sections.push({heading:'Supply trend',kind:'text',text:trendText});
+
+    const presentation={
+      version:7,
+      type:'card_family_supply',
+      title:`${n} — Market depth`,
+      summary:conclusion,
+      badges:[`${g} MARKET`,`${t(supply?.confidence||'LOW')} CONFIDENCE`],
+      metrics:[
+        {label:'TCGplayer',display:`${fmt(units)} units · ${fmt(listings)} listings`},
+        {label:'TCG split',display:`Direct ${fmt(direct)} · Non-Direct ${fmt(non)}`},
+        {label:mpComplete?'ManaPool NM/LP':'ManaPool observed',display:`${fmt(mpq)}${mpComplete?'':'+'} · ${mpCoverage}`},
+        {label:'Card Kingdom',display:ck?.available?`${fmt(ck.quantity)} NM/EX · ${t(ck.freshness_status||'').toLowerCase()}`:'unavailable'}
+      ],
+      sections,
+      footnote:`Canonical MTGJSON family · English NM/LP · ${supply?.coverage?.complete_sku_count||0}/${targets.length} TCG SKUs complete · TCG/MP cache 30m${points<2?` · ${trendText}`:''} · Direct is a TCGplayer subset.`,
+      actions:[]
+    };
+
+    return js({handled:true,route:'card_family_supply',response,presentation,data:{card_name:n,scope:'CARD_FAMILY_NM_LP',canonical_target_count:targets.length,market_supply:supply,concentration,trend,printing_rows:rows,sku_ids:skus}});
+  }catch(e){
+    return js({handled:true,route:'card_family_supply',response:`I resolved “${name}” as a stock question, but the family-supply analysis failed. Try again shortly.`,presentation:{version:7,type:'card_family_supply',title:`${name} — Market depth`,summary:'Family-supply analysis failed.',badges:['ERROR'],metrics:[],sections:[],footnote:'This should not fall through to a set/SKU clarification.',actions:[]},data:{reason:'family_supply_error',error:String((e as Error)?.message||e)}});
+  }
 });
