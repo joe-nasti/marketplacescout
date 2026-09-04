@@ -17,7 +17,9 @@ if(!/nonDirect=exact\.filter/.test(sync))throw new Error('non-Direct marketplace
 if(!/syncSupply/.test(identity)||!/market-supply-sync/.test(identity))throw new Error('named supply questions do not refresh market-wide supply');
 if(/term\.language\s*=/.test(sync))throw new Error('market supply must filter language by exact SKU, not display-label facet');
 for(const token of ["'Origin':'https://www.tcgplayer.com'","'Referer':'https://www.tcgplayer.com/'",'Mozilla/5.0'])if(!sync.includes(token))throw new Error(`missing TCGplayer site request header: ${token}`);
-if(!/supply\|inventory\|liquidity/.test(identity))throw new Error('supply refresh is not scoped to supply-like questions');
+if(!/stock\|supply\|inventory\|liquidity/.test(identity))throw new Error('stock must remain a first-class supply synonym');
+if(!/how\(\?:'s\| is\).*stock\|supply\|inventory\|liquidity/.test(identity))throw new Error('how is stock on <card> must resolve directly');
+if(!/i\.namedMarket&&.*stock\|supply\|inventory\|liquidity/.test(identity))throw new Error('stock intent must execute the market-supply branch');
 if(/global_supply_classification','Thin \/ fragmented Direct/i.test(migration))throw new Error('Direct classification leaked into global supply classification');
 for(const token of ['CARD_FAMILY_NM_LP','NEAR MINT','LIGHTLY PLAYED','unique_seller_count','exact_skus','family_scope'])if(!sync.includes(token))throw new Error(`missing NM/LP family supply token: ${token}`);
 for(const token of ['CACHE_MINUTES=30','market_supply_current','cache_hit','force_refresh','seller_keys','seller_count_quality','conservative_lower_bound'])if(!sync.includes(token))throw new Error(`missing family read-through cache token: ${token}`);
