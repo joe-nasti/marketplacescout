@@ -45,7 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           response_file="$(mktemp)"
-          status="$(curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"limit":2}' "$EVALUATOR_URL")"
+          status="$(curl --silent --show-error --max-time 300 --output "$response_file" --write-out '%{http_code}' --request POST --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" --header "Content-Type: application/json" --data '{"limit":4}' "$EVALUATOR_URL")"
           cat "$response_file"
           echo
           test "$status" -ge 200 -a "$status" -lt 300
