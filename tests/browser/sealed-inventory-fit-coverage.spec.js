@@ -11,8 +11,12 @@ test('sealed inventory-fit refresh uses resolved exact SKUs and complete product
   expect(membership).toContain('distinct on (user_id, sealed_uuid, sku_id)');
   expect(worker).toContain('sealed_inventory_fit_component_targets?select=');
   expect(worker).toContain('/v1/product/${encodeURIComponent(productId)}/listings');
+  expect(worker).toContain("Origin:'https://www.tcgplayer.com'");
+  expect(worker).toContain("Referer:'https://www.tcgplayer.com/'");
+  expect(worker).toContain("'User-Agent':'Mozilla/5.0");
   expect(worker).toContain("coverage:'COMPLETE'");
   expect(worker).toContain('direct_available:x.direct_available');
+  expect(worker).toContain('failureSamples:failures');
   expect(worker).not.toContain('directQuantitiesAtPrice');
 });
 
