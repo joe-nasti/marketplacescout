@@ -25,6 +25,7 @@ on:
       - "cloud-worker/refresh-enabled-sealed.mjs"
       - "cloud-worker/archive-sealed-price-current.mjs"
       - "cloud-worker/refresh-precon-direct.mjs"
+      - "cloud-worker/backfill-sealed-component-history.mjs"
       - "cloud-worker/refresh-precon-ev.mjs"
       - ".github/workflows/mtgjson-sync.yml"
 
@@ -82,12 +83,17 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       PRECON_DIRECT_MIN_MARKET: "1"
       PRECON_DIRECT_CONCURRENCY: "4"
+      SEALED_HISTORY_UUID: eabce89c-56d8-5ec9-9cc3-6f35ea93f95e
+      SEALED_HISTORY_CONCURRENCY: "3"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: "24" }
       - name: Require service role key
         run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Backfill targeted sealed component quarter history
+        continue-on-error: true
+        run: node cloud-worker/backfill-sealed-component-history.mjs
       - name: Refresh sealed and precon exact-SKU Direct observations
         run: node cloud-worker/refresh-precon-direct.mjs
 
