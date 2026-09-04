@@ -1,7 +1,7 @@
 name: Apply Delvin opportunity v3 surface
 on:
-  push:
-    branches: [feature/delvin-opportunity-v3-surface]
+  pull_request:
+    branches: [main]
     paths:
       - 'tools/apply-delvin-opportunity-v3-surface.mjs'
       - '.github/workflows/apply-delvin-opportunity-v3-surface.yml'
@@ -9,11 +9,13 @@ permissions:
   contents: write
 jobs:
   patch:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feature/delvin-opportunity-v3-surface
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -25,4 +27,4 @@ jobs:
           git add supabase/functions/ask-collectish-delvin-supply-present/index.ts
           git diff --cached --quiet && exit 0
           git commit -m "Wire demand and sourced pull odds into Delvin"
-          git push
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
