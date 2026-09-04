@@ -15,3 +15,10 @@ test('sealed inventory-fit refresh uses resolved exact SKUs and complete product
   expect(worker).toContain('direct_available:x.direct_available');
   expect(worker).not.toContain('directQuantitiesAtPrice');
 });
+
+test('Direct worker changes trigger an immediate production refresh',async()=>{
+  const workflow=await readFile('.github/workflows/mtgjson-sync.yml','utf8');
+  expect(workflow).toContain('refresh-sealed-direct-on-push:');
+  expect(workflow).toContain('Refresh sealed and precon exact-SKU Direct observations');
+  expect(workflow).toContain('node cloud-worker/refresh-precon-direct.mjs');
+});

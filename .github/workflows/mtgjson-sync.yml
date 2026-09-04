@@ -72,6 +72,25 @@ jobs:
       - name: Backtest verified native boosters
         run: python cloud-worker/mtgjson-native-booster-backtest.py
 
+  refresh-sealed-direct-on-push:
+    if: github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      SUPABASE_URL: https://bnsnlikjeogzdubgyvxk.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PRECON_DIRECT_MIN_MARKET: "1"
+      PRECON_DIRECT_CONCURRENCY: "4"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - name: Require service role key
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Refresh sealed and precon exact-SKU Direct observations
+        run: node cloud-worker/refresh-precon-direct.mjs
+
   sync:
     if: github.event_name != 'push'
     needs: validate
