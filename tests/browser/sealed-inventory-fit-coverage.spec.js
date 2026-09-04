@@ -16,7 +16,7 @@ test('sealed inventory-fit refresh uses resolved exact SKUs and complete product
   expect(worker).toContain('&limit=1000&offset=${offset}');
   expect(worker).toContain('all(`precon_card_ev_current?select=');
   expect(worker).toContain('_sealed_inventory_fit:true');
-  expect(worker).toContain("rpc/refresh_sealed_inventory_fit_direct_observations");
+  expect(worker).not.toContain("rpc/refresh_sealed_inventory_fit_direct_observations");
   expect(worker).toContain('/v1/product/${encodeURIComponent(productId)}/listings');
   expect(worker).toContain("Origin:'https://www.tcgplayer.com'");
   expect(worker).toContain("Referer:'https://www.tcgplayer.com/'");
@@ -48,6 +48,8 @@ test('Direct worker changes trigger an immediate production refresh',async()=>{
   expect(workflow).toContain('Refresh sealed and precon exact-SKU Direct observations');
   expect(workflow).toContain('node cloud-worker/refresh-precon-direct.mjs');
   expect(workflow).toMatch(/Refresh sealed and precon exact-SKU Direct observations[\s\S]*?node cloud-worker\/refresh-precon-direct\.mjs[\s\S]*?Recalculate sealed and precon EV with fresh Direct data[\s\S]*?node cloud-worker\/refresh-precon-ev\.mjs/);
+  const rebuild=await readFile('cloud-worker/refresh-precon-ev.mjs','utf8');
+  expect(rebuild).toMatch(/refresh_precon_ev_deck[\s\S]*refresh_sealed_inventory_fit_direct_observations/);
   expect(workflow).toContain('node cloud-worker/backfill-sealed-component-history.mjs');
   expect(workflow).toContain('PRECON_RELEASE_FROM: "2024-01-01"');
   expect(workflow).toMatch(/Backfill targeted sealed component quarter history[\s\S]*?continue-on-error: true/);
