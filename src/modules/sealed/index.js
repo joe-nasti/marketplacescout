@@ -19,13 +19,15 @@ export async function install(){
     import('./out-optimizer.js'),
     import('./product-family.js'),
     import('./source-compare.js'),
-    import('./inventory-fit.js')
+    import('./inventory-fit.js'),
+    import('./product-history.js')
   ]);
-  const urlState=modules[5],renderer=modules[7],outOptimizer=modules[8],family=modules[9],sourceCompare=modules[10],inventoryFit=modules[11];
+  const urlState=modules[5],renderer=modules[7],outOptimizer=modules[8],family=modules[9],sourceCompare=modules[10],inventoryFit=modules[11],productHistory=modules[12];
   urlState.installSealedUrlState();
   outOptimizer.installOutOptimizer();
   family.install();
   sourceCompare.installSourceCompare();
   inventoryFit.installInventoryFit();
+  productHistory.installProductHistory();
   await renderer.install();
 }
