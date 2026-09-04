@@ -15,6 +15,7 @@ test('sealed TCGCSV backfill is selective and storage bounded',async()=>{
   expect(worker).toContain("CARD_SCOPE_VERSION='play-booster-sets-v2'");
   expect(worker).toContain('x.detail?.scopeVersion===CARD_SCOPE_VERSION');
   expect(worker).toContain("rpc/refresh_modeled_booster_ev_calibration");
+  expect(worker).toContain("rpc/refresh_modeled_play_booster_similarity_forecasts");
   expect(worker).not.toContain('high_price:num');
 });
 

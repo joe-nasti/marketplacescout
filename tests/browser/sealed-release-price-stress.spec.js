@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 test('new randomized sealed products expose honest release-price stress',async()=>{
   const ui=await readFile('src/modules/sealed/renderer.js','utf8');
   for(const label of ['Release-price stress','20% compression','35% compression','50% compression','max buy for 15% ROI'])expect(ui).toContain(label);
-  for(const label of ['Calibrated release trajectory','d calibrated EV','historical range','TCGCSV Market baskets only for historical shape'])expect(ui).toContain(label);
+  for(const label of ['Calibrated release trajectory','d calibrated EV','historical range','TCGCSV Market baskets supply historical shape only'])expect(ui).toContain(label);
   expect(ui).toContain("calibration_status==='READY'");
   expect(ui).toContain("modeled_booster_ev_calibration_current?select=");
   expect(ui).toContain('calibrationFactor');

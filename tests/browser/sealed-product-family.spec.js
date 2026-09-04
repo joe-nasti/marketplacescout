@@ -81,7 +81,7 @@ test('sealed component cards route internally and composite EV includes child pa
   expect(renderer).not.toContain('`,u.scry)');
   expect(mobile).toContain('cx-sealed-mobile-card-link');
   expect(renderer).toContain('sealed_product_child_components?select=child_sealed_uuid,child_product_name,quantity,component_type');
-  expect(renderer).toContain('sealed.detail:v10:');
+  expect(renderer).toContain('sealed.detail:v11:');
   expect(renderer).toContain("rest('rpc/get_sealed_family_economics_fast'");
   expect(renderer).toContain("sealedExitWins(f)?'Best Exit EV':'Practical EV'");
   expect(renderer).toContain("metric('TCG Low EV'");
