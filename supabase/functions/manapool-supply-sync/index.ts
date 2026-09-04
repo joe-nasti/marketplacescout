@@ -77,8 +77,10 @@ Deno.serve(async req=>{
   const productId=txt(body?.product_id||body?.productId),skuId=txt(body?.sku_id||body?.skuId);
   if(!/^\d+$/.test(productId)||!/^\d+$/.test(skuId))return js({error:'numeric product_id and sku_id required'},400);
 
-  const cat=(await rest(`scout_card_catalog?product_id=eq.${encodeURIComponent(productId)}&sku_id=eq.${encodeURIComponent(skuId)}&select=product_id,sku_id,card_name,set_code,collector_number,mtgjson_uuid,scryfall_id,condition,language,printing&limit=1`))?.[0];
-  if(!cat?.mtgjson_uuid)return js({error:'Exact Collectish SKU identity missing mtgjson_uuid'},404);
+  const exact=(await rest(`scout_card_catalog?product_id=eq.${encodeURIComponent(productId)}&sku_id=eq.${encodeURIComponent(skuId)}&select=product_id,sku_id,card_name,set_code,collector_number,mtgjson_uuid,scryfall_id,condition,language,printing&limit=1`))?.[0];
+  const sibling=!exact?.mtgjson_uuid?(await rest(`scout_card_catalog?product_id=eq.${encodeURIComponent(productId)}&mtgjson_uuid=not.is.null&select=product_id,sku_id,card_name,set_code,collector_number,mtgjson_uuid,scryfall_id,condition,language,printing&order=condition.asc&limit=1`).catch(()=>[]))?.[0]:null;
+  const cat=exact?.mtgjson_uuid?{...exact,identity_resolution:'exact_sku'}:sibling?.mtgjson_uuid?{...sibling,sku_id:skuId,condition:exact?.condition||null,identity_resolution:'same_product_printing_sibling'}:null;
+  if(!cat?.mtgjson_uuid)return js({error:'Exact Collectish SKU and same-product sibling are missing mtgjson_uuid',identity_gap:'MISSING_PRINTING_IDENTITY',product_id:productId,sku_id:skuId},404);
   const observedAt=new Date().toISOString();
   const run=(await rest('vendor_depth_runs',{method:'POST',prefer:'return=representation',body:[{source:'manapool',endpoint:`${BASE}/products/singles`,observed_at:observedAt,started_at:observedAt,detail:{target_strategy:'exact_ask_sku_on_demand',product_id:productId,sku_id:skuId,mtgjson_uuid:cat.mtgjson_uuid}}]}))?.[0];
 
@@ -105,7 +107,7 @@ Deno.serve(async req=>{
     await rest('vendor_depth_current?on_conflict=source,observation_key',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:rows});
 
     if(run?.id)await rest(`vendor_depth_runs?id=eq.${encodeURIComponent(run.id)}`,{method:'PATCH',prefer:'return=minimal',body:{status:'complete',completed_at:new Date().toISOString(),row_count:rows.length,detail:{target_strategy:'exact_ask_sku_on_demand',product_id:productId,sku_id:skuId,mtgjson_uuid:cat.mtgjson_uuid,threshold_probe:Boolean(depth),buyer_credentials_available:Boolean(EMAIL&&TOKEN)}}});
-    return js({ok:true,identity:{product_id:productId,sku_id:skuId,mtgjson_uuid:cat.mtgjson_uuid,finish,condition:variant.condition_id},retail_supply:{quantity:available,low_price:price,listing_count:null,count_quality:'aggregate'},threshold_supply:depth&&threshold?{threshold_price:Number(threshold),quantity:depth.quantity,listing_count:depth.listing_count,count_quality:depth.count_quality}:null,buyer_credentials_available:Boolean(EMAIL&&TOKEN),observed_at:observedAt});
+    return js({ok:true,identity:{product_id:productId,sku_id:skuId,mtgjson_uuid:cat.mtgjson_uuid,finish,condition:variant.condition_id,resolution:cat.identity_resolution},retail_supply:{quantity:available,low_price:price,listing_count:null,count_quality:'aggregate'},threshold_supply:depth&&threshold?{threshold_price:Number(threshold),quantity:depth.quantity,listing_count:depth.listing_count,count_quality:depth.count_quality}:null,buyer_credentials_available:Boolean(EMAIL&&TOKEN),observed_at:observedAt});
   }catch(error:any){
     if(run?.id)await rest(`vendor_depth_runs?id=eq.${encodeURIComponent(run.id)}`,{method:'PATCH',prefer:'return=minimal',body:{status:'failed',completed_at:new Date().toISOString(),detail:{target_strategy:'exact_ask_sku_on_demand',product_id:productId,sku_id:skuId,error:String(error?.message||error)}}}).catch(()=>null);
     return js({error:String(error?.message||error),product_id:productId,sku_id:skuId},502);
