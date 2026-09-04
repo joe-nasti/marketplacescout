@@ -36,9 +36,9 @@ with requested as (
     min(set_code) set_code,
     min(collector_number) collector_number,
     min(rarity) rarity,
-    max(finishes) finishes,
-    max(frame_effects) frame_effects,
-    max(promo_types) promo_types
+    min(finishes::text)::jsonb finishes,
+    min(frame_effects::text)::jsonb frame_effects,
+    min(promo_types::text)::jsonb promo_types
   from targets
   group by product_id,finish_scope
 ), rows as (
