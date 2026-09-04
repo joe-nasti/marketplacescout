@@ -24,5 +24,6 @@ for(const u of users){
     }catch(e){failed++;console.error(`precon EV failed ${d.name}:`,e.message)}
   }
 }
+await rpc('refresh_sealed_inventory_fit_direct_observations',{});
 console.log(JSON.stringify({users:users.length,decks:decks.length,refreshed,qualityRefreshed,failed,releaseFrom:RELEASE_FROM,at:new Date().toISOString()}));
 if(failed)process.exitCode=1;
