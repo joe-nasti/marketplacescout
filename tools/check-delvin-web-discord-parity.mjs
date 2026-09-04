@@ -3,7 +3,10 @@ const read=p=>fs.readFileSync(p,'utf8');
 const proxy=read('src/modules/ask/endpoint-proxy.js');
 const modules=read('src/modules/index.js');
 const starters=read('src/modules/ask/signals-starters.js');
+const deepHistory=read('src/modules/ask/deep-history-backfill.js');
 const discord=read('cloud-worker/discord-shared-delvin-route.mjs');
+const discordEntry=read('cloud-worker/discord-ask-entry-v30.mjs');
+const autocomplete=read('cloud-worker/discord-delvin-autocomplete.mjs');
 const webApi=read('supabase/functions/ask-collectish-api-v2/index.ts');
 const migration=read('supabase/migrations/20260904170000_shared_delvin_capability_manifest_v1.sql');
 
@@ -15,4 +18,10 @@ if(!discord.includes('ask-collectish-delvin-present-v2'))throw new Error('Discor
 if(!webApi.includes('ask-collectish-delvin-present-v2'))throw new Error('web persisted facade does not use shared presentation v2');
 for(const token of ['ask_collectish_messages','conversation_id','shared_delvin:true','persisted:true'])if(!webApi.includes(token))throw new Error(`web deterministic persistence missing ${token}`);
 for(const token of ['get_delvin_capability_manifest_v1','capability_kind','clients','modifier_schema','collectible_cohort_thesis','printing_family','card_investigation'])if(!migration.includes(token))throw new Error(`manifest migration missing ${token}`);
+for(const old of ['discord-fast-query-cache.mjs','discord-market-intel-fast.mjs','discord-card-investigator.mjs','discord-collectible-cohort-thesis.mjs','discord-family-set-intel.mjs','discord-signal-history.mjs'])if(discordEntry.includes(old))throw new Error(`Discord entry still owns duplicate deterministic route: ${old}`);
+if(!discordEntry.includes('discord-delvin-autocomplete.mjs'))throw new Error('Discord autocomplete is not isolated from deterministic routing');
+if(!autocomplete.includes('list_delvin_query_starters_v1'))throw new Error('Discord autocomplete is not manifest-driven');
+if(deepHistory.includes('resolve_delvin_shared_query_v1'))throw new Error('app deep-history sidecar still reroutes the question independently');
+if(!deepHistory.includes('collectish:ask-response')||!proxy.includes('collectish:ask-response'))throw new Error('async enrichment does not consume shared Ask response metadata');
+if(!webApi.includes('async_enrichment')||!webApi.includes('collectible_history'))throw new Error('shared web facade does not expose async enrichment hints');
 console.log('Delvin web/Discord parity guard passed');
