@@ -6,6 +6,18 @@ let loading=null;
 let signalFastOpenLoading=null;
 let deepLinkSeq=0;
 
+function scoutHostNeedsHydration(){
+  const host=document.getElementById('cxScout');
+  return Boolean(host&&host.childElementCount===0);
+}
+async function restoreScoutSurface(){
+  if(!scoutHostNeedsHydration())return false;
+  const renderer=window.CollectishScoutRenderer;
+  if(!renderer?.load)return false;
+  await renderer.load();
+  return true;
+}
+
 function deepLinkState(){
   const p=new URL(location.href).searchParams;
   return {
@@ -33,8 +45,16 @@ async function openColdDeepLink(){
 }
 
 export async function startScout(){
-  if(started){queueMicrotask(()=>void openColdDeepLink().catch(()=>{}));return;}
-  if(loading)return loading;
+  if(started){
+    await restoreScoutSurface().catch(error=>console.warn('Scout surface restore failed',error));
+    queueMicrotask(()=>void openColdDeepLink().catch(()=>{}));
+    return;
+  }
+  if(loading){
+    await loading;
+    await restoreScoutSurface().catch(error=>console.warn('Scout surface restore failed',error));
+    return;
+  }
   const host=document.getElementById('cxScout');
   if(!host)return;
   loading=(async()=>{
@@ -68,6 +88,13 @@ function onSignalOpen(event){
   });
 }
 document.addEventListener('collectish:open-scout-card',onSignalOpen,true);
+document.addEventListener('collectish:shell-rendered',event=>{
+  if(event.detail?.screen==='app')queueMicrotask(()=>void startScout().catch(()=>{}));
+});
+window.addEventListener('pageshow',()=>queueMicrotask(()=>void startScout().catch(()=>{})));
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden)queueMicrotask(()=>void startScout().catch(()=>{}));
+});
 
 registerComponent('scout-bootstrap',{
   mount:()=>startScout().catch(()=>{}),
