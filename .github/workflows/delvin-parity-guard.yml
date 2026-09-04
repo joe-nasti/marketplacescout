@@ -1,0 +1,35 @@
+name: Delvin parity guard
+
+on:
+  push:
+    paths:
+      - 'src/modules/ask/**'
+      - 'src/modules/index.js'
+      - 'cloud-worker/discord-shared-delvin-route.mjs'
+      - 'supabase/functions/ask-collectish-api-v2/**'
+      - 'supabase/functions/ask-collectish-delvin-route/**'
+      - 'supabase/functions/ask-collectish-delvin-present/**'
+      - 'supabase/migrations/*delvin*'
+      - 'tools/check-delvin-web-discord-parity.mjs'
+      - '.github/workflows/delvin-parity-guard.yml'
+  pull_request:
+    paths:
+      - 'src/modules/ask/**'
+      - 'src/modules/index.js'
+      - 'cloud-worker/discord-shared-delvin-route.mjs'
+      - 'supabase/functions/ask-collectish-api-v2/**'
+      - 'supabase/functions/ask-collectish-delvin-route/**'
+      - 'supabase/functions/ask-collectish-delvin-present/**'
+      - 'supabase/migrations/*delvin*'
+      - 'tools/check-delvin-web-discord-parity.mjs'
+      - '.github/workflows/delvin-parity-guard.yml'
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/check-delvin-web-discord-parity.mjs
