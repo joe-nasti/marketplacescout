@@ -31,11 +31,14 @@ test('shared router owns history and seller surfaces with finish-aware moves',()
 
 test('shared router owns broad market radar without hijacking named sources',()=>{
   const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
-  expect(router).toContain("route:'market_radar'");
-  expect(router).toContain("type:'market_radar'");
-  expect(router).toContain('ask_delvin_market_radar_v1');
-  expect(router).toContain('if(namedSource(q))return false');
-  expect(router).toMatch(/routeSource\(q\).*routeMarketRadar\(q\).*priceHistoryIntent/s);
+  const fallback=read('supabase/functions/ask-collectish-delvin-route/index.ts');
+  const presenter=read('supabase/functions/ask-collectish-delvin-present/index.ts');
+  expect(router).toContain("route:'named_source_snapshot'");
+  expect(router).toMatch(/routeSource\(q\).*priceHistoryIntent/s);
+  expect(fallback).toContain("route:'market_radar'");
+  expect(fallback).toContain("cache('market_radar')");
+  expect(presenter).toContain("type:'market_radar'");
+  expect(presenter).toContain('radarPresentation');
 });
 
 test('shared router answers sealed Direct crack rankings without clarification',()=>{
