@@ -33,6 +33,37 @@ const groupMeta=name=>GROUPS[name]||GROUPS.scout;
 let started=false;
 let beforeReadyHook=null;
 let stopUrlListener=null;
+let surfaceRecoveryTimer=0;
+
+function scoutSurfaceIsBlank(){
+  const host=document.getElementById('cxScout');
+  return Boolean(store.get().runtime?.screen==='app'&&store.get().runtime?.page==='scout'&&host&&host.childElementCount===0);
+}
+async function recoverBlankScoutSurface(){
+  if(!scoutSurfaceIsBlank())return false;
+  try{
+    const bootstrap=window.CollectishScoutBootstrap||await import('../modules/scout/bootstrap.js').then(()=>window.CollectishScoutBootstrap);
+    await bootstrap?.start?.();
+  }catch(error){console.warn('Scout blank-surface recovery failed',error)}
+  if(!scoutSurfaceIsBlank())return true;
+  const host=document.getElementById('cxScout');
+  const build=document.querySelector('meta[name="collectish-build"]')?.content||'unknown';
+  const key=`collectishBlankScoutReload:${build}`;
+  let attempted=false;
+  try{attempted=sessionStorage.getItem(key)==='1';if(!attempted)sessionStorage.setItem(key,'1')}catch{}
+  if(!attempted){
+    const next=new URL(location.href);
+    next.searchParams.set('_surface_recover',Date.now().toString());
+    location.replace(next.toString());
+    return true;
+  }
+  if(host)host.innerHTML='<div class="cx-page-head"><div><h2>Scout</h2></div></div><div class="cx-empty">Scout did not finish restoring. Reload this page to retry.</div>';
+  return false;
+}
+function scheduleSurfaceRecovery(delay=1200){
+  clearTimeout(surfaceRecoveryTimer);
+  surfaceRecoveryTimer=setTimeout(()=>void recoverBlankScoutSurface(),delay);
+}
 
 export function startupView(message='Resuming your session…'){lifecycle.unmountApp();store.update('runtime',{screen:'startup'});document.body.innerHTML=`<main class="cx-auth" data-collectish-startup><section class="cx-auth-card"><div class="cx-brand">${brand()}</div><div class="cx-version">web ${WEB_VERSION}</div><h1>Collectish</h1><p>${esc(message)}</p><div class="cx-auth-msg">Loading…</div></section></main>`;document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'startup'}}))}
 export function loginView(message=''){lifecycle.unmountApp();store.batch(()=>{store.update('session',{user:null});store.update('runtime',{screen:'login'})});document.body.innerHTML=`<main class="cx-auth"><section class="cx-auth-card"><div class="cx-brand">${brand()}</div><div class="cx-version">web ${WEB_VERSION}</div><h1>Sign in</h1><p>Find opportunities, understand market signals, and manage selling from one workspace.</p><input id="modernEmail" type="email" autocomplete="email" placeholder="Email"><input id="modernPassword" type="password" autocomplete="current-password" placeholder="Password"><button id="modernSignIn" class="cx-primary">Sign in</button><div id="modernMsg" class="cx-auth-msg">${esc(message)}</div></section></main>`;document.getElementById('modernSignIn')?.addEventListener('click',login);document.getElementById('modernPassword')?.addEventListener('keydown',e=>{if(e.key==='Enter')login()});document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'login'}}))}
@@ -53,7 +84,7 @@ function scrollPageToOrigin({behavior='auto'}={}){window.scrollTo({top:mobileUti
 export function switchPage(name,{scroll=true,history=true,replace=false}={}){if(!ROUTES[name])name='scout';const targetId=`cx${name[0].toUpperCase()+name.slice(1)}`;document.querySelectorAll('.cx-page').forEach(el=>el.classList.toggle('active',el.id===targetId));syncNavigation(name);lifecycle.setPage(name);if(history)writeUrlState({tab:name},{replace});if(name==='admin'&&!document.getElementById('cxAdminConsole'))adminView();if(scroll)scrollPageToOrigin({behavior:'smooth'});document.dispatchEvent(new CustomEvent('collectish:page-change',{detail:{page:name,group:routeMeta(name).group}}))}
 export function switchGroup(group,{scroll=true}={}){const meta=GROUPS[group];if(!meta)return;switchPage(groupLastRoute[group]||meta.home,{scroll})}
 
-export function renderShell(){document.body.innerHTML=`<div id="cxNetworkProgress" class="cx-network-progress" aria-hidden="true"><div class="cx-network-progress-runner"></div></div><main id="app" class="collectish-modern-app"><section id="collectishUxShell" class="collectish-product-shell"><aside class="cx-side"><div class="cx-brand">${brand()}</div><nav class="cx-nav" aria-label="Collectish workspace">${PRIMARY_GROUPS.map(desktopGroup).join('')}${desktopAsk()}</nav><div class="cx-side-spacer"></div><div class="cx-side-tools"><button data-cx-page="admin">System</button></div><div id="cxDesktopUtilities" class="cx-desktop-utilities" aria-label="Display controls"></div><div class="cx-side-meta">web ${WEB_VERSION}<br>Smarter data. Better decisions.</div></aside><div id="cxMobileUtilities" class="cx-mobile-utilities" aria-label="App utilities"><div class="cx-top-version">web ${WEB_VERSION}</div></div><div class="cx-main"><div id="cxRouteContext" class="cx-route-context" data-group="scout">${contextGroups()}</div><section id="cxScout" class="cx-page active"></section><section id="cxSignals" class="cx-page"></section><section id="cxSealed" class="cx-page"></section><section id="cxSeller" class="cx-page"></section><section id="cxSyp" class="cx-page"></section><section id="cxInventory" class="cx-page"></section><section id="cxAdmin" class="cx-page"></section></div><nav class="cx-mobile-nav" aria-label="Primary navigation">${PRIMARY_GROUPS.map(mobileGroup).join('')}${mobileAsk()}<button type="button" data-cx-group-nav="system" class="cx-mobile-more"><span>More</span></button></nav></section></main>`;store.update('runtime',{screen:'app',page:'scout',productGroup:'scout'});document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'app'}}))}
+export function renderShell(){document.body.innerHTML=`<div id="cxNetworkProgress" class="cx-network-progress" aria-hidden="true"><div class="cx-network-progress-runner"></div></div><main id="app" class="collectish-modern-app"><section id="collectishUxShell" class="collectish-product-shell"><aside class="cx-side"><div class="cx-brand">${brand()}</div><nav class="cx-nav" aria-label="Collectish workspace">${PRIMARY_GROUPS.map(desktopGroup).join('')}${desktopAsk()}</nav><div class="cx-side-spacer"></div><div class="cx-side-tools"><button data-cx-page="admin">System</button></div><div id="cxDesktopUtilities" class="cx-desktop-utilities" aria-label="Display controls"></div><div class="cx-side-meta">web ${WEB_VERSION}<br>Smarter data. Better decisions.</div></aside><div id="cxMobileUtilities" class="cx-mobile-utilities" aria-label="App utilities"><div class="cx-top-version">web ${WEB_VERSION}</div></div><div class="cx-main"><div id="cxRouteContext" class="cx-route-context" data-group="scout">${contextGroups()}</div><section id="cxScout" class="cx-page active"></section><section id="cxSignals" class="cx-page"></section><section id="cxSealed" class="cx-page"></section><section id="cxSeller" class="cx-page"></section><section id="cxSyp" class="cx-page"></section><section id="cxInventory" class="cx-page"></section><section id="cxAdmin" class="cx-page"></section></div><nav class="cx-mobile-nav" aria-label="Primary navigation">${PRIMARY_GROUPS.map(mobileGroup).join('')}${mobileAsk()}<button type="button" data-cx-group-nav="system" class="cx-mobile-more"><span>More</span></button></nav></section></main>`;store.update('runtime',{screen:'app',page:'scout',productGroup:'scout'});document.dispatchEvent(new CustomEvent('collectish:shell-rendered',{detail:{screen:'app'}}));scheduleSurfaceRecovery()}
 function pageClickHandler(event){const ask=event.target.closest?.('[data-cx-ask-nav]');if(ask){window.__CollectishOpenAskRequested=true;document.dispatchEvent(new CustomEvent('collectish:open-ask'));return}const page=event.target.closest?.('[data-cx-page]');if(page){switchPage(page.dataset.cxPage);return}const group=event.target.closest?.('[data-cx-group-nav]');if(group)switchGroup(group.dataset.cxGroupNav)}
 export async function boot(){
   const saved=readSession();
@@ -81,5 +112,5 @@ export async function boot(){
   document.dispatchEvent(new CustomEvent('collectish:session-degraded'));
   return saved;
 }
-export function startShell({beforeReady}={}){if(typeof beforeReady==='function')beforeReadyHook=beforeReady;if(started)return;started=true;document.addEventListener('click',pageClickHandler,true);document.addEventListener('pointerover',prefetchIntent,true);document.addEventListener('focusin',prefetchIntent,true);document.addEventListener('pointerdown',prefetchIntent,true);document.addEventListener('collectish:auth-invalid',()=>loginView('Your session was rejected by the server. Please sign in again.'));stopUrlListener=onUrlStateChange(state=>{if(store.get().runtime?.screen==='app')switchPage(ROUTES[state.tab]?state.tab:'scout',{scroll:false,history:false})});if(readSession())startupView();else loginView();void boot().catch(error=>{console.error('Collectish boot failed',error);store.update('runtime',{screen:'error',bootError:String(error?.message||error)});loginView('Collectish could not resume your session. Please sign in again.')});window.CollectishShell={boot,switchPage,switchGroup,adminView,loginView,startupView,version:WEB_VERSION,session:readSession,routes:ROUTES,groups:GROUPS}}
+export function startShell({beforeReady}={}){if(typeof beforeReady==='function')beforeReadyHook=beforeReady;if(started)return;started=true;document.addEventListener('click',pageClickHandler,true);document.addEventListener('pointerover',prefetchIntent,true);document.addEventListener('focusin',prefetchIntent,true);document.addEventListener('pointerdown',prefetchIntent,true);document.addEventListener('collectish:auth-invalid',()=>loginView('Your session was rejected by the server. Please sign in again.'));stopUrlListener=onUrlStateChange(state=>{if(store.get().runtime?.screen==='app')switchPage(ROUTES[state.tab]?state.tab:'scout',{scroll:false,history:false})});window.addEventListener('pageshow',()=>scheduleSurfaceRecovery(400));document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleSurfaceRecovery(400)});if(readSession())startupView();else loginView();void boot().catch(error=>{console.error('Collectish boot failed',error);store.update('runtime',{screen:'error',bootError:String(error?.message||error)});loginView('Collectish could not resume your session. Please sign in again.')});window.CollectishShell={boot,switchPage,switchGroup,adminView,loginView,startupView,recoverBlankScoutSurface,version:WEB_VERSION,session:readSession,routes:ROUTES,groups:GROUPS}}
 export { collectishConfig };
