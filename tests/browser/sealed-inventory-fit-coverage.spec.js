@@ -15,6 +15,8 @@ test('sealed inventory-fit refresh uses resolved exact SKUs and complete product
   expect(worker).toContain('offset+=1000');
   expect(worker).toContain('&limit=1000&offset=${offset}');
   expect(worker).toContain('all(`precon_card_ev_current?select=');
+  expect(worker).toContain('_sealed_inventory_fit:true');
+  expect(worker).toContain("rpc/refresh_sealed_inventory_fit_direct_observations");
   expect(worker).toContain('/v1/product/${encodeURIComponent(productId)}/listings');
   expect(worker).toContain("Origin:'https://www.tcgplayer.com'");
   expect(worker).toContain("Referer:'https://www.tcgplayer.com/'");
@@ -23,6 +25,15 @@ test('sealed inventory-fit refresh uses resolved exact SKUs and complete product
   expect(worker).toContain('direct_available:x.direct_available');
   expect(worker).toContain('failureSamples:failures');
   expect(worker).not.toContain('directQuantitiesAtPrice');
+});
+
+test('complete Direct scans hydrate the inventory-fit component cache',async()=>{
+  const sql=await readFile('supabase/migrations/20260904200411_refresh_sealed_inventory_fit_direct_observations.sql','utf8');
+  expect(sql).toContain("r.raw_json->>'coverage' = 'COMPLETE'");
+  expect(sql).toContain('direct_available_current = l.direct_available');
+  expect(sql).toContain("'direct_observed_zero'");
+  expect(sql).toContain('security invoker');
+  expect(sql).toContain('grant execute on function public.refresh_sealed_inventory_fit_direct_observations() to service_role');
 });
 
 test('Direct worker changes trigger an immediate production refresh',async()=>{
