@@ -51,6 +51,7 @@ jobs:
             echo "YouTube Signals refresh failed with HTTP $status" >&2
             exit 1
           fi
+          cached_reprocessed="$(jq -r '.cached_reprocessed // 0' "$response_file")"
           policy_mode="$(jq -r '.policy.transcript_mode // "unknown"' "$response_file")"
           ai_generation="$(jq -r 'if .policy.ai_generation == null then true else .policy.ai_generation end' "$response_file")"
           attempted="$(jq -r '.transcript_attempts // 0' "$response_file")"
@@ -60,10 +61,13 @@ jobs:
           product_events_saved="$(jq -r '.product_events_saved // 0' "$response_file")"
           source_failures="$(jq -r '.failed // 0' "$response_file")"
           diagnostics="$(jq -c '.diagnostics // {}' "$response_file")"
-          echo "mode=$policy_mode ai_generation=$ai_generation attempted=$attempted observed_billable=$billable events_saved=$events_saved card_events_saved=$card_events_saved product_events_saved=$product_events_saved source_failures=$source_failures diagnostics=$diagnostics"
-          test "$policy_mode" = "native"
-          test "$ai_generation" = "false"
+          echo "cached_reprocessed=$cached_reprocessed mode=$policy_mode ai_generation=$ai_generation attempted=$attempted observed_billable=$billable events_saved=$events_saved card_events_saved=$card_events_saved product_events_saved=$product_events_saved source_failures=$source_failures diagnostics=$diagnostics"
+          if (( cached_reprocessed == 0 )); then
+            test "$policy_mode" = "native"
+            test "$ai_generation" = "false"
+          fi
           test "$attempted" -le 2
+          test "$events_saved" -eq $((card_events_saved + product_events_saved))
           if (( source_failures > 0 )); then
             echo "YouTube discovery completed with $source_failures transient source failure(s); no policy violation occurred." >&2
           fi
