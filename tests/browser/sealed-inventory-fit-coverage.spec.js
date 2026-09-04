@@ -29,11 +29,17 @@ test('sealed inventory-fit refresh uses resolved exact SKUs and complete product
 
 test('complete Direct scans hydrate the inventory-fit component cache',async()=>{
   const sql=await readFile('supabase/migrations/20260904200411_refresh_sealed_inventory_fit_direct_observations.sql','utf8');
+  const bounded=await readFile('supabase/migrations/20260904203400_bound_sealed_direct_observation_refresh.sql','utf8');
+  const timeout=await readFile('supabase/migrations/20260904203800_configure_sealed_direct_refresh_timeout.sql','utf8');
   expect(sql).toContain("r.raw_json->>'coverage' = 'COMPLETE'");
   expect(sql).toContain('direct_available_current = l.direct_available');
   expect(sql).toContain("'direct_observed_zero'");
   expect(sql).toContain('security invoker');
   expect(sql).toContain('grant execute on function public.refresh_sealed_inventory_fit_direct_observations() to service_role');
+  expect(bounded).toContain("where set_slug = 'sealed-precon-direct-refresh'");
+  expect(bounded).toContain('r.scan_id = s.scan_id');
+  expect(bounded).toContain('c.direct_observed_at is distinct from l.captured_at');
+  expect(timeout).toContain("set statement_timeout = '60s'");
 });
 
 test('Direct worker changes trigger an immediate production refresh',async()=>{
