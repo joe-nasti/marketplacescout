@@ -85,6 +85,7 @@ async function fetchSkusCoalesced(productId: string) {
 }
 async function anchorForProduct(productId: string) {
   const catalog = await rest(`scout_card_catalog?product_id=eq.${encodeURIComponent(productId)}&select=mtgjson_uuid,product_id,scryfall_id,card_name,set_code,collector_number,release_date&limit=1`).catch(() => []); if (Array.isArray(catalog) && catalog[0]?.mtgjson_uuid) return catalog[0];
+  const direct = await rest(`mtgjson_cards?tcgplayer_product_id=eq.${encodeURIComponent(productId)}&select=uuid,tcgplayer_product_id,scryfall_id,name,set_code,collector_number,release_date&limit=1`).catch(() => []); const d = Array.isArray(direct) ? direct[0] : null; if (d?.uuid) return { mtgjson_uuid: d.uuid, product_id: productId, scryfall_id: d.scryfall_id, card_name: d.name, set_code: d.set_code, collector_number: d.collector_number, release_date: d.release_date };
   const skus = await rest(`mtgjson_tcgplayer_skus?product_id=eq.${encodeURIComponent(productId)}&select=uuid,product_id&limit=1`).catch(() => []); const uuid = Array.isArray(skus) ? skus[0]?.uuid : null; if (!uuid) return null;
   const cards = await rest(`mtgjson_cards?uuid=eq.${encodeURIComponent(uuid)}&select=uuid,scryfall_id,name,set_code,collector_number,release_date&limit=1`).catch(() => []); const c = Array.isArray(cards) ? cards[0] : null; if (!c) return null;
   return { mtgjson_uuid: c.uuid, product_id: productId, scryfall_id: c.scryfall_id, card_name: c.name, set_code: c.set_code, collector_number: c.collector_number, release_date: c.release_date };

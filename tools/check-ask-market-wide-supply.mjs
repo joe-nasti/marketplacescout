@@ -40,6 +40,8 @@ for(const token of ['ask_collectish_family_supply_concentration_v1','top1_supply
 for(const token of ['ask_collectish_family_supply_trend_v1','SINGLE_COMPLETE_POINT','TIGHTENING','LOOSENING','daily_points'])if(!history.includes(token))throw new Error(`missing history token: ${token}`);
 if(!/Missing days are not filled or carried forward/.test(history))throw new Error('family history must not interpolate missing days');
 for(const token of ['ask_collectish_supply_family_skus_v1','market-supply-sync','canonical_target_count','family_resolved_market_sync_failed','partial','supply ladder','printingMarketPrice','compactSafe','ladderSections','ask_collectish_family_printing_metadata_v1','rarityTag','opportunityRows','scarcity','premium','gap','WORTH_INVESTIGATING','SCARCE_ALREADY_PRICED','Buy-side watch','Research flag only','R/M = printed rarity','★ = foil','Open all printings in Collectish Scout','oracle=','marketDepth=1'])if(!presenter.includes(token))throw new Error(`missing deterministic Discord supply/opportunity token: ${token}`);
+for(const token of ['SUPPLY_SCOPE_REQUIRED','maximum_automatic_printing_identities:10','TOP_5_PREMIUM_PRINTINGS_NM_LP','premiumCohort','not total family supply','No live marketplace stock was collected'])if(!presenter.includes(token))throw new Error(`missing large-family scope guard token: ${token}`);
+for(const token of ['SUPPLY_SCOPE_REQUIRED','identityCount>10','PRINTING_COHORT_NM_LP','BOUNDED_PRINTING_COHORT','must not be described as total card-family or market-wide supply'])if(!sync.includes(token))throw new Error(`missing collector scope enforcement token: ${token}`);
 if(/kind:'ranked_rows'/.test(presenter))throw new Error('primary Discord supply embed must stay compact instead of rendering ranked-row UI');
 if(/Other variants/.test(presenter))throw new Error('supply ladder must not hide measured variants behind an Other bucket');
 if(/Unexpected supply break/.test(presenter)||/findUnexpectedBreak/.test(presenter))throw new Error('collector-number-only anomaly language must not return');
@@ -53,6 +55,7 @@ if(!/canonical_family_not_found/.test(presenter)||!/handled:true/.test(presenter
 for(const token of ['scryfall_oracle_id','availability','ENGLISH','tcgplayer_product_id'])if(!family.includes(token))throw new Error(`missing Oracle family boundary token: ${token}`);
 if(!/desired_conditions/.test(discovery))throw new Error('signed-in SKU discovery lost multi-condition support');
 if(!/known_identity/.test(discovery)||!/INCOMPLETE_CARD_FAMILY_DISCOVERY/.test(identity))throw new Error('family discovery gaps must use trusted ephemeral identity and remain globally unproven');
+if(!/mtgjson_cards\?tcgplayer_product_id=eq\./.test(discovery))throw new Error('premium cohort discovery must anchor directly through trusted MTGJSON product identity');
 if(!/same_product_printing_sibling/.test(manapool)||!/MISSING_PRINTING_IDENTITY/.test(manapool))throw new Error('ManaPool NM/LP sibling identity fallback is missing');
 if(!/market_supply_family/.test(api)||!/card_family_supply_nm_lp/.test(routes))throw new Error('shared Ask family-supply route missing');
 if(!/Direct is a subset/.test(routes)||!/Retail price presence is not counted as stock/.test(routes))throw new Error('family response lost supply-scope safeguards');
