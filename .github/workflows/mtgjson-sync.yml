@@ -96,6 +96,8 @@ jobs:
         run: node cloud-worker/backfill-sealed-component-history.mjs
       - name: Refresh sealed and precon exact-SKU Direct observations
         run: node cloud-worker/refresh-precon-direct.mjs
+      - name: Recalculate sealed and precon EV with fresh Direct data
+        run: node cloud-worker/refresh-precon-ev.mjs
 
   sync:
     if: github.event_name != 'push'
