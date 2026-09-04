@@ -66,8 +66,16 @@ test('shared router answers sealed Direct crack rankings without clarification',
 
 test('sealed inventory-fit questions use deferred Discord delivery',()=>{
   const worker=read('cloud-worker/discord-shared-delvin-route.mjs');
+  const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
+  const presenter=read('supabase/functions/ask-collectish-delvin-present/index.ts');
   expect(worker).toMatch(/isQueuedSharedQuestion[\s\S]*inventory\\s\+fit/);
   expect(worker).toContain("ask-collectish-delvin-present-v2");
+  expect(router).toContain("ask_delvin_sealed_direct_crack_v1");
+  expect(router).toContain('max_buy_15_pct');
+  expect(router).toContain('optimized_live_out_ev');
+  expect(presenter).toContain("label:'Buy landed'");
+  expect(presenter).toContain("label:'Practical net EV'");
+  expect(presenter).toContain("label:'Max buy @ 15%'");
 });
 
 test('named MTGStocks requests execute source lookup and refresh without clarification',()=>{
