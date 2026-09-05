@@ -12,6 +12,7 @@ for(const token of ['vendor_depth_runs','vendor_item_identities','vendor_depth_c
 }
 if(/manapool/i.test(workflowExecutable))throw new Error('Card Kingdom depth workflow must not contain ManaPool paths, options, secrets, or jobs');
 if(!workflow.includes('35 11,23 * * *'))throw new Error('Card Kingdom depth must refresh on the 12-hour baseline cadence');
+if(!workflow.includes("github.event_name != 'push' || github.ref == 'refs/heads/main'"))throw new Error('Card Kingdom pipeline changes on main must run a deployment smoke sync');
 for(const token of ['condition_values','qty_retail','price_buy','qty_buying','condition_quantity_sum_matches']){
   if(!ck.includes(token))throw new Error(`missing Card Kingdom semantic token: ${token}`);
 }

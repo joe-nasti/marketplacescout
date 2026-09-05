@@ -38,7 +38,8 @@ jobs:
       - run: node tools/check-vendor-depth-contract.mjs
 
   sync:
-    if: github.event_name != 'push'
+    # A main-branch change to this pipeline is also a deployment smoke test.
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 90
