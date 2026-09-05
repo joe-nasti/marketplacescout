@@ -32,11 +32,10 @@ async function jsonFetch(url,retries=3){
   throw last;
 }
 async function refreshScout(){
-  const aggregate=Number(await rpc('refresh_scout_opportunities_24h'));
-  const annotated=Number(await rpc('annotate_scout_sales_confidence'));
+  const aggregate=Number(await rpc('refresh_scout_opportunities_24h_core'));
   const shadow=Number(await rpc('refresh_scout_v5_shadow'));
   const promotedCache=Number(await rpc('refresh_scout_opportunities_v5_cache'));
-  return {aggregate,annotated,shadow,promotedCache};
+  return {aggregate,annotated_in_core:true,shadow,promotedCache};
 }
 
 try{
@@ -75,7 +74,7 @@ try{
   }
 
   const includesScout=candidates.some(c=>Array.isArray(c.watch_reasons)&&c.watch_reasons.includes('scout'));
-  const refresh=includesScout?await refreshScout():{aggregate:0,annotated:0,shadow:0,promotedCache:0};
+  const refresh=includesScout?await refreshScout():{aggregate:0,annotated_in_core:false,shadow:0,promotedCache:0};
   const detail={subsystem:'marketplace-sales-history',candidateCount:candidates.length,reasonCounts,fetched,failed,appliedSkuRows,projectedSecretLairRows,failures:failures.slice(0,20),...refresh,scoringVersion:'scout-v5',limit:LIMIT};
   const status=candidates.length>0&&fetched===0&&failed>0?'failed':failed>0?'complete_with_warnings':'complete';
   await writeState(status,detail,appliedSkuRows);
