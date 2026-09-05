@@ -37,6 +37,7 @@ async function hydrateAndRender(row){
 }
 export function openScoutDetail(detail={}){
   const renderer=window.CollectishScoutRenderer;if(!renderer?.renderDetail)return false;
+  if(!document.getElementById('cxParityDetail'))return false;
   const row=resolveSummary(detail);if(!row?.sku_id)return false;
   const sku=skuOf(row.sku_id);store.update('scout',{selectedSku:row.sku_id});
   document.querySelectorAll('#cxParityCards .cx-scout-card[data-sku]').forEach(card=>card.classList.toggle('selected',skuOf(card.dataset.sku)===sku));
