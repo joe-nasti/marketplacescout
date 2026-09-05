@@ -33,6 +33,7 @@ test('shared router owns broad market radar without hijacking named sources',()=
   const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
   const fallback=read('supabase/functions/ask-collectish-delvin-route/index.ts');
   const presenter=read('supabase/functions/ask-collectish-delvin-present/index.ts');
+  const presenterV2=read('supabase/functions/ask-collectish-delvin-present-v2/index.ts');
   expect(router).toContain("route:'named_source_snapshot'");
   expect(router).toMatch(/routeSource\(q\).*priceHistoryIntent/s);
   expect(fallback).toContain("route:'market_radar'");
@@ -80,6 +81,8 @@ test('sealed inventory-fit questions use deferred Discord delivery',()=>{
   expect(presenter).toContain("label:'Buy landed'");
   expect(presenter).toContain("label:'Practical net EV'");
   expect(presenter).toContain("label:'Max buy @ 15%'");
+  expect(presenterV2).toMatch(/ask-collectish-route-intents[\s\S]*ask-collectish-delvin-route-v2/);
+  expect(presenterV2).toMatch(/deterministic\?\.handled[\s\S]*ask-collectish-delvin-present/);
   expect(router).toContain("sealed_uuid:product.uuid");
   expect(worker).toContain("u.searchParams.set('sealed',String(a.sealed_uuid))");
   expect(router).toContain('buy=Number(decision.acquisition_price)');
