@@ -33,6 +33,9 @@ jobs:
         run: node --check cloud-worker/refresh-enabled-sealed.mjs cloud-worker/apply-sealed-language-confidence.mjs cloud-worker/archive-sealed-price-current.mjs
       - name: Refresh exact sealed pricing and EV for enabled sets
         run: node cloud-worker/refresh-enabled-sealed.mjs
+      - name: Refresh FIN Chocobo pack distribution
+        run: |
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 -X POST "$SUPABASE_URL/rest/v1/rpc/refresh_fin_chocobo_pack_ev_model" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{}'
       - name: Refresh executable sealed EV cache
         run: |
           curl --fail --silent --show-error --retry 3 --retry-delay 2 -X POST "$SUPABASE_URL/rest/v1/rpc/refresh_sealed_product_executable_ev_cache" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" -d '{}'
