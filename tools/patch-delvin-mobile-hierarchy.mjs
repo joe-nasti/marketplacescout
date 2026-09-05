@@ -4,9 +4,6 @@ let s=fs.readFileSync(p,'utf8');
 const start=s.indexOf('function opportunityTextV3(opportunity:any){');
 const end=s.indexOf('\nDeno.serve(',start);
 if(start<0||end<0) throw new Error('opportunityTextV3/Deno.serve anchors missing');
-const block=s.slice(start,end);
-const fnEnd=block.indexOf('\n}\n',block.indexOf('}).join(NL);'));
-if(fnEnd<0) throw new Error('opportunityTextV3 end missing');
 const replacement=`function opportunityTextV3(opportunity:any){
   const rows=Array.isArray(opportunity?.rows)?opportunity.rows:[];
   const candidates=rows.filter((r:any)=>{const c=t(r.opportunity_classification),p=t(r.pull_value_status);return c.startsWith('WORTH_INVESTIGATING')||c==='WATCH'||p==='UNDERPRICED_FOR_PULL_RARITY_CANDIDATE'||p==='PULL_RARITY_VALUE_SIGNAL_DEMAND_UNCONFIRMED'});
@@ -18,8 +15,14 @@ const replacement=`function opportunityTextV3(opportunity:any){
   if(speculative.length)parts.push('**Needs confirmation**'+NL+speculative.map(line).join(NL));
   return parts.join(NL+NL);
 }`;
-s=s.slice(0,start)+replacement+block.slice(fnEnd+3)+s.slice(end);
-s=s.replace("const cohortSections=isCohort?[{heading:'Selected cohort',kind:'text',text:cohort.identities.map((x:any)=>cohortIdentityLine(x)).join('\\\n')}]:[],sections:any[]=[...cohortSections,...ladderSections(rows,marketContext,metadata),{heading:'Evidence confidence',kind:'text',text:confidence}];", "const cohortSections=isCohort?[{heading:'Selected cohort',kind:'text',text:cohort.identities.map((x:any)=>cohortIdentityLine(x)).join('\\\n')}]:[],showConfidenceDetail=confidenceScore<100||(Array.isArray(supply?.blocking_reasons)&&supply.blocking_reasons.length>0),sections:any[]=[...cohortSections,...ladderSections(rows,marketContext,metadata),...(showConfidenceDetail?[{heading:'Evidence confidence',kind:'text',text:confidence}]:[])];");
-s=s.replace("const footerParts=[isCohort?`${cohortIdentityCount} selected identities · ${cohort.selection_basis||title} · not total family supply`:'English NM/LP',`${supply?.coverage?.complete_sku_count||0}/${scopedTargets.length} TCG complete`,`MP ${mpCovered}/${mpExpected} mapped`,oppText?'Opportunity = research signal; odds only where sourced':null].filter(Boolean);", "const hasFoil=rows.some((r:any)=>finish(r.finish)==='FOIL'),footerParts=[isCohort?`${cohortIdentityCount} selected · ${cohort.selection_basis||title}`:'NM/LP',`TCG ${supply?.coverage?.complete_sku_count||0}/${scopedTargets.length}`,`MP ${mpCovered}/${mpExpected}`,hasFoil?'★=foil':null,oppText?'odds sourced only':null].filter(Boolean);");
+s=s.slice(0,start)+replacement+s.slice(end);
+const confidenceOld="const cohortSections=isCohort?[{heading:'Selected cohort',kind:'text',text:cohort.identities.map((x:any)=>cohortIdentityLine(x)).join('\\\n')}]:[],sections:any[]=[...cohortSections,...ladderSections(rows,marketContext,metadata),{heading:'Evidence confidence',kind:'text',text:confidence}];";
+const confidenceNew="const cohortSections=isCohort?[{heading:'Selected cohort',kind:'text',text:cohort.identities.map((x:any)=>cohortIdentityLine(x)).join('\\\n')}]:[],showConfidenceDetail=confidenceScore<100||(Array.isArray(supply?.blocking_reasons)&&supply.blocking_reasons.length>0),sections:any[]=[...cohortSections,...ladderSections(rows,marketContext,metadata),...(showConfidenceDetail?[{heading:'Evidence confidence',kind:'text',text:confidence}]:[])];";
+if(!s.includes(confidenceOld)) throw new Error('confidence section anchor missing');
+s=s.replace(confidenceOld,confidenceNew);
+const footerOld="const footerParts=[isCohort?`${cohortIdentityCount} selected identities · ${cohort.selection_basis||title} · not total family supply`:'English NM/LP',`${supply?.coverage?.complete_sku_count||0}/${scopedTargets.length} TCG complete`,`MP ${mpCovered}/${mpExpected} mapped`,oppText?'Opportunity = research signal; odds only where sourced':null].filter(Boolean);";
+const footerNew="const hasFoil=rows.some((r:any)=>finish(r.finish)==='FOIL'),footerParts=[isCohort?`${cohortIdentityCount} selected · ${cohort.selection_basis||title}`:'NM/LP',`TCG ${supply?.coverage?.complete_sku_count||0}/${scopedTargets.length}`,`MP ${mpCovered}/${mpExpected}`,hasFoil?'★=foil':null,oppText?'odds sourced only':null].filter(Boolean);";
+if(!s.includes(footerOld)) throw new Error('footer anchor missing');
+s=s.replace(footerOld,footerNew);
 fs.writeFileSync(p,s);
 console.log('Delvin mobile hierarchy patched');
