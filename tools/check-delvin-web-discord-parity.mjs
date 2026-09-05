@@ -8,7 +8,9 @@ const discord=read('cloud-worker/discord-shared-delvin-route.mjs');
 const discordEntry=read('cloud-worker/discord-ask-entry-v30.mjs');
 const autocomplete=read('cloud-worker/discord-delvin-autocomplete.mjs');
 const webApi=read('supabase/functions/ask-collectish-api-v2/index.ts');
+const routeV2=read('supabase/functions/ask-collectish-delvin-route-v2/index.ts');
 const migration=read('supabase/migrations/20260904170000_shared_delvin_capability_manifest_v1.sql');
+const matcherMigration=read('supabase/migrations/20260905023500_delvin_registry_cached_matchers_v1.sql');
 
 if(!proxy.includes('ask-collectish-api-v2'))throw new Error('web Ask is not routed through persisted shared facade');
 if(proxy.includes('resolve_delvin_shared_query_v1')||proxy.includes('maybeShared('))throw new Error('client-side deterministic routing still duplicates the server resolver');
@@ -18,6 +20,9 @@ if(!discord.includes('ask-collectish-delvin-present-v2'))throw new Error('Discor
 if(!webApi.includes('ask-collectish-delvin-present-v2'))throw new Error('web persisted facade does not use shared presentation v2');
 for(const token of ['ask_collectish_messages','conversation_id','shared_delvin:true','persisted:true'])if(!webApi.includes(token))throw new Error(`web deterministic persistence missing ${token}`);
 for(const token of ['get_delvin_capability_manifest_v1','capability_kind','clients','modifier_schema','collectible_cohort_thesis','printing_family','card_investigation'])if(!migration.includes(token))throw new Error(`manifest migration missing ${token}`);
+for(const token of ['matcher_patterns','matcher_priority','resolve_delvin_cached_query_v1','market_radar','edh_demand_7d','creator_catalysts_7d'])if(!matcherMigration.includes(token))throw new Error(`registry matcher migration missing ${token}`);
+if(!routeV2.includes('resolve_delvin_cached_query_v1')||!routeV2.includes("resolver_source:'delvin_query_registry'"))throw new Error('route v2 is not registry-driven');
+for(const duplicated of ['mtg\\s*stocks','climbing in price','selling faster','low inventory','meaningful syp'])if(routeV2.includes(duplicated))throw new Error(`route v2 reintroduced duplicated matcher semantics: ${duplicated}`);
 for(const old of ['discord-fast-query-cache.mjs','discord-market-intel-fast.mjs','discord-card-investigator.mjs','discord-collectible-cohort-thesis.mjs','discord-family-set-intel.mjs','discord-signal-history.mjs'])if(discordEntry.includes(old))throw new Error(`Discord entry still owns duplicate deterministic route: ${old}`);
 if(!discordEntry.includes('discord-delvin-autocomplete.mjs'))throw new Error('Discord autocomplete is not isolated from deterministic routing');
 if(!autocomplete.includes('list_delvin_query_starters_v1'))throw new Error('Discord autocomplete is not manifest-driven');
