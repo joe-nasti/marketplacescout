@@ -1,0 +1,42 @@
+name: Live Scout Sealed verification
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/live-scout-sealed-verification.yml'
+      - 'tools/verify-live-sealed.mjs'
+      - 'src/styles/sealed-set-browser.css'
+      - 'src/styles/sealed.css'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      COLLECTISH_E2E_EMAIL: ${{ secrets.COLLECTISH_E2E_EMAIL }}
+      COLLECTISH_E2E_PASSWORD: ${{ secrets.COLLECTISH_E2E_PASSWORD }}
+      COLLECTISH_PRODUCTION_URL: https://joe-nasti.github.io/marketplacescout/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - name: Verify dedicated E2E credentials are configured
+        run: |
+          test -n "$COLLECTISH_E2E_EMAIL" || (echo 'Missing COLLECTISH_E2E_EMAIL repository secret' >&2; exit 1)
+          test -n "$COLLECTISH_E2E_PASSWORD" || (echo 'Missing COLLECTISH_E2E_PASSWORD repository secret' >&2; exit 1)
+      - name: Capture and verify one stable production revision
+        run: node tools/verify-live-sealed.mjs
+      - name: Upload rendered evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-scout-sealed-evidence
+          path: test-results/live-sealed-production
+          if-no-files-found: error
