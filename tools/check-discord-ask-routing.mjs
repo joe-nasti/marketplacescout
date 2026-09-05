@@ -23,7 +23,7 @@ for(const pattern of[
   if(pattern.test(v30))throw new Error(`Discord v30 contains forbidden market-routing logic: ${pattern}`);
 }
 if(!worker.includes('ask-collectish-api'))throw new Error('Discord worker must call the stable ask-collectish-api facade');
-if(!shared.includes('queuedSupplyLike(q)'))throw new Error('Market-depth questions must be owned by the queued shared route');
+if(!/return queuedSupplyLike\([A-Za-z_$][\w$]*\)\|\|/.test(shared))throw new Error('Market-depth questions must be owned by the queued shared route');
 if(!shared.includes('^how\\s+deep\\b'))throw new Error('Discord shared route must recognize "how deep" market questions');
 if(!shared.includes('market\\s+depth'))throw new Error('Discord shared route must recognize market-depth phrasing');
 if(!supply.includes('ask_collectish_supply_family_skus_v1'))throw new Error('Supply presenter must resolve card families deterministically from the canonical family-SKU RPC');
