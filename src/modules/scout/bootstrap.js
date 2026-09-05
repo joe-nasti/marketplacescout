@@ -37,6 +37,7 @@ async function openColdDeepLink(){
     if(seq!==deepLinkSeq)return false;
     const detail={sku_id:d.sku,source:'discord-deep-link'};
     const open=()=>seq===deepLinkSeq&&Boolean(module.openScoutDetail(detail));
+    window.CollectishScoutRenderer?.prepareDeepLinkSurface?.();
     if(document.getElementById('cxParityDetail'))return open();
     document.addEventListener('collectish:scout-v5-ready',open,{once:true});
     return true;
