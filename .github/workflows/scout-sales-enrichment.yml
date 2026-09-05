@@ -16,12 +16,22 @@ on:
       - "cloud-worker/marketplace-sales-history.mjs"
       - "cloud-worker/scout-sales-enrichment.mjs"
       - "supabase/migrations/*marketplace_sales_candidate*.sql"
+      - "supabase/migrations/*scout_refresh*.sql"
+      - "supabase/migrations/*scout_projection*.sql"
+  pull_request:
+    paths:
+      - ".github/workflows/scout-sales-enrichment.yml"
+      - "cloud-worker/marketplace-sales-history.mjs"
+      - "cloud-worker/scout-sales-enrichment.mjs"
+      - "supabase/migrations/*marketplace_sales_candidate*.sql"
+      - "supabase/migrations/*scout_refresh*.sql"
+      - "supabase/migrations/*scout_projection*.sql"
 
 permissions:
   contents: read
 
 concurrency:
-  group: collectish-marketplace-sales-history
+  group: collectish-marketplace-sales-history-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -41,11 +51,16 @@ jobs:
           node-version: "24"
       - name: Validate shared worker
         run: |
-          test -n "$SUPABASE_SERVICE_ROLE_KEY"
           node --check cloud-worker/marketplace-sales-history.mjs
           node --check cloud-worker/scout-sales-enrichment.mjs
           grep -q "get_marketplace_sales_collection_candidates" cloud-worker/marketplace-sales-history.mjs
           grep -q "apply_marketplace_sales_history" cloud-worker/marketplace-sales-history.mjs
+          grep -q "refresh_scout_opportunities_24h_core" cloud-worker/marketplace-sales-history.mjs
           grep -q "refresh_scout_v5_shadow" cloud-worker/marketplace-sales-history.mjs
+          grep -q "marketplace_scan_rows_scout_projection" supabase/migrations/*scout_projection*.sql
+      - name: Validate alert secret
+        if: github.event_name != 'pull_request'
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY"
       - name: Collect shared TCGplayer sales history
+        if: github.event_name != 'pull_request'
         run: node cloud-worker/marketplace-sales-history.mjs
