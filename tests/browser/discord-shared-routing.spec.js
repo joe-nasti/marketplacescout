@@ -108,6 +108,13 @@ test('sealed component EV resolves packs before generic card matching',()=>{
   expect(router).toContain("category.includes('case')");
   expect(router).toContain('that resale price is not contents EV');
   expect(router).toContain('Recommendation: ${text(ev.practical_action)}');
+  expect(router).toContain("basis:'TCG Low + shipping'");
+  expect(router).toContain("status:!complete?'INCOMPLETE'");
+  expect(router).toContain('sealed buy-price economics and any crack recommendation are suppressed');
+  expect(router).toContain('the crack recommendation is suppressed until price refresh');
+  expect(router).toContain("e.verdict='PRICE STALE — REFRESH'");
+  expect(router).toContain("if(r.acquisition_observation_status==='STALE')return'PRICE STALE — REFRESH'");
+  expect(router).toContain("return'ACQUISITION INCOMPLETE'");
   expect(presenter).toContain('sealedEvPresentation');
   expect(presenter).toContain("type:'sealed_product_ev'");
   expect(worker).toMatch(/expected\\s\+value[\s\S]*booster\|pack\|bundle/);
