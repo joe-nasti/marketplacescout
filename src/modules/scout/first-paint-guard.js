@@ -13,6 +13,7 @@ export function installScoutFirstPaintGuard(){
   if(!host)return;
   installed=true;
 
+  const usefulContentAtInstall=hasUsefulScoutContent(host);
   const mobile=matchMedia('(max-width:700px)').matches;
   let paintReleased=!mobile;
   let paintTimeout=0;
@@ -22,7 +23,7 @@ export function installScoutFirstPaintGuard(){
     host.classList.remove('cx-scout-preparing');
     if(paintTimeout)clearTimeout(paintTimeout);
   };
-  if(mobile){
+  if(mobile&&usefulContentAtInstall){
     host.classList.add('cx-scout-preparing');
     const started=performance.now();
     const waitForFinal=()=>{
@@ -34,7 +35,7 @@ export function installScoutFirstPaintGuard(){
     paintTimeout=setTimeout(releasePaint,3200);
   }
 
-  if(!hasUsefulScoutContent(host))return;
+  if(!usefulContentAtInstall)return;
   const descriptor=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
   if(!descriptor?.get||!descriptor?.set)return;
   let released=false;
