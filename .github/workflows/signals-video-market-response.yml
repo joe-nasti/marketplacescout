@@ -39,7 +39,7 @@ jobs:
             --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             --header "Content-Type: application/json" \
-            --data '{"p_limit":100}' \
+            --data '{"p_limit":20}' \
             "$RPC_URL")"
           cat "$response_file"
           echo
