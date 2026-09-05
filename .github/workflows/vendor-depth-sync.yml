@@ -51,5 +51,5 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "24" }
       - name: Sync Card Kingdom exact supply and demand
-        if: github.event_name == 'schedule' || inputs.source == 'cardkingdom'
+        if: github.event_name == 'schedule' || inputs.source == 'cardkingdom' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         run: node cloud-worker/cardkingdom-depth-sync.mjs
