@@ -1,0 +1,41 @@
+name: Delvin creator activity smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/delvin-creator-activity-smoke.yml"
+      - "supabase/functions/ask-collectish-delvin-route-v2/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/ask-collectish-delvin-present-v3
+    steps:
+      - name: Ask exact creator activity question
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$(mktemp)"
+          code="$(curl --silent --show-error --max-time 120 --output "$out" --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{"question":"what has aspiringspike been playing?","client":"discord","limit":12}' \
+            "$URL")"
+          cat "$out"
+          echo
+          [[ "$code" =~ ^2 ]]
+          jq -e '.handled == true' "$out" >/dev/null
+          jq -e '.resolver_source == "shared_youtube_ledger"' "$out" >/dev/null
+          jq -e '.creator == "Aspiringspike"' "$out" >/dev/null
+          jq -e '.canonical_row_count > 0' "$out" >/dev/null
+          jq -e '.data.rows[0].activity == true' "$out" >/dev/null
