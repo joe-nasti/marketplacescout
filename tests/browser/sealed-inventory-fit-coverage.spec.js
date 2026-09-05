@@ -57,7 +57,7 @@ test('Direct worker changes trigger an immediate production refresh',async()=>{
 
 test('scheduled actionable model rebuild restores sealed Direct observations',async()=>{
   const sql=await readFile('supabase/migrations/20260905034814_preserve_sealed_direct_after_scheduled_model_refresh.sql','utf8');
-  expect(sql).toMatch(/refresh_sealed_actionable_component_ev[\\s\\S]*refresh_sealed_inventory_fit_direct_observations/);
+  expect(sql).toMatch(/refresh_sealed_actionable_component_ev[\s\S]*refresh_sealed_inventory_fit_direct_observations/);
   expect(sql).toContain('revoke all on function public.internal_refresh_actionable_sealed_models() from public, anon, authenticated');
   expect(sql).toContain('grant execute on function public.internal_refresh_actionable_sealed_models() to service_role');
 });
