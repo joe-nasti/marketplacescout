@@ -32,11 +32,14 @@ test('shared router owns history and seller surfaces with finish-aware moves',()
 test('shared router owns broad market radar without hijacking named sources',()=>{
   const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
   const fallback=read('supabase/functions/ask-collectish-delvin-route/index.ts');
+  const registry=read('supabase/functions/ask-collectish-delvin-route-v2/index.ts');
   const presenter=read('supabase/functions/ask-collectish-delvin-present/index.ts');
   expect(router).toContain("route:'named_source_snapshot'");
   expect(router).toMatch(/routeSource\(q\).*priceHistoryIntent/s);
-  expect(fallback).toContain("route:'market_radar'");
-  expect(fallback).toContain("cache('market_radar')");
+  expect(fallback).toContain("'market_radar'");
+  expect(fallback).toContain("retired_to:'ask-collectish-delvin-route-v2'");
+  expect(registry).toContain("'market_radar'");
+  expect(registry).toContain("if(i.capability_kind==='cached')return cache(route)");
   expect(presenter).toContain("type:'market_radar'");
   expect(presenter).toContain('radarPresentation');
 });
