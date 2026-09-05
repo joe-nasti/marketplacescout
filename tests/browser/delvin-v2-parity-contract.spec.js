@@ -18,8 +18,10 @@ test('web and Discord share the same v2 presenter and canonical result contract'
   const discord=read('cloud-worker/discord-shared-delvin-route.mjs');
   const route=read('supabase/functions/ask-collectish-delvin-route-v2/index.ts');
   const present=read('supabase/functions/ask-collectish-delvin-present-v2/index.ts');
-  expect(web).toContain('ask-collectish-delvin-present-v2');
-  expect(discord).toContain('ask-collectish-delvin-present-v2');
+  expect(web).toContain('ask-collectish-delvin-present-v3');
+  expect(discord).toContain('ask-collectish-delvin-present-v3');
+  const release=read('supabase/functions/ask-collectish-delvin-present-v3/index.ts');
+  expect(release).toContain('../ask-collectish-delvin-present-v2/index.ts');
   expect(route).toContain('canonical_result_id');
   expect(route).toContain('canonical_row_count');
   expect(present).toContain('canonical_result_id');
