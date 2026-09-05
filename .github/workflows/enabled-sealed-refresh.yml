@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: collectish-enabled-sealed-refresh
+  group: collectish-database-heavy-syncs
   cancel-in-progress: false
 
 jobs:

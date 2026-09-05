@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: collectish-mtggoldfish-structured-refresh
-  cancel-in-progress: true
+  group: collectish-database-heavy-syncs
+  cancel-in-progress: false
 
 jobs:
   refresh:

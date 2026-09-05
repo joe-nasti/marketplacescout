@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: collectish-scout-universe-backfill
+  group: collectish-database-heavy-syncs
   cancel-in-progress: false
 
 jobs:
