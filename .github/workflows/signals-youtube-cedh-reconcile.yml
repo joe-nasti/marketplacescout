@@ -48,4 +48,4 @@ jobs:
             exit 1
           fi
           jq -e '.ok == true' "$response_file" >/dev/null
-          jq -e '.policy == "cedh_strong_evidence_v1"' "$response_file" >/dev/null
+          jq -e '.policy == "cedh_strong_evidence_v2"' "$response_file" >/dev/null
