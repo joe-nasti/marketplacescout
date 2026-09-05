@@ -44,7 +44,7 @@ Deno.serve(async(req:Request)=>{
     const existing=await rest(S,`source_captures?select=capture_id,content_hash,metadata_json&user_id=eq.${encodeURIComponent(ownerId)}&source=eq.MTGGoldfish&capture_type=eq.structured_snapshot&source_key=eq.${encodeURIComponent(target.key)}&order=captured_at.desc&limit=1`).catch(()=>[]);
     if(existing?.[0]?.content_hash===hash)return J({ok:true,target:target.key,changed:false,saved:0,duplicates:0});
     const result=await ingest(S,target,ownerId,text);
-    await rest(S,'source_captures',{method:'POST',prefer:'return=minimal',body:{user_id:ownerId,source:'MTGGoldfish',capture_type:'structured_snapshot',source_key:target.key,content_type:'text/html+snapshot',payload_json:{url:target.url,title:target.title,source_profile:target.profile,source_subtype:target.subtype},payload_text:text,content_hash:hash,metadata_json:{status:'saved',ingested_at:new Date().toISOString(),saved:Number(result?.saved||0),duplicates:Number(result?.duplicates||0)}}});
+    await rest(S,'source_captures?on_conflict=user_id,source,capture_type,source_key',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:{user_id:ownerId,source:'MTGGoldfish',capture_type:'structured_snapshot',source_key:target.key,content_type:'text/html+snapshot',payload_json:{url:target.url,title:target.title,source_profile:target.profile,source_subtype:target.subtype},payload_text:text,content_hash:hash,metadata_json:{status:'saved',ingested_at:new Date().toISOString(),saved:Number(result?.saved||0),duplicates:Number(result?.duplicates||0)}}});
     return J({ok:true,target:target.key,changed:true,saved:Number(result?.saved||0),duplicates:Number(result?.duplicates||0)});
   }catch(e){return J({error:(e as Error).message,target:target.key},502)}
 });
