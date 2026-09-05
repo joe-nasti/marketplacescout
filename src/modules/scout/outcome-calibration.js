@@ -2,9 +2,9 @@ import {rest} from '../../core/rest.js';
 
 const esc=value=>String(value??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
 const pct=value=>value==null||value===''||!Number.isFinite(Number(value))?'—':`${Number(value)>0?'+':''}${Number(value).toFixed(1)}%`;
-const money=value=>value==null||value===''||!Number.isFinite(Number(value))?'—':Number(value).toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:2});
 const dt=value=>{const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—'};
 let request=0;
+const MIN_RATE_SAMPLE=5;
 
 function metric(label,value,detail=''){
   return `<div class="cx-outcome-metric"><span>${esc(label)}</span><b>${esc(value)}</b>${detail?`<small>${esc(detail)}</small>`:''}</div>`;
@@ -32,8 +32,9 @@ function render(data){
   if(!total)return '';
   const observed=Number(summary.observed_24h)||0;
   const matured=Number(summary.matured_24h)||0;
-  const spreadRate=summary.spread_survival_rate_24h_pct;
-  const marketRate=summary.market_up_5pct_rate_24h_pct;
+  const spreadWins=Number(summary.spread_survives_24h)||0;
+  const marketWins=Number(summary.market_up_5pct_24h)||0;
+  const enoughForRates=observed>=MIN_RATE_SAMPLE;
   const readiness=String(data?.readiness||'INSUFFICIENT_SAMPLE').replace(/_/g,' ');
   const recent=episodes.slice(0,4).map(episodeRow).join('');
   return `<section class="cx-v5-section cx-outcome-calibration">
@@ -43,11 +44,11 @@ function render(data){
     <div class="cx-outcome-metrics">
       ${metric('Episodes',String(total),`${Number(summary.open)||0} open · ${Number(summary.closed)||0} closed`)}
       ${metric('Observed +24h',`${observed}/${matured}`,matured>observed?`${matured-observed} matured without an exact price observation`:'Exact-SKU official price window')}
-      ${metric('Spread survived +24h',spreadRate==null?'Accumulating':`${Number(spreadRate).toFixed(1)}%`,`${Number(summary.spread_survives_24h)||0}/${observed||0} observed episodes`)}
-      ${metric('Market +5% by +24h',marketRate==null?'Accumulating':`${Number(marketRate).toFixed(1)}%`,`${Number(summary.market_up_5pct_24h)||0}/${observed||0} observed episodes`)}
+      ${metric('Spread survived +24h',enoughForRates?`${Number(summary.spread_survival_rate_24h_pct).toFixed(1)}%`:`${spreadWins}/${observed}`,enoughForRates?`${spreadWins}/${observed} observed episodes`:`Rate hidden until ${MIN_RATE_SAMPLE} observed episodes`)}
+      ${metric('Market +5% by +24h',enoughForRates?`${Number(summary.market_up_5pct_rate_24h_pct).toFixed(1)}%`:`${marketWins}/${observed}`,enoughForRates?`${marketWins}/${observed} observed episodes`:`Rate hidden until ${MIN_RATE_SAMPLE} observed episodes`)}
     </div>
     ${recent?`<div class="cx-outcome-recent"><div class="cx-outcome-label">Recent comparable episodes</div>${recent}</div>`:''}
-    <small class="cx-outcome-note">Spread survival is descriptive, not realized ROI: it applies the entry-time Direct-net/Direct-price ratio to the later Direct observation and asks whether that modeled net still exceeded the original entry buy price. Missing future observations are unknown, never zero.</small>
+    <small class="cx-outcome-note">Exact-SKU percentage rates stay hidden until at least ${MIN_RATE_SAMPLE} observed 24h episodes. Spread survival is descriptive, not realized ROI: it applies the entry-time Direct-net/Direct-price ratio to the later Direct observation and asks whether that modeled net still exceeded the original entry buy price. Missing future observations are unknown, never zero.</small>
   </section>`;
 }
 
