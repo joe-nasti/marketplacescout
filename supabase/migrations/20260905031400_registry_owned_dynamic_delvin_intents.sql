@@ -20,5 +20,5 @@ begin
  elsif r.query_key='card_investigation' then card:=regexp_replace(raw_q,'^(why\s+is|why\s+did|is|analy[sz]e|am\s+i\s+late\s+on|investigate|deep\s+dive)\s+','','i');card:=regexp_replace(card,'\s+(moving|spiking|move\s+real|real\s+or\s+noise|sustainable)\??$','','i');card:=trim(regexp_replace(card,'[?]+$','','g'));if card='' then return jsonb_build_object('matched',false);end if;end if;
  return jsonb_strip_nulls(jsonb_build_object('matched',true,'query_key',r.query_key,'route_key',coalesce(r.route_key,r.query_key),'capability_kind',r.capability_kind,'surface_type',r.surface_type,'async_enrichment',r.async_enrichment,'prompt',r.prompt,'treatment',treatment,'set_codes',setcodes,'set_code',case when coalesce(array_length(setcodes,1),0)=1 then setcodes[1] else null end,'card_name',card,'resolver_source','delvin_query_registry'));
 end;$$;
-revoke all on function public.resolve_delvin_registry_intent_v2(text) from public,anon;
-grant execute on function public.resolve_delvin_registry_intent_v2(text) to authenticated,service_role;
+revoke all on function public.resolve_delvin_registry_intent_v2(text) from public,anon,authenticated;
+grant execute on function public.resolve_delvin_registry_intent_v2(text) to service_role;
