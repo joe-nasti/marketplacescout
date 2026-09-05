@@ -31,3 +31,12 @@ test('exact-SKU deep links wait until the Scout detail surface exists',()=>{
   expect(bootstrap).toContain("document.addEventListener('collectish:scout-v5-ready',open,{once:true})");
   expect(navigation).toContain("if(!document.getElementById('cxParityDetail'))return false");
 });
+
+test('exact-SKU deep links can open a detail surface without waiting for rankings',()=>{
+  const bootstrap=read('src/modules/scout/bootstrap.js');
+  const renderer=read('src/modules/scout/renderer.js');
+  expect(bootstrap).toContain('window.CollectishScoutRenderer?.prepareDeepLinkSurface?.()');
+  expect(renderer).toContain('function prepareDeepLinkSurface()');
+  expect(renderer).toContain('if(!document.getElementById(\'cxParityDetail\'))renderShell(h)');
+  expect(renderer).toContain('prepareDeepLinkSurface,prefetchCard:scryfall');
+});
