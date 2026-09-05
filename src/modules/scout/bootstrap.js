@@ -35,7 +35,11 @@ async function openColdDeepLink(){
   if(d.sku){
     const module=await import('./detail-navigation.js');
     if(seq!==deepLinkSeq)return false;
-    return Boolean(module.openScoutDetail({sku_id:d.sku,source:'discord-deep-link'}));
+    const detail={sku_id:d.sku,source:'discord-deep-link'};
+    const open=()=>seq===deepLinkSeq&&Boolean(module.openScoutDetail(detail));
+    if(document.getElementById('cxParityDetail'))return open();
+    document.addEventListener('collectish:scout-v5-ready',open,{once:true});
+    return true;
   }
   if(!signalFastOpenLoading)signalFastOpenLoading=import('./signal-fast-open.js');
   const module=await signalFastOpenLoading;

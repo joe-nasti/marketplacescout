@@ -23,3 +23,11 @@ test('Scout route state consumes both exact SKU and lookup deep links',()=>{
   expect(route).toContain("window.CollectishScoutDetailNavigation?.open?.({sku_id:sku");
   expect(route).toContain("source:'signals-discord-deep-link'");
 });
+
+test('exact-SKU deep links wait until the Scout detail surface exists',()=>{
+  const bootstrap=read('src/modules/scout/bootstrap.js');
+  const navigation=read('src/modules/scout/detail-navigation.js');
+  expect(bootstrap).toContain("document.getElementById('cxParityDetail')");
+  expect(bootstrap).toContain("document.addEventListener('collectish:scout-v5-ready',open,{once:true})");
+  expect(navigation).toContain("if(!document.getElementById('cxParityDetail'))return false");
+});
