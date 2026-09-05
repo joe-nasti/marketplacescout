@@ -29,14 +29,14 @@ Deno.serve(async req=>{
   if(action!=='chat'||body?.guest===true)return proxyLegacy(authorization,body);
   const question=text(body.message||body.question);if(!question)return proxyLegacy(authorization,body);
   try{
-    const routed=await fn(authorization,'ask-collectish-delvin-present-v2',{question,context:body.context||null,client:'web'}).catch(()=>null);
+    const routed=await fn(authorization,'ask-collectish-delvin-present-v3',{question,context:body.context||null,client:'web'}).catch(()=>null);
     if(!routed?.handled||!routed?.response)return proxyLegacy(authorization,body);
     const cid=await ensureSession(authorization,body.conversation_id||body.session_id,question);
     const surfaces=surfacesFor(routed),async_enrichment=enrichmentHint(routed);
     await save(authorization,cid,'user',question,{screen:body?.context?.screen||'unknown',route:routed.route||'shared_delvin',deterministic:true,shared_delvin:true});
     await save(authorization,cid,'assistant',text(routed.response),{route:routed.route||'shared_delvin',deterministic:true,shared_delvin:true,presentation_version:routed.presentation_version||2,surface_schema:SURFACE_SCHEMA,surface_count:surfaces.length,surfaces,...(async_enrichment?{async_enrichment}:{})});
     await touch(authorization,cid);
-    return json({api_schema:API_SCHEMA,client:'web',session_id:cid,conversation_id:cid,response:routed.response,model:null,usage:null,tools:[{name:'ask-collectish-delvin-present-v2',ok:true,classification:'READ'}],surface_schema:SURFACE_SCHEMA,surfaces,presentation:routed.presentation||null,presentation_version:routed.presentation_version||2,async_enrichment,orchestration:{deterministic_route:routed.route||'shared_delvin',shared_delvin_router:true,shared_presentation_contract:true,persisted:true}});
+    return json({api_schema:API_SCHEMA,client:'web',session_id:cid,conversation_id:cid,response:routed.response,model:null,usage:null,tools:[{name:'ask-collectish-delvin-present-v3',ok:true,classification:'READ'}],surface_schema:SURFACE_SCHEMA,surfaces,presentation:routed.presentation||null,presentation_version:routed.presentation_version||2,async_enrichment,orchestration:{deterministic_route:routed.route||'shared_delvin',shared_delvin_router:true,shared_presentation_contract:true,persisted:true}});
   }catch(e){
     console.warn('shared Delvin persisted facade failed; falling back',String((e as Error)?.message||e));
     return proxyLegacy(authorization,body);

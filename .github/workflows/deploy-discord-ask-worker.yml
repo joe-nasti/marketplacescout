@@ -38,6 +38,7 @@ on:
       - 'cloud-worker/discord-ask-entry-v29.mjs'
       - 'cloud-worker/discord-ask-entry-v30.mjs'
       - 'cloud-worker/discord-shared-delvin-route.mjs'
+      - 'supabase/functions/ask-collectish-delvin-present-v3/**'
       - 'cloud-worker/discord-structured-output.mjs'
       - 'cloud-worker/discord-fast-query-cache.mjs'
       - 'cloud-worker/discord-market-intel-fast.mjs'
