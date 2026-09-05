@@ -112,12 +112,23 @@ test('sealed component EV resolves packs before generic card matching',()=>{
   expect(router).toContain("status:!complete?'INCOMPLETE'");
   expect(router).toContain('sealed buy-price economics and any crack recommendation are suppressed');
   expect(router).toContain('the crack recommendation is suppressed until price refresh');
+  expect(router).toContain("decision_scope='component_pack_only'");
+  expect(router).toContain('it is not a full-bundle crack recommendation');
   expect(router).toContain("e.verdict='PRICE STALE — REFRESH'");
   expect(router).toContain("if(r.acquisition_observation_status==='STALE')return'PRICE STALE — REFRESH'");
   expect(router).toContain("return'ACQUISITION INCOMPLETE'");
   expect(presenter).toContain('sealedEvPresentation');
   expect(presenter).toContain("type:'sealed_product_ev'");
   expect(worker).toMatch(/expected\\s\+value[\s\S]*booster\|pack\|bundle/);
+});
+
+test('official sealed pricing resolves delivered low from SKU pricing',()=>{
+  const sync=read('supabase/functions/tcgplayer-official-price-sync/index.ts');
+  expect(sync).toContain('includeSkus=true');
+  expect(sync).toContain('/pricing/sku/${part.join');
+  expect(sync).toContain('low_with_shipping: landed?.lowestListingPrice ?? null');
+  expect(sync).toContain('shippingAware: landed?.lowestListingPrice != null');
+  expect(sync).toContain("u.searchParams.get('product_ids')");
 });
 
 test('sealed inventory-fit queue delivery renders decision economics and exact-product link',async()=>{
