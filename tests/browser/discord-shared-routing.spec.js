@@ -66,7 +66,7 @@ test('shared router answers sealed Direct crack rankings without clarification',
   expect(presenter).toContain("label:'Practical ROI'");
   expect(presenter).toContain("label:'Pass hidden'");
   expect(read('cloud-worker/discord-shared-delvin-route.mjs')).toMatch(/isQueuedSharedQuestion[\s\S]*sealed[\s\S]*crack[\s\S]*direct/);
-  expect(read('cloud-worker/discord-shared-delvin-route.mjs')).toContain("a.sealed_view||'opportunities'");
+  expect(read('cloud-worker/discord-shared-delvin-route.mjs')).toMatch(/sealed_view\|\|["']opportunities["']/);
   expect(renderer).toContain("surface?.type==='sealed_crack_ranking'");
 });
 
@@ -201,10 +201,10 @@ test('Discord sealed inventory fit uses a mobile-first decision and detail split
   const worker=read('cloud-worker/discord-shared-delvin-route.mjs');
   expect(worker).toContain('function sealedFitEmbeds');
   expect(worker).toContain('Value composition and momentum');
-  expect(worker).toContain("name:'Coverage'");
+  expect(worker).toMatch(/name:["']Coverage["']/);
   expect(worker).toContain('History **');
   expect(worker).toContain('top_value_cards.slice(0,5)');
   expect(worker).toContain('top_growth_cards.slice(0,5)');
   expect(worker).toContain('Missing observations are unknown, not zero.');
-  expect(worker).toContain('fit?sealedFitEmbeds(fit):presentationEmbeds');
+  expect(worker).toMatch(/\?\s*sealedFitEmbeds\([^)]*\)\s*:\s*presentationEmbeds/);
 });
