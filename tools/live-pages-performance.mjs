@@ -1,35 +1,35 @@
 import { spawn } from 'node:child_process';
-import { readFile, writeFile, mkdtemp } from 'node:fs/promises';
+import { writeFile, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const pageUrl=process.env.PAGE_URL||process.argv[2];
 const chrome=process.env.CHROME||process.argv[3];
 const out=process.env.PERF_OUT||'/tmp/live-performance.json';
+const configuredPort=Number(process.env.CDP_PORT||9222);
 if(!pageUrl||!chrome)throw new Error('PAGE_URL and CHROME are required');
+if(!Number.isInteger(configuredPort)||configuredPort<1024||configuredPort>65535)throw new Error('CDP_PORT must be an integer between 1024 and 65535');
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const userData=await mkdtemp(join(tmpdir(),'collectish-cdp-'));
+let port=configuredPort;
 const child=spawn(chrome,[
-  '--headless=new','--no-sandbox','--disable-gpu','--remote-debugging-port=0',
+  '--headless=new','--no-sandbox','--disable-gpu',`--remote-debugging-port=${port}`,'--remote-debugging-address=127.0.0.1',
   `--user-data-dir=${userData}`,'--disable-background-networking','--disable-component-update',
   '--disable-default-apps','--no-first-run','about:blank'
 ],{stdio:['ignore','ignore','pipe']});
 let stderr='';child.stderr.on('data',d=>stderr+=String(d));
 
-let port=null;
 async function resolveDebugPort(){
-  const activePort=join(userData,'DevToolsActivePort');
   for(let i=0;i<120;i++){
     if(child.exitCode!==null)break;
     try{
-      const [value]=String(await readFile(activePort,'utf8')).trim().split(/\r?\n/);
-      const parsed=Number(value);
-      if(Number.isInteger(parsed)&&parsed>0)return parsed;
+      const res=await fetch(`http://127.0.0.1:${port}/json/version`);
+      if(res.ok)return port;
     }catch{}
     await sleep(100);
   }
-  throw new Error(`Chrome DevTools port unavailable (exit=${child.exitCode??'running'}): ${stderr.slice(-2000)}`);
+  throw new Error(`Chrome DevTools port unavailable on ${port} (exit=${child.exitCode??'running'}): ${stderr.slice(-2000)}`);
 }
 
 async function json(path,options){
