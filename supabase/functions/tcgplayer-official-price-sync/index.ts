@@ -97,23 +97,57 @@ async function syncSkuScope(scope: string, offset: number, limit: number, token:
   return { candidateCount: candidates?.length || 0, requested: ids.length, written: rows.length };
 }
 
-async function syncSealedProducts(offset: number, limit: number, token: string) {
-  const candidates = await sb(`mtgjson_sealed_products?select=uuid,name,tcgplayer_product_id&tcgplayer_product_id=not.is.null&order=tcgplayer_product_id.asc&offset=${offset}&limit=${limit}`);
+async function syncSealedProducts(offset: number, limit: number, token: string, requestedProductIds: string[] = []) {
+  const candidateFilter = requestedProductIds.length
+    ? `tcgplayer_product_id=in.(${requestedProductIds.join(',')})`
+    : `order=tcgplayer_product_id.asc&offset=${offset}&limit=${limit}`;
+  const candidates = await sb(`mtgjson_sealed_products?select=uuid,name,tcgplayer_product_id&tcgplayer_product_id=not.is.null&${candidateFilter}`);
   const byProduct = new Map<string, any>();
   for (const x of candidates || []) if (x.tcgplayer_product_id && !byProduct.has(String(x.tcgplayer_product_id))) byProduct.set(String(x.tcgplayer_product_id), x);
   const ids = [...byProduct.keys()];
   if (!ids.length) return { candidateCount: candidates?.length || 0, requested: 0, written: 0 };
 
   const collected = new Map<string, any[]>();
+  const skuProduct = new Map<string, string>();
   for (let i = 0; i < ids.length; i += 50) {
     const part = ids.slice(i, i + 50);
-    const r = await fetch(`${API}/pricing/product/${part.join(',')}`, { headers: { Authorization: `bearer ${token}` } });
+    const headers = { Authorization: `bearer ${token}` };
+    const [r, catalog] = await Promise.all([
+      fetch(`${API}/pricing/product/${part.join(',')}`, { headers }),
+      fetch(`${API}/catalog/products/${part.join(',')}?includeSkus=true`, { headers }),
+    ]);
     if (!r.ok && r.status !== 207) throw new Error(`pricing_product_${r.status}`);
+    if (!catalog.ok && catalog.status !== 207) throw new Error(`catalog_product_${catalog.status}`);
     const j = await r.json();
     for (const x of j.results || []) {
       const k = String(x.productId);
       if (!collected.has(k)) collected.set(k, []);
       collected.get(k)!.push(x);
+    }
+    const detail = await catalog.json();
+    for (const product of detail.results || []) {
+      const productId = String(product.productId);
+      const skus = Array.isArray(product.skus) ? product.skus : [];
+      const english = skus.filter((sku: any) => Number(sku.languageId) === 1);
+      for (const sku of english.length ? english : skus) {
+        if (sku?.skuId != null) skuProduct.set(String(sku.skuId), productId);
+      }
+    }
+  }
+
+  const landedByProduct = new Map<string, any>();
+  const skuIds = [...skuProduct.keys()];
+  for (let i = 0; i < skuIds.length; i += 50) {
+    const part = skuIds.slice(i, i + 50);
+    const r = await fetch(`${API}/pricing/sku/${part.join(',')}`, { headers: { Authorization: `bearer ${token}` } });
+    if (!r.ok && r.status !== 207) throw new Error(`pricing_sku_${r.status}`);
+    const j = await r.json();
+    for (const x of j.results || []) {
+      const pid = skuProduct.get(String(x.skuId));
+      const landed = Number(x.lowestListingPrice);
+      if (!pid || !Number.isFinite(landed) || landed <= 0) continue;
+      const prior = landedByProduct.get(pid);
+      if (!prior || landed < Number(prior.lowestListingPrice)) landedByProduct.set(pid, x);
     }
   }
 
@@ -125,6 +159,7 @@ async function syncSealedProducts(offset: number, limit: number, token: string) 
       || vals[0];
     const meta = byProduct.get(pid);
     if (!c || !meta) continue;
+    const landed = landedByProduct.get(pid);
     rows.push({
       sealed_uuid: meta.uuid,
       source: 'tcgplayer_official_product',
@@ -132,7 +167,7 @@ async function syncSealedProducts(offset: number, limit: number, token: string) 
       product_name: meta.name || null,
       market_price: c.marketPrice,
       low_price: c.lowPrice,
-      low_with_shipping: null,
+      low_with_shipping: landed?.lowestListingPrice ?? null,
       total_listings: null,
       captured_at: observed_at,
       raw_json: {
@@ -142,7 +177,10 @@ async function syncSealedProducts(offset: number, limit: number, token: string) 
         directLowPrice: c.directLowPrice ?? null,
         midPrice: c.midPrice ?? null,
         highPrice: c.highPrice ?? null,
-        shippingAware: false,
+        shippingAware: landed?.lowestListingPrice != null,
+        skuId: landed?.skuId ?? null,
+        lowestShipping: landed?.lowestShipping ?? null,
+        lowestListingPrice: landed?.lowestListingPrice ?? null,
       },
     });
   }
@@ -167,7 +205,8 @@ Deno.serve(async req => {
     const limit = Math.max(1, Math.min(500, mode === 'next' ? Number(st.batch_size || 500) : Number(u.searchParams.get('limit') || 500)));
     await setState(scope, { last_started_at: new Date().toISOString(), last_error: null });
     const token = await tcgToken();
-    const result = scope === 'sealed_products' ? await syncSealedProducts(offset, limit, token) : await syncSkuScope(scope, offset, limit, token);
+    const productIds = (u.searchParams.get('product_ids') || '').split(',').map(x => x.trim()).filter(x => /^\d+$/.test(x)).slice(0, 50);
+    const result = scope === 'sealed_products' ? await syncSealedProducts(offset, limit, token, productIds) : await syncSkuScope(scope, offset, limit, token);
     const next = result.candidateCount < limit ? 0 : offset + limit;
     await setState(scope, { next_offset: next, last_completed_at: new Date().toISOString(), last_requested: result.requested, last_written: result.written, last_error: null });
     return new Response(JSON.stringify({ ok: true, scope, offset, limit, ...result, next_offset: next }), { headers: { 'content-type': 'application/json' } });
