@@ -36,10 +36,16 @@ test('Scout renderer emits dense rows directly before enhancer decoration',async
 });
 
 test('Scout mobile first paint waits for route-owned IA and dense list',async()=>{
-  const source=await read('src/modules/scout/first-paint-guard.js');
+  const [source,renderer]=await Promise.all([
+    read('src/modules/scout/first-paint-guard.js'),
+    read('src/modules/scout/renderer.js')
+  ]);
   expect(source).toContain("host.classList.add('cx-scout-preparing')");
+  expect(source).toContain('mobile&&usefulContentAtInstall');
   expect(source).toContain('#cxParityCards.cx-scout-dense-list');
   expect(source).toContain("host.classList.remove('cx-scout-preparing')");
+  expect(renderer).toContain("function releasePreparing(h){h?.classList.remove('cx-scout-preparing')}");
+  expect(renderer.indexOf('function skeleton(h){releasePreparing(h)')).toBeGreaterThan(-1);
 });
 
 test('mobile utility shelf stays outside Scout row geometry and snaps back to content origin',async()=>{
