@@ -38,6 +38,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm ci
+      - run: npm install --no-package-lock --ignore-scripts
       - run: node tools/check-delvin-web-discord-parity.mjs
       - run: npx playwright test tests/browser/delvin-v2-parity-contract.spec.js --config tools/playwright.config.mjs
