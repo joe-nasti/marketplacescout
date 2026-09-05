@@ -75,7 +75,7 @@ test('sealed inventory-fit questions use deferred Discord delivery',()=>{
   const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
   const presenter=read('supabase/functions/ask-collectish-delvin-present/index.ts');
   expect(worker).toMatch(/isQueuedSharedQuestion[\s\S]*inventory\\s\+fit/);
-  expect(worker).toContain("ask-collectish-delvin-present-v2");
+  expect(worker).toContain("ask-collectish-delvin-present-v3");
   expect(read('cloud-worker/discord-card-investigator.mjs')).toMatch(/inventory\\s\+fit[\s\S]*return null/);
   expect(router).toContain("ask_delvin_sealed_direct_crack_v1");
   expect(router).toContain('max_buy_15_pct');
@@ -84,7 +84,7 @@ test('sealed inventory-fit questions use deferred Discord delivery',()=>{
   expect(presenter).toContain("label:'Practical net EV'");
   expect(presenter).toContain("label:'Max buy @ 15%'");
   expect(router).toContain("sealed_uuid:product.uuid");
-  expect(worker).toContain("u.searchParams.set('sealed',String(a.sealed_uuid))");
+  expect(worker).toMatch(/searchParams\.set\(["']sealed["'],String\([^)]*\.sealed_uuid\)\)/);
   expect(router).toContain('buy=Number(decision.acquisition_price)');
   expect(presenter).toContain('acquisition_observation_status');
   const acquisition=read('supabase/migrations/20260904030000_label_sealed_acquisition_freshness.sql');
@@ -130,7 +130,7 @@ test('sealed inventory-fit queue delivery renders decision economics and exact-p
   const originalFetch=globalThis.fetch;
   globalThis.fetch=async(url,init={})=>{
     requests.push({url:String(url),init});
-    if(String(url).includes('/functions/v1/ask-collectish-delvin-present-v2'))return new Response(JSON.stringify({handled:true,route:'sealed_inventory_fit',response:presentation.summary,presentation,surfaces:[fitSurface]}),{status:200,headers:{'Content-Type':'application/json'}});
+    if(String(url).includes('/functions/v1/ask-collectish-delvin-present-v3'))return new Response(JSON.stringify({handled:true,route:'sealed_inventory_fit',response:presentation.summary,presentation,surfaces:[fitSurface]}),{status:200,headers:{'Content-Type':'application/json'}});
     return new Response('{}',{status:200,headers:{'Content-Type':'application/json'}});
   };
   let acked=false;
