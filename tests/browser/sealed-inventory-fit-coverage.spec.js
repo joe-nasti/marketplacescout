@@ -55,6 +55,13 @@ test('Direct worker changes trigger an immediate production refresh',async()=>{
   expect(workflow).toMatch(/Backfill targeted sealed component quarter history[\s\S]*?continue-on-error: true/);
 });
 
+test('scheduled actionable model rebuild restores sealed Direct observations',async()=>{
+  const sql=await readFile('supabase/migrations/20260905034814_preserve_sealed_direct_after_scheduled_model_refresh.sql','utf8');
+  expect(sql).toMatch(/refresh_sealed_actionable_component_ev[\\s\\S]*refresh_sealed_inventory_fit_direct_observations/);
+  expect(sql).toContain('revoke all on function public.internal_refresh_actionable_sealed_models() from public, anon, authenticated');
+  expect(sql).toContain('grant execute on function public.internal_refresh_actionable_sealed_models() to service_role');
+});
+
 test('quarter history backfill is exact-SKU and provenance preserving',async()=>{
   const worker=await readFile('cloud-worker/backfill-sealed-component-history.mjs','utf8');
   expect(worker).toContain('sealed_inventory_fit_component_targets?select=sku_id,product_id');
