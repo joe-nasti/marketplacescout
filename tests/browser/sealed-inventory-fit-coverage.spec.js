@@ -70,3 +70,14 @@ test('quarter history backfill is exact-SKU and provenance preserving',async()=>
   expect(worker).toContain('lowest_listing_price:null');
   expect(worker).toContain('resolution=ignore-duplicates');
 });
+
+test('Enduring Ideal 887 has its official exact TCGplayer foil SKU correction',async()=>{
+  const sql=await readFile('supabase/migrations/20260905162246_backfill_enduring_ideal_887_tcg_sku.sql','utf8');
+  expect(sql).toContain("'75cd58ea-db54-5d0b-a26c-b08b3291322a'");
+  expect(sql).toContain("'601114'");
+  expect(sql).toContain("'8400139'");
+  expect(sql).toContain("'NEAR MINT'");
+  expect(sql).toContain("'ENGLISH'");
+  expect(sql).toContain("'FOIL'");
+  expect(sql).toContain('on conflict (sku_id) do update');
+});
