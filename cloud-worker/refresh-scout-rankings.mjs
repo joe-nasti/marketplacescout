@@ -60,7 +60,7 @@ if(leaseClaimed!==true){
 phase='24h_aggregation';
 await state('running',{phase,refresh_reason:decision.reason,watermarks:decision.watermarks,durations_ms:durations},started);
 try{
-  const aggregate=await timed('24h_aggregation',()=>rpc('refresh_scout_opportunities_24h'));
+  const aggregate=await timed('24h_aggregation',()=>rpc('refresh_scout_opportunities_24h_core'));
   phase='v5_shadow';
   await state('running',{phase,aggregate,refresh_reason:decision.reason,watermarks:decision.watermarks,durations_ms:durations},started);
   const shadow=await timed('v5_shadow',()=>rpc('refresh_scout_v5_shadow'));
@@ -68,7 +68,7 @@ try{
   await state('running',{phase,aggregate,shadow,refresh_reason:decision.reason,watermarks:decision.watermarks,durations_ms:durations},started);
   const cache=await timed('promoted_cache',()=>rpc('refresh_scout_opportunities_v5_cache'));
   const totalMs=Object.values(durations).reduce((a,b)=>a+b,0);
-  const detail={aggregate,shadow,cache,refresh_reason:decision.reason,watermarks:decision.watermarks,durations_ms:durations,total_ms:totalMs,model:'watermark gate -> single-writer lease -> 24h -> v5 shadow -> promoted cache'};
+  const detail={aggregate,shadow,cache,refresh_reason:decision.reason,watermarks:decision.watermarks,durations_ms:durations,total_ms:totalMs,model:'watermark gate -> single-writer lease -> 24h core -> v5 shadow -> promoted cache'};
   await state('complete',detail,started);
   await logRun({started_at:started,source:SOURCE,status:'complete',decision:decision.reason,skipped:false,newest_input_at:decision.newest_input_at||null,watermarks:decision.watermarks||{},durations_ms:durations,total_ms:totalMs});
   console.log(JSON.stringify({status:'complete',...detail,at:new Date().toISOString()}));
