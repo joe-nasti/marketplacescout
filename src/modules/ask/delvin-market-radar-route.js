@@ -11,7 +11,7 @@
   };
   const resolverUrl = input => {
     const u = new URL(typeof input === 'string' ? input : input?.url || '', location.href);
-    return `${u.origin}/functions/v1/ask-collectish-delvin-present-v2`;
+    return `${u.origin}/functions/v1/ask-collectish-delvin-present-v3`;
   };
 
   window.fetch = async function(input, init = {}) {
@@ -37,7 +37,7 @@
             response: data.response,
             model: 'Delvin deterministic',
             usage: { total_tokens: 0 },
-            tools: [{ name: 'ask-collectish-delvin-present-v2', ok: true, classification: 'READ' }],
+            tools: [{ name: 'ask-collectish-delvin-present-v3', ok: true, classification: 'READ' }],
             ui_actions: data?.presentation?.actions || [],
             context_screen: 'market',
             deterministic_route: data.route || 'shared_delvin',
