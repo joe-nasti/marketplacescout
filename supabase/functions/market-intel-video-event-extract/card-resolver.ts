@@ -5,7 +5,8 @@ const GLOBAL_ALIASES=new Map<string,string>([
   ['fomo','Fear of Missing Out'],['gsz',"Green Sun's Zenith"],['green sun zenith',"Green Sun's Zenith"],
   ['green suns zenith',"Green Sun's Zenith"],['bobble',"Mishra's Bauble"],['bauble',"Mishra's Bauble"],
   ['mishras bobble',"Mishra's Bauble"],['street rays','Street Wraith'],['street ray','Street Wraith'],
-  ['collector oof','Collector Ouphe'],['collector oofe','Collector Ouphe'],['oof','Collector Ouphe']
+  ['collector oof','Collector Ouphe'],['collector oofe','Collector Ouphe'],['oof','Collector Ouphe'],
+  ['king tchala',"King T'Challa"],['king tala',"King T'Challa"],['king dchala',"King T'Challa"],['tchala',"King T'Challa"]
 ]);
 const CREATOR_ALIASES:Record<string,Map<string,string>>={
   aspiringspike:new Map([['fomo','Fear of Missing Out'],['gsz',"Green Sun's Zenith"],['bobble',"Mishra's Bauble"],['oof','Collector Ouphe']])
