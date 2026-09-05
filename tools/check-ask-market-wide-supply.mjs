@@ -49,7 +49,8 @@ if(/kind:'ranked_rows'/.test(presenter))throw new Error('primary Discord supply 
 if(/Other variants/.test(presenter))throw new Error('supply ladder must not hide measured variants behind an Other bucket');
 if(/Unexpected supply break/.test(presenter)||/findUnexpectedBreak/.test(presenter))throw new Error('collector-number-only anomaly language must not return');
 if(!/\*\*Nonfoil\*\*/.test(presenter)||!/\*\*Foil · ★\*\*/.test(presenter))throw new Error('modern-set supply ladder must bucket nonfoil and foil variants with compact star notation');
-for(const token of ['ask_collectish_family_printing_opportunity_v3','opportunityTextV3','UNDERPRICED_FOR_PULL_RARITY_CANDIDATE','PULL_RARITY_VALUE_SIGNAL_DEMAND_UNCONFIRMED','demand confirmed','demand unknown','Collector Boosters','pull odds appear only where explicitly sourced'])if(!presenter.includes(token))throw new Error(`missing demand/pull-odds presenter token: ${token}`);\nif(!/explicitRow/.test(presenter))throw new Error('ambiguous collector-number schemes need explicit finish-label fallback');
+for(const token of ['ask_collectish_family_printing_opportunity_v3','opportunityTextV3','UNDERPRICED_FOR_PULL_RARITY_CANDIDATE','PULL_RARITY_VALUE_SIGNAL_DEMAND_UNCONFIRMED','demand confirmed','demand unknown','Collector Boosters','pull odds appear only where explicitly sourced'])if(!presenter.includes(token))throw new Error(`missing demand/pull-odds presenter token: ${token}`);
+if(!/explicitRow/.test(presenter))throw new Error('ambiguous collector-number schemes need explicit finish-label fallback');
 if(!/TCG split/.test(presenter))throw new Error('Direct and non-Direct must remain one compact TCG split metric');
 if(/ask-collectish-identity-recovery/.test(presenter))throw new Error('Discord supply presenter must not depend on user-auth identity recovery');
 if(/ask_delvin_card_family_supply_targets_v1/.test(presenter))throw new Error('Discord supply presenter must not use Scout-catalog-only targets');
