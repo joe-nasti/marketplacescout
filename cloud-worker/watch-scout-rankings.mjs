@@ -30,7 +30,7 @@ try{
 
   const durations={};let phase='24h_aggregation';
   async function timed(label,fn){const t=Date.now();try{return await fn()}finally{durations[label]=Date.now()-t}}
-  const aggregate=await timed('24h_aggregation',()=>rpc('refresh_scout_opportunities_24h'));
+  const aggregate=await timed('24h_aggregation',()=>rpc('refresh_scout_opportunities_24h_core'));
   phase='v5_shadow';const shadow=await timed('v5_shadow',()=>rpc('refresh_scout_v5_shadow'));
   phase='promoted_cache';const cache=await timed('promoted_cache',()=>rpc('refresh_scout_opportunities_v5_cache'));
   await write('recovered',{healthy:false,recovery:true,prior_status:st.status,prior_cache_at:cacheAt,prior_cache_age_minutes:Number.isFinite(ageMinutes)?Math.round(ageMinutes):null,aggregate,shadow,cache,durations_ms:durations,total_ms:Object.values(durations).reduce((a,b)=>a+b,0)},started);
