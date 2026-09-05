@@ -66,6 +66,7 @@ export async function startScout(){
     try{
       const module=await import('./index.js');
       await module.installScoutRenderer();
+      if(!window.CollectishScoutRenderer?.load)throw new Error('Scout renderer unavailable after install');
       started=true;
       queueMicrotask(()=>void openColdDeepLink().catch(error=>console.warn('Scout deep link failed',error)));
     }catch(error){
