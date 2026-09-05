@@ -131,6 +131,21 @@ test('official sealed pricing resolves delivered low from SKU pricing',()=>{
   expect(sync).toContain("u.searchParams.get('product_ids')");
 });
 
+test('sealed TCGplayer resale net uses delivered price and canonical fees',async()=>{
+  const {isQueuedSharedQuestion}=await import('../../cloud-worker/discord-shared-delvin-route.mjs');
+  const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
+  const presenter=read('supabase/functions/ask-collectish-delvin-present/index.ts');
+  expect(isQueuedSharedQuestion('if I sold the chocobo pack on TCG, how much after fees')).toBe(true);
+  expect(router).toContain('sealedResaleNetIntent');
+  expect(router).toContain('sealedResaleTarget');
+  expect(router).toContain("route:'sealed_resale_net'");
+  expect(router).toContain("serviceRpc('collectish_tcg_regular_net'");
+  expect(router).toContain('buyer-paid shipping');
+  expect(router).toMatch(/routeSealedTrajectory\(q\)[\s\S]*routeSealedResaleNet\(q\)[\s\S]*routeSealedEv\(q\)/);
+  expect(presenter).toContain('sealedResalePresentation');
+  expect(presenter).toContain("type:'sealed_resale_net'");
+});
+
 test('sealed inventory-fit queue delivery renders decision economics and exact-product link',async()=>{
   const {maybeHandleCardInvestigator}=await import('../../cloud-worker/discord-card-investigator.mjs');
   const {isQueuedSharedQuestion,deliverQueuedSharedQuestion}=await import('../../cloud-worker/discord-shared-delvin-route.mjs');
