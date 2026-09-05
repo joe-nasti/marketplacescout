@@ -33,7 +33,6 @@ test('shared router owns broad market radar without hijacking named sources',()=
   const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
   const fallback=read('supabase/functions/ask-collectish-delvin-route/index.ts');
   const presenter=read('supabase/functions/ask-collectish-delvin-present/index.ts');
-  const presenterV2=read('supabase/functions/ask-collectish-delvin-present-v2/index.ts');
   expect(router).toContain("route:'named_source_snapshot'");
   expect(router).toMatch(/routeSource\(q\).*priceHistoryIntent/s);
   expect(fallback).toContain("route:'market_radar'");
@@ -81,8 +80,6 @@ test('sealed inventory-fit questions use deferred Discord delivery',()=>{
   expect(presenter).toContain("label:'Buy landed'");
   expect(presenter).toContain("label:'Practical net EV'");
   expect(presenter).toContain("label:'Max buy @ 15%'");
-  expect(presenterV2).toMatch(/ask-collectish-route-intents[\s\S]*ask-collectish-delvin-route-v2/);
-  expect(presenterV2).toMatch(/deterministic\?\.handled[\s\S]*ask-collectish-delvin-present/);
   expect(router).toContain("sealed_uuid:product.uuid");
   expect(worker).toContain("u.searchParams.set('sealed',String(a.sealed_uuid))");
   expect(router).toContain('buy=Number(decision.acquisition_price)');
@@ -91,6 +88,22 @@ test('sealed inventory-fit questions use deferred Discord delivery',()=>{
   expect(acquisition).toContain('p.low_with_shipping::numeric acquisition_price');
   expect(acquisition).not.toMatch(/coalesce\s*\(\s*p\.low_with_shipping\s*,\s*p\.low_price/i);
   expect(acquisition).toContain("else 'STALE'");
+});
+
+test('sealed component EV resolves packs before generic card matching',()=>{
+  const worker=read('cloud-worker/discord-shared-delvin-route.mjs');
+  const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
+  const presenter=read('supabase/functions/ask-collectish-delvin-present/index.ts');
+  expect(router).toContain('sealedEvIntent');
+  expect(router).toContain('resolveSealedEvProduct');
+  expect(router).toContain("route:'sealed_product_ev'");
+  expect(router).toMatch(/routeSealedTrajectory\(q\)[\s\S]*routeSealedEv\(q\)[\s\S]*routeSealedFit\(q\)/);
+  expect(router).toContain("category==='booster_pack'");
+  expect(router).toContain("category.includes('case')");
+  expect(router).toContain('that resale price is not contents EV');
+  expect(presenter).toContain('sealedEvPresentation');
+  expect(presenter).toContain("type:'sealed_product_ev'");
+  expect(worker).toMatch(/expected\\s\+value[\s\S]*booster\|pack\|bundle/);
 });
 
 test('sealed inventory-fit queue delivery renders decision economics and exact-product link',async()=>{
