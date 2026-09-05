@@ -107,10 +107,11 @@ test('sealed inventory-fit queue delivery renders decision economics and exact-p
       {label:'Max buy @ 15%',display:'$298.80'}
     ],actions:[{type:'navigate',label:'Open exact product',screen:'sealed',sealed_view:'opportunities',sealed_uuid:uuid}]
   };
+  const fitSurface={type:'sealed_inventory_fit',title:presentation.title,profile:{summary:{resolved_skus:100,content_lines:101,direct_observed:100,direct_in_stock:28,direct_depth_10:26,direct_depth_25:19,growth_history_cards:44,cards_2_plus:45,unresolved_skus:1},top_value_cards:[{name:'Sol Ring',practical_value:18.07,share_pct:5.3,direct_available:62}],top_growth_cards:[{name:'Sol Ring',growth_pct:18.1,growth_dollars:3.51}]},economics:{verdict:'BUY & CRACK',acquisition_price:285.95,practical_net_ev:343.62,practical_roi_pct:20.2,direct_first_net_ev:376.79,direct_roi_pct:31.8,max_buy_15_pct:298.80,margin_dollars:57.67,optimized_live_out_ev:394.60,tcg_market_gross_ev:458.86,cash_floor_ev:238.27,acquisition_age_hours:18},actions:presentation.actions};
   const originalFetch=globalThis.fetch;
   globalThis.fetch=async(url,init={})=>{
     requests.push({url:String(url),init});
-    if(String(url).includes('/functions/v1/ask-collectish-delvin-present-v2'))return new Response(JSON.stringify({handled:true,route:'sealed_inventory_fit',response:presentation.summary,presentation}),{status:200,headers:{'Content-Type':'application/json'}});
+    if(String(url).includes('/functions/v1/ask-collectish-delvin-present-v2'))return new Response(JSON.stringify({handled:true,route:'sealed_inventory_fit',response:presentation.summary,presentation,surfaces:[fitSurface]}),{status:200,headers:{'Content-Type':'application/json'}});
     return new Response('{}',{status:200,headers:{'Content-Type':'application/json'}});
   };
   let acked=false;
@@ -120,8 +121,10 @@ test('sealed inventory-fit queue delivery renders decision economics and exact-p
     const discord=requests.find(x=>x.url.includes('/webhooks/app/token/messages/@original'));
     expect(discord).toBeTruthy();
     const payload=JSON.parse(discord.init.body);
+    expect(payload.embeds).toHaveLength(2);
     const rendered=JSON.stringify(payload.embeds);
     for(const expected of ['$285.95','$343.62','+20.2%','$376.79','$298.80'])expect(rendered).toContain(expected);
+    for(const expected of ['100/101','28','26','19','44/45','Value composition and momentum'])expect(rendered).toContain(expected);
     const link=new URL(payload.components[0].components[0].url);
     expect(link.searchParams.get('tab')).toBe('sealed');
     expect(link.searchParams.get('sealedView')).toBe('opportunities');
@@ -162,4 +165,16 @@ test('web Ask converges on the stable API and renders shared surfaces',()=>{
   expect(renderer).toContain("surface?.type==='market_radar'");
   expect(renderer).toContain("surface?.type==='delvin_query'&&surface?.query_key==='market_radar'");
   expect(renderer).toContain('surface.price_points');
+});
+
+test('Discord sealed inventory fit uses a mobile-first decision and detail split',()=>{
+  const worker=read('cloud-worker/discord-shared-delvin-route.mjs');
+  expect(worker).toContain('function sealedFitEmbeds');
+  expect(worker).toContain('Value composition and momentum');
+  expect(worker).toContain("name:'Coverage'");
+  expect(worker).toContain('History **');
+  expect(worker).toContain('top_value_cards.slice(0,5)');
+  expect(worker).toContain('top_growth_cards.slice(0,5)');
+  expect(worker).toContain('Missing observations are unknown, not zero.');
+  expect(worker).toContain('fit?sealedFitEmbeds(fit):presentationEmbeds');
 });
