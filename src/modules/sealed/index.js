@@ -20,14 +20,16 @@ export async function install(){
     import('./product-family.js'),
     import('./source-compare.js'),
     import('./inventory-fit.js'),
-    import('./product-history.js')
+    import('./product-history.js'),
+    import('./collector-model-health.js')
   ]);
-  const urlState=modules[5],renderer=modules[7],outOptimizer=modules[8],family=modules[9],sourceCompare=modules[10],inventoryFit=modules[11],productHistory=modules[12];
+  const urlState=modules[5],renderer=modules[7],outOptimizer=modules[8],family=modules[9],sourceCompare=modules[10],inventoryFit=modules[11],productHistory=modules[12],collectorModelHealth=modules[13];
   urlState.installSealedUrlState();
   outOptimizer.installOutOptimizer();
   family.install();
   sourceCompare.installSourceCompare();
   inventoryFit.installInventoryFit();
   productHistory.installProductHistory();
+  collectorModelHealth.installCollectorModelHealth();
   await renderer.install();
 }
