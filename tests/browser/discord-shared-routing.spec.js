@@ -98,12 +98,16 @@ test('sealed component EV resolves packs before generic card matching',()=>{
   const router=read('supabase/functions/ask-collectish-route-intents/index.ts');
   const presenter=read('supabase/functions/ask-collectish-delvin-present/index.ts');
   expect(router).toContain('sealedEvIntent');
+  expect(router).toContain('sealedEvClause');
+  expect(router).toMatch(/should\|can\|would[\s\S]*crack\|open/);
+  expect(router).toMatch(/suffix=s\.match[\s\S]*ev\|expected\\s\+value/);
   expect(router).toContain('resolveSealedEvProduct');
   expect(router).toContain("route:'sealed_product_ev'");
   expect(router).toMatch(/routeSealedTrajectory\(q\)[\s\S]*routeSealedEv\(q\)[\s\S]*routeSealedFit\(q\)/);
   expect(router).toContain("category==='booster_pack'");
   expect(router).toContain("category.includes('case')");
   expect(router).toContain('that resale price is not contents EV');
+  expect(router).toContain('Recommendation: ${text(ev.practical_action)}');
   expect(presenter).toContain('sealedEvPresentation');
   expect(presenter).toContain("type:'sealed_product_ev'");
   expect(worker).toMatch(/expected\\s\+value[\s\S]*booster\|pack\|bundle/);
