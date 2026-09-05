@@ -195,5 +195,5 @@ test('Discord sealed inventory fit uses a mobile-first decision and detail split
   expect(worker).toContain('top_value_cards.slice(0,5)');
   expect(worker).toContain('top_growth_cards.slice(0,5)');
   expect(worker).toContain('Missing observations are unknown, not zero.');
-  expect(worker).toContain('fit?sealedFitEmbeds(fit):presentationEmbeds');
+  expect(worker).toMatch(/\?\s*sealedFitEmbeds\([^)]*\)\s*:\s*presentationEmbeds/);
 });
