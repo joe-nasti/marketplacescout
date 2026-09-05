@@ -71,12 +71,13 @@ begin
 
   with dc as (
     select d.deck_key,d.code,d.name deck_name,d.deck_type,d.release_date,
-           x.card_uuid,lower(x.finish) finish,x.quantity,
-           c.name card_name,c.set_code,c.collector_number
+           x.card_uuid,lower(x.finish) finish,sum(x.quantity)::integer quantity,
+           max(c.name) card_name,max(c.set_code) set_code,max(c.collector_number) collector_number
     from public.mtgjson_decks d
     join public.mtgjson_deck_cards x on x.deck_key=d.deck_key
     join public.mtgjson_cards c on c.uuid=x.card_uuid
     where d.deck_key=p_deck_key
+    group by d.deck_key,d.code,d.name,d.deck_type,d.release_date,x.card_uuid,lower(x.finish)
   ), skus as (
     select dc.*,sk.sku_id,sk.product_id
     from dc
