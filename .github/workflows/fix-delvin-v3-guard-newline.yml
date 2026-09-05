@@ -1,0 +1,30 @@
+name: Fix Delvin v3 guard newline
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/fix-delvin-v3-guard-newline.mjs'
+      - '.github/workflows/fix-delvin-v3-guard-newline.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/fix-delvin-v3-guard-newline.mjs
+      - name: Commit guard fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tools/check-ask-market-wide-supply.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix Delvin v3 supply guard newline"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
