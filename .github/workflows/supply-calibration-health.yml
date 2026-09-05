@@ -1,0 +1,40 @@
+name: Supply calibration health
+
+on:
+  schedule:
+    - cron: '17 12 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: supply-calibration-health
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require Supabase credentials
+        run: test -n "$SUPABASE_PUBLISHABLE_KEY" && test -n "$SUPABASE_ACCESS_TOKEN"
+      - name: Run production NM/LP supply cohort
+        run: node tools/run-supply-calibration-cohort.mjs --concurrency 2 --timeout-seconds 240 --output supply-calibration-report.json
+      - name: Upload calibration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-calibration-report
+          path: |
+            supply-calibration-report.json
+            supply-calibration-report.json.checkpoint
+          if-no-files-found: warn
+          retention-days: 30
