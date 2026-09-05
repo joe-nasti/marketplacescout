@@ -2,7 +2,7 @@ let installed=false;
 let installing=null;
 
 function deferCatalystRecorder(){const run=()=>void import('./catalyst-shadow-recorder.js');if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:2000});else setTimeout(run,700)}
-function deferSecondaryScoutEnhancers(){setTimeout(()=>{void import('./oracle-better-printing.js');void import('./price-actionability.js');void import('./flash-buy.js');void import('./oracle-bulk-refresh.js')},900)}
+function deferSecondaryScoutEnhancers(){setTimeout(()=>{void import('./oracle-better-printing.js');void import('./price-actionability.js');void import('./flash-buy.js');void import('./oracle-bulk-refresh.js');void import('./outcome-calibration.js')},900)}
 export async function installScoutRenderer(){
   if(installed)return;
   if(installing)return installing;
