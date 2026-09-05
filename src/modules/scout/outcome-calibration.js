@@ -32,9 +32,11 @@ function render(data){
   if(!total)return '';
   const observed=Number(summary.observed_24h)||0;
   const matured=Number(summary.matured_24h)||0;
+  const spreadEvaluable=Number(summary.spread_evaluable_24h)||0;
   const spreadWins=Number(summary.spread_survives_24h)||0;
   const marketWins=Number(summary.market_up_5pct_24h)||0;
-  const enoughForRates=observed>=MIN_RATE_SAMPLE;
+  const enoughSpreadRate=spreadEvaluable>=MIN_RATE_SAMPLE;
+  const enoughMarketRate=observed>=MIN_RATE_SAMPLE;
   const readiness=String(data?.readiness||'INSUFFICIENT_SAMPLE').replace(/_/g,' ');
   const recent=episodes.slice(0,4).map(episodeRow).join('');
   return `<section class="cx-v5-section cx-outcome-calibration">
@@ -44,11 +46,11 @@ function render(data){
     <div class="cx-outcome-metrics">
       ${metric('Episodes',String(total),`${Number(summary.open)||0} open · ${Number(summary.closed)||0} closed`)}
       ${metric('Observed +24h',`${observed}/${matured}`,matured>observed?`${matured-observed} matured without an exact price observation`:'Exact-SKU official price window')}
-      ${metric('Spread survived +24h',enoughForRates?`${Number(summary.spread_survival_rate_24h_pct).toFixed(1)}%`:`${spreadWins}/${observed}`,enoughForRates?`${spreadWins}/${observed} observed episodes`:`Rate hidden until ${MIN_RATE_SAMPLE} observed episodes`)}
-      ${metric('Market +5% by +24h',enoughForRates?`${Number(summary.market_up_5pct_rate_24h_pct).toFixed(1)}%`:`${marketWins}/${observed}`,enoughForRates?`${marketWins}/${observed} observed episodes`:`Rate hidden until ${MIN_RATE_SAMPLE} observed episodes`)}
+      ${metric('Spread survived +24h',enoughSpreadRate?`${Number(summary.spread_survival_rate_24h_pct).toFixed(1)}%`:`${spreadWins}/${spreadEvaluable}`,enoughSpreadRate?`${spreadWins}/${spreadEvaluable} spread-evaluable episodes`:`Rate hidden until ${MIN_RATE_SAMPLE} spread-evaluable episodes`)}
+      ${metric('Market +5% by +24h',enoughMarketRate?`${Number(summary.market_up_5pct_rate_24h_pct).toFixed(1)}%`:`${marketWins}/${observed}`,enoughMarketRate?`${marketWins}/${observed} observed episodes`:`Rate hidden until ${MIN_RATE_SAMPLE} observed episodes`)}
     </div>
     ${recent?`<div class="cx-outcome-recent"><div class="cx-outcome-label">Recent comparable episodes</div>${recent}</div>`:''}
-    <small class="cx-outcome-note">Exact-SKU percentage rates stay hidden until at least ${MIN_RATE_SAMPLE} observed 24h episodes. Spread survival is descriptive, not realized ROI: it applies the entry-time Direct-net/Direct-price ratio to the later Direct observation and asks whether that modeled net still exceeded the original entry buy price. Missing future observations are unknown, never zero.</small>
+    <small class="cx-outcome-note">Exact-SKU percentage rates stay hidden until at least ${MIN_RATE_SAMPLE} qualifying 24h episodes. Spread survival excludes cases where entry economics or a later Direct observation are missing; unknown is never counted as failure. It is descriptive, not realized ROI.</small>
   </section>`;
 }
 
