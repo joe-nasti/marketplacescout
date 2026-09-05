@@ -1,4 +1,6 @@
 [
+  { "card_name": "Zodiac Dragon", "archetype": "market_wide_very_thin_proven", "expected_classification": "VERY_THIN", "expected_thin_proven": true, "minimum_confidence_score": 100 },
+  { "card_name": "Dong Zhou, the Tyrant", "archetype": "market_wide_very_thin_proven", "expected_classification": "VERY_THIN", "expected_thin_proven": true, "minimum_confidence_score": 100 },
   { "card_name": "Guttural Response", "archetype": "low_exact_sku_depth" },
   { "card_name": "Inventors' Fair", "archetype": "low_exact_sku_depth" },
   { "card_name": "Exquisite Blood", "archetype": "scarce_looking_reprint_family" },

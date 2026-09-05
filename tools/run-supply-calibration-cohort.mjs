@@ -81,20 +81,35 @@ async function mapLimit(items, limit, worker) {
 }
 
 function summarize(entry, response, elapsedMs) {
-  const supply = response?.market_supply || null;
+  const supply = response?.data?.market_supply || response?.market_supply || null;
   const tcg = supply?.source_depth?.tcgplayer || supply?.combined || {};
   const manaPool = supply?.source_depth?.manapool_retail || {};
   const cardKingdom = supply?.source_depth?.cardkingdom_retail || {};
+  const classification = supply?.classification || supply?.global_supply_classification || 'UNPROVEN';
+  const confidenceScore = number(supply?.confidence_score);
+  const thinProven = supply?.market_wide_thinness_proven === true;
+  const checks = [
+    entry.expected_classification == null || classification === entry.expected_classification,
+    entry.expected_thin_proven == null || thinProven === entry.expected_thin_proven,
+    entry.minimum_confidence_score == null || (confidenceScore != null && confidenceScore >= Number(entry.minimum_confidence_score)),
+  ];
   return {
     card_name: entry.card_name,
     archetype: entry.archetype,
     elapsed_ms: elapsedMs,
-    resolved: response?.recovered === true,
+    resolved: response?.handled === true && ['card_family_supply', 'card_printing_cohort_supply'].includes(response?.route),
     scope: supply?.scope || null,
-    classification: supply?.classification || 'UNPROVEN',
+    classification,
     confidence: supply?.confidence || 'LOW',
+    confidence_score: confidenceScore,
+    confidence_reasons: Array.isArray(supply?.confidence_reasons) ? supply.confidence_reasons : [],
+    blocking_reasons: Array.isArray(supply?.blocking_reasons) ? supply.blocking_reasons : [],
     claim_basis: supply?.claim_basis || null,
-    market_wide_thinness_proven: supply?.market_wide_thinness_proven === true,
+    market_wide_thinness_proven: thinProven,
+    expected_classification: entry.expected_classification || null,
+    expected_thin_proven: entry.expected_thin_proven ?? null,
+    minimum_confidence_score: number(entry.minimum_confidence_score),
+    expectation_passed: checks.every(Boolean),
     family_product_count: number(supply?.coverage?.product_count),
     target_sku_count: number(supply?.coverage?.target_sku_count),
     complete_sku_count: number(supply?.coverage?.complete_sku_count),
@@ -106,9 +121,14 @@ function summarize(entry, response, elapsedMs) {
     non_direct_units: number(tcg?.non_direct_unit_count),
     manapool_quantity: number(manaPool?.quantity),
     manapool_coverage_ratio: number(manaPool?.coverage_ratio),
+    manapool_mapping_pct: number(manaPool?.mapping_coverage_pct),
+    manapool_freshness_status: manaPool?.freshness_status || null,
+    manapool_usable_for_market_claim: manaPool?.usable_for_market_claim === true,
     manapool_outcome_counts: manaPool?.outcome_counts || null,
     cardkingdom_quantity: number(cardKingdom?.quantity),
     cardkingdom_mapping_pct: number(cardKingdom?.mapping_coverage_pct),
+    cardkingdom_freshness_status: cardKingdom?.freshness_status || null,
+    cardkingdom_usable_for_market_claim: cardKingdom?.usable_for_market_claim === true,
     family_discovery: supply?.family_discovery || null,
     error: supply?.error || null,
   };
@@ -136,10 +156,10 @@ const raw = await mapLimit(manifest, args.concurrency, async entry => {
   const started = Date.now();
   let result;
   try {
-    const response = await requestJson(`${url}/functions/v1/ask-collectish-identity-recovery`, {
+    const response = await requestJson(`${url}/functions/v1/ask-collectish-delvin-supply-present`, {
       method: 'POST', headers,
       body: JSON.stringify({
-        message: `Is ${entry.card_name} supply really thin? What data supports that?`,
+        question: `Is ${entry.card_name} supply really thin? What data supports that?`,
         context: { calibration_cohort: true },
       }),
     });
@@ -148,7 +168,9 @@ const raw = await mapLimit(manifest, args.concurrency, async entry => {
     result = { entry, error: String(error?.message || error), summary: { ...summarize(entry, null, Date.now() - started), error: String(error?.message || error) } };
   }
   completed.push(result);
-  console.error(`[${completed.length}/${manifest.length}] ${entry.card_name}: ${result.summary.classification} (${result.summary.coverage_state || result.summary.error || 'no evidence'})`);
+  const confidence = result.summary.confidence_score == null ? result.summary.confidence : `${result.summary.confidence} ${result.summary.confidence_score}/100`;
+  const blockers = result.summary.blocking_reasons?.length ? `; blocked by ${result.summary.blocking_reasons.join(', ')}` : '';
+  console.error(`[${completed.length}/${manifest.length}] ${entry.card_name}: ${result.summary.classification} (${confidence}; ${result.summary.coverage_state || result.summary.error || 'no evidence'}${blockers})`);
   if (args.output) await fs.writeFile(`${args.output}.checkpoint`, `${JSON.stringify({ schema: 'collectish.supply.calibration-cohort.checkpoint.v1', observed_at: new Date().toISOString(), completed }, null, 2)}\n`);
   return result;
 });
@@ -160,7 +182,12 @@ const report = {
   scope: { language: 'ENGLISH', conditions: ['NEAR MINT', 'LIGHTLY PLAYED'], card_count: rows.length },
   guest_user_id: guest.userId,
   distributions: { classification: distribution(rows, 'classification'), confidence: distribution(rows, 'confidence'), claim_basis: distribution(rows, 'claim_basis') },
+  thinness: {
+    proven_count: rows.filter(row => row.market_wide_thinness_proven).length,
+    unproven_count: rows.filter(row => ['THIN', 'VERY_THIN'].includes(row.classification) && !row.market_wide_thinness_proven).length,
+  },
   completed_count: rows.filter(row => row.coverage_state === 'COMPLETE').length,
+  expectation_failure_count: rows.filter(row => !row.expectation_passed).length,
   error_count: rows.filter(row => row.error).length,
   rows,
   raw,
@@ -168,4 +195,4 @@ const report = {
 if (args.output) await fs.writeFile(args.output, `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify({ ...report, raw: undefined }, null, 2));
 if (guest.userId) console.error(`Temporary anonymous user created: ${guest.userId}. Delete it after the run or supply SUPABASE_ACCESS_TOKEN to avoid creating one.`);
-if (report.error_count) process.exitCode = 1;
+if (report.error_count || report.expectation_failure_count) process.exitCode = 1;
