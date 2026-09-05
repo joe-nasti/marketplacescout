@@ -1,0 +1,30 @@
+name: Patch Delvin supply presenter parity v3
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/patch-delvin-supply-presenter-parity-v3.mjs'
+      - '.github/workflows/patch-delvin-supply-presenter-parity-v3.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/patch-delvin-supply-presenter-parity-v3.mjs
+      - name: Commit parity patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add cloud-worker/discord-shared-delvin-route.mjs tools/check-delvin-supply-presenter-parity.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "Make shared supply presenter authoritative in Discord"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
