@@ -31,6 +31,14 @@ object ReadOnlyProbePolicy {
         uri.scheme.equals("https", ignoreCase = true) && uri.host?.lowercase() in allowedHosts
     } catch (_: Exception) { false }
 
+    fun isSypReadOnlyGet(rawUrl: String, rawMethod: String = "GET"): Boolean = try {
+        val uri = Uri.parse(rawUrl)
+        rawMethod.equals("GET", ignoreCase = true) &&
+            uri.scheme.equals("https", ignoreCase = true) &&
+            uri.host?.lowercase() == "store.tcgplayer.com" &&
+            uri.path.orEmpty() in allowedSypGetPaths
+    } catch (_: Exception) { false }
+
     fun isBuyerAccountRequest(rawUrl: String): Boolean = try {
         val uri = Uri.parse(rawUrl)
         val host = uri.host?.lowercase().orEmpty()

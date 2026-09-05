@@ -106,6 +106,14 @@ class NativeSupabase {
         return range.substringAfter('/').toIntOrNull() ?: 0
     }
 
+    fun rpcArray(token: String, function: String, payload: JSONObject): JSONArray =
+        JSONArray(postJson("$BASE/rest/v1/rpc/$function", token, payload))
+
+    fun rpcBoolean(token: String, function: String, payload: JSONObject): Boolean {
+        val raw = postJson("$BASE/rest/v1/rpc/$function", token, payload).trim()
+        return raw.equals("true", ignoreCase = true)
+    }
+
     fun analyzeMarketIntel(token: String, url: String, title: String, renderedText: String): JSONObject {
         val payload = JSONObject().put("url", url).put("rendered_title", title).put("rendered_text", renderedText)
         return JSONObject(postJson("$BASE/functions/v1/market-intel-analyze", token, payload))

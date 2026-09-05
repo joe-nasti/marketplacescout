@@ -18,9 +18,11 @@ class SellerSyncService : Service() {
         private const val ALERT_CHANNEL_ID = "collectish_alerts"
         private const val SYNC_NOTIFICATION_ID = 2601
         private const val ALERT_POLL_MS = 10 * 60 * 1000L
+        private const val SYP_POLL_MS = 60 * 1000L
     }
 
     private val api = NativeSupabase()
+    private lateinit var worker: NativeSypWorker
     private lateinit var alertThread: HandlerThread
     private lateinit var alertHandler: Handler
 
@@ -31,12 +33,24 @@ class SellerSyncService : Service() {
         }
     }
 
+    private val sypPoll = object : Runnable {
+        override fun run() {
+            val result = runCatching { worker.tick(appVersion()) }.getOrElse {
+                NativeSypWorker.TickResult(0, "error", "SYP worker error: ${it.message ?: it.javaClass.simpleName}")
+            }
+            updateSyncNotification(result)
+            alertHandler.postDelayed(this, SYP_POLL_MS)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         createChannels()
-        startForeground(SYNC_NOTIFICATION_ID, syncNotification())
-        alertThread = HandlerThread("collectish-alerts").apply { start() }
+        worker = NativeSypWorker(applicationContext, api)
+        startForeground(SYNC_NOTIFICATION_ID, syncNotification("Starting authenticated read-only sync"))
+        alertThread = HandlerThread("collectish-background-sync").apply { start() }
         alertHandler = Handler(alertThread.looper)
+        alertHandler.postDelayed(sypPoll, 8_000L)
         alertHandler.postDelayed(alertPoll, 20_000L)
     }
 
@@ -49,7 +63,7 @@ class SellerSyncService : Service() {
                 "Collectish Seller Sync",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Keeps authenticated Seller history syncing while Collectish is in the background."
+                description = "Keeps authenticated read-only Seller/SYP evidence syncing while Collectish is in the background."
                 setShowBadge(false)
             }
         )
@@ -66,7 +80,7 @@ class SellerSyncService : Service() {
         )
     }
 
-    private fun syncNotification(): Notification {
+    private fun syncNotification(detail: String): Notification {
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, SYNC_CHANNEL_ID)
         } else {
@@ -75,11 +89,24 @@ class SellerSyncService : Service() {
         return builder
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentTitle("Collectish Seller sync")
-            .setContentText("Keeping Seller history current")
+            .setContentText(detail.take(120))
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_SERVICE)
             .build()
     }
+
+    private fun updateSyncNotification(result: NativeSypWorker.TickResult) {
+        val detail = when (result.sessionState) {
+            "authenticated" -> if (result.completed > 0) "SYP current · ${result.completed} job(s) processed" else "Authenticated · SYP queue current"
+            "signed_out" -> "Waiting for authenticated TCGplayer Store session"
+            else -> result.detail
+        }
+        getSystemService(NotificationManager::class.java).notify(SYNC_NOTIFICATION_ID, syncNotification(detail))
+    }
+
+    private fun appVersion(): String = runCatching {
+        packageManager.getPackageInfo(packageName, 0).versionName ?: "unknown"
+    }.getOrDefault("unknown")
 
     private fun pollAlerts() {
         val nativePrefs = getSharedPreferences("collectish-native", MODE_PRIVATE)
