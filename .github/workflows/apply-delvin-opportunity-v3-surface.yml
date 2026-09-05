@@ -20,11 +20,11 @@ jobs:
         with:
           node-version: 22
       - run: node tools/apply-delvin-opportunity-v3-surface.mjs
-      - name: Commit patched presenter
+      - name: Commit patched presenter guard
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add supabase/functions/ask-collectish-delvin-supply-present/index.ts
+          git add supabase/functions/ask-collectish-delvin-supply-present/index.ts tools/check-ask-market-wide-supply.mjs
           git diff --cached --quiet && exit 0
-          git commit -m "Wire demand and sourced pull odds into Delvin"
+          git commit -m "Guard demand and sourced pull odds in Delvin"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
