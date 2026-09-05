@@ -2,8 +2,8 @@ name: Collectish MTGStocks Interests refresh
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "29 */4 * * *"
+  # The Supabase-edge collector cannot reach MTGStocks (403). The canonical
+  # GitHub collector in mtgstocks-interests.yml owns the hourly sync.
   push:
     branches: [main]
     paths:
