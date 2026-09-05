@@ -74,8 +74,16 @@ try{
   }
 
   const includesScout=candidates.some(c=>Array.isArray(c.watch_reasons)&&c.watch_reasons.includes('scout'));
-  const refresh=includesScout?await refreshScout():{aggregate:0,annotated_in_core:false,shadow:0,promotedCache:0};
-  const detail={subsystem:'marketplace-sales-history',candidateCount:candidates.length,reasonCounts,fetched,failed,appliedSkuRows,projectedSecretLairRows,failures:failures.slice(0,20),...refresh,scoringVersion:'scout-v5',limit:LIMIT};
+  let refresh={aggregate:0,annotated_in_core:false,shadow:0,promotedCache:0};
+  let refreshWarning=null;
+  if(includesScout){
+    try{refresh=await refreshScout()}
+    catch(e){
+      refreshWarning=String(e?.message||e).slice(0,500);
+      console.warn('Sales history saved; deferred contended Scout cache refresh:',refreshWarning);
+    }
+  }
+  const detail={subsystem:'marketplace-sales-history',candidateCount:candidates.length,reasonCounts,fetched,failed,appliedSkuRows,projectedSecretLairRows,failures:failures.slice(0,20),refreshWarning,...refresh,scoringVersion:'scout-v5',limit:LIMIT};
   const status=candidates.length>0&&fetched===0&&failed>0?'failed':failed>0?'complete_with_warnings':'complete';
   await writeState(status,detail,appliedSkuRows);
   console.log(JSON.stringify({...detail,status},null,2));
