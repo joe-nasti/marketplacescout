@@ -8,6 +8,7 @@ const discord=read('cloud-worker/discord-shared-delvin-route.mjs');
 const discordEntry=read('cloud-worker/discord-ask-entry-v30.mjs');
 const autocomplete=read('cloud-worker/discord-delvin-autocomplete.mjs');
 const webApi=read('supabase/functions/ask-collectish-api-v2/index.ts');
+const legacyRoute=read('supabase/functions/ask-collectish-delvin-route/index.ts');
 const routeV2=read('supabase/functions/ask-collectish-delvin-route-v2/index.ts');
 const presentV2=read('supabase/functions/ask-collectish-delvin-present-v2/index.ts');
 const migration=read('supabase/migrations/20260904170000_shared_delvin_capability_manifest_v1.sql');
@@ -32,6 +33,9 @@ for(const token of ['canonical_result_id','canonical_row_count','payload:{questi
 for(const token of ['record_delvin_surface_parity_v1','client','canonical_result_id'])if(!presentV2.includes(token))throw new Error(`present v2 runtime parity telemetry missing ${token}`);
 for(const token of ['delvin_surface_parity_observations','question_hash','record_delvin_surface_parity_v1','ask_delvin_surface_parity_health_v1',"interval '14 days'",'service_role'])if(!telemetryMigration.includes(token))throw new Error(`runtime parity telemetry migration missing ${token}`);
 if(/\bp_question\b[\s\S]*delvin_surface_parity_observations[\s\S]*\bquestion\b\s+text/i.test(telemetryMigration))throw new Error('runtime parity telemetry stores raw questions');
+for(const token of ['retiredLegacyKeys',"retired_to:'ask-collectish-delvin-route-v2'",'tcgplayer_top_selling_month','sealed_aftermarket_decision','market_changes','signal_followthrough'])if(!legacyRoute.includes(token))throw new Error(`legacy compatibility route missing ${token}`);
+for(const retiredRpc of ['ask_delvin_collectible_cohort_thesis_v1','ask_delvin_treatment_intelligence_v1','ask_delvin_collectible_family_index_v1','ask_delvin_set_intelligence_v1','ask_delvin_printing_family_v1','ask_delvin_card_investigation_v1'])if(legacyRoute.includes(retiredRpc))throw new Error(`legacy route still executes migrated RPC ${retiredRpc}`);
+for(const retiredRegex of ['top movers(?: today)?','commander demand','creator catalysts?','compare all printings of','am i late on'])if(legacyRoute.includes(retiredRegex))throw new Error(`legacy route still owns migrated intent regex ${retiredRegex}`);
 for(const old of ['discord-fast-query-cache.mjs','discord-market-intel-fast.mjs','discord-card-investigator.mjs','discord-collectible-cohort-thesis.mjs','discord-family-set-intel.mjs','discord-signal-history.mjs'])if(discordEntry.includes(old))throw new Error(`Discord entry still owns duplicate deterministic route: ${old}`);
 if(!discordEntry.includes('discord-delvin-autocomplete.mjs'))throw new Error('Discord autocomplete is not isolated from deterministic routing');
 if(!autocomplete.includes('list_delvin_query_starters_v1'))throw new Error('Discord autocomplete is not manifest-driven');
