@@ -15,6 +15,7 @@ on:
       - ".github/workflows/scout-sales-enrichment.yml"
       - "cloud-worker/marketplace-sales-history.mjs"
       - "cloud-worker/scout-sales-enrichment.mjs"
+      - "supabase/migrations/*marketplace_sales_candidate*.sql"
 
 permissions:
   contents: read
