@@ -1,0 +1,51 @@
+name: Collectish cEDH YouTube signal reconciliation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "59 */2 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/signals-youtube-cedh-reconcile.yml"
+      - "supabase/functions/market-intel-video-cedh-reconcile/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collectish-youtube-cedh-reconcile
+  cancel-in-progress: true
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_FUNCTION_URL: https://bnsnlikjeogzdubgyvxk.supabase.co/functions/v1/market-intel-video-cedh-reconcile
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Reconcile strong cEDH creator evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error \
+            --max-time 300 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            --header "Content-Type: application/json" \
+            --data '{"limit":2}' \
+            "$SUPABASE_FUNCTION_URL"; } || true)"
+          cat "$response_file"
+          echo
+          if [[ ! "$status" =~ ^2 ]]; then
+            echo "cEDH reconciliation failed with HTTP $status" >&2
+            exit 1
+          fi
+          jq -e '.ok == true' "$response_file" >/dev/null
+          jq -e '.policy == "cedh_strong_evidence_v1"' "$response_file" >/dev/null
