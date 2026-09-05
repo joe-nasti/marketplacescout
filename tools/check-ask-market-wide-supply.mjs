@@ -60,7 +60,8 @@ for(const token of ['scryfall_oracle_id','availability','ENGLISH','tcgplayer_pro
 if(!/desired_conditions/.test(discovery))throw new Error('signed-in SKU discovery lost multi-condition support');
 if(!/known_identity/.test(discovery)||!/INCOMPLETE_CARD_FAMILY_DISCOVERY/.test(identity))throw new Error('family discovery gaps must use trusted ephemeral identity and remain globally unproven');
 if(!/mtgjson_cards\?tcgplayer_product_id=eq\./.test(discovery))throw new Error('premium cohort discovery must anchor directly through trusted MTGJSON product identity');
-if(!/same_product_printing_sibling/.test(manapool)||!/MISSING_PRINTING_IDENTITY/.test(manapool))throw new Error('ManaPool NM/LP sibling identity fallback is missing');
+if(!/same_product_printing_sibling/.test(manapool)||!/trusted_scryfall_product/.test(manapool)||!/scryfall_id=eq\./.test(manapool)||!/tcgplayer_product_id=eq\./.test(manapool)||!/canonical\.length===1/.test(manapool)||!/MISSING_PRINTING_IDENTITY/.test(manapool))throw new Error('ManaPool exact-printing identity fallback chain is missing or ambiguous');
+if(!/known_identity/.test(sync)||!/syncManaPool\(t\)/.test(sync))throw new Error('market supply must pass trusted printing identity to ManaPool on-demand sync');
 if(!/market_supply_family/.test(api)||!/card_family_supply_nm_lp/.test(routes))throw new Error('shared Ask family-supply route missing');
 if(!/Direct is a subset/.test(routes)||!/Retail price presence is not counted as stock/.test(routes))throw new Error('family response lost supply-scope safeguards');
 console.log('Ask market-wide supply guard passed');

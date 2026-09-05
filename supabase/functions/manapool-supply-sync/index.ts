@@ -79,8 +79,11 @@ Deno.serve(async req=>{
 
   const exact=(await rest(`scout_card_catalog?product_id=eq.${encodeURIComponent(productId)}&sku_id=eq.${encodeURIComponent(skuId)}&select=product_id,sku_id,card_name,set_code,collector_number,mtgjson_uuid,scryfall_id,condition,language,printing&limit=1`))?.[0];
   const sibling=!exact?.mtgjson_uuid?(await rest(`scout_card_catalog?product_id=eq.${encodeURIComponent(productId)}&mtgjson_uuid=not.is.null&select=product_id,sku_id,card_name,set_code,collector_number,mtgjson_uuid,scryfall_id,condition,language,printing&order=condition.asc&limit=1`).catch(()=>[]))?.[0]:null;
-  const cat=exact?.mtgjson_uuid?{...exact,identity_resolution:'exact_sku'}:sibling?.mtgjson_uuid?{...sibling,sku_id:skuId,condition:exact?.condition||null,identity_resolution:'same_product_printing_sibling'}:null;
-  if(!cat?.mtgjson_uuid)return js({error:'Exact Collectish SKU and same-product sibling are missing mtgjson_uuid',identity_gap:'MISSING_PRINTING_IDENTITY',product_id:productId,sku_id:skuId},404);
+  const known=body?.known_identity||{},knownScryfall=/^[0-9a-f-]{36}$/i.test(txt(known.scryfall_id))?txt(known.scryfall_id):null;
+  const canonical=!exact?.mtgjson_uuid&&!sibling?.mtgjson_uuid&&knownScryfall?(await rest(`mtgjson_cards?scryfall_id=eq.${encodeURIComponent(knownScryfall)}&tcgplayer_product_id=eq.${encodeURIComponent(productId)}&language=eq.English&select=uuid,scryfall_id,name,set_code,collector_number,language,finishes,tcgplayer_product_id&limit=2`).catch(()=>[])):[];
+  const canonicalRow=canonical.length===1?canonical[0]:null;
+  const cat=exact?.mtgjson_uuid?{...exact,identity_resolution:'exact_sku'}:sibling?.mtgjson_uuid?{...sibling,sku_id:skuId,condition:exact?.condition||known.condition||null,identity_resolution:'same_product_printing_sibling'}:canonicalRow?.uuid?{mtgjson_uuid:canonicalRow.uuid,scryfall_id:canonicalRow.scryfall_id,card_name:canonicalRow.name,set_code:canonicalRow.set_code,collector_number:canonicalRow.collector_number,language:canonicalRow.language,printing:known.printing||null,sku_id:skuId,condition:known.condition||exact?.condition||null,identity_resolution:'trusted_scryfall_product'}:null;
+  if(!cat?.mtgjson_uuid)return js({error:'Exact SKU, same-product sibling, and trusted Scryfall/product identity did not resolve one mtgjson_uuid',identity_gap:'MISSING_PRINTING_IDENTITY',product_id:productId,sku_id:skuId},404);
   const observedAt=new Date().toISOString();
   const run=(await rest('vendor_depth_runs',{method:'POST',prefer:'return=representation',body:[{source:'manapool',endpoint:`${BASE}/products/singles`,observed_at:observedAt,started_at:observedAt,detail:{target_strategy:'exact_ask_sku_on_demand',product_id:productId,sku_id:skuId,mtgjson_uuid:cat.mtgjson_uuid}}]}))?.[0];
 
