@@ -10,6 +10,7 @@ const routes=fs.readFileSync('supabase/functions/ask-collectish-route-intents/in
 const presenter=fs.readFileSync('supabase/functions/ask-collectish-delvin-supply-present/index.ts','utf8');
 const family=fs.readFileSync('supabase/migrations/20260903143000_card_family_nm_lp_supply_scope.sql','utf8');
 const canonical=fs.readFileSync('supabase/migrations/20260904005500_canonical_nm_lp_family_sku_resolver.sql','utf8');
+const discoveredCanonical=fs.readFileSync('supabase/migrations/20260905234726_persist_discovered_nm_lp_family_skus.sql','utf8');
 const context=fs.readFileSync('supabase/migrations/20260904152000_scout_oracle_family_market_context.sql','utf8');
 const printingMeta=fs.readFileSync('supabase/migrations/20260904175000_family_printing_metadata.sql','utf8');
 const printingOpportunity=fs.readFileSync('supabase/migrations/20260904174500_family_printing_opportunity.sql','utf8');
@@ -43,7 +44,10 @@ for(const token of ['ask_collectish_supply_family_skus_v1','market-supply-sync',
 for(const token of ['TOP_5_LIQUID_PRINTINGS_NM_LP','RECENT_PRINTINGS_NM_LP','REGULAR_NONFOIL_NM_LP','SPECIFIC_SETS_NM_LP','liquidCohort','recentCohort','selectedSetCohort','units_sold_30d','unknown_set_codes','not total family supply'])if(!presenter.includes(token))throw new Error(`missing bounded cohort selector token: ${token}`);
 for(const token of ['attempted_candidate_count','expectedCohortCount','Math.min(5,Number(cohort?.priced_candidate_count||0))','if(!matches.length)continue'])if(!presenter.includes(token))throw new Error(`missing available-premium cohort token: ${token}`);
 for(const token of ['SUPPLY_SCOPE_REQUIRED','maximum_automatic_printing_identities:10','TOP_5_PREMIUM_PRINTINGS_NM_LP','premiumCohort','not total family supply','No live marketplace stock was collected'])if(!presenter.includes(token))throw new Error(`missing large-family scope guard token: ${token}`);
-for(const token of ['discoverFamilyTargets','ask_family_supply_identity_fallback','maximum_automatic_product_discovery:10','canonical_family_skus_not_found','identity_fallback_used'])if(!presenter.includes(token))throw new Error(`missing bounded family identity fallback token: ${token}`);
+for(const token of ['discoverFamilyTargets','ask_family_supply_identity_fallback','maximum_automatic_product_discovery:10','canonical_family_skus_not_found','identity_fallback_used','persist:true','persist_matches_only:true'])if(!presenter.includes(token))throw new Error(`missing bounded family identity fallback token: ${token}`);
+for(const token of ['persistMatchesOnly','persistedRecords','desiredConditions.includes(x.condition)'])if(!discovery.includes(token))throw new Error(`bounded discovery persistence token missing: ${token}`);
+if(!/JSON\.stringify\(init\.body\)/.test(discovery))throw new Error('discovery REST writes must JSON-encode structured request bodies');
+for(const token of ['scout_tcgplayer_sku_discovery_cache',"d.source <> 'discovery_negative'",'source_rank'])if(!discoveredCanonical.includes(token))throw new Error(`canonical family resolver is missing verified discovery token: ${token}`);
 for(const token of ['SUPPLY_SCOPE_REQUIRED','identityCount>10','PRINTING_COHORT_NM_LP','BOUNDED_PRINTING_COHORT','must not be described as total card-family or market-wide supply'])if(!sync.includes(token))throw new Error(`missing collector scope enforcement token: ${token}`);
 if(!/targets\.length===1&&requestedScope==='EXACT_SKU'/.test(sync))throw new Error('single-SKU card families must not bypass family classification and confidence');
 for(const token of ['age_minutes','freshness_status','usable_for_market_claim','mapping_coverage_pct','oldest_age_minutes'])if(!sync.includes(token))throw new Error(`missing source-confidence token: ${token}`);
@@ -52,7 +56,7 @@ if(/kind:'ranked_rows'/.test(presenter))throw new Error('primary Discord supply 
 if(/Other variants/.test(presenter))throw new Error('supply ladder must not hide measured variants behind an Other bucket');
 if(/Unexpected supply break/.test(presenter)||/findUnexpectedBreak/.test(presenter))throw new Error('collector-number-only anomaly language must not return');
 if(!/\*\*Nonfoil\*\*/.test(presenter)||!/\*\*Foil · ★\*\*/.test(presenter))throw new Error('modern-set supply ladder must bucket nonfoil and foil variants with compact star notation');
-for(const token of ['ask_collectish_family_printing_opportunity_v3','opportunityTextV3','UNDERPRICED_FOR_PULL_RARITY_CANDIDATE','PULL_RARITY_VALUE_SIGNAL_DEMAND_UNCONFIRMED',"d==='CONFIRMED'",'demand unknown','Collector Boosters','odds only where sourced'])if(!presenter.includes(token))throw new Error(`missing demand/pull-odds presenter token: ${token}`);
+for(const token of ['ask_collectish_family_printing_opportunity_v3','opportunityTextV3','UNDERPRICED_FOR_PULL_RARITY_CANDIDATE','PULL_RARITY_VALUE_SIGNAL_DEMAND_UNCONFIRMED',"d==='CONFIRMED'",'demand unknown','packs_per_hit','odds only where sourced'])if(!presenter.includes(token))throw new Error(`missing demand/pull-odds presenter token: ${token}`);
 if(!/explicitRow/.test(presenter))throw new Error('ambiguous collector-number schemes need explicit finish-label fallback');
 if(!/TCG split/.test(presenter))throw new Error('Direct and non-Direct must remain one compact TCG split metric');
 if(/ask-collectish-identity-recovery/.test(presenter))throw new Error('Discord supply presenter must not depend on user-auth identity recovery');
